@@ -257,7 +257,9 @@ export function voiceRouter(vaultPath) {
         // the Coach tab (lib/consult.js markHisWords; his call, 3 Oct)
         const { markHisWords } = await import('../lib/consult.js');
         markHisWords(question);
-        const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null, where: ctx.where });
+        // spoken: the same flag Nova's lane reads below; on a spoken turn the
+        // Coach speaks its first sentence before any tool call (coachTurn.js)
+        const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null, where: ctx.where, spoken: req.body?.spoken === true });
         markNoGlass(jobId, ctx.where.place);
         watchAnswerFor(jobId, 'coach');
         console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);

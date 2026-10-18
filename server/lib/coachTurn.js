@@ -22,6 +22,7 @@ import { carryoverContext } from './workoutCarryover.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { computeStreaks } from './streaks.js';
 import { preferencesContext } from './learning.js';
+import { localDateISO } from './localDate.js';
 
 // ------------------------------ session hygiene ------------------------------
 // 18 Oct 2026, measured: every resumed Coach turn appended 10-24k characters
@@ -38,6 +39,13 @@ import { preferencesContext } from './learning.js';
 export const ROLL_TOKENS = 150_000;
 export const ROLL_IDLE_MS = 12 * 60 * 60_000;
 const LIVE_HEAD = /^LIVE UPDATE \([^)]*\): ([\s\S]*?)\.?$/;
+
+// SPEAK FIRST (18 Oct 2026, measured): a spoken Coach turn reached a tool
+// call before any words, and he waited 34.7 s in silence for the first one.
+// On a SPOKEN turn only (Nova's door with spoken: true), the turn carries
+// this line; the Coach tab and consults never see it.
+export const SPEAK_FIRST_RULE = '[SPEAK FIRST: your first sentence answers from what is already in front of you, before any tool call; if you need to check something, say the one-line answer you have, then look.]';
+export const speakFirstLine = (spoken) => (spoken === true ? SPEAK_FIRST_RULE : '');
 
 // What was last sent to each session, so the next turn can send the change.
 // In memory: after a restart the first turn sends the whole line, once.
@@ -103,13 +111,15 @@ export async function carryLine(vaultPath, sessionId, rolled, { tail } = {}) {
 // volatile picture as a live line; a new one gets the full assembly.
 // `consulted` (lib/consult.js): another agent is asking — a fresh session with
 // the same full picture, answering that agent, stamping nothing on his behalf.
-export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null, where = null } = {}) {
+export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null, where = null, spoken = false } = {}) {
   const { liveSessionContext, coachLiveLine } = await import('./coach.js');
   const live = liveSessionContext(liveSession);
   // WHERE HE IS (lib/register.js): the gym's one-sentence register, or the
   // car's two; '' for the desk and the phone. A consult never carries it.
   const { whereLine } = await import('./register.js');
   const placeLine = consulted ? '' : whereLine(where?.place);
+  // a consult is another agent asking, never a spoken turn of his
+  const speakFirst = consulted ? '' : speakFirstLine(spoken);
   // a request for the whole picture thinks harder (claudeCode.js DEEP_EFFORT)
   const deep = !consulted && isDeepAsk(question);
   // THE LANE GUARD (lib/askSession.js): an id recorded for Nova or the
@@ -131,7 +141,7 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
   }
   if (sessionId) {
     const fresh = await coachLiveLine(vaultPath).catch(() => '');
-    const preamble = [liveDelta(sessionId, fresh), live ? `[${live}]` : '', placeLine].filter(Boolean).join('\n');
+    const preamble = [liveDelta(sessionId, fresh), live ? `[${live}]` : '', placeLine, speakFirst].filter(Boolean).join('\n');
     const q = preamble ? `${preamble}\n\n${question}` : question;
     // `asked` is his question alone — the text his cards carry, never the preamble
     return startAskCoach(vaultPath, { question: q, asked: question, sessionId, deep });
@@ -195,10 +205,17 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         parts.push(sessions.length
           ? 'Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join(',')}`).join(' | ')}`).join('\n')
           : 'No sessions logged yet.');
-        const { estimateE1RMs } = await import('./coach.js');
-        const e1rms = estimateE1RMs(await loadSessions(vaultPath, { limit: 12 }));
-        if (e1rms.length) parts.push('Estimated 1RMs (Epley, from logged sets — direction matters more than the number): ' + e1rms.slice(0, 8).map((x) => `${x.name} ${x.e1rm}kg${x.delta != null ? ` (${x.delta >= 0 ? '+' : ''}${x.delta})` : ''}`).join('; ') + '.');
       } catch { failures.push('recent sessions'); }
+      try {
+        // LIFT TRENDS (coach.js liftTrendsContext): every lift trained in the
+        // last 12 weeks, weekly best e1RM, the 4-week change and a code-written
+        // verdict. Replaced the 12-session estimateE1RMs line (18 Oct 2026),
+        // which sent a trend question to Grep the raw logs. loadSessions has
+        // no date filter; liftTrends drops everything older than the window.
+        const { liftTrendsContext } = await import('./coach.js');
+        const trends = liftTrendsContext(await loadSessions(vaultPath), { today: localDateISO() });
+        if (trends) parts.push(trends);
+      } catch { failures.push('lift trends'); }
       try {
         const { exercises } = await loadExerciseLibrary(vaultPath);
         const { routines, schedule } = await loadRoutines(vaultPath, exercises);
@@ -464,5 +481,6 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
       }
       if (carry) parts.push(carry);
       if (placeLine) parts.push(placeLine);
+      if (speakFirst) parts.push(speakFirst);
       return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined, deep, rolled });
 }

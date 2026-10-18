@@ -620,6 +620,124 @@ export function estimateE1RMs(sessions, { recentCount = 6 } = {}) {
   return out.sort((a, b) => b.e1rm - a.e1rm);
 }
 
+/* ------------------------------ lift trends ------------------------------ */
+
+// LIFT TRENDS IN HAND (18 Oct 2026). Measured that day: "is my bench
+// progressing or stalling" sent the Coach to Grep the raw session logs
+// (20k characters back, a second 23 s model pass) before his first word at
+// 34.7 s, because his context carried estimateE1RMs over the last 12
+// SESSIONS only, best of six against six, top eight lifts. A trend question
+// needs the weeks. This is that answer, computed by code from every logged
+// set in the window, one line per lift, so the model quotes it instead of
+// re-deriving it.
+//
+// The numbers follow estimateE1RMs exactly: Epley, weight × (1 + reps/30),
+// sets of 12 reps or fewer with a load, rounded to 0.5 kg. Warm-up sets are
+// left out (they can only lower a best). Every comparison below is made on
+// those ROUNDED values, the resolution the line displays (memory: "rounded
+// comparisons"), so a verdict can never disagree with the numbers beside it.
+export const TREND_WEEKS = 12;
+export const TREND_MAX_LIFTS = 25;
+export const TREND_MAX_CHARS = 3500;
+// THE VERDICT RULE, the one place it lives: on the 4-week change (the newest
+// trained week against the newest trained week 4 to 6 weeks before it), or,
+// when no week sits that far back, the change since the oldest trained week
+// in the window.
+//   rising  = change >= +1.25 kg  (on the 0.5 kg grid: +1.5 kg or more)
+//   falling = change <= -1.25 kg  (-1.5 kg or more)
+//   flat    = |change| < 1.25 kg  (within 1 kg either way)
+//   too little data = only one week trained in the window
+export const TREND_FLAT_KG = 1.25;
+
+const round05 = (x) => Math.round(x * 2) / 2;
+const dayNum = (iso) => Math.floor(Date.parse(`${String(iso).slice(0, 10)}T12:00:00Z`) / 86400000);
+const signed = (x) => `${x >= 0 ? '+' : ''}${x}`;
+
+export function trendVerdict(delta) {
+  if (delta == null) return 'too little data';
+  if (delta >= TREND_FLAT_KG) return 'rising';
+  if (delta <= -TREND_FLAT_KG) return 'falling';
+  return 'flat';
+}
+
+// sessions: loadSessions' shape (any order). today: his local date, YYYY-MM-DD.
+// Returns one row per lift trained in the window: weekly bests oldest first
+// (index TREND_WEEKS-1 is the 7 days ending today), the two changes, sessions,
+// and the verdict word.
+export function liftTrends(sessions, { today, weeks = TREND_WEEKS } = {}) {
+  const t = dayNum(today);
+  const lifts = new Map();
+  for (const s of sessions || []) {
+    const ago = t - dayNum(s.date);
+    if (!Number.isFinite(ago) || ago < 0 || ago >= weeks * 7) continue;
+    const w = Math.floor(ago / 7); // 0 = this week
+    for (const e of s.exercises || []) {
+      let best = null;
+      for (const set of e.sets || []) {
+        if (!set.weight || !set.reps || set.reps > 12 || set.setType === 'warmup') continue;
+        const e1 = round05(set.weight * (1 + set.reps / 30));
+        if (best == null || e1 > best) best = e1;
+      }
+      if (best == null) continue;
+      const key = e.exerciseId || e.name;
+      let row = lifts.get(key);
+      if (!row) { row = { exerciseId: e.exerciseId || null, name: e.name, byWeek: new Array(weeks).fill(null), sessions: new Set() }; lifts.set(key, row); }
+      if (row.byWeek[w] == null || best > row.byWeek[w]) row.byWeek[w] = best;
+      row.sessions.add(s.id || `${s.date}|${s.routineName || ''}`);
+    }
+  }
+  const out = [];
+  for (const row of lifts.values()) {
+    const trained = row.byWeek.map((v, w) => (v == null ? null : w)).filter((w) => w != null);
+    const latestW = trained[0];
+    const oldestW = trained[trained.length - 1];
+    const latest = row.byWeek[latestW];
+    const base4W = trained.find((w) => w >= latestW + 4 && w <= latestW + 6);
+    const delta4 = base4W == null ? null : round05(latest - row.byWeek[base4W]);
+    const spanWeeks = oldestW - latestW;
+    const deltaSpan = spanWeeks > 0 ? round05(latest - row.byWeek[oldestW]) : null;
+    out.push({
+      exerciseId: row.exerciseId, name: row.name,
+      weekly: [...row.byWeek].reverse(), // oldest first
+      latest, latestWeeksAgo: latestW,
+      delta4, spanWeeks, deltaSpan,
+      sessions: row.sessions.size,
+      verdict: trendVerdict(delta4 != null ? delta4 : deltaSpan),
+    });
+  }
+  // the lifts he trains most first, then the heaviest
+  return out.sort((a, b) => b.sessions - a.sessions || b.latest - a.latest || a.name.localeCompare(b.name));
+}
+
+export function liftTrendLine(r) {
+  const weeks = r.weekly.map((v) => (v == null ? '-' : String(v))).join(' ');
+  const bits = [
+    `4w ${r.delta4 == null ? 'n/a' : signed(r.delta4)}`,
+    r.deltaSpan == null ? null : `${r.spanWeeks}w ${signed(r.deltaSpan)}`,
+    `${r.sessions} session${r.sessions === 1 ? '' : 's'}`,
+    r.verdict + (r.latestWeeksAgo >= 2 ? ` (last trained ${r.latestWeeksAgo}w ago)` : ''),
+  ].filter(Boolean);
+  return `${r.name}: ${weeks} | ${bits.join(' | ')}`;
+}
+
+export const LIFT_TRENDS_HEAD = `LIFT TRENDS, last ${TREND_WEEKS} weeks: these are computed from every logged set; quote them; search the logs only for something this block does not answer. Per lift: best e1RM per week in kg (Epley, 12 reps or fewer, no warm-ups, 0.5 kg steps), oldest first, the last is the 7 days to today, - = not trained; 4w = newest trained week against the one 4-6 weeks before it; then the change across the weeks shown; sessions; verdict (rising or falling = a 4w change of 1.5 kg or more, flat = within 1 kg).`;
+
+// The block for the Coach's context, or '' when nothing was trained in the
+// window. At most TREND_MAX_LIFTS lines and TREND_MAX_CHARS characters: the
+// least-trained lifts are the ones left out, and the block says how many.
+export function liftTrendsContext(sessions, { today, maxLifts = TREND_MAX_LIFTS, maxChars = TREND_MAX_CHARS } = {}) {
+  const rows = liftTrends(sessions, { today });
+  if (!rows.length) return '';
+  let lines = rows.slice(0, maxLifts).map(liftTrendLine);
+  const render = (ls) => {
+    const left = rows.length - ls.length;
+    return [LIFT_TRENDS_HEAD, ...ls, ...(left ? [`(${left} less-trained lift${left === 1 ? '' : 's'} left out for length.)`] : [])].join('\n');
+  };
+  let text = render(lines);
+  while (text.length > maxChars && lines.length > 1) { lines = lines.slice(0, -1); text = render(lines); }
+  return text;
+}
+
 /* --------------------------- session summary ----------------------------- */
 
 const volumeOf = (session) => Math.round(session.exercises.reduce((v, e) => v + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0));
