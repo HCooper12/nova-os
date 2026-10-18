@@ -15,7 +15,7 @@ import { addTransactions, removeTransactions, restoreTransactions, editTransacti
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
@@ -184,6 +184,7 @@ function classify(text, onDone) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildPrompt(text),
     '--model', modelFor('inbox-classify'),
+    ...effortArgs('inbox-classify'),
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs(''),
     '--output-format', 'json',

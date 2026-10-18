@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvedModels, lastCheckedAt, modelLabel } from './modelWatch.js';
 import { spendSummary } from './modelSpend.js';
+import { effortFlag } from './spawnBoundary.js';
 
 // ---------------------------------------------------------------------------
 // THE MODEL BOARD — one place that names every lane in Nova that spawns the
@@ -139,6 +140,8 @@ export const LANE_GROUPS = [
 // that keeps a toggle honest — exactly what stops happening when it is off.
 // `def` preserves each lane's behaviour as it shipped, except for the eight
 // that were never pinned at all; those are named here for the first time.
+// Every lane below carries a `defEffort` (except the deterministic ones, which
+// spawn nothing): the ambient `effortLevel: xhigh` must never reach a spawn.
 export const LANES = [
   // ---- conversation -------------------------------------------------------
   {
@@ -147,13 +150,13 @@ export const LANES = [
     off: 'The voice screen and the Siri shortcut stop answering and say so; everything deterministic (the glass, the brief’s numbers) still works.',
   },
   {
-    id: 'greeting', label: 'Doorman greeting', group: 'conversation', def: 'haiku',
+    id: 'greeting', label: 'Doorman greeting', group: 'conversation', def: 'haiku', defEffort: 'low',
     hint: 'the unscripted hello when you arrive — composition only, no vault reads',
     off: 'Nova opens without a spoken greeting. Nothing is faked in its place.',
   },
   {
     id: 'calendar-command', label: 'Calendar in plain words', group: 'conversation',
-    def: process.env.NOVA_CALENDAR_MODEL || 'haiku',
+    def: process.env.NOVA_CALENDAR_MODEL || 'haiku', defEffort: 'low',
     hint: 'reads “move gym to 6pm tomorrow” into a typed calendar change',
     off: 'Calendar commands are refused with a plain message — nothing is guessed at your diary.',
   },
@@ -165,154 +168,154 @@ export const LANES = [
     off: 'Coach chat is refused with a plain message. Your program, history and analytics are untouched.',
   },
   {
-    id: 'quick-session', label: 'Quick Session designer', group: 'coach', def: 'sonnet',
+    id: 'quick-session', label: 'Quick Session designer', group: 'coach', def: 'sonnet', defEffort: 'low',
     hint: 'designs a one-off, time-boxed workout for a day outside the program',
     off: 'The Quick Session button reports it is off; build the session by hand instead.',
   },
   {
-    id: 'session-debrief', label: 'Post-session debrief', group: 'coach', def: 'sonnet',
+    id: 'session-debrief', label: 'Post-session debrief', group: 'coach', def: 'sonnet', defEffort: 'low',
     hint: 'the words a coach says as the bar goes back in the rack',
     off: 'Sessions log exactly as they do now, just without the spoken reaction.',
   },
   {
-    id: 'coach-reflection', label: 'Coach nightly reflection', group: 'coach', def: 'sonnet',
+    id: 'coach-reflection', label: 'Coach nightly reflection', group: 'coach', def: 'sonnet', defEffort: 'low',
     hint: 'the Coach reviewing its own recent calls overnight',
     off: 'The nightly reflection is skipped. The deterministic program-review detectors keep running.',
   },
   {
-    id: 'exercise-research', label: 'Exercise research', group: 'coach', def: 'sonnet',
+    id: 'exercise-research', label: 'Exercise research', group: 'coach', def: 'sonnet', defEffort: 'high',
     hint: 'a new exercise researched and added properly; the library improved weekly',
     off: 'New exercises keep only the name and filing you gave them, and the weekly library pass is skipped.',
   },
   {
-    id: 'weekly-debrief', label: 'Weekly training debrief', group: 'coach', def: 'sonnet',
+    id: 'weekly-debrief', label: 'Weekly training debrief', group: 'coach', def: 'sonnet', defEffort: 'low',
     hint: 'the week held against what you said you were training for',
     off: 'No weekly debrief is drafted into your Inbox.',
   },
 
   // ---- capture ------------------------------------------------------------
   {
-    id: 'inbox-classify', label: 'Capture classifier', group: 'capture', def: 'haiku',
+    id: 'inbox-classify', label: 'Capture classifier', group: 'capture', def: 'haiku', defEffort: 'low',
     hint: 'reads a captured line and decides what kind of thing it is',
     off: 'Captures still land on the rails and stop there, flagged with the reason — switch it back on and RETRY to file them.',
   },
   {
     id: 'scan-food-label', label: 'Food label scan', group: 'capture',
-    def: process.env.NOVA_FOOD_SCAN_MODEL || 'haiku',
+    def: process.env.NOVA_FOOD_SCAN_MODEL || 'haiku', defEffort: 'low',
     hint: 'a photographed nutrition label into macros',
     off: 'Label scanning is refused; barcode lookup and manual entry still work.',
   },
   {
     id: 'scan-food-meal', label: 'Meal photo scan', group: 'capture',
-    def: process.env.NOVA_FOOD_SCAN_MEAL_MODEL || 'sonnet',
+    def: process.env.NOVA_FOOD_SCAN_MEAL_MODEL || 'sonnet', defEffort: 'low',
     hint: 'a photographed plate into an estimated entry — judgment, not OCR',
     off: 'Meal photo scanning is refused; log the meal by hand or from a recipe.',
   },
   {
-    id: 'recipe-video', label: 'Recipe from a reel', group: 'capture', def: 'sonnet',
+    id: 'recipe-video', label: 'Recipe from a reel', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: 'a recipe reel’s caption (and transcript if needed) into recipes for his collection — code decides the macros',
     off: 'Recipe links go to the Watcher for a verdict instead; add the recipe by hand in Fuel.',
   },
   {
-    id: 'food-refine', label: 'Meal correction', group: 'capture', def: 'sonnet',
+    id: 'food-refine', label: 'Meal correction', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: 'his words about a scanned or described plate (“the rissole was vegetarian”) into a revised plate — code keeps untouched lines and does every sum',
     off: 'An estimate can still be edited by hand before it is logged; corrections in words are refused with a plain message.',
   },
   {
-    id: 'eat-out-menu', label: 'Takeaway menu read', group: 'capture', def: 'sonnet',
+    id: 'eat-out-menu', label: 'Takeaway menu read', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: 'a chain’s published nutrition PDF into catalogue rows — code rejects any row whose numbers don’t add up',
     off: 'Chains that only publish a PDF stay out of the takeaway catalogue; Open Food Facts brands still refresh.',
   },
   {
-    id: 'paper', label: 'Study → program', group: 'coach', def: 'opus',
+    id: 'paper', label: 'Study → program', group: 'coach', def: 'opus', defEffort: 'high',
     hint: 'a paper read into claims, then judged against his real block — a change lands as a Coach proposal',
     off: 'Studies are refused; the Researcher can still read a link into a note.',
   },
   {
-    id: 'form-check', label: 'Form check', group: 'coach', def: 'opus',
+    id: 'form-check', label: 'Form check', group: 'coach', def: 'opus', defEffort: 'high',
     hint: 'frames of one working set read against a written rubric — refuses a clip it cannot read',
     off: 'Form checks are refused; film the set and review it yourself.',
   },
   {
-    id: 'food-describe', label: 'Food from a description', group: 'capture', def: 'sonnet',
+    id: 'food-describe', label: 'Food from a description', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: '“two eggs on sourdough” into macros — searches the web for real product numbers',
     off: 'Describing a meal in words is refused; scan, barcode and manual entry still work.',
   },
   {
     id: 'scan-recipe', label: 'Recipe scan', group: 'capture',
-    def: process.env.NOVA_SCAN_MODEL || 'haiku',
+    def: process.env.NOVA_SCAN_MODEL || 'haiku', defEffort: 'low',
     hint: 'photographed recipe pages into a structured recipe you review before saving',
     off: 'Recipe scanning is refused; add the recipe manually.',
   },
   {
-    id: 'scan-statement', label: 'Bank statement scan', group: 'capture', def: 'sonnet',
+    id: 'scan-statement', label: 'Bank statement scan', group: 'capture', def: 'sonnet', defEffort: 'high',
     hint: 'photographed statement rows into reviewable transactions',
     off: 'Statement scanning is refused; the CSV import path is unaffected.',
   },
   {
-    id: 'tweak-recipe', label: 'Recipe tweak', group: 'capture', def: 'sonnet',
+    id: 'tweak-recipe', label: 'Recipe tweak', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: '“make it higher protein” into a real alternate version',
     off: 'Tweaks are refused; the original recipe and its saved alternates stay as they are.',
   },
   {
-    id: 'shopping-categorize', label: 'Shopping list sorting', group: 'capture', def: 'sonnet',
+    id: 'shopping-categorize', label: 'Shopping list sorting', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: 'files added items under the right supermarket aisle',
     off: 'Items still get added — they just land uncategorised.',
   },
   {
-    id: 'rewards-offer-read', label: 'Rewards email offers', group: 'capture', def: 'haiku',
+    id: 'rewards-offer-read', label: 'Rewards email offers', group: 'capture', def: 'haiku', defEffort: 'low',
     hint: 'an Everyday Rewards or Flybuys email code could not read, into offers — code checks every figure is in the email before one is kept',
     off: 'Offers code can read still arrive; an email it cannot read is noted as unread and shows nothing.',
   },
   {
-    id: 'ingest', label: 'Vault ingest', group: 'capture', def: 'opus',
+    id: 'ingest', label: 'Vault ingest', group: 'capture', def: 'opus', defEffort: 'high',
     hint: 'a pasted note or article woven into real vault pages — one pass doing all the thinking',
     off: 'Ingest is refused. The verbatim original is still saved to Raw/ untouched.',
   },
   {
-    id: 'ingest-digest', label: 'Vault ingest · long transcripts', group: 'capture', def: 'sonnet',
+    id: 'ingest-digest', label: 'Vault ingest · long transcripts', group: 'capture', def: 'sonnet', defEffort: 'high',
     hint: 'the same weave over a digested long transcript — structured transformation, deliberately cheaper (a 4-hour podcast once burned $8.15 on the ambient default)',
     off: 'Long transcripts are refused rather than run on the expensive path.',
   },
 
   // ---- daily --------------------------------------------------------------
   {
-    id: 'daily-review', label: 'Daily review', group: 'daily', def: 'sonnet',
+    id: 'daily-review', label: 'Daily review', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'the end-of-day read across what actually happened',
     off: 'No daily review is drafted. Your receipts and streaks are deterministic and keep working.',
   },
   {
-    id: 'plan-today', label: 'Plan today', group: 'daily', def: 'sonnet',
+    id: 'plan-today', label: 'Plan today', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'the morning shape of the day, drafted for your yes',
     off: 'No plan is drafted; the brief still reports the day’s real numbers.',
   },
   {
-    id: 'journal-prompt', label: 'Journal prompt', group: 'daily', def: 'sonnet',
+    id: 'journal-prompt', label: 'Journal prompt', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'the one question worth answering tonight',
     off: 'The journal opens blank instead of prompted.',
   },
   {
-    id: 'health-insight', label: 'Health insight', group: 'daily', def: 'sonnet',
+    id: 'health-insight', label: 'Health insight', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'reads your health data for the thing worth telling you',
     off: 'Health numbers, charts and the Sentinel’s deterministic alerts are unaffected; only the written read stops.',
   },
   {
-    id: 'note-summary', label: 'Note summaries', group: 'daily', def: 'sonnet',
+    id: 'note-summary', label: 'Note summaries', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'the one-line gist cached against a vault page',
     off: 'Notes show their own opening lines instead of a summary.',
   },
   {
-    id: 'pattern-scout', label: 'Pattern scout', group: 'daily', def: 'sonnet',
+    id: 'pattern-scout', label: 'Pattern scout', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'hunts for cross-surface patterns worth raising',
     off: 'No patterns are raised.',
   },
   {
-    id: 'leader-daily', label: 'Leader — daily idea', group: 'daily', def: 'sonnet',
+    id: 'leader-daily', label: 'Leader — daily idea', group: 'daily', def: 'sonnet', defEffort: 'low',
     hint: 'the one leadership idea on your homepage each morning',
     off: 'No Try Today card is generated; the Leader’s library and your reflections are untouched.',
   },
   {
-    id: 'leader-research', label: 'Leader — weekly research', group: 'daily', def: 'opus',
+    id: 'leader-research', label: 'Leader — weekly research', group: 'daily', def: 'opus', defEffort: 'high',
     hint: 'Saturday’s web-research run, steered by your stated struggles',
     off: 'The research library stops growing; daily ideas keep drawing on the vault and what’s already gathered.',
   },
@@ -322,39 +325,39 @@ export const LANES = [
     off: 'The Leader chat is refused with a plain message; the daily idea keeps arriving.',
   },
   {
-    id: 'practice-prepare', label: 'Practice — preparing a skill', group: 'daily', def: 'opus',
+    id: 'practice-prepare', label: 'Practice — preparing a skill', group: 'daily', def: 'opus', defEffort: 'high',
     hint: 'reads your sources into a practice page: moves, lines, scenes',
     off: 'New practice pages are refused with a plain message; the pages you have, and rehearsing them, are untouched.',
   },
   {
-    id: 'practice-chat', label: 'Practice — the scene', group: 'conversation', def: 'opus',
+    id: 'practice-chat', label: 'Practice — the scene', group: 'conversation', def: 'opus', defEffort: 'high',
     hint: 'the scene partner and the debrief',
     off: 'Scenes are refused with a plain message; your practice pages and their session history stay readable.',
   },
   {
-    id: 'distill', label: 'Distill', group: 'daily', def: 'sonnet',
+    id: 'distill', label: 'Distill', group: 'daily', def: 'sonnet', defEffort: 'high',
     hint: 'compresses a long thing into the part that matters',
     off: 'Distillation is refused; the source stays whole and readable.',
   },
   {
-    id: 'pulse', label: 'Pulse', group: 'daily', def: 'haiku',
+    id: 'pulse', label: 'Pulse', group: 'daily', def: 'haiku', defEffort: 'low',
     hint: 'the overnight what’s-new sweep across your Interests',
     off: 'Pulse topics report honestly that nothing was fetched, rather than showing stale news as new.',
   },
   {
-    id: 'study-lane', label: 'Study lane', group: 'daily', def: 'sonnet',
+    id: 'study-lane', label: 'Study lane', group: 'daily', def: 'sonnet', defEffort: 'high',
     hint: 'turns study material into recall questions',
     off: 'The study lane is refused; existing cards are unaffected.',
   },
 
   // ---- research -----------------------------------------------------------
   {
-    id: 'planner', label: 'Planner · delegation', group: 'research', def: 'sonnet',
+    id: 'planner', label: 'Planner · delegation', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'breaks a multi-part request into steps and puts an agent on each — and writes the report at the end. Never runs a plan without showing it to you first.',
     off: 'Multi-step requests are answered as ordinary questions instead of being planned out; single-lane requests are unaffected.',
   },
   {
-    id: 'browse', label: 'The browser hand', group: 'research', def: 'sonnet',
+    id: 'browse', label: 'The browser hand', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'drives Nova’s OWN Chrome profile: opens pages, reads them, fills forms — and stops before anything that buys, sends, posts or deletes. Every run lands in your Inbox with screenshots.',
     off: 'Nova can still read the web through the Researcher; it just cannot open a browser and act in it.',
   },
@@ -363,47 +366,47 @@ export const LANES = [
     // are the ONLY model cost it adds on top: a cheap decompose and one
     // expensive synthesis. The synthesis gets no tools at all — every fact it
     // may use is already in the citation-checked findings it was handed.
-    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', def: 'haiku',
+    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', def: 'haiku', defEffort: 'low',
     hint: 'breaks a topic into the 2-5 angles that get researched in parallel',
     off: 'Briefings are refused with a plain message; nothing half-researched is filed.',
   },
   {
-    id: 'briefing-compose', label: 'Briefing · the report', group: 'research', def: 'sonnet',
+    id: 'briefing-compose', label: 'Briefing · the report', group: 'research', def: 'sonnet', defEffort: 'low',
     hint: 'writes the report AND its spoken script from the research, defining every term',
     off: 'Briefings are refused; the research angles are not started, so nothing is spent.',
   },
   {
-    id: 'leader-answer', label: 'Leader · record his answer', group: 'conversation', def: 'haiku',
+    id: 'leader-answer', label: 'Leader · record his answer', group: 'conversation', def: 'haiku', defEffort: 'low',
     hint: 'turns what he types or says back to a situation question into the record — no coaching, just bookkeeping',
     off: 'Answering a situation question inline is refused; the Leader chat still takes it the long way.',
   },
   {
-    id: 'repertoire', label: 'Repertoire · analyse & learn', group: 'research', def: 'sonnet',
+    id: 'repertoire', label: 'Repertoire · analyse & learn', group: 'research', def: 'sonnet', defEffort: 'low',
     hint: 'a clip read for the technique in it, then researched outward into a curriculum you practise one a day',
     off: 'Sending a link to analyse is refused with a plain message. Today’s technique and your practice log are untouched — the catalogue you already have keeps teaching.',
   },
   {
-    id: 'researcher', label: 'Researcher', group: 'research', def: 'sonnet',
+    id: 'researcher', label: 'Researcher', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'web-read-only, citation-required — the brief always lands in your Inbox for review',
     off: 'Research requests (including “research this” from Ask Nova and the overnight queue) are refused with a plain message.',
   },
   {
-    id: 'watcher-chunk', label: 'Watcher · transcript pass', group: 'research', def: 'sonnet',
+    id: 'watcher-chunk', label: 'Watcher · transcript pass', group: 'research', def: 'sonnet', defEffort: 'low',
     hint: 'the parallel extraction over a long video’s transcript chunks',
     off: 'Long videos are refused rather than judged from a partial read.',
   },
   {
-    id: 'watcher-verdict', label: 'Watcher · verdict pass', group: 'research', def: 'sonnet',
+    id: 'watcher-verdict', label: 'Watcher · verdict pass', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'the judgment that becomes the Coach’s evidence check or a distilled note',
     off: 'Video watching is refused; nothing is written about a video Nova has not read.',
   },
   {
-    id: 'scout', label: 'Scout · people research', group: 'research', def: 'sonnet',
+    id: 'scout', label: 'Scout · people research', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'researches a person or a social account into a dossier your vault can weave',
     off: 'Researching a person is refused with a plain message; nothing already in your vault changes.',
   },
   {
-    id: 'librarian', label: 'Librarian · book research', group: 'research', def: 'sonnet',
+    id: 'librarian', label: 'Librarian · book research', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'a book title + author into a triangulated dossier — the weave into your vault then rides the ingest lane',
     off: 'Book requests are refused with a plain message; pasting your own notes about a book still works via ingest.',
   },
@@ -411,12 +414,12 @@ export const LANES = [
     // THE LIBRARIAN, ASKED (29 Sep). Distinct from book research above: this
     // one answers a question from what his library already holds, read-only,
     // citing the note paths it read. Any agent can consult it (lib/consult.js).
-    id: 'librarian-ask', label: 'Librarian · questions', group: 'research', def: 'sonnet',
+    id: 'librarian-ask', label: 'Librarian · questions', group: 'research', def: 'sonnet', defEffort: 'low',
     hint: 'answers from his library, read-only (books, podcasts, videos, concepts, the Repertoire), citing the notes it read',
     off: 'Agents that ask the Librarian are told it is off and answer without it; nothing in your library changes.',
   },
   {
-    id: 'studio-outline', label: 'Studio outline', group: 'research', def: 'sonnet',
+    id: 'studio-outline', label: 'Studio outline', group: 'research', def: 'sonnet', defEffort: 'low',
     hint: 'an idea into a real outline in your voice',
     off: 'Outlines are refused; the idea stays in Studio as you wrote it.',
   },
@@ -429,22 +432,22 @@ export const LANES = [
     // Opus by default because he is not there to correct it — the model has to
     // be right on paper, and the cheap mistake here is an hour of his time
     // rather than a few cents.
-    id: 'build', label: 'Builder · projects', group: 'build', def: 'opus',
+    id: 'build', label: 'Builder · projects', group: 'build', def: 'opus', defEffort: 'high',
     hint: 'builds a project from a brief while you are elsewhere — writes source, never runs it',
     off: 'Build requests are refused with a plain message; nothing half-made is left in the projects folder.',
   },
   {
-    id: 'code', label: 'Code tab · Builder', group: 'build', def: 'sonnet',
+    id: 'code', label: 'Code tab · Builder', group: 'build', def: 'sonnet', defEffort: 'high',
     hint: 'the one lane that can edit real files. The Code screen’s own picker overrides this per message.',
     off: 'The Code tab refuses to send. Nothing can be edited from the phone while it is off.',
   },
   {
-    id: 'breaker', label: 'Code tab · Breaker', group: 'build', def: 'sonnet',
+    id: 'breaker', label: 'Code tab · Breaker', group: 'build', def: 'sonnet', defEffort: 'high',
     hint: 'the adversarial read-only reviewer in the sparring loop',
     off: 'SPAR reports it is off. The Builder is unaffected.',
   },
   {
-    id: 'forge', label: 'Forge', group: 'build', def: 'sonnet',
+    id: 'forge', label: 'Forge', group: 'build', def: 'sonnet', defEffort: 'high',
     hint: 'the autonomous build lane — its own sandbox, proof required. Forge jobs may name their own model.',
     off: 'New Forge jobs are refused. Jobs already running are left alone.',
   },
@@ -474,11 +477,14 @@ const LANE_BY_ID = new Map(LANES.map((l) => [l.id, l]));
 // No spawn passed --effort, so every conversation inherited the ambient
 // level, the same class of leak as the 21 Aug ambient model.
 //
-// A lane with `defEffort` passes --effort on EVERY spawn (lib/claudeCode.js
-// effortFlag), so the ambient level can never reach it. A lane without one
-// still inherits the account's level; only the lanes below carry the flag
-// today, which is why only they show the picker (a picker that changed
-// nothing would be a lie on screen).
+// A lane with `defEffort` passes --effort on EVERY spawn (effortArgs below,
+// effortFlag in lib/spawnBoundary.js), so the ambient level can never reach
+// it. Since 19 Oct 2026 EVERY non-deterministic lane carries one: the ~50
+// that did not were all thinking at the ambient xhigh (a food-photo scan, an
+// inbox classification, a greeting). Composition, classification and scan
+// lanes default to low; judgment and research lanes to high (the Coach and
+// research lanes never trade depth for speed). test/spawnEffort.test.js
+// fails any spawn site that forgets the flag.
 export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // A consulted agent answers another agent in a short brief (lib/consult.js),
 // so it thinks at the lowest level whichever lane answers.
@@ -499,6 +505,11 @@ export function effortFor(laneId) {
   if (!lane.defEffort) return null;
   const saved = loadRaw()[laneId]?.effort;
   return isValidEffort(saved) ? saved : lane.defEffort;
+}
+
+/** The `--effort` args for a lane's spawn: [] only if the CLI lacks the flag. */
+export function effortArgs(laneId) {
+  return effortFlag(effortFor(laneId));
 }
 
 /** The higher of two levels (a deep ask raises, never lowers, his setting). */

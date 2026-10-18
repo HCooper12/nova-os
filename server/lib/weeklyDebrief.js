@@ -16,7 +16,7 @@ import { loadRecentDays, weightTrendLine } from './healthData.js';
 import { computeStreaks } from './streaks.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
 
 // THE WEEKLY DEBRIEF — the Coach's Sunday sit-down. The Daily Review reads
@@ -305,6 +305,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = 
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('weekly-debrief'), // was unpinned until the model board
+    ...effortArgs('weekly-debrief'),
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 

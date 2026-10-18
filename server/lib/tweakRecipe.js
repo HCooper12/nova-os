@@ -4,7 +4,7 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -85,6 +85,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
     ...boundaryArgs(hasImages ? 'Read' : ''),
     '--output-format', 'json',
     '--model', modelFor('tweak-recipe'), // was unpinned until the model board
+    ...effortArgs('tweak-recipe'),
     '--no-session-persistence',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 

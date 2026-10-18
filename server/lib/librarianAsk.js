@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
-import { modelFor, assertLaneOn } from './modelPrefs.js';
+import { modelFor, assertLaneOn, effortArgs } from './modelPrefs.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
 import { libraryCatalogue, noteTitle } from './library.js';
 import { openConsult, consultCapability, consultedBrief, stripDirectives, ANSWER_NOW, GUARD_NOTE } from './consult.js';
@@ -132,6 +132,7 @@ function askOnce(vaultPath, { prompt, sessionId, resume }) {
         '--strict-mcp-config',
         '--output-format', 'json',
         '--model', modelFor('librarian-ask'),
+        ...effortArgs('librarian-ask'),
         resume ? '--resume' : '--session-id', sessionId,
       ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) { reject(e); return; }

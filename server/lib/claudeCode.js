@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
-import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT } from './modelPrefs.js';
+import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT, effortArgs } from './modelPrefs.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
@@ -57,39 +57,10 @@ const COACH_DISALLOWED = DISALLOWED_TOOLS.split(',').filter((t) => t !== 'WebFet
 
 const jobs = registerJobMap('claudeCode', new Map());
 
-// ------------------------------- effort -------------------------------------
-// --effort on every conversational spawn (lib/modelPrefs.js effortFor), so the
-// account's ambient `effortLevel: "xhigh"` never reaches a lane. Older CLIs
-// have no such flag and would refuse to start with it, so the installed one
-// is asked once, at load (`claude --help`, 5 s: a read of a help page, never
-// a model run), and the flag is dropped with one log line if it is missing.
-// Until the answer lands the flag is sent: the CLI on his Mac has it
-// (verified 18 Oct 2026, `claude --help`: "--effort <level> … low, medium,
-// high, xhigh, max").
-let effortSupported = null;
-(function probeEffort() {
-  try {
-    // spawn's own `timeout` ends a help page that hangs; it is a read, never
-    // a model run, so no turn is ever cut short by it
-    const child = spawn(CLAUDE_BIN, ['--help'], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
-    let out = '';
-    child.stdout.on('data', (d) => { out += d; });
-    const settle = (ok) => {
-      if (effortSupported !== null) return;
-      effortSupported = ok;
-      if (!ok) console.log('claude: the installed CLI has no --effort flag, so every lane spawns without it and thinks at the account\'s level');
-    };
-    child.on('close', () => settle(/--effort\b/.test(out)));
-    child.on('error', () => settle(false));
-    child.unref?.();
-    child.stdout.unref?.();
-  } catch { effortSupported = false; }
-})();
-export function effortFlag(level) {
-  if (!level || effortSupported === false) return [];
-  return ['--effort', level];
-}
-export function _setEffortSupportedForTest(v) { effortSupported = v; }
+// effortFlag / _setEffortSupportedForTest live in spawnBoundary.js (importable
+// from any lane module without pulling in this file); re-exported here.
+export { effortFlag, _setEffortSupportedForTest } from './spawnBoundary.js';
+import { effortFlag } from './spawnBoundary.js';
 // the effort a spawn's args carry (null when none): the receipt's figure,
 // and part of what a warm process must match to serve a turn
 function argValue(args, flag) {
@@ -422,7 +393,7 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
     a.push(resume ? '--resume' : '--session-id', effectiveSessionId);
     // an explicit choice from the Code screen's picker always wins; absent
     // that, the lane's setting. modelFor never returns empty.
-    a.push('--model', model || modelFor('code'));
+    a.push('--model', model || modelFor('code'), ...effortArgs('code'));
     return a;
   };
 
@@ -1176,6 +1147,7 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
     // whatever the account defaulted to, which is the exact failure the
     // 21-Aug Coach fix was about. Named now, like every other lane.
     '--model', modelFor('session-debrief'),
+    ...effortArgs('session-debrief'),
     '--session-id', effectiveSessionId,
   ];
   warmTurn({
@@ -1215,6 +1187,7 @@ export function startGreeting(cwd, { facts }) {
     '--include-partial-messages',
     '--verbose',
     '--model', modelFor('greeting'),
+    ...effortArgs('greeting'),
     '--session-id', effectiveSessionId,
   ];
 
@@ -1710,6 +1683,7 @@ export function startAskPractice(cwd, { text, sessionId, resume = false, mode = 
     '--include-partial-messages',
     '--verbose',
     '--model', modelFor('practice-chat'),
+    ...effortArgs('practice-chat'),
     resume ? '--resume' : '--session-id', effectiveSessionId,
   ];
 
@@ -1766,6 +1740,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('quick-session'), // was unpinned until the model board
+    ...effortArgs('quick-session'),
     '--session-id', randomUUID(),
   ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -1840,6 +1815,7 @@ Report format: a short verdict line, then a numbered list of findings — each w
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('breaker'), // was unpinned until the model board
+    ...effortArgs('breaker'),
     '--session-id', randomUUID(), // fresh session every time — the Breaker judges cold
   ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] }); // stdin closed — the CLI otherwise waits on the open pipe
 

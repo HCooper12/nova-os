@@ -21,7 +21,7 @@ import { listTodos } from './todos.js';
 import { preferencesContext } from './learning.js';
 import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
 
 // THE DAILY REVIEW — Nova's flagship intelligent surface. Once a day, a model
@@ -310,6 +310,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
     // now comes from the model board (lib/modelPrefs.js) so it is settable
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('daily-review'),
+    ...effortArgs('daily-review'),
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 

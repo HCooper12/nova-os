@@ -3,7 +3,7 @@ import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
 import { parseEnvelope } from './modelSpend.js';
@@ -142,6 +142,7 @@ export function startPromptJob(seed, meta = {}) {
     // ambient default model. The pin comes from the model board
     // (lib/modelPrefs.js); the default is the 'sonnet' this lane always ran on.
     '--model', modelFor('journal-prompt'),
+    ...effortArgs('journal-prompt'),
     '--no-session-persistence',
   ]);
 

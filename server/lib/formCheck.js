@@ -26,7 +26,7 @@ import { mkdir, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { boundaryArgs } from './spawnBoundary.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
 import { registerJobMap } from './jobRegistry.js';
 import { parseEnvelope } from './modelSpend.js';
@@ -381,6 +381,7 @@ async function askModel(prompt) {
       ...boundaryArgs('Read'),
       '--output-format', 'json',
       '--model', modelFor(FORM_LANE),
+      ...effortArgs(FORM_LANE),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; let err = '';

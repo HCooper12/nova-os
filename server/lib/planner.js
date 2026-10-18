@@ -18,7 +18,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError, isValidModel } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, isValidModel, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
 import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, costLine, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
@@ -168,6 +168,7 @@ function planGoal(vaultPath, recordId, goal, model, inherited = []) {
     ...boundaryArgs(''),
     '--output-format', 'json',
     '--model', model || modelFor('planner'),
+    ...effortArgs('planner'),
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -643,6 +644,7 @@ function writeReport(vaultPath, recordId, goal, plan, progress) {
       ...boundaryArgs(''), // synthesis only — everything it needs is in the prompt
       '--output-format', 'json',
       '--model', modelFor('planner'),
+      ...effortArgs('planner'),
       '--session-id', randomUUID(),
     ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';

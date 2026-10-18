@@ -5,7 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
-import { modelFor, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneEnabled, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 import { parseEventLocal, EDIT_WORDS_RE } from './calendarLocal.js';
@@ -45,6 +45,7 @@ function interpret(prompt) {
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
       '--model', modelFor('calendar-command'),
+      ...effortArgs('calendar-command'),
       ...boundaryArgs(''),
       '--output-format', 'json',
       '--no-session-persistence',

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
-import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneSkipped, laneEnabled, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseModelJson } from './jsonSalvage.js';
 import { parseEnvelope } from './modelSpend.js';
@@ -284,6 +284,7 @@ Output ONLY a JSON array with exactly ${unsure.length} strings, one category per
     '--output-format', 'json',
     // pinned from the model board (lib/modelPrefs.js); never the ambient default
     '--model', modelFor('shopping-categorize'),
+    ...effortArgs('shopping-categorize'),
     '--no-session-persistence',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';

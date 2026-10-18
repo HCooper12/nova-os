@@ -9,7 +9,7 @@ import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { Vault } from './vault.js';
 import { createRecord, updateRecord } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { NOVA_LENS } from './lens.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -110,6 +110,7 @@ export async function startOutline(vaultPath, id) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('studio-outline'), // was unpinned until the model board
+    ...effortArgs('studio-outline'),
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 

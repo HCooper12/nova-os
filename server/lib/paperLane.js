@@ -24,7 +24,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
 import { validateOps } from './coachPlan.js';
@@ -358,6 +358,7 @@ function askModel(prompt, { lane, tools, vaultPath }) {
       ...boundaryArgs(tools),
       '--output-format', 'json',
       '--model', modelFor(lane),
+      ...effortArgs(lane),
       '--session-id', randomUUID(),
     ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; let err = '';

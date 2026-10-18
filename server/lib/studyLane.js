@@ -13,7 +13,7 @@
 // ALWAYS stated: "transcribed 10 of 37" is a finding, not a footnote.
 
 import { spawn } from 'node:child_process';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -148,6 +148,7 @@ function runModel(prompt) {
       ...boundaryArgs(''),
       '--output-format', 'json',
       '--model', modelFor('study-lane'), // was unpinned until the model board
+      ...effortArgs('study-lane'),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';

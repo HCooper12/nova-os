@@ -19,6 +19,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { beat } from './heartbeat.js';
+import { effortFlag } from './spawnBoundary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -81,6 +82,7 @@ function spawnProbe(alias) {
     const child = spawn(CLAUDE_BIN, [
       '-p', 'ok',
       '--model', alias,
+      ...effortFlag('low'), // a one-word probe must not think at the account's xhigh
       '--output-format', 'json',
       '--max-turns', '1',
       '--strict-mcp-config',

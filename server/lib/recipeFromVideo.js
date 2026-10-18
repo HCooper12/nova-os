@@ -50,7 +50,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
@@ -226,6 +226,7 @@ async function chooseFrame(frames) {
     ...boundaryArgs('Read'),
     '--output-format', 'json',
     '--model', modelFor(LANE),
+    ...effortArgs(LANE),
     '--no-session-persistence',
   ], { timeoutMs: 120_000 });
   const outer = parseEnvelope(stdout, { lane: LANE });
@@ -293,6 +294,7 @@ async function askModel(prompt, deps) {
     ...boundaryArgs(''),
     '--output-format', 'json',
     '--model', modelFor(LANE),
+    ...effortArgs(LANE),
     '--no-session-persistence',
   ], { timeoutMs: 180_000 });
   const outer = parseEnvelope(stdout, { lane: LANE });

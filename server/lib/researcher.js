@@ -5,7 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
-import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import {
   BRIEF_RULES, DECISION_RULES, FALLBACK_PANEL, buildPlannerPrompt, parsePanel,
@@ -183,6 +183,7 @@ function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read'
         '--strict-mcp-config',
         '--output-format', 'json',
         '--model', model,
+        ...effortArgs('researcher'),
         resume ? '--resume' : '--session-id', sessionId,
       ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) { resolve({ error: e.message }); return; }

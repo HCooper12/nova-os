@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
-import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
 import { parseEnvelope } from './modelSpend.js';
@@ -83,6 +83,7 @@ export function startSummaryJob(noteId, title, bodyText) {
     // now comes from the model board (lib/modelPrefs.js) so it is settable
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('note-summary'),
+    ...effortArgs('note-summary'),
     '--no-session-persistence',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';

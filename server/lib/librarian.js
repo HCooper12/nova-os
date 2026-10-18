@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { modelFor } from './modelPrefs.js';
+import { modelFor, effortArgs } from './modelPrefs.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // THE LIBRARIAN — a book title + author into a triangulated research
@@ -119,6 +119,7 @@ export function runBookResearch({ title, author, notes, model: modelOverride }, 
       '--disallowedTools', RESEARCH_DISALLOWED,
       '--output-format', 'json',
       '--model', model, // ALWAYS pinned — the ambient default is not a choice
+      ...effortArgs('librarian'),
     ], { cwd: workDir, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     let err = '';

@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { modelFor, laneSkipped, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneSkipped, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
 
 // THE LEADER — Hayden's leadership development agent. Its whole job is to
@@ -486,6 +486,7 @@ export async function generateDailyLead(vaultPath, { force = false } = {}) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('leader-daily'),
+    ...effortArgs('leader-daily'),
     '--session-id', randomUUID(),
   ], vaultPath, 'leader-daily');
 
@@ -542,6 +543,7 @@ export async function runLeaderResearch(vaultPath, { force = false, fetchImpl } 
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('leader-research'),
+    ...effortArgs('leader-research'),
     '--session-id', randomUUID(),
   ], vaultPath, 'leader-research');
 
@@ -975,6 +977,7 @@ async function runAnswerSituation(vaultPath, { text, now = new Date(), runImpl }
     ...boundaryArgs(''), // it reasons over what it was handed — nothing else
     '--output-format', 'json',
     '--model', modelFor('leader-answer'),
+    ...effortArgs('leader-answer'),
     '--session-id', randomUUID(),
   ], vaultPath, 'leader-answer');
 

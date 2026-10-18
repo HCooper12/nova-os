@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseModelJson } from './jsonSalvage.js';
 import { readEntry, isGrounded, assembleReport, confirmLine, sourceLine } from './captureReport.js';
@@ -290,6 +290,7 @@ function askModel(prompt) {
       ...boundaryArgs('Read WebSearch WebFetch'),
       '--output-format', 'json',
       '--model', modelFor(REPERTOIRE_LANE),
+      ...effortArgs(REPERTOIRE_LANE),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';

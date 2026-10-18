@@ -34,7 +34,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { boundaryArgs } from './spawnBoundary.js';
-import { modelFor } from './modelPrefs.js';
+import { modelFor, effortArgs } from './modelPrefs.js';
 import { createProjectDir, undoProject } from './projects.js';
 import { createRecord } from './inboxStore.js';
 import { sandboxed, sandboxAvailable, sandboxUnavailable } from './sandbox.js';
@@ -101,6 +101,7 @@ export function buildInvocation(brief, slug, dir, model, { shell: force } = {}) 
     ...boundaryArgs(shell ? 'Read,Write,Edit,Glob,Grep,Bash' : 'Read,Write,Edit,Glob,Grep'),
     '--output-format', 'json',
     '--model', model || modelFor('build'),
+    ...effortArgs('build'),
     '--no-session-persistence',
   ];
   return shell

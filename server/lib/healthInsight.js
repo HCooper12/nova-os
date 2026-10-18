@@ -15,7 +15,7 @@ import { getToday as getFoodLogToday } from './foodLog.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
-import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneSkipped, laneEnabled, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -208,6 +208,7 @@ function runClaude(prompt) {
       // now comes from the model board (lib/modelPrefs.js) so it is settable
       // in Settings; the default is the 'sonnet' this lane has always run on.
       '--model', modelFor('health-insight'),
+      ...effortArgs('health-insight'),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';

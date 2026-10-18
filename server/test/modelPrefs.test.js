@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 const {
   LANES, LANE_GROUPS, MODEL_CHOICES,
   modelFor, laneEnabled, assertLaneOn, laneOffError, laneSkipped,
-  getModelPrefs, setLanePref, resetLanePref, isValidModel,
+  getModelPrefs, setLanePref, resetLanePref, isValidModel, effortFor, effortArgs, isValidEffort,
 } = await import('../lib/modelPrefs.js');
 const { recordRun } = await import('../lib/modelSpend.js');
 
@@ -237,4 +237,25 @@ test('a pin survives the next release: it stays valid and is flagged, never sile
   assert.equal(isValidModel('claude-haiku-4-5-20251001'), true);
   assert.equal(isValidModel('claude-gpt-5'), false);
   assert.equal(isValidModel('opus; rm -rf /'), false, 'the shape check is also a boundary: --model is a spawn argument');
+});
+
+test('every non-deterministic lane carries a valid default thinking effort (no ambient xhigh leak)', () => {
+  for (const l of LANES) {
+    if (l.deterministic) { assert.equal(l.defEffort, undefined, `${l.id} spawns nothing`); continue; }
+    assert.ok(isValidEffort(l.defEffort), `${l.id} has no defEffort`);
+    assert.notEqual(l.defEffort, 'xhigh', `${l.id} must not default to the ambient level`);
+    assert.equal(effortFor(l.id), l.defEffort);
+  }
+  assert.equal(effortFor('greeting'), 'low');
+  assert.equal(effortFor('researcher'), 'high');
+  assert.equal(effortFor('coach'), 'medium');
+});
+
+test('effortArgs is --effort <level> for a lane, or [] when the CLI lacks the flag', async () => {
+  const { _setEffortSupportedForTest } = await import('../lib/spawnBoundary.js');
+  _setEffortSupportedForTest(true);
+  assert.deepEqual(effortArgs('greeting'), ['--effort', 'low']);
+  _setEffortSupportedForTest(false);
+  assert.deepEqual(effortArgs('greeting'), []);
+  _setEffortSupportedForTest(true);
 });

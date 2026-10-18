@@ -17,7 +17,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo path has a space
 import path from 'node:path';
 import os from 'node:os';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -160,6 +160,7 @@ function runModel(prompt) {
       // now comes from the model board (lib/modelPrefs.js) so it is settable
       // in Settings; the default is the 'sonnet' this lane has always run on.
       '--model', modelFor('coach-reflection'),
+      ...effortArgs('coach-reflection'),
       '--no-session-persistence',
       // 18 Oct 2026 ledger: "no stdin data" x4. The prompt already arrives
       // as the `-p` ARGUMENT, but a bare `spawn()` leaves stdin as an open

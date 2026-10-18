@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { modelFor, laneEnabled, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneSkipped, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 import { parseModelJson } from './jsonSalvage.js';
@@ -309,6 +309,7 @@ export function runModelDefault(mail) {
       ...boundaryArgs(''),
       '--output-format', 'json',
       '--model', modelFor('rewards-offer-read'),
+      ...effortArgs('rewards-offer-read'),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';

@@ -31,7 +31,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
@@ -62,6 +62,7 @@ function runClaude({ prompt, model: m, tools = '', vaultPath, lane }) {
       '--no-session-persistence',
     ];
     if (m) args.push('--model', m);
+    if (lane) args.push(...effortArgs(lane)); // every caller names its lane
     const child = spawn(CLAUDE_BIN, args, vaultPath ? { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] } : { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = ''; let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });

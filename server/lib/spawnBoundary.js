@@ -1,3 +1,9 @@
+import { spawn } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+
+const EFFORT_PROBE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
+
 // THE SPAWN BOUNDARY — the one place that decides what a spawned Claude CLI
 // can actually touch.
 //
@@ -87,3 +93,37 @@ export function boundaryArgs(allowed) {
     '--strict-mcp-config',
   ];
 }
+
+// ------------------------------- effort -------------------------------------
+// --effort on every conversational spawn (lib/modelPrefs.js effortFor), so the
+// account's ambient `effortLevel: "xhigh"` never reaches a lane. Older CLIs
+// have no such flag and would refuse to start with it, so the installed one
+// is asked once, at load (`claude --help`, 5 s: a read of a help page, never
+// a model run), and the flag is dropped with one log line if it is missing.
+// Until the answer lands the flag is sent: the CLI on his Mac has it
+// (verified 18 Oct 2026, `claude --help`: "--effort <level> … low, medium,
+// high, xhigh, max").
+let effortSupported = null;
+(function probeEffort() {
+  try {
+    // spawn's own `timeout` ends a help page that hangs; it is a read, never
+    // a model run, so no turn is ever cut short by it
+    const child = spawn(EFFORT_PROBE_BIN, ['--help'], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
+    let out = '';
+    child.stdout.on('data', (d) => { out += d; });
+    const settle = (ok) => {
+      if (effortSupported !== null) return;
+      effortSupported = ok;
+      if (!ok) console.log('claude: the installed CLI has no --effort flag, so every lane spawns without it and thinks at the account\'s level');
+    };
+    child.on('close', () => settle(/--effort\b/.test(out)));
+    child.on('error', () => settle(false));
+    child.unref?.();
+    child.stdout.unref?.();
+  } catch { effortSupported = false; }
+})();
+export function effortFlag(level) {
+  if (!level || effortSupported === false) return [];
+  return ['--effort', level];
+}
+export function _setEffortSupportedForTest(v) { effortSupported = v; }

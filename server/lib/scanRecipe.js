@@ -6,7 +6,7 @@ import { backupFile } from './backup.js';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -167,6 +167,7 @@ export function startScan(imagePaths, workDir, opts = {}) {
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs('Read'),
     '--model', modelFor('scan-recipe'),
+    ...effortArgs('scan-recipe'),
     '--output-format', 'json',
     '--no-session-persistence',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });

@@ -8,7 +8,7 @@ import { loadExerciseLibrary, addExerciseIn, setMuscleGroupIn, renderLibraryFile
 import { cleanDropSets } from '../../src/fitSets.js';
 import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFile, writeRoutinesRaw, ROUTINES_REL_PATH } from './workouts.js';
 import { stampPriors, applyChanges } from './stagedPass.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { registerJobMap } from './jobRegistry.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -379,6 +379,7 @@ export function startCoachAmend(vaultPath, { proposal, note, fix, recordId = nul
       '--strict-mcp-config',
       '--output-format', 'json',
       '--model', modelFor('coach'), // ALWAYS pinned
+      ...effortArgs('coach'),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';

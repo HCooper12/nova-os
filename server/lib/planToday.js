@@ -14,7 +14,7 @@ import { composeDispatch } from './dispatch.js';
 import { listTodos } from './todos.js';
 import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
 
 // PLAN TODAY — each morning, one model pass turns the day's real picture
@@ -249,6 +249,7 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
     // now comes from the model board (lib/modelPrefs.js) so it is settable
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('plan-today'),
+    ...effortArgs('plan-today'),
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 

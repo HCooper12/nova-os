@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, assertLaneOn, isValidModel } from './modelPrefs.js';
+import { modelFor, assertLaneOn, isValidModel, effortArgs } from './modelPrefs.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // THE SCOUT — research a PERSON the way the Librarian researches a book.
@@ -198,6 +198,7 @@ export async function runPersonResearch(vaultPath, subject, { notes = '', model,
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', model || modelFor('scout'),
+    ...effortArgs('scout'),
     '--session-id', randomUUID(),
   ];
   return new Promise((resolve, reject) => {

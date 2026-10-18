@@ -6,7 +6,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
-import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
 import { parseEnvelope } from './modelSpend.js';
@@ -204,6 +204,7 @@ export function startReviewSummaryJob(input) {
     '--output-format', 'json',
     // pinned through the model board, the same lane as the note summary
     '--model', modelFor('note-summary'),
+    ...effortArgs('note-summary'),
     '--no-session-persistence',
   ]);
   let stdout = '';

@@ -91,16 +91,19 @@ test("the Coach and the Leader refuse each other's ids, and Nova's", async () =>
 
 // ---- 1. effort per lane -----------------------------------------------------
 
-test('effort defaults: Nova low, Coach and Leader medium, lanes without a setting inherit', async () => {
+test('effort defaults: Nova low, Coach and Leader medium, every other lane carries its own (no ambient xhigh)', async () => {
   assert.equal(effortFor('ask-nova'), 'low');
   assert.equal(effortFor('coach'), 'medium');
   assert.equal(effortFor('leader-chat'), 'medium');
-  assert.equal(effortFor('researcher'), null, 'the Researcher keeps today\'s behaviour (the account level)');
+  assert.equal(effortFor('researcher'), 'high', 'research lanes never trade depth for speed');
+  assert.equal(effortFor('greeting'), 'low');
+  assert.equal(effortFor('cfo'), null, 'a deterministic lane spawns nothing');
   assert.equal(maxEffort('medium', 'high'), 'high');
   assert.equal(maxEffort('max', 'high'), 'max', 'a deep ask never lowers his setting');
   const board = getModelPrefs();
   assert.equal(board.lanes.find((l) => l.id === 'coach').effort, 'medium');
-  assert.equal(board.lanes.find((l) => l.id === 'researcher').effort, null);
+  assert.equal(board.lanes.find((l) => l.id === 'researcher').effort, 'high');
+  assert.equal(board.lanes.find((l) => l.id === 'cfo').effort, null);
   assert.deepEqual(board.efforts, ['low', 'medium', 'high', 'xhigh', 'max']);
 });
 
@@ -108,7 +111,7 @@ test('effort is stored with the model prefs, validated hard', async () => {
   await setLanePref('coach', { effort: 'high' });
   assert.equal(effortFor('coach'), 'high');
   await assert.rejects(setLanePref('coach', { effort: 'extreme' }), /effort must be one of/);
-  await assert.rejects(setLanePref('researcher', { effort: 'low' }), /no thinking setting/);
+  await assert.rejects(setLanePref('cfo', { effort: 'low' }), /no thinking setting/);
   await setLanePref('coach', { effort: 'medium' });
 });
 

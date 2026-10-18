@@ -4,7 +4,7 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
@@ -49,6 +49,7 @@ export function startStatementScan(imagePaths, workDir, note) {
     ...boundaryArgs('Read'),
     '--output-format', 'json',
     '--model', modelFor('scan-statement'), // was unpinned until the model board
+    ...effortArgs('scan-statement'),
     '--session-id', randomUUID(),
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 

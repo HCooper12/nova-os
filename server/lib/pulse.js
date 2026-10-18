@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { beat } from './heartbeat.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // Topic Pulse — the brief that SHOWS. For each topic on Hayden's Interests
@@ -160,6 +160,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
       '--strict-mcp-config',
       '--output-format', 'json',
       '--model', modelFor('pulse'),
+      ...effortArgs('pulse'),
       '--session-id', randomUUID(),
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';

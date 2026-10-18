@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError, isValidModel } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, isValidModel, effortArgs } from './modelPrefs.js';
 import { mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -251,7 +251,7 @@ async function runForgeJob(job) {
   // A job may name its own model (a Shortcut can pass one); otherwise the
   // lane's setting. Never the account's ambient default — see the 21-Aug
   // Coach fix in claudeCode.js.
-  args.push('--model', job.model || modelFor('forge'));
+  args.push('--model', job.model || modelFor('forge'), ...effortArgs('forge'));
 
   // stdio: stdin IGNORED, never inherited — a child that waits on stdin under
   // launchd hangs forever, and its "no stdin data received" warning has

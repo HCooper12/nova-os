@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { readdirSync, existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
@@ -500,6 +500,7 @@ function runClaude(vaultPath, prompt, { allowedTools, model, lane } = {}) {
       '--session-id', randomUUID(),
     ];
     if (model) args.push('--model', model);
+    if (lane) args.push(...effortArgs(lane)); // every caller names its lane
     const child = spawn(CLAUDE_BIN, args, { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
     let stdout = '';

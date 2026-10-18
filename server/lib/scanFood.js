@@ -4,7 +4,7 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -184,7 +184,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
     '--output-format', 'json',
     '--no-session-persistence',
   ];
-  args.push('--model', model); // modelFor never returns empty — the flag is always named
+  args.push('--model', model, ...effortArgs(lane)); // modelFor never returns empty — the flag is always named
   // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -267,6 +267,7 @@ export function startFoodDescribe(description, deps = {}) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('food-describe'), // was unpinned until the model board
+    ...effortArgs('food-describe'),
     '--no-session-persistence',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -358,6 +359,7 @@ export function startFoodRefine({ name, lines, macros, correction, history } = {
       ...boundaryArgs(''), // words in, words out: no tools at all
       '--output-format', 'json',
       '--model', modelFor('food-refine'),
+      ...effortArgs('food-refine'),
       '--no-session-persistence',
     ]);
     const outer = parseEnvelope(stdout, { lane: 'food-refine' });

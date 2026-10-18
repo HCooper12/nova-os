@@ -4,7 +4,7 @@ import os from 'node:os';
 import { randomUUID, createHash } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { modelFor, assertLaneOn } from './modelPrefs.js';
+import { modelFor, assertLaneOn, effortArgs } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObject, firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { SPOKEN_REGISTER } from './visualStream.js';
@@ -84,6 +84,7 @@ function runPrepareModel(prompt, { vaultPath }) {
       ...boundaryArgs('Read Grep Glob WebSearch WebFetch'),
       '--output-format', 'json',
       '--model', modelFor(PREPARE_LANE),
+      ...effortArgs(PREPARE_LANE),
       '--no-session-persistence',
     ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';

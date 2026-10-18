@@ -8,7 +8,7 @@ import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { declinedContext } from './respectTheNo.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { parseEnvelope } from './modelSpend.js';
 
@@ -207,6 +207,7 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
     // Settings, defaulting to the 'sonnet' this lane has always run on —
     // UNLESS the model-choice gate already asked and got a per-run answer.
     '--model', model || modelFor('pattern-scout'),
+    ...effortArgs('pattern-scout'),
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 

@@ -35,7 +35,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { PROFILE_DIR, browserAvailable, profileExists, CHROME } from './browserResearch.js';
-import { modelFor } from './modelPrefs.js';
+import { modelFor, effortArgs } from './modelPrefs.js';
 import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson } from './jsonSalvage.js';
 import { recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
@@ -202,6 +202,7 @@ async function run(recordId, task, server) {
     // the live feed (liveFeed below), and the final result is the last event.
     '--output-format', 'stream-json', '--verbose',
     '--model', modelFor('browse'),
+    ...effortArgs('browse'),
     '--session-id', sessionId,
   ], { cwd: shotDir, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -424,6 +425,7 @@ export async function pressPending(payload) {
     '--disallowedTools', DISALLOWED,
     '--output-format', 'json',
     '--model', modelFor('browse'),
+    ...effortArgs('browse'),
   ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';

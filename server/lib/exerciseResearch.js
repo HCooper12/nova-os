@@ -30,6 +30,7 @@
 // researchSoon; a sweep catches anything Coach created), and once a week, a
 // pass that improves the lifts in his program and adds a few worth having.
 
+import { effortArgs } from './modelPrefs.js';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
@@ -187,6 +188,7 @@ export function runResearchModel(prompt, { model } = {}) {
         ...boundaryArgs('WebSearch WebFetch'),
         '--output-format', 'json',
         '--model', model,
+        ...effortArgs('exercise-research'),
         '--no-session-persistence',
       ], { stdio: ['ignore', 'pipe', 'pipe'] });
       let stdout = '';

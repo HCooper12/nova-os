@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { mergeText } from './threeWayMerge.js';
 import { createRecord, updateRecord } from './inboxStore.js';
@@ -525,6 +525,7 @@ When done, give a concise final summary: pages created, pages updated, and any c
         // Opus — there, one pass is doing all the thinking. Both are named
         // lanes rather than an implicit fall-through to the account.
         '--model', job.digested ? modelFor('ingest-digest') : modelFor('ingest'),
+        ...effortArgs(job.digested ? 'ingest-digest' : 'ingest'),
         '--no-session-persistence',
         // stdin must be closed, not an open pipe: the CLI waits 3s for stdin
         // data it will never get, warns on stderr, and that warning then

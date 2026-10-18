@@ -11,7 +11,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
@@ -193,6 +193,7 @@ function runPdfParse(brand, pdfPath, deps) {
       '--output-format', 'json',
       '--no-session-persistence',
       '--model', modelFor(lane),
+      ...effortArgs(lane),
     ];
     const child = doSpawn(CLAUDE_BIN, args);
     let stdout = '';

@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { stageVault, diffTreesReport, conflictNote, mergeNote } from './ingest.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { weeklyWindowOpen } from './cadence.js';
@@ -173,6 +173,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
       // in Settings; the default is the 'sonnet' this lane has always run on —
       // UNLESS the model-choice gate already asked and got a per-run answer.
       '--model', model || modelFor('distill'),
+      ...effortArgs('distill'),
       '--no-session-persistence',
     ], { cwd: stagingVault, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
