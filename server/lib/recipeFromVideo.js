@@ -399,7 +399,9 @@ export function missingFacts(existing, payload) {
 export async function startRecipeFromVideo(vaultPath, url, prose = '', deps = {}) {
   const u = String(url || '').trim();
   if (!/^https?:\/\//.test(u)) throw new Error('a video URL is required');
-  if (!laneEnabled(LANE)) throw laneOffError(LANE);
+  // The lane being off no longer refuses the link (18 Oct 2026): the page's own
+  // schema.org block needs no model, and a link that does need one is kept on
+  // a retryable record by the job below.
   const record = await (deps.createRecord || createRecord)({
     id: randomUUID().slice(0, 8),
     kind: 'recipe-video',
@@ -414,7 +416,9 @@ export async function startRecipeFromVideo(vaultPath, url, prose = '', deps = {}
   return record;
 }
 
-async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
+export const RETRY_MESSAGE = "Claude isn't available right now. Nova kept the link and will read the recipe when you retry.";
+
+export async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
   const update = deps.updateRecord || updateRecord;
   try {
     const meta = await (deps.fetchCaption || fetchCaption)(url);
@@ -422,7 +426,22 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
     if (!captionHasRecipe(meta.caption)) {
       try { transcript = await (deps.fetchTranscript || fetchTranscriptText)(url); } catch { transcript = ''; }
     }
-    const parsed = await askModel(buildRecipePrompt({ ...meta, transcript, prose }), deps);
+    // CODE FIRST (18 Oct): a page whose schema.org block is complete was read
+    // by code (recipeFromPage.recipeFromLd) and needs no model at all. Only a
+    // page or reel without one asks the model — and if the model cannot answer
+    // (usage run out, lane off, a failed run) the link is KEPT on this record
+    // as a retryable error, never dropped.
+    let parsed;
+    if (meta.parsed) parsed = meta.parsed;
+    else {
+      try {
+        if (!laneEnabled(LANE) && !deps.ask) throw laneOffError(LANE);
+        parsed = await askModel(buildRecipePrompt({ ...meta, transcript, prose }), deps);
+      } catch (e) {
+        await update(recordId, { status: 'error', error: RETRY_MESSAGE, errorDetail: String(e.message || e).slice(0, 300) });
+        return;
+      }
+    }
     const recipes = Array.isArray(parsed?.recipes) ? parsed.recipes.slice(0, 6) : [];
     if (!recipes.length) {
       await update(recordId, { status: 'failed', error: `No recipe in that video${parsed?.notFound ? `: ${String(parsed.notFound).slice(0, 160)}` : ''}.` });

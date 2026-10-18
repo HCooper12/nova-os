@@ -22,7 +22,8 @@
 // recipes: <link>" — it picks the page reader or the reel reader from the
 // link itself (src/linkKind.js), so no caller has to know which it was.
 
-import { startRecipeFromVideo } from './recipeFromVideo.js';
+import { startRecipeFromVideo, runRecipeJob, categoryFor } from './recipeFromVideo.js';
+import { updateRecord } from './inboxStore.js';
 import { classifyLink, hostOf } from '../../src/linkKind.js';
 
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
@@ -128,6 +129,49 @@ export function recipeTextFromLd(ld) {
   return { name, text: lines.join('\n'), image: imageOf(ld?.image), author: clean(ld?.author?.name || (Array.isArray(ld?.author) ? ld.author[0]?.name : ld?.author) || '') };
 }
 
+const num = (v) => {
+  const m = String(v ?? '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+};
+
+/**
+ * A COMPLETE schema.org Recipe block read by code alone, in the shape the
+ * model reader returns ({ recipes: [...] }), or null when the block is not
+ * complete enough to trust (no name, no ingredients, or no method) — then the
+ * model reads the page's text instead. Pure. Nothing is invented: a figure the
+ * block does not carry stays null, and macros come only from the block's own
+ * per-serving nutrition (recipeFromVideo.macrosFor checks them against the
+ * Atwater sum and drops them if they do not add up).
+ */
+export function recipeFromLd(ld) {
+  if (!ld) return null;
+  const r = recipeTextFromLd(ld);
+  const ingredients = (Array.isArray(ld.recipeIngredient) ? ld.recipeIngredient : ld.ingredients || []).map(clean).filter(Boolean);
+  const method = steps(ld.recipeInstructions);
+  if (!r.name || !ingredients.length || !method.length) return null;
+  const yieldRaw = Array.isArray(ld.recipeYield) ? ld.recipeYield.map(String).join(' / ') : ld.recipeYield != null ? String(ld.recipeYield) : '';
+  const servings = num(yieldRaw);
+  const n = ld.nutrition || {};
+  const p = num(n.proteinContent), c = num(n.carbohydrateContent), f = num(n.fatContent);
+  let kcal = num(n.calories);
+  if (kcal != null && /kj/i.test(String(n.calories)) && !/k?cal/i.test(String(n.calories))) kcal = Math.round(kcal / 4.184);
+  const cat = Array.isArray(ld.recipeCategory) ? ld.recipeCategory.join(' ') : String(ld.recipeCategory || '');
+  return {
+    recipes: [{
+      name: r.name,
+      servings: servings && servings >= 1 ? Math.round(servings) : null,
+      makes: yieldRaw && !/^\s*\d+\s*$/.test(yieldRaw) ? clean(yieldRaw).slice(0, 60) : null,
+      prepMin: isoMinutes(ld.prepTime),
+      cookMin: isoMinutes(ld.cookTime),
+      ingredients: ingredients.map((text) => ({ text, name: null, grams: null })),
+      method,
+      statedPerServing: p != null && c != null && f != null ? { kcal, p, c, f } : null,
+      category: /dessert|snack|sweet|cookie|cake|bak/i.test(cat) ? 'TREATS' : categoryFor(''),
+    }],
+    notFound: '',
+  };
+}
+
 // no Recipe block: the page's own readable words, scripts and chrome removed
 export function readableText(html) {
   const body = String(html || '')
@@ -150,9 +194,9 @@ export function pageAsCaption(html, url) {
   const title = metaContent(html, 'og:title') || clean((String(html || '').match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
   if (ld) {
     const r = recipeTextFromLd(ld);
-    return { title: r.name || title, uploader: site, caption: r.text, thumbnail: r.image || metaContent(html, 'og:image') || null, duration: null, medium: 'page', structured: true };
+    return { title: r.name || title, uploader: site, caption: r.text, thumbnail: r.image || metaContent(html, 'og:image') || null, duration: null, medium: 'page', structured: true, parsed: recipeFromLd(ld) };
   }
-  return { title, uploader: site, caption: readableText(html), thumbnail: metaContent(html, 'og:image') || null, duration: null, medium: 'page', structured: false };
+  return { title, uploader: site, caption: readableText(html), thumbnail: metaContent(html, 'og:image') || null, duration: null, medium: 'page', structured: false, parsed: null };
 }
 
 /** Fetches a recipe page → pageAsCaption. `fetchImpl` for tests. */
@@ -176,10 +220,28 @@ export async function startRecipeImport(vaultPath, url, prose = '', deps = {}) {
   if (!link.kind) throw new Error('that is not a link I can read a recipe from');
   if (link.kind === 'channel') throw new Error('that is a whole channel, not one recipe — send the one video');
   if (link.kind === 'recipe-reel' || link.kind === 'video') return startRecipeFromVideo(vaultPath, link.url, prose, deps);
-  return startRecipeFromVideo(vaultPath, link.url, prose, {
-    ...deps,
-    fetchCaption: deps.fetchCaption || ((u) => fetchRecipePage(u)),
-    // a page has no transcript; the page text IS the whole source
-    fetchTranscript: deps.fetchTranscript || (async () => ''),
-  });
+  return startRecipeFromVideo(vaultPath, link.url, prose, pageDeps(deps));
+}
+
+const pageDeps = (deps = {}) => ({
+  ...deps,
+  fetchCaption: deps.fetchCaption || ((u) => fetchRecipePage(u)),
+  // a page has no transcript; the page text IS the whole source
+  fetchTranscript: deps.fetchTranscript || (async () => ''),
+});
+
+/**
+ * Retry for a recipe link kept because the model could not read it (inbox
+ * record kind 'recipe-video', status 'error'). Re-runs the same job on the
+ * same record; the page or reel reader is picked from the link again.
+ */
+export async function retryRecipeImport(vaultPath, record, deps = {}) {
+  const m = String(record.text || '').match(/^Recipe from:\s*(\S+)(?:\s+—\s+([\s\S]+))?$/);
+  if (!m) throw new Error('this record has no link to re-run');
+  const link = classifyLink(m[1], m[2] || 'add to my recipes');
+  const updated = await updateRecord(record.id, { status: 'classifying', error: null, errorDetail: null });
+  const d = link.kind === 'recipe-reel' || link.kind === 'video' ? deps : pageDeps(deps);
+  const done = runRecipeJob(vaultPath, record.id, m[1], (m[2] || '').trim(), d).catch(() => {});
+  if (deps.await) await done;
+  return updated;
 }
