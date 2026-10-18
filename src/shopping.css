@@ -285,6 +285,7 @@
 .nv-sh-sfoot { margin: 12px 2px 0; font: 400 12px/1.45 var(--nv-font-ui); color: var(--nv-ink60); }
 .nv-sh-sacts { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .nv-sh-pillb { min-height: 44px; padding: 0 14px !important; border-radius: 22px; font: 600 14px var(--nv-font-ui) !important; background: color-mix(in srgb, var(--nv-ink) 10%, transparent) !important; white-space: nowrap; }
+a.nv-sh-pillb { display: inline-flex; align-items: center; gap: 7px; color: var(--nv-ink); text-decoration: none; }
 .nv-sh-pillb.good { background: var(--nv-good) !important; color: var(--sh-on) !important; }
 .nv-sh-pillb.warn { color: var(--nv-warn) !important; }
 .nv-sh-pillb.pg { background: var(--pg-act) !important; color: #fff !important; }

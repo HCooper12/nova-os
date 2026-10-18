@@ -517,6 +517,7 @@ function PriceSheet({ S, V, sheetKey, onClose }) {
               ? <button type="button" className="nv-sh-pillb" onClick={() => S.pin(P.key, null, `Unpinned ${P.pin.name}`)}>Unpin</button>
               : P.pick && <button type="button" className="nv-sh-pillb" onClick={() => S.pin(P.key, P.pick, `Pinned ${P.pick.name}`)}>Pin the one I buy</button>}
             {P.dish && <button type="button" className="nv-sh-pillb" onClick={() => S.openSheet({ kind: 'dish', name: P.dish })}>Open {P.dish}</button>}
+            {P.coles && <a className="nv-sh-pillb" href={P.coles} target="_blank" rel="noopener noreferrer" aria-label={`Check ${P.name} on Coles' site`}><Tag ch="c" dash />Check Coles</a>}
           </div>
           {!P.pin && P.pick && <p className="nv-sh-sfoot">Pinning keeps {P.pick.name} at {CHAIN_NAME[P.pick.chain]} as the one Nova prices for this line.</p>}
         </>

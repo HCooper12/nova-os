@@ -36,6 +36,9 @@ export const PROG_SHOP = { er: 'w', fb: 'c' };
 export const PROG_APP = { er: 'Everyday Rewards app', fb: 'Flybuys app' };
 export const PROG_PRESS = { er: 'Boost', fb: 'Activate' };
 const FAILED = new Set(['blocked', 'error', 'unreadable']);
+// a chain Nova does not read: he checks it himself from each line (Coles, 19 Oct)
+const SELF = 'self';
+export const colesUrl = (name) => `https://www.coles.com.au/search/products?q=${encodeURIComponent(lineKey(name) || String(name || ''))}`;
 const r2 = (n) => Math.round(n * 100) / 100;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const up = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -123,7 +126,7 @@ export function buildShopView({
   const left = live.filter((l) => !l.got);
   const chains = prices?.chains || {};
   const failedChains = CHAINS.filter((c) => FAILED.has(chains[c]?.state));
-  const avail = (c) => !FAILED.has(chains[c]?.state);
+  const avail = (c) => !FAILED.has(chains[c]?.state) && chains[c]?.state !== SELF;
   const havePrices = !!prices && Object.keys(prices.reads || {}).length > 0;
   const noSource = !prices; // nothing came back from the reader at all
 
@@ -290,8 +293,9 @@ export function buildShopView({
     noPrices: noSource || (!havePrices && !failedChains.length),
     legend: CHAINS.map((ch) => (avail(ch)
       ? { chain: ch, name: CHAIN_NAME[ch], n: totals[ch].n, total: r2(totals[ch].t), ok: true, logo: logos[ch] || null }
+      : chains[ch]?.state === SELF ? { chain: ch, name: CHAIN_NAME[ch], ok: false, self: true, why: 'check it from any line' }
       : { chain: ch, name: CHAIN_NAME[ch], ok: false, why: chains[ch]?.state === 'blocked' ? 'blocked' : chains[ch]?.state === 'unreadable' ? 'page changed' : 'did not answer' })),
-    split: CHAINS.map((ch) => (avail(ch) ? (totals[ch].n ? { chain: ch, grow: totals[ch].t } : null) : { chain: ch, na: true })).filter(Boolean),
+    split: CHAINS.map((ch) => (avail(ch) ? (totals[ch].n ? { chain: ch, grow: totals[ch].t } : null) : chains[ch]?.state === SELF ? null : { chain: ch, na: true })).filter(Boolean),
     foot: priced ? { split: r2(split), priced, best: best1 || null, less: best1 ? r2(one[best1].t - split) : null } : null,
   };
 
@@ -436,6 +440,7 @@ export function priceSheet(view, key, now = new Date()) {
     dish: l.sources[0]?.from || null,
     pin: l.pin,
     pick: d ? { chain: d.pick.chain, id: d.pick.id, name: d.pick.name } : null,
+    coles: view.chains?.c?.state === SELF ? colesUrl(l.name) : null,
   };
 }
 

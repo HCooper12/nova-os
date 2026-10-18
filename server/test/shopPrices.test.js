@@ -14,6 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const P = await import('../lib/shopPrices.js');
+P._readEveryChainForTests();
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'shopping');
 const fx = (n) => readFile(path.join(FIX, n), 'utf8');
 
@@ -269,4 +270,19 @@ test('a Woolworths read asks each product\'s label once, by barcode, and the pie
   q.add('w', 'weet bix');
   await q.idle();
   assert.equal(calls.filter((u) => u.includes('openfoodfacts')).length, before);
+});
+
+test('Coles is his to check: never queued, Try again refused, the screen told "self" (his call, 19 Oct)', async () => {
+  P._resetForTests();
+  P._readEveryChainForTests(false);
+  try {
+    const calls = [];
+    const fetchImpl = async (url) => { calls.push(url); return new Response('{"Products":[],"data":[]}', { status: 200 }); };
+    const q = P.createQueue({ fetchImpl, delayMs: 0, sleep: async () => {} });
+    await P.readStale([{ name: 'limes' }], { q });
+    await q.idle();
+    assert.ok(calls.length > 0 && calls.every((u) => !u.includes('coles.com.au')), 'not one request to Coles');
+    await assert.rejects(() => P.retryChain('c', [{ name: 'limes' }], { q }), /check it yourself/);
+    assert.equal((await P.pricesFor([{ name: 'limes' }])).chains.c.state, 'self');
+  } finally { P._readEveryChainForTests(); }
 });

@@ -66,6 +66,16 @@ export const CHAIN_DEFS = {
   },
 };
 
+// The chains Nova reads. Coles walls every read from this Mac (19 Oct: even
+// a real Chrome window, and even with its own cookies kept), and he chose to
+// leave it rather than pay a scraper to get past the wall: "Leave coles".
+// Coles stays in CHAIN_DEFS (its parser, its tests) but is never queued; the
+// screen links each line to Coles' own search for him to check himself.
+let SELF_CHECK = new Set(['c']);
+const readChains = () => Object.keys(CHAIN_DEFS).filter((c) => !SELF_CHECK.has(c));
+// the queue's own tests use Coles as their worked chain
+export function _readEveryChainForTests(on = true) { SELF_CHECK = on ? new Set() : new Set(['c']); }
+
 /* -------------------------------------------------------- the parsers -- */
 
 const num = (v) => {
@@ -383,7 +393,7 @@ export function termsFor(items) {
 
 // Queue every read that is not already today's. A blocked chain is tried
 // once a day (its first job), never more, until it answers.
-export async function readStale(items, { q = sharedQueue(), now = new Date(), chains = Object.keys(CHAIN_DEFS) } = {}) {
+export async function readStale(items, { q = sharedQueue(), now = new Date(), chains = readChains() } = {}) {
   const s = await loadStore();
   const today = melDay(now);
   let added = 0;
@@ -405,6 +415,7 @@ export async function readStale(items, { q = sharedQueue(), now = new Date(), ch
 // His Try again: one request for that chain, today, whatever its state.
 export async function retryChain(chain, items, { q = sharedQueue() } = {}) {
   if (!CHAIN_DEFS[chain]) throw new Error('unknown chain');
+  if (SELF_CHECK.has(chain)) throw new Error(`${CHAIN_DEFS[chain].name} is not read: you check it yourself from each line`);
   const term = termsFor(items)[0];
   if (!term) return false;
   const s = await loadStore();
@@ -423,7 +434,7 @@ export async function pricesFor(items) {
   const s = await loadStore();
   const reads = {};
   for (const term of termsFor(items)) {
-    for (const chain of Object.keys(CHAIN_DEFS)) {
+    for (const chain of readChains()) {
       const r = s.reads[`${chain}|${term}`];
       if (!r) continue;
       (reads[term] ||= {})[chain] = { at: r.at, day: r.day, status: r.status, detail: r.detail || null, products: r.products || [] };
@@ -432,6 +443,7 @@ export async function pricesFor(items) {
   const chains = {};
   for (const chain of Object.keys(CHAIN_DEFS)) {
     const c = s.chains[chain];
+    if (SELF_CHECK.has(chain)) { chains[chain] = { state: 'self' }; continue; }
     chains[chain] = c ? { state: c.state, since: c.since || null, lastAt: c.lastAt || null, detail: c.detail || null } : { state: 'never' };
   }
   const q = queue;

@@ -83,3 +83,19 @@ test('a pin prices only the one he buys', () => {
   assert.deepEqual(mince.cell.chains, ['w']);
   assert.ok(mince.meta.some((m) => m.pin));
 });
+
+test('Coles checked by him: no red notice, a quiet legend line, and every sheet links Coles\' own search', () => {
+  const list = { items: [{ id: 'a1', name: 'Weet-Bix', amount: '10' }] };
+  const prices = {
+    chains: { w: { state: 'ok', lastAt: '2026-10-19T00:00:00Z' }, c: { state: 'self' }, a: { state: 'ok' } },
+    reads: { 'weet bix': { w: { status: 'ok', at: '2026-10-19T00:00:00Z', products: [{ chain: 'w', id: '1', name: 'Weet-Bix Breakfast Cereal 375g', size: '375g', price: 4 }] } } },
+    pins: {},
+  };
+  const v = M.buildShopView({ list, prices, now: new Date('2026-10-19T02:00:00Z') });
+  assert.notEqual(v.head.stat.tone, 'bad');
+  const c = v.basket.legend.find((l) => l.chain === 'c');
+  assert.equal(c.self, true);
+  assert.ok(!v.basket.split.some((s) => s.chain === 'c'), 'no empty Coles stub in the bar');
+  const sheet = M.priceSheet(v, 'weet bix');
+  assert.equal(sheet.coles, 'https://www.coles.com.au/search/products?q=weet%20bix');
+});
