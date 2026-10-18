@@ -105,6 +105,12 @@ struct NovaProvider: TimelineProvider {
     }
 }
 
+/// Where a tap lands. The app registers the novaos scheme (Info.plist) and
+/// SceneDelegate turns the path into a screen hash; "recipes" is Fuel.
+enum NovaLink {
+    static let fuel = URL(string: "novaos://open/recipes")
+}
+
 // MARK: - the one-number widget's choice
 
 enum NovaKey: String, AppEnum {
@@ -584,15 +590,20 @@ struct NovaNumberView: View {
     let entry: NovaEntry
     var body: some View {
         let r = Reading(entry.metric, entry.today)
-        if family == .accessoryCircular { LockCircle(reading: r, day: entry.today) }
-        else { SingleView(reading: r, day: entry.today, stamp: entry.stamp) }
+        // protein and calories are Fuel numbers; steps and HRV keep opening on Home
+        let link = (entry.metric == .protein || entry.metric == .kcal) ? NovaLink.fuel : nil
+        Group {
+            if family == .accessoryCircular { LockCircle(reading: r, day: entry.today) }
+            else { SingleView(reading: r, day: entry.today, stamp: entry.stamp) }
+        }
+        .widgetURL(link)
     }
 }
 
 struct NovaFuelWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NovaFuel", provider: NovaProvider()) { entry in
-            FuelView(day: entry.today).novaGround()
+            FuelView(day: entry.today).novaGround().widgetURL(NovaLink.fuel)
         }
         .configurationDisplayName("Fuel and steps")
         .description("Protein and calories as rings, steps toward your goal.")
