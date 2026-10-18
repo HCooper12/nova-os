@@ -5,6 +5,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { cleanVolumeRanges, cleanGoalMuscles, VOLUME_RANGE } from '../../src/muscleTaxonomy.js';
+import { cleanTargetHistory, withTargetChange } from '../../src/targetHistory.js';
 
 // Hayden's fitness goals — a vault page (source of truth, editable in
 // Obsidian or the Train screen) that the Coach reads for every judgement:
@@ -42,6 +43,9 @@ export async function getFitnessGoals(vaultPath) {
       // present this list is his goal muscles everywhere (trainOverview's
       // goalMuscles); absent, the goal's words are read as before
       goalMuscles: cleanGoalMuscles(data.goalMuscles),
+      // WHEN EACH CALORIE / PROTEIN TARGET STARTED (18 Oct 2026, his rule: a
+      // goal change governs from that day on, never backwards). src/targetHistory.js
+      targetHistory: cleanTargetHistory(data.targetHistory),
       notes: content.replace(/^#[^\n]*\n?/, '').trim(),
       updated: data.updated || null,
     };
@@ -105,6 +109,11 @@ export async function setFitnessGoals(vaultPath, input, { sync = true } = {}) {
   if (!Array.isArray(input.targets) && existing?.targets?.length) input = { ...input, targets: existing.targets };
   const volumeRanges = Object.hasOwn(input, 'volumeRanges') ? cleanVolumeRanges(input.volumeRanges) : existing?.volumeRanges || null;
   const goalMuscles = Object.hasOwn(input, 'goalMuscles') ? cleanGoalMuscles(input.goalMuscles) : existing?.goalMuscles || null;
+  // a change to either daily number is dated, so past days keep the target
+  // they were set against; the numbers before the first recorded change
+  // stand for every earlier day
+  const targetHistory = withTargetChange(existing?.targetHistory, localDateISO(), { kcal: kcalTarget, protein: proteinTarget },
+    { kcal: existing?.kcalTarget, protein: existing?.proteinTarget });
   await mkdir(path.dirname(full), { recursive: true });
   if (existsSync(full)) await backupFile(full);
   const updated = localDateISO();
@@ -118,6 +127,7 @@ export async function setFitnessGoals(vaultPath, input, { sync = true } = {}) {
   if (Array.isArray(input.targets) && input.targets.length) frontmatter.targets = input.targets;
   if (volumeRanges) frontmatter.volumeRanges = volumeRanges;
   if (goalMuscles) frontmatter.goalMuscles = goalMuscles;
+  if (targetHistory.length) frontmatter.targetHistory = targetHistory;
   await writeFile(full, matter.stringify(`# Fitness Goals\n\n${notes}\n`, frontmatter), 'utf8');
   if (sync) await syncTargetsToCollection(vaultPath, { kcalTarget, proteinTarget });
   return getFitnessGoals(vaultPath);
@@ -192,4 +202,11 @@ export async function goalsContext(vaultPath) {
     g.notes ? `Notes: ${g.notes}` : null,
     board,
   ].filter(Boolean).join('\n');
+}
+
+// The dated targets for readers that judge past days (panels, fuelCross,
+// verdicts, coach context). Empty when no change has been recorded yet:
+// targetsOn() then falls back to today's numbers, as before.
+export async function loadTargetHistory(vaultPath) {
+  return (await getFitnessGoals(vaultPath).catch(() => null))?.targetHistory || [];
 }
