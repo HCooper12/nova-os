@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Interactive } from './Interactive.jsx';
 import { LocalInput } from './LocalInput.jsx';
 import { useExit } from './useExit.js';
@@ -54,7 +55,9 @@ export function CaptureReceipts({ q }) {
         </div>
       ))}
       <p className="nv-qc-how">{q.unsortedNote || 'Tap a tag to move it somewhere else.'}</p>
-      {q.sheet && <TagSheet s={q.sheet} />}
+      {/* on the page, not in the card: the card's entrance transform would
+          otherwise trap a fixed sheet inside it */}
+      {q.sheet && typeof document !== 'undefined' && createPortal(<TagSheet s={q.sheet} />, document.body)}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 /* QUICK CAPTURE (18 Oct 2026, mockup 103): the box, the receipt rows with
    their tag, and the sheet that moves one. Tokens only; the tag's hue is the
    place's own (--tag, from captureTag.js TAG_HUE). */
-.nv-qc { display: grid; gap: 12px; }
+.nv-qc { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; }
 .nv-qc-h { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: center; }
 .nv-qc-lx { display: block; min-width: 0; }
 .nv-qc-lx > .nm { display: block; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); }
@@ -15,7 +15,7 @@
 .nv-qc-go[disabled] { opacity: .45; cursor: default; }
 .nv-qc-err { margin: 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-warn); }
 
-.nv-qc-rows { display: grid; }
+.nv-qc-rows { display: grid; grid-template-columns: minmax(0, 1fr); }
 .nv-qc-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 2px; border-top: 1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent); animation: nvQcDrop .22s var(--nv-ease) both; }
 .nv-qc-txt { flex: 1; min-width: 0; font: 400 14.5px/1.3 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-qc-tag { flex: none; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px/1 var(--nv-font-ui); padding: 7px 10px; border-radius: 999px; color: var(--tag); border: 1px solid color-mix(in srgb, var(--tag) 42%, transparent); background: color-mix(in srgb, var(--tag) 11%, transparent); transition: color .3s var(--nv-ease), border-color .3s var(--nv-ease), background-color .3s var(--nv-ease); }

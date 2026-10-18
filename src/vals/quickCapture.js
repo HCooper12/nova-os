@@ -5,6 +5,8 @@ import { captureTag, PLACES } from '../captureTag.js';
 // captures as rows with the tag naming where each went, and the sheet that
 // moves one. Records come from the live Inbox; a capture still in flight is
 // the provisional card captureToInbox already puts on the board.
+const WHERE = { shopping: 'on your shopping list', todo: 'on your to-do list', note: 'a note in your vault', journal: 'in your journal', idea: 'in your ideas', reminder: 'a reminder' };
+
 export function quickCaptureModel(st, app) {
   const items = st.liveInbox?.items || [];
   const byId = new Map(items.map((r) => [r.id, r]));
@@ -31,7 +33,7 @@ export function quickCaptureModel(st, app) {
       : null,
     sheet: open ? {
       text: open.text,
-      where: here ? `"${open.text}" is in ${tag.label.split(' · ')[0].toLowerCase()} now.` : `"${open.text}" hasn't been placed yet.`,
+      where: here ? `"${open.text}" is ${WHERE[here] || 'filed'} now.` : `"${open.text}" hasn't been placed yet.`,
       places: PLACES.map((p) => ({ ...p, current: p.route === here, pick: () => app.rerouteCapture(p.route) })),
       detail: st.qcDetail || '',
       setDetail: (e) => app.setState({ qcDetail: e.target.value }),
