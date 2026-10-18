@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { CaptureReceipts } from '../QuickCapture.jsx';
 import { subjectOf } from '../inboxDigest.js';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
@@ -148,10 +149,13 @@ function InboxClassic({ v }) {
               describing the task. Capture stays: it is the two-second "buy
               tomatoes" path and routing it through a chat would make the
               fastest thing in Nova slower. */}
-          <Meta tone="faint" style={{ marginLeft: 'auto' }}>links · research · videos → just say it in the chat</Meta>
+          <Meta tone="faint" style={{ marginLeft: 'auto' }}>a podcast or video link gets the full read</Meta>
           <Button onClick={submit} disabled={!v.inboxConnected || v.inboxCaptureBusy}
           >{v.inboxCaptureBusy ? 'Routing…' : '✦ Capture'}</Button>
         </div>
+        {v.quickCapture.error && <div style={css('margin-top:8px;font-size:12.5px;color:var(--nv-warn)')} role="alert">{v.quickCapture.error}</div>}
+        {/* where each capture went, with the tag that moves it (mockup 103) */}
+        <div style={{ marginTop: '10px' }}><CaptureReceipts q={v.quickCapture} /></div>
 
         {/* IT LANDED. His report, 15 Sep: "I'm still not seeing it clearly on
             Nova whether my captures are landing… I need some sort of

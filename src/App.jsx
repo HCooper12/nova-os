@@ -96,6 +96,7 @@ import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
 import { fitSets, applyDrops } from './fitSets.js';
 import { readVideoLink, readLink } from './videoDrop.js';
+import { isLongForm } from './captureTag.js';
 import { journalActions } from './journalActions.js';
 import { pickReviewItem } from './reviewPick.js';
 import { GAPS as REVIEW_GAPS, nextStep as nextReviewStep, shiftISO, localISO, demoDrawn, DEMO_UNREVIEWED } from './reviewDemo.js';
@@ -709,6 +710,8 @@ export default class App extends Component {
 
     // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
+    // QUICK CAPTURE (mockup 103): this visit's captures, the tag sheet, its detail line
+    qcRecent: [], qcSheetId: null, qcDetail: '', qcBusy: false, qcError: null,
     inboxAskWhy: null, inboxWhyText: '', // decline-asks-why on Coach advice
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
@@ -4046,7 +4049,7 @@ export default class App extends Component {
   // One helper, because server/test/edgeBack.test.js reads popH through a
   // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory(), ...this.reviewSheetFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.captureTagFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory(), ...this.reviewSheetFromHistory() };
   }
   // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) is its own history
   // entry, for the recipe's reason: the back swipe and the browser's Back
@@ -8122,6 +8125,51 @@ export default class App extends Component {
       this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + e.message }] }));
     });
   }
+  // QUICK CAPTURE (18 Oct 2026, mockup 103): one box for anything. A long-form
+  // video or podcast episode gets the full read by itself (his ask: a Diary of
+  // a CEO episode is transcribed, woven into the vault and connected); a reel,
+  // a short or a page goes through the link lanes; words are sorted, code first.
+  quickCapture(source = 'text', said) {
+    const t = String((typeof said === 'string' && said) || this.state.inboxInput || '').trim();
+    if (!t) return;
+    const r = readLink(t);
+    if (r.ok) {
+      if (/open\.spotify\.com/i.test(r.url)) { this.setState({ qcError: "Spotify episodes can't be read. Paste the YouTube or Apple Podcasts link for that episode." }); return; }
+      if (isLongForm(r.url)) {
+        this.beginIngestJob(null, r.url);
+        this.setState((s) => ({ inboxInput: '', qcError: null, inboxVideoSent: [{ at: Date.now(), url: r.url, host: r.host, mode: 'deep', kind: null }, ...s.inboxVideoSent].slice(0, 3) }));
+        return;
+      }
+    }
+    this.setState({ qcError: null });
+    this.captureToInbox(t, source);
+  }
+  // a history level, so the back swipe closes the sheet, not the tab
+  openCaptureTag(id) {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay !== 'qctag') window.history.pushState({ novaDepth: depthOf(window.history.state) + 1, novaOverlay: 'qctag' }, '');
+    this.setState({ qcSheetId: id, qcDetail: '', qcError: null });
+  }
+  closeCaptureTag() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'qctag') { this.afterPop(() => this.setState({ qcSheetId: null, qcDetail: '' })); window.history.back(); return; }
+    this.setState({ qcSheetId: null, qcDetail: '' });
+  }
+  captureTagFromHistory() {
+    const onEntry = typeof window !== 'undefined' && window.history.state?.novaOverlay === 'qctag';
+    return !onEntry && this.state.qcSheetId ? { qcSheetId: null, qcDetail: '' } : {};
+  }
+  rerouteCapture(route) {
+    const conn = getConnection();
+    const id = this.state.qcSheetId;
+    const detail = this.state.qcDetail.trim();
+    if (!conn || !id || this.state.qcBusy || (!route && !detail)) return;
+    haptic('tick');
+    this.setState({ qcBusy: true, qcError: null });
+    api.inboxReroute(conn, id, route, detail).then(() => {
+      this.setState({ qcBusy: false });
+      this.closeCaptureTag();
+      this.refreshInbox();
+    }).catch((e) => this.setState({ qcBusy: false, qcError: e.message }));
+  }
   captureToInbox(text, source = 'text') {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -8153,6 +8201,7 @@ export default class App extends Component {
         : st.liveInbox,
     }));
     api.inboxCapture(conn, t, this.state.inboxMode, source).then(({ id }) => {
+      this.setState((st) => ({ qcRecent: [id, ...st.qcRecent.filter((x) => x !== id)].slice(0, 5) }));
       this.refreshInbox();
       this.startPoll('inboxCapture:' + id, () => api.inboxItem(conn, id), {
         intervalMs: 1500,

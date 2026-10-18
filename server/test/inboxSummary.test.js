@@ -326,7 +326,7 @@ test('both sheets are modals the back swipe can find and close', () => {
   assert.match(app, /novaOverlay: 'deeper', parentId/);
   assert.match(app, /novaOverlay: 'capture'/);
   assert.match(app, /\.\.\.this\.recipeFromHistory\(\), \.\.\.this\.pagesFromHistory\(\) \}(?:\);|, \(\) =>)/, 'popstate closes and reopens them');
-  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
+  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.captureTagFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
 });
 
 test('Seen has no button on the summary Inbox: it is marked by looking', () => {
@@ -336,12 +336,13 @@ test('Seen has no button on the summary Inbox: it is marked by looking', () => {
   assert.ok(uses >= 1 && !/onClick=\{[^}]*markSeen/.test(src), 'markSeen is only called by the three-second timer');
 });
 
-test('the Nova hold opens Nova listening under summary (1 Oct); the capture composer stays reachable from the Inbox hint', () => {
+test('the Nova hold opens Nova listening under summary (1 Oct); the Inbox keeps a capture box (Quick capture, 18 Oct)', () => {
   const dock = read('src/SummaryDock.jsx');
   assert.match(dock, /onLongPress=\{v\.holdNovaCore \|\| v\.holdNovaText\}/);
   assert.match(dock, /stays reachable there/);
   // nothing is lost: the composer still renders from the dock when opened,
-  // and the Inbox's hint line opens it with a tap
+  // and since 18 Oct (mockup 103) the Inbox carries its own box, Quick capture,
+  // first on the page, which replaced the hint that opened the composer
   assert.match(dock, /\{capture\?\.open && <CaptureSheet c=\{capture\} \/>\}/);
-  assert.match(read('src/screens/InboxSummary.jsx'), /className="nv-sum-ib-hint" onClick=\{S\.openCapture\}/);
+  assert.match(read('src/screens/InboxSummary.jsx'), /<QuickCaptureCard q=\{S\.quickCapture\} \/>/);
 });

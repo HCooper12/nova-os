@@ -462,5 +462,6 @@ test('the dock\'s hold: the Nova page, the core in focus, the microphone open â€
   const thread = read('src/screens/NovaThread.jsx');
   assert.ok(thread.indexOf('T.registerTalk(') < thread.indexOf('T.registerFocus('), 'talk registers first');
   // nothing is lost: the capture composer is a tap away on the Inbox's hint line
-  assert.match(read('src/screens/InboxSummary.jsx'), /className="nv-sum-ib-hint" onClick=\{S\.openCapture\}/);
+  // the Inbox keeps a capture box of its own since 18 Oct (Quick capture, mockup 103)
+  assert.match(read('src/screens/InboxSummary.jsx'), /<QuickCaptureCard q=\{S\.quickCapture\} \/>/);
 });

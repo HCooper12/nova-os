@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Interactive } from '../Interactive.jsx';
-import { NovaCore } from '../NovaCore.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { SkeletonBar } from '../Skeleton.jsx';
 import { Eyebrow, Segmented, TextAction } from '../Controls.jsx';
@@ -10,6 +9,7 @@ import { Ico, Tile } from '../InboxSumIcons.jsx';
 import { DeeperReportSheet } from '../DeeperReportSheet.jsx';
 import { Verbs } from '../InboxSumVerbs.jsx';
 import { CountText } from '../CountUp.jsx';
+import { QuickCaptureCard } from '../QuickCapture.jsx';
 
 // THE SUMMARY INBOX (27 Sep 2026) — design/mockups/60-redesign-inbox-r2.html,
 // his pick ("Option A seems best and most clean/organised"), answering the
@@ -441,39 +441,7 @@ function Filed({ f }) {
   );
 }
 
-// THE VIDEO DROP (17 Oct 2026): copy a link anywhere, open the Inbox, tap. The
-// field is optional (an empty one reads the clipboard); the two verbs say what
-// each does, in words, with no number on either. What was sent stays below as
-// a line that promises only what is true: it is running, and where it lands.
-function VideoDrop({ d }) {
-  const off = !d.enabled || d.busy;
-  return (
-    <section className="nv-sum-card nv-sum-ib-vd nv-sum-rise" style={{ '--i': 5 }} aria-label="Send a link">
-      <div className="nv-sum-ib-vdh">
-        <Tile tile={{ tone: 'vault', glyph: 'play' }} />
-        <span className="nv-sum-ib-lx"><span className="nm">Send a link</span><span className="sv">A reel, a video or a recipe page. Copy it, then tap.</span></span>
-      </div>
-      <div className="nv-sum-ib-vdf">
-        <input className="nv-sum-ib-vdi" type="url" inputMode="url" autoCapitalize="off" value={d.value} onChange={d.set}
-          placeholder="Paste a link" aria-label="Link" disabled={!d.enabled} />
-        <button type="button" className="nv-sum-ib-vdp" onClick={d.paste} disabled={!d.enabled}>Paste</button>
-      </div>
-      {d.askOpen
-        ? <input className="nv-sum-ib-vdi q" value={d.question} onChange={d.setQuestion} placeholder={`Optional, e.g. "add to my recipes"`} aria-label="A note or question" />
-        : <TextAction tone="quiet" onClick={d.toggleAsk}>Add a note, or a question</TextAction>}
-      {d.error && <p className="nv-sum-ib-vde" role="alert">{d.error}</p>}
-      <div className="nv-sum-ib-vda">
-        <button type="button" className="nv-sum-ib-vdb" onClick={d.look} disabled={off}><b>Send it</b><span>Nova works out what it is. A recipe goes into your recipes</span></button>
-        <button type="button" className="nv-sum-ib-vdb deep" onClick={d.deep} disabled={off}><b>Full read</b><span>A video, every idea woven into the vault. Takes longer</span></button>
-      </div>
-      {d.sent.map((e) => (
-        <div key={e.key} className="nv-sum-ib-vds" role="status"><Ico name="loop" /><span className="rx"><b>{e.title}</b><span>{e.sub}</span></span></div>
-      ))}
-    </section>
-  );
-}
-
-function Waiting({ S, v }) {
+function Waiting({ S }) {
   const card = S.card;
   const ops = S.ops;
   return (
@@ -497,6 +465,8 @@ function Waiting({ S, v }) {
           <TextAction tone="quiet" onClick={S.focus.clear}>Back to all</TextAction>
         </div>
       )}
+      {/* QUICK CAPTURE (mockup 103): first, where a thought is dropped */}
+      <QuickCaptureCard q={S.quickCapture} />
       {card
         ? <DeckCard key={card.id} card={card} ghosts={S.ghosts} position={S.position} />
         : (
@@ -506,10 +476,6 @@ function Waiting({ S, v }) {
           </div>
         )}
       <Receipt r={S.receipt} />
-      <VideoDrop d={S.videoDrop} />
-      <Interactive as="button" className="nv-sum-ib-hint" onClick={S.openCapture} haptic="tick" base={{ cursor: 'pointer' }}>
-        Drop a thought: hold <span className="orb" aria-hidden="true"><NovaCore size={18} variant="mini" engine={v.coreStyle} style={{ pointerEvents: 'none' }} /></span> Nova, or tap to write it
-      </Interactive>
       {ops && ops.live && (
         <Interactive as="button" className="nv-sum-card nv-sum-ib-oprow nv-sum-rise" style={{ '--i': 6 }} onClick={ops.openOps} haptic="tick" base={{ cursor: 'pointer' }}
           aria-label={`Loops, in Agents and Operations: ${ops.summary}`}>
@@ -550,7 +516,7 @@ export function InboxSummary({ v }) {
               <SkeletonBar w="100%" h="56px" radius="14px" style={{ marginTop: '14px' }} />
             </div>
           </div>
-        ) : S.tab === 'filed' && S.filed ? <Filed f={S.filed} /> : <Waiting S={S} v={v} />}
+        ) : S.tab === 'filed' && S.filed ? <Filed f={S.filed} /> : <Waiting S={S} />}
       </div>
       {S.report && <DeeperReportSheet r={S.report} />}
     </div>

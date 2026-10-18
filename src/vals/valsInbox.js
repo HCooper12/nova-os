@@ -1,4 +1,5 @@
 import { tldrFor } from '../tldr.js';
+import { quickCaptureModel } from './quickCapture.js';
 // Nova Inbox domain: the capture composer, filing-mode trust ladder, pending
 // approvals, history with undo, and the "proposed rule" nudge (Nova notices
 // from real history when a mode change has earned itself and proposes it —
@@ -734,7 +735,10 @@ export function valsInbox(app, ctx) {
     // when a submit fires, so reading st.inboxInput here would drop the last
     // characters typed. A lost capture is a lost thought; the value travels
     // with the call instead of being looked up.
-    submitInboxCapture: (source, text) => app.captureToInbox(asText(text) ?? st.inboxInput, source),
+    // Quick capture (mockup 103): a long-form link takes the full read, the
+    // rest sorts code first; the rows and the tag sheet are the Summary's own
+    submitInboxCapture: (source, text) => app.quickCapture(source, asText(text) ?? st.inboxInput),
+    quickCapture: quickCaptureModel(st, app),
     inboxModes: MODE_LADDER.map((m, i) => ({
       ...m,
       step: i + 1,

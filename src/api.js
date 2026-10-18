@@ -670,6 +670,8 @@ export const api = {
   // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)
   inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
+  // the tag on a capture: move it, or re-read it with a detail (mockup 103)
+  inboxReroute: (conn, id, route, detail) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reroute`, { route: route || null, detail: detail || '' }),
   // THE SKILL SETS (mockup 97): read, and his tick / cross / undo on a suggestion
   skillSets: (conn) => call(conn, '/api/skillsets'),
   skillSuggestion: (conn, id, verb) => post(conn, `/api/skillsets/suggestions/${encodeURIComponent(id)}/${verb}`),
