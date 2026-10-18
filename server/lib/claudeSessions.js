@@ -99,7 +99,9 @@ export function plainFor(state, quietAgo) {
  */
 export function judge(agent, { lastAt = null, now = Date.now(), staleAfterMs = STALE_AFTER_MS } = {}) {
   const kind = agent.kind === "background" ? "background" : "interactive";
-  const busy = kind === "interactive" ? agent.status === "busy" : agent.state === "running";
+  // A background session says "working" while it works (seen 18 Oct 2026, Claude Code 2.1.302) and
+  // "done" when it waits; older builds said "running". Reading only "running" called a working one idle.
+  const busy = kind === "interactive" ? agent.status === "busy" : agent.state === "running" || agent.state === "working";
   const stuck = kind === "background" && agent.state === "blocked";
   const since = lastAt ?? (Number(agent.startedAt) || now);
   const quietMs = Math.max(0, now - since);
