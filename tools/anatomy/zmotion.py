@@ -45,6 +45,19 @@ for w in raw:
     last = {k: to_b(w[i]) for k, i in L.items()}
     frames.append(last)
 frames = [f for f in frames if f]
+# LEFT/RIGHT SWAPS: the tracker sometimes trades the athlete's sides for a
+# frame, turning the whole body round for an instant (a frame of the 19 Oct
+# render held the bar vertical). A swap shows as the hip line pointing the
+# opposite way to the frame before; swap it back.
+swapped = 0
+for i in range(1, len(frames)):
+    prev = frames[i - 1]['lhip'] - frames[i - 1]['rhip']
+    cur = frames[i]['lhip'] - frames[i]['rhip']
+    if prev.dot(cur) < 0:
+        f = frames[i]
+        frames[i] = {k: (f['r' + k[1:]] if k[0] == 'l' and ('r' + k[1:]) in f else f['l' + k[1:]] if k[0] == 'r' and ('l' + k[1:]) in f else v) for k, v in f.items()}
+        swapped += 1
+print('SWAPS', swapped)
 
 # smooth: a centred moving average over ~0.2 s
 def smooth(fs, k):
@@ -53,7 +66,7 @@ def smooth(fs, k):
         win = fs[max(0, i - k):i + k + 1]
         out.append({n: sum((f[n] for f in win), Vector()) / len(win) for n in fs[0]})
     return out
-frames = smooth(frames, max(1, int(fps * 0.1)))
+frames = smooth(frames, max(1, int(fps * 0.15)))  # 0.1 s left visible jitter
 
 def angle(a, b, c):
     return math.degrees((a - b).angle(c - b))
@@ -65,8 +78,20 @@ def key(f):
     return (angle(f['lsh'], f['lel'], f['lwr']) + angle(f['rsh'], f['rel'], f['rwr'])) / 2
 ks = [key(f) for f in frames]
 bottom = min(range(len(ks)), key=lambda i: ks[i])
-a = max(range(0, bottom + 1), key=lambda i: ks[i] - 0.02 * (bottom - i))
-b = max(range(bottom, len(ks)), key=lambda i: ks[i] - 0.02 * (i - bottom))
+# ONE rep: from the bottom, walk out each way to the NEAREST standing position
+# (the first local peak above 90% of the top). Taking the highest point on
+# each side spanned two reps of the RP clip (19 Oct): down, up, down, up.
+top = max(ks)
+def nearest_top(step):
+    i = bottom
+    while 0 < i < len(ks) - 1:
+        nxt = i + step
+        if ks[i] >= 0.9 * top and ks[nxt] <= ks[i]:
+            return i
+        i = nxt
+    return i
+a = nearest_top(-1)
+b = nearest_top(1)
 rep = frames[a:b + 1][::int(arg('--step', '1'))]
 print('REP', a, bottom, b, 'frames', len(rep), f'{len(rep) / fps:.2f}s', 'key', round(ks[a]), round(ks[bottom]), round(ks[b]))
 
@@ -104,17 +129,23 @@ def aim(bone_name, direction, roll_ref=None):
     head where its parent left it."""
     b = pb[bone_name]
     h, t = rest[bone_name]
-    rest_dir = (t - h).normalized()
+    # swing from where the PARENT carried the bone, not from its own rest
+    # direction: swung from rest, the forearm twisted against the upper arm
+    # and the right collarbone rolled 77 deg at one frame (loop v8, 19 Oct)
+    base = b.bone.matrix_local.to_3x3()
+    if b.parent:
+        base = b.parent.matrix.to_3x3() @ b.parent.bone.matrix_local.to_3x3().inverted() @ base
+    rest_dir = (base @ Vector((0, 1, 0))).normalized()
     q = rest_dir.rotation_difference(direction.normalized())
     if roll_ref is not None:
         # twist about the new axis so the rest x-axis lies as near roll_ref as it can
-        x = q @ (b.bone.matrix_local.to_3x3() @ Vector((1, 0, 0)))
+        x = q @ (base @ Vector((1, 0, 0)))
         axis = direction.normalized()
         xr = (roll_ref - axis * roll_ref.dot(axis)).normalized()
         xp = (x - axis * x.dot(axis)).normalized()
         tw = xp.rotation_difference(xr)
         q = tw @ q
-    m = (q.to_matrix() @ b.bone.matrix_local.to_3x3()).to_4x4()
+    m = (q.to_matrix() @ base).to_4x4()
     head = b.parent.matrix @ (b.parent.bone.matrix_local.inverted() @ h) if b.parent else h
     m.translation = head
     b.matrix = m
@@ -213,9 +244,100 @@ def pose_squat(f):
         aim('foot' + S, Matrix.Rotation(math.radians(sign * 12), 3, 'Z') @ foot, across)
     squat_arms()
 
+# THE ATHLETE, NOT A MODEL OF HIM (19 Oct 2026). His verdict on the squat
+# built from angles + canonical geometry: "does not look accurate like what a
+# real person would be doing... the way the arms are positioned... clunky".
+# Measured against the RP athlete it had the wrong stance (feet 1x hip width;
+# his are 2x), wrong depth (he sits to knee 56 / hip 70) and invented arms
+# (his: elbow 17 cm below the shoulder, wrist at shoulder height 12 cm out).
+# So every limb now comes from HIS tracked positions, expressed in HIS body
+# frame (hips give left-right, gravity gives up): the camera's angle drops out,
+# which is what twisted the torso when raw camera directions were used. The
+# only correction kept: the shoulders do not twist against the hips (a known
+# monocular depth error, not something a squatter does). Feet stay planted.
+UP = Vector((0, 0, 1))
+
+def body_frame(f):
+    x = f['lhip'] - f['rhip']
+    x.z = 0
+    x = x.normalized()
+    y = UP.cross(x).normalized()          # the athlete's back (the figure's +Y)
+    return x, y
+
+def to_fig(v, X, Y):
+    return Vector((v.dot(X), v.dot(Y), v.dot(UP)))
+
+anchor = {}
+
+MIRROR = Vector((-1, 1, 1))
+def sym(f, X, Y, a, b):
+    """HIS movement, both sides averaged: the left limb and the right limb
+    mirrored onto it. A back squat is symmetric; one camera sees one side
+    nearer, and its depth error showed as a tilted bar and a leg kicking out
+    (19 Oct). Averaging cancels that and invents nothing."""
+    l = to_fig(f['l' + b] - f['l' + a], X, Y).normalized()
+    r = to_fig(f['r' + b] - f['r' + a], X, Y).normalized() * MIRROR
+    m = (l + r).normalized()
+    return m, m * MIRROR
+
+def pose_tracked(f):
+    X, Y = body_frame(f)
+    S2 = {}
+    for seg, (a, b) in {'thigh': ('hip', 'kn'), 'shin': ('kn', 'ank'), 'foot': ('ank', 'toe'),
+                        'upperarm': ('sh', 'el'), 'forearm': ('el', 'wr'), 'hand': ('wr', 'ix')}.items():
+        S2[seg + 'L'], S2[seg + 'R'] = sym(f, X, Y, a, b)
+    T = None
+    hipmid = (f['lhip'] + f['rhip']) / 2
+    shmid = (f['lsh'] + f['rsh']) / 2
+    torso = to_fig(shmid - hipmid, X, Y)
+    torso.x = 0.0          # symmetric lift: no side lean (camera depth error)
+    lean = math.atan2(-torso.y, torso.z)            # forward lean, radians
+    across = Vector((1, 0, 0))
+    # pelvis: tips forward with the torso (a third of the lean, not measurable
+    # from a video), placed so the feet stay where they started
+    pel = pb['pelvis']
+    rot = Matrix.Rotation(lean * 0.35, 3, 'X')
+    pm = (rot @ pel.bone.matrix_local.to_3x3()).to_4x4()
+    pm.translation = rest['pelvis'][0]
+    pel.matrix = pm
+    bpy.context.view_layer.update()
+    for S, s in (('L', 'l'), ('R', 'r')):
+        aim('thigh' + S, S2['thigh' + S], across)
+        aim('shin' + S, S2['shin' + S], across)
+        foot = S2['foot' + S].copy(); foot.z = min(foot.z, 0.0) * 0.3  # near-flat on the floor
+        aim('foot' + S, foot, across)
+    # feet planted: move the whole body so the ankles sit on the floor where
+    # they were on the first frame
+    ank = (pb['footL'].head + pb['footR'].head) / 2
+    low = min(pb['footL'].head.z, pb['footR'].head.z)
+    if 'ank' not in anchor:
+        anchor['ank'] = Vector((ank.x, ank.y, (rest['footL'][0].z + rest['footR'][0].z) / 2))
+    shift = Vector((anchor['ank'].x - ank.x, anchor['ank'].y - ank.y, anchor['ank'].z - low))
+    pm.translation = pm.translation + shift
+    pel.matrix = pm
+    bpy.context.view_layer.update()
+    for S, s in (('L', 'l'), ('R', 'r')):   # re-seat the legs on the moved pelvis
+        aim('thigh' + S, S2['thigh' + S], across)
+        aim('shin' + S, S2['shin' + S], across)
+        foot = S2['foot' + S].copy(); foot.z = min(foot.z, 0.0) * 0.3
+        aim('foot' + S, foot, across)
+    aim('spine', torso, across)
+    aim('chest', torso, across)                     # no twist against the hips
+    head_dir = to_fig(f['nose'] - shmid, X, Y)
+    aim('neck', torso.normalized() * 0.7 + head_dir.normalized() * 0.3)
+    aim('head', torso.normalized() * 0.5 + head_dir.normalized() * 0.5)
+    for S, s in (('L', 'l'), ('R', 'r')):
+        cl = to_fig(f['lsh'] - shmid, X, Y).normalized() + to_fig(f['rsh'] - shmid, X, Y).normalized() * MIRROR
+        # no roll reference: the collarbone runs ACROSS the body, so 'across'
+        # left its twist undefined; it takes the chest's
+        aim('clavicle' + S, cl.normalized() if S == 'L' else cl.normalized() * MIRROR)
+        aim('upperarm' + S, S2['upperarm' + S])
+        aim('forearm' + S, S2['forearm' + S])
+        aim('hand' + S, S2['hand' + S])
+
 for i, f in enumerate(rep):
     if LIFT == 'squat':
-        pose_squat(f)
+        pose_tracked(f)
         for bone_name in ORDER:
             pb[bone_name].keyframe_insert('location', frame=i + 1)
             pb[bone_name].keyframe_insert('rotation_quaternion', frame=i + 1)

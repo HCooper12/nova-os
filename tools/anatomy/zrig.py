@@ -149,7 +149,22 @@ HAND = re.compile(r'finger|thumb|pollicis|metacarp|carpal|scaphoid|lunate|trique
 for o in meshes:
     side = 'l' if o.name.endswith('.l') else 'r' if o.name.endswith('.r') else None
     allowed = SIDE_BONES[side] if side else SIDE_BONES['l'] & SIDE_BONES['r']
-    if re.search(r'inguinal ligament', o.name, re.I):
+    trunk_arm = None
+    if side and re.search(r'infraspinatus|supraspinatus|teres|subscapularis', o.name, re.I):
+        # shoulder blade to arm: the rig has no scapula bone, and the clavicle
+        # moves with the blade; on chest + arm they stretched 2.1x arms-up
+        allowed = {'clavicle' + side.upper(), 'upperarm' + side.upper()}
+    elif side and re.search(r'trapezius', o.name, re.I):
+        # neck, spine and the shoulder girdle, never the arm: dragged by the
+        # upper arm it crumpled into a hood arms-up (2.1x, 19 Oct)
+        allowed = {'neck', 'chest', 'spine', 'clavicle' + side.upper()}   # the lower part reaches T12
+    elif re.search(r'serratus posterior', o.name, re.I):
+        allowed = {'spine', 'chest'}          # spine to ribs
+    elif re.search(r'scalenus|scalene', o.name, re.I):
+        # neck vertebrae to the first ribs, never the collarbone: weighted to
+        # the clavicle it stretched 2.3x when the tracked shoulders moved
+        allowed = {'neck', 'chest'}
+    elif re.search(r'inguinal ligament', o.name, re.I):
         # pelvis to pelvis (anterior iliac spine to pubic tubercle): blended
         # toward the thigh it stretched 4.6x in a deep squat (loop v6 check)
         allowed = {'pelvis'}
@@ -169,6 +184,14 @@ for o in meshes:
         # forearm's muscles hanging by the hip at the bottom (loop v7)
         if cz < 1.05 and cx < 0.19:
             allowed = {n for n in allowed if not re.match(r'(upperarm|forearm|hand|clavicle)', n)}
+        # a TRUNK piece reaching the arm (latissimus, pectoralis, serratus):
+        # the arms hang beside it at rest, so its waist edge sat nearest the
+        # forearm and flew out with it as a wing when the arms rose to the bar
+        # (sheet v9, 19 Oct). It follows the upper arm only near the joint.
+        elif side and cx < 0.16:
+            trunk = {n for n in allowed if not re.match(r'(upperarm|forearm|hand)', n)}
+            trunk_arm = (segs['upperarm' + side.upper()][0], trunk)
+            allowed = trunk | {'upperarm' + side.upper()}
     mw = o.matrix_world
     for g in list(o.vertex_groups):
         o.vertex_groups.remove(g)
@@ -179,16 +202,25 @@ for o in meshes:
         best = min(allowed, key=lambda n: seg_dist(c, *segs[n]))
         groups[best].add([v.index for v in o.data.vertices], 1.0, 'REPLACE')
     else:
-        for v in o.data.vertices:
-            p = mw @ v.co
-            d = sorted((seg_dist(p, *segs[n]), n) for n in allowed)[:2]
+        def blend(p, bones):
+            d = sorted((seg_dist(p, *segs[n]), n) for n in bones)[:2]
             if len(d) == 1:   # pinned to one bone (the inguinal ligament)
-                groups[d[0][1]].add([v.index], 1.0, 'REPLACE')
-                continue
+                return {d[0][1]: 1.0}
             w0 = 1 / (d[0][0] + 0.004) ** 4
             w1 = 1 / (d[1][0] + 0.004) ** 4
-            groups[d[0][1]].add([v.index], w0 / (w0 + w1), 'REPLACE')
-            groups[d[1][1]].add([v.index], w1 / (w0 + w1), 'REPLACE')
+            return {d[0][1]: w0 / (w0 + w1), d[1][1]: w1 / (w0 + w1)}
+        for v in o.data.vertices:
+            p = mw @ v.co
+            w = blend(p, allowed)
+            if trunk_arm:
+                # all arm within 7 cm of the shoulder joint, none past 15 cm
+                t = max(0.0, min(1.0, ((p - trunk_arm[0]).length - 0.07) / 0.08))
+                f = 1 - t * t * (3 - 2 * t)
+                wt = blend(p, trunk_arm[1])
+                w = {n: f * w.get(n, 0.0) + (1 - f) * wt.get(n, 0.0) for n in set(w) | set(wt)}
+            for n, x in w.items():
+                if x > 0:
+                    groups[n].add([v.index], x, 'REPLACE')
     mod = o.modifiers.new('rig', 'ARMATURE')
     mod.object = arm
     o.parent = arm
