@@ -165,3 +165,27 @@ test('workout.log: refuses while a workout is open in Train', async () => {
     await clearSessionDraft({ reason: 'discarded' });
   }
 });
+
+test('workout.log: a spoken set that beats his best carries the record; an earlier set that day never repeats it', async () => {
+  const { completeSession } = await import('../lib/workoutSessions.js');
+  const lib = await loadExerciseLibrary(vault);
+  const bench = lib.exercises.find((e) => /^barbell bench press$/i.test(e.name));
+  // a past best of 80 kg, on an earlier day
+  const prior = await completeSession(vault, { routineId: 'push', routineName: 'Push', exercises: [{ exerciseId: bench.id, name: bench.name, sets: [{ weight: 80, reps: 5 }] }] });
+  const { updateSession } = await import('../lib/workoutSessions.js');
+  await updateSession(vault, prior.id, { date: '2020-01-01' }).catch(() => {});
+
+  const light = await tryCommand(vault, 'bench 70 for 8');
+  assert.equal(light.acted.prs, undefined, 'under his best: no record');
+
+  const heavy = await tryCommand(vault, 'bench 85 for 3');
+  const w = heavy.acted.prs.find((p) => p.kind === 'weight');
+  assert.equal(w.value, 85);
+  assert.equal(w.previous, 80);
+  assert.match(heavy.text, /new best/);
+  assert.equal(heavy.acted.prExercises[0].exerciseId, bench.id);
+
+  // another lighter set the same day must not celebrate the 85 again
+  const after = await tryCommand(vault, 'bench 82 for 3');
+  assert.equal(after.acted.prs, undefined);
+});

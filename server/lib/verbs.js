@@ -1120,10 +1120,24 @@ verb({
     }
     const one = weight > 0 ? `${g(weight)} kg × ${reps}` : `${reps} reps`;
     const what = sets > 1 ? `${sets} sets of ${one}` : one;
+    // PERSONAL BESTS (his yes, 18 Oct): a spoken set counts like any other.
+    // Measured against every OTHER session plus today's Quick log as it stood
+    // BEFORE this call, and only the sets this call added, so an earlier set
+    // that day never celebrates twice.
+    let prs = [];
+    try {
+      const { prsInSession } = await import('./trainingAnalytics.js');
+      const all = await loadSessions(vaultPath, { limit: 60 });
+      const before = todays ? [{ ...todays, id: `${todays.id}-before` }] : [];
+      const rest = all.filter((s) => s.id !== session.id);
+      const thisCall = { date: today, routineId: QUICK_LOG_ROUTINE, exercises: [{ exerciseId: ex.id, name: ex.name, sets: added }] };
+      prs = prsInSession([...rest, ...before], thisCall).slice(0, 3);
+    } catch { /* a missing celebration is a non-event */ }
     return {
       destination: `Training: ${ex.name}, ${what} (Quick log, ${today})`,
-      said: `Logged ${ex.name}: ${what}.`,
+      said: `Logged ${ex.name}: ${what}.${prs.some((p) => p.kind === 'weight' && p.previous != null) ? ' That is a new best.' : prs.some((p) => p.previous != null) ? ' That is a new estimated best.' : ''}`,
       undo: { verb: 'workout.log', sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, added },
+      ...(prs.length ? { extra: { prs, prExercises: [{ exerciseId: ex.id, name: ex.name, trackingType: tt }] } } : {}),
     };
   },
   async undo(vaultPath, u) {

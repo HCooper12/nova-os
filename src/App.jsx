@@ -10968,6 +10968,12 @@ export default class App extends Component {
     const conn = getConnection();
     if (research && conn && acted.research?.recordId && !acted.research.queued) this.watchVoiceResearch(conn, acted.research.recordId);
     if (acted.ingest?.jobId) this.pollIngest(acted.ingest.jobId);
+    // A SPOKEN SET THAT BEAT HIS BEST gets the same moment a finished workout does
+    if (acted.prs?.length) {
+      primeSfx();
+      const records = confirmedRecords(acted.prs, acted.prExercises || []);
+      if (records.length) this.openRecordMoment(records); else releaseSfx();
+    }
     if (acted.open) this.openFromNova(acted.open);
     if (acted.browse?.recordId) this.watchBrowse(acted.browse.recordId, acted.browse.task || '');
     if (acted.record || acted.watch || acted.research || acted.ingest) this.refreshInbox?.();
