@@ -13,6 +13,53 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**18 OCT, CLOSE (claude.ai session 01AhAA1e) — QUICK CAPTURE, THE CLAUDE-FREE FEATURES, WEEKLY CALORIES, GOALS THAT NEVER APPLY BACKWARDS, SPOKEN SETS ON THE PERSONAL-BEST MOMENT. ON MAIN AND PUSHED (HEAD fbd0bb18, deploy 39096109875 success); SERVER RELOADED; NOTHING SEEN ON HIS PHONE.**
+- GOAL: his asks this session: the six UX-law fixes (1–4 built), the kcal fix, two ASD-STE100 reels into Nova and Wren, weekly calories as the sum of each day, goals that never apply backwards, Quick Capture back in the Inbox with a tag, and every Claude-dependent feature able to work with his Claude usage gone.
+- DONE CRITERIA: met in code. UX laws 1–4 (kcalFromMacros, exercisePickerRecent, OfflineCard, the offline pill hidden on Home for Mission). Plain-speech rule in server/lib/lens.js. Weekly calories (VoicePanels CalorieWeek, App.askAboutWeekCalories). targetHistory (src/targetHistory.js, server/lib/fitnessGoals.js). Shopping list filed by code (server/lib/shoppingCategory.js, shoppingList.js). Quick Capture in both idioms (captureLocal.js, inbox.js, InboxSummary.jsx, Inbox.jsx). Food, calendar, recipe, ingest and photo fallbacks (foodDescribeLocal.js, calendarLocal.js). weight.log and workout.log verbs (verbs.js). Voice sets on the record moment (fbd0bb18). UNMET: the client follow-ups under OPEN QUESTIONS; the eight-exercise anatomy audit; a shopping aisle-move UI.
+- STATE: HEAD fbd0bb18 == origin/main, tree clean. Server reloaded after fbd0bb18 (reload-server.mjs: health 200). His vault's Fitness Goals.md carries the seeded targetHistory (backup taken first). Shopping memory: server/data/shopping-categories.json (operational, rebuildable). Peer worktrees under .claude/worktrees and their branches belong to other sessions and were left alone. The four subagent worktrees from this session were removed.
+- DECISIONS (choice → reason → what it forecloses):
+  (a) code files a capture first and the model sorts only what code cannot place → his Claude usage is not needed for common things → forecloses a model-only sort.
+  (b) an unsorted capture waits as "Unsorted · pick a place", never an error → nothing is lost when Claude is out → forecloses an error card for a capture.
+  (c) a goal change applies from that day; past days keep the targets they had → his rule, 18 Oct → forecloses judging any past day against the current goal.
+  (d) only long-form links (YouTube watch, Vimeo, Apple Podcasts episodes) get the full read; reels and shorts stay on the quick look → the full read is for episodes → forecloses full reads for short video.
+  (e) workout.log acts at once with Undo (his pick 1, kept) → forecloses a confirm step on every spoken set.
+  (f) a spoken set that beats his best shows the record moment in-app only, with NO Telegram ping (his "No", 18 Oct) → forecloses Telegram for spoken sets; finished workouts keep their ping.
+  (g) a retried recipe photo keeps its estimated macros (his pick 3, kept) → forecloses blank macros on retry.
+  (h) spoken sets file into one "voice-log" Quick log session per day → forecloses a session per set.
+- VERIFIED (locators, checked at this close):
+  - `npm run lint` exit 0 (warnings only).
+  - `npm run build` green (dist emitted).
+  - `cd server && npm test`: 4105 run, 4103 pass, 2 fail: "the atlas covers his real library exactly, both ways" and "every exercise resolves to at least one drawable view" (the known anatomy gap).
+  - server/test/verbsLog.test.js: 9 of 9 pass (includes the spoken-PR test).
+  - gh run 39096109875 (fbd0bb18) success via `gh run watch --exit-status`; the run before it, 39093980878, success.
+  - `curl http://localhost:4173/api/health` returned 200 at close.
+  - `git status` clean; `git rev-list --count origin/main...main` 0 0.
+  - no dist/pc.json and no vite preview process.
+- ASSUMED (re-check before quoting):
+  - Live week budget 14,753 (6 × 2,100 + 2,153, past days 150 g, today 166 g): measured earlier this session on the live server; NOT re-read at close. Re-check /nutrition-week's calWeek.
+  - Quick Capture on his phone; the tag and move sheet on a real finger; a real long-form link through the full read (transcript, vault file, connections). Not run this session: a real run costs model time and writes to his vault.
+  - The spoken-set record moment on the device, including its sound (iOS plays audio only after a tap, and a voice reply arrives later, so the sound may not play).
+  - Aisle guesses for items beyond the word table and his memory.
+- OPEN QUESTIONS / BLOCKERS:
+  - Client follow-ups: Inbox cards for kinds recipe-scan and ingest (status error) need a title and a Retry button, as the video cards have. The photo-scan screen should send `name` to /recipes/scan and open kept.recipeId. Draft recipes need a "needs reading" badge.
+  - Eight new exercises have no anatomy entry (JM Press, Reverse Pec Deck, Bayesian Cable Curl, Adductor Machine, four stretches). They cause the two failing tests. They need his audit and approval (memory nova-muscle-accuracy).
+  - Shopping: no aisle-move UI yet. The move should also call rememberCategories so the list learns the aisle.
+  - Spotify: Nova cannot read a Spotify episode and says so. Confirm he is happy with pasting the YouTube or Apple Podcasts link instead.
+  - Wren: carry the ASD-STE100 plain-speech rule (lens.js) into Wren's lens. He said to keep it as a potential, so it is not started.
+  - No decision is waiting on him now. His answers this session (1 kept, 2 yes, 3 kept) and the Telegram "No" are all applied.
+- NEXT ACTION: on his phone, in Summary, type "toothpaste" into Quick Capture. Expect a "Shopping list · Household" tag. Paste a YouTube episode link. Expect the full read to start and a transcript to be filed in the vault. Then log a set above his best with "bench <kg> for <reps>". Expect the record moment in-app and no Telegram message. Check `gh run list --limit 1` for the deploy.
+- DO NOT:
+  - Never `git stash` in the shared tree. A stash swept up a peer's work this session (memory nova-concurrent-sessions).
+  - Never judge a past day against the current goal (memory nova-target-history).
+  - Never say Spotify links work; Nova cannot read them.
+  - Never send a spoken-set personal best to Telegram (his "No").
+  - Never write test rows to the live vault or the live server/data. Set NOVA_DATA_DIR before any import (memory nova-test-data-isolation).
+  - Never use toISOString().slice(0,10) for a local day; use the local-date helpers.
+  - Never call the eight new exercises audited.
+  - Never reload with a bare launchctl; use `node scripts/reload-server.mjs`.
+  - Never let a fixture pass without asserting the finding: the fuel-cross fixture needs the `macros` wrapper, or the test passes for the wrong reason.
+  - Never re-create the discarded stale Inbox card (record e28e9fab). Its producer, the floor-pattern check, now judges each day by that day's own floor.
+
 **18 OCT, CLOSE (claude.ai session 01MPaorT, resumed through two Mac restarts) — THE SPEED AND COMPETENCE AUDIT OF NOVA AND WREN, MEASURED AND BUILT. ALL ON MAIN AND PUSHED; NOVA RELOADED; WREN LIVE VIA THE REBOOT; NOTHING SEEN ON HIS PHONE.**
 - GOAL: his bar, "like E.V. and JARVIS … entire context, speed and capabilities like Claude Code, focused on their own purpose"; audit from receipts and the CLI session journals, rank by seconds, fix, re-measure.
 - DONE CRITERIA: built and committed: Nova 1301dd8a (error ledger), 3e1c8c66 (pre-render yields to load), c6bfaaa6 (speech never drops, speaks sooner, survives iOS suspension, re-attach lane bug), 577378f6 (14 one-shot spawns close stdin), 7d4fa3a6 (effort per lane, session guard + hygiene, warm consult sessions), 1b0fd07a (the ears: lead from mic-open, tap keeps listening, empty captures never reach Groq, ack gap, blind meter, hidden), 7df119d3 (deepLine spoken). Wren c81717d (telemetry), 1b1ee1c (cold turn 156K→28K, citations, memory, held speech), 46f4ebd (two lanes, warm session, stdin closed, checked event, sidecar at boot). Unmet: the AFTER benchmark (agent still running: scripts/bench-ask.mjs, tools/bench-ask.mjs; outputs to scratchpad/bench/*-after.json), anything on his iPhone.
@@ -5573,6 +5620,8 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**18 Oct (Quick Capture and the Claude-free features, claude.ai 01AhAA1e).** Built the Inbox's one capture box in both idioms: code files what it can read for certain (shopping, to-dos, timed reminders, labelled notes), the tag says where it went and can move it, and long-form episode links go straight to the full read. Made the shopping list, food describe, calendar adds, recipe pages and the kept-and-retryable links and photos work without Claude, and added spoken weight and set logging. Goals now apply from the day they change (targetHistory), so past days are never judged against a new target. Corrected, not added: a captured reminder kept a leading "to"; a stale Inbox card judged old days at 166 g and was discarded, and its producer now judges each day by its own floor; the calorie-week budget expression was wrong and reverted; the fuel-cross test passed without its finding and now asserts it. Spoken sets that beat his best show the record moment in-app; his answer was no Telegram ping.
 
 **15 Oct (native shell, claude.ai 01AhAA1e).** Fixed the OFFLINE storm at its roots: the 1.9 MB uncompressed sync is now ~0.23 MB compressed with a trimmed inbox, and the Mac is pinged before the app says OFFLINE. Corrected, not added: my own earlier commit 502b138 had made any network failure read as OFFLINE with no fallback, and the Shortcut-era higher-wins rule was discarding Apple Health's correct lower totals (now healthkit wins). Built the four widgets, the full-screen shell fix, native HealthKit reads (working on device), and movable Home cards. The Landed card was counting Nova's own reports (6 of 9); it now counts only his captures.
 
