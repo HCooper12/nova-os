@@ -104,7 +104,14 @@ export function boundaryArgs(allowed) {
 // (verified 18 Oct 2026, `claude --help`: "--effort <level> … low, medium,
 // high, xhigh, max").
 let effortSupported = null;
-(function probeEffort() {
+let probed = false;
+// Lazy, on the first flag asked for — not at import. At import it ran in every
+// test that loads modelPrefs.js, against whatever CLAUDE_BIN the test had
+// stubbed in, and the stub's own log of that `--help` call raced the lane
+// call the test was waiting for (CI run 39172535365, 19 Oct 2026).
+function probeEffort() {
+  if (probed) return;
+  probed = true;
   try {
     // spawn's own `timeout` ends a help page that hangs; it is a read, never
     // a model run, so no turn is ever cut short by it
@@ -121,9 +128,11 @@ let effortSupported = null;
     child.unref?.();
     child.stdout.unref?.();
   } catch { effortSupported = false; }
-})();
+}
 export function effortFlag(level) {
-  if (!level || effortSupported === false) return [];
+  if (!level) return [];
+  if (effortSupported === null) probeEffort();
+  if (effortSupported === false) return [];
   return ['--effort', level];
 }
-export function _setEffortSupportedForTest(v) { effortSupported = v; }
+export function _setEffortSupportedForTest(v) { effortSupported = v; probed = true; }

@@ -141,7 +141,9 @@ test('resolveWeeklyModelChoice runs the real lane on the chosen model and files 
   while (Date.now() - start < 10_000) {
     try {
       lines = (await readFile(argvLog, 'utf8')).trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
-      if (lines.length) break;
+      // wait for the LANE's call: the --effort probe's own `--help` call to
+      // the same stub can land first (CI, 19 Oct 2026)
+      if (lines.some((argv) => argv.includes('--model'))) break;
     } catch { /* not written yet */ }
     await new Promise((res) => setTimeout(res, 100));
   }
@@ -179,7 +181,7 @@ test('"keep it" on the weekly card runs the lane on the board\'s own model', asy
     let lines = [];
     while (Date.now() - start < 10_000) {
       lines = (await readFile(argvLog, 'utf8')).trim().split('\n').filter(Boolean).slice(before).map((l) => JSON.parse(l));
-      if (lines.length) break;
+      if (lines.some((argv) => argv.includes('--model'))) break;
       await new Promise((res) => setTimeout(res, 100));
     }
     const call = lines.find((argv) => argv.includes('--model'));
