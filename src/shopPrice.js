@@ -56,6 +56,9 @@ export const KEEPS = [
   { k: 'bread', n: 'Bread', re: /\b(bread|loaf|sourdough|wraps?|rolls?|bagels?|tortillas?)\b/, d: 4, fz: true },
   { k: 'frozen', n: 'Frozen', re: /\bfrozen\b/, d: 180 },
   { k: 'tin', n: 'Tins', re: /\b(beans|chickpeas|lentils|tinned|canned|tuna|passata|diced tomato)/, d: 730 },
+  // a box of pieces: the label's serve is two biscuits in 33.3 g, so "10
+  // Weet-Bix" is ten biscuits, one box (his 19 Oct correction)
+  { k: 'weetbix', n: 'Weet-Bix', re: /\bweet[- ]?bix\b/, d: 365, each: 16.7 },
   { k: 'dry', n: 'Rice, pasta, dry goods', re: /\b(rice|pasta|oats|flour|sugar|noodles|quinoa|paprika|cumin|spice|salt|pepper|oil|vinegar|sauce|stock|honey)\b/, d: 365 },
   { k: 'drink', n: 'Bottled drinks', re: /\b(water|soda|juice|cola|kombucha|coffee|tea)\b/, d: 270 },
   { k: 'house', n: 'Household', re: /\b(sponges?|liners?|bags?|detergent|soap|paper|tissues?|foil|wrap|batteries|cleaner|toothpaste|shampoo)\b/, d: null },

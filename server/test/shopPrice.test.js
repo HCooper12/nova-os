@@ -145,3 +145,18 @@ test('sold by the kilo: weighed to the need, or by the piece at what one weighs,
   assert.ok(!S.productMatches('brown onion', 'Coles Brown Onion Shallots Loose'));
   assert.ok(!S.productMatches('limes', 'BROOKDALE Lime Jelly 85g'));
 });
+
+test('ten Weet-Bix is ten biscuits: one box, not ten (his 19 Oct screenshot: $39.90 at Aldi)', () => {
+  const need = S.lineNeed([{ name: 'Weet-Bix', amount: '10' }]);
+  const keep = S.keepFor('Weet-Bix');
+  assert.ok(keep?.each, 'a biscuit has a known weight');
+  const d = S.decide({ need, keep, products: [
+    p('a', 'Sanitarium Weet-Bix', '1.2kg', 3.99), p('w', 'Weet-Bix Breakfast Cereal 375g', '375g', 4), p('w', 'Weet-Bix Breakfast Cereal 1.2kg', '1.2kg', 7),
+  ] });
+  assert.equal(d.pick.count, 1);
+  assert.equal(d.pick.total, 3.99);
+  assert.ok(d.cand.every((c) => c.count === 1), 'every box holds at least ten');
+  // twenty-five biscuits outgrow the small box
+  const big = S.decide({ need: { fam: 'n', q: 25 }, keep, products: [p('w', 'Weet-Bix Breakfast Cereal 375g', '375g', 4)] });
+  assert.equal(big.pick.count, 2);
+});
