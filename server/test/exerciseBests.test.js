@@ -27,5 +27,13 @@ test('a set the banner would call a record is one Save confirms', () => {
 });
 
 test('a lift never done: nothing to beat, nothing claimed', () => {
-  assert.deepEqual(exerciseBests(sessions, ['new']).new, { e1rm: null, from: null, weight: null, history: [] });
+  assert.deepEqual(exerciseBests(sessions, ['new']).new, { e1rm: null, from: null, weight: null, history: [], top: null, recent: [] });
+});
+
+test('his best as a set: the heaviest weight and the most reps at it; the sessions newest first', () => {
+  const more = [...sessions, S('2026-10-08', [{ weight: 65, reps: 8 }, { weight: 40, reps: 12, setType: 'warmup' }, { weight: 50, reps: 12, setType: 'drop' }])];
+  const b = exerciseBests(more, ['incline']).incline;
+  assert.deepEqual(b.top, { weight: 65, reps: 8, date: '2026-10-08' });
+  assert.deepEqual(b.recent.map((r) => r.date), ['2026-10-08', '2026-10-01', '2026-09-15', '2026-09-01']);
+  assert.deepEqual(b.recent[0].sets, [{ weight: 65, reps: 8 }, { weight: 50, reps: 12, type: 'drop' }], 'warm-ups are not his history');
 });

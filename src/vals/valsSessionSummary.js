@@ -192,7 +192,10 @@ export function valsSessionSummary(app, ctx, v) {
     toggle: cueList.length > 1 ? () => app.setState({ sessionSumCueOpen: cueOpen ? null : exIdx }) : null,
   } : null;
   const lift = {
-    best: best?.e1rm != null && !bw && !time ? fmtKg(best.e1rm) : null,
+    // HIS BEST AS A SET (19 Oct 2026, his ask): the heaviest weight and the
+    // most reps at it, so the set in front of him compares at a glance
+    pb: best?.top && !bw && !time ? `${fmtKg(best.top.weight)} kg × ${best.top.reps}` : null,
+    openHistory: best?.recent?.length ? () => openSheet('history') : null,
     key: `${e.exerciseId}-${exIdx}`,
     name: e.name, hue, muscle: row.muscleGroup,
     mobility: row.muscleGroup === 'Mobility',
@@ -520,6 +523,25 @@ export function valsSessionSummary(app, ctx, v) {
     : ownNow ? 'This lift, on every day'
       : coachSecs ? `Coach prescribes ${clockLabel(coachSecs)}. Change it for this lift on every day`
         : generalSecs ? 'The general time. Change it for this lift on every day' : 'General timer is off. A time set here still runs';
+  // THE LIFT'S HISTORY, mid-workout (19 Oct 2026, his ask): his last
+  // sessions of this lift, newest first, each one's working sets in a line,
+  // the one that holds his best marked. Read with the bests (App.jsx).
+  const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayOf = (iso) => { const d = new Date(`${iso}T12:00:00`); return Number.isNaN(d.getTime()) ? iso : `${DAY[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`; };
+  const history = sheet === 'history' && best?.recent?.length ? {
+    close: closeSheet,
+    name: e.name,
+    pb: lift.pb,
+    pbDate: best.top ? dayOf(best.top.date) : null,
+    rows: best.recent.map((r, i) => ({
+      key: `${r.date}-${i}`,
+      day: dayOf(r.date),
+      routine: r.routine,
+      words: lastWords(tt, r.sets),
+      pb: !!best.top && r.date === best.top.date && r.sets.some((x) => x.weight === best.top.weight && x.reps === best.top.reps),
+    })),
+  } : null;
   const more = sheet === 'more' ? {
     close: closeSheet,
     sub: set ? `${set.label} · for this session` : 'For this session',
@@ -664,7 +686,7 @@ export function valsSessionSummary(app, ctx, v) {
       rest,
       voice,
       receipt: receiptView,
-      sheet: { more, order, pain, note, coach: coachSheet, form, picker, finish },
+      sheet: { more, order, pain, note, coach: coachSheet, form, picker, finish, history },
     },
   };
 }

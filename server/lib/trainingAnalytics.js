@@ -72,18 +72,32 @@ export function exerciseBests(sessions, ids = []) {
   for (const id of want) {
     const b = pr[id] || {};
     const history = [];
+    // HIS BEST AS A SET HE CAN MATCH (19 Oct 2026, his ask): the heaviest
+    // working weight, and the most reps he has done at it
+    let heaviest = null;
+    // the last sessions themselves, newest first, for the history he opens
+    // mid-workout
+    const recent = [];
     for (const s of [...sessions].sort((x, y) => x.date.localeCompare(y.date))) {
       const ex = (s.exercises || []).find((e) => e.exerciseId === id);
       if (!ex) continue;
       let top = null;
       for (const set of ex.sets || []) { const e = e1rm(set.weight, set.reps); if (e != null && (top == null || e > top)) top = e; }
       if (top != null) history.push({ date: s.date, e1rm: shown(top) });
+      const working = (ex.sets || []).filter(isWorkingSet);
+      for (const set of working) {
+        const w = Number(set.weight) || 0, r = Number(set.reps) || 0;
+        if (w > 0 && (!heaviest || w > heaviest.weight || (w === heaviest.weight && r > heaviest.reps))) heaviest = { weight: w, reps: r, date: s.date };
+      }
+      if (working.length) recent.push({ date: s.date, routine: s.routineName || null, sets: working.map((x) => ({ weight: Number(x.weight) || 0, reps: Number(x.reps) || 0, ...(x.setType && x.setType !== 'working' ? { type: x.setType } : {}) })) });
     }
     out[id] = {
       e1rm: b.e1rm?.value ?? null,
       from: b.e1rm ? { weight: b.e1rm.weight, reps: b.e1rm.reps, date: b.e1rm.date } : null,
       weight: b.weight?.value ?? null,
       history: history.slice(-6),
+      top: heaviest,
+      recent: recent.slice(-8).reverse(),
     };
   }
   return out;

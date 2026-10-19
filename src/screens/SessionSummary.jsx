@@ -203,6 +203,7 @@ export function SessionSummary({ v, parts }) {
       {sh.form && <FormSheet s={sh.form} />}
       {sh.picker && <PickerSheet s={sh.picker} v={v} parts={parts} />}
       {sh.finish && <FinishSheet s={sh.finish} />}
+      {sh.history && <HistorySheet s={sh.history} />}
     </div>
   );
 }
@@ -333,7 +334,13 @@ function RailCard({ S }) {
           </div>
           {L.skipped
             ? <p className="nv-ss-last">Skipped today</p>
-            : <p className="nv-ss-last">{L.last ? <>Last time <b>{L.last}</b></> : L.startFrom ? <>First time under this name · started from <b>{L.startFrom}</b></> : 'First time on this lift'}{L.best ? <span className="nv-ss-best">Best est. <b>{L.best} kg</b></span> : null}</p>}
+            : (() => {
+              const words = <>{L.last ? <>Last time <b>{L.last}</b></> : L.startFrom ? <>First time under this name · started from <b>{L.startFrom}</b></> : 'First time on this lift'}{L.pb ? <span className="nv-ss-best">Best <b>{L.pb}</b></span> : null}</>;
+              // a tap on the line opens every recent session of this lift
+              return L.openHistory
+                ? <Interactive as="button" type="button" className="nv-ss-last nv-ss-hist" onClick={L.openHistory} aria-label={`History of ${L.name}`}>{words}<Ico p={P.right} size={13} cls="cv" /></Interactive>
+                : <p className="nv-ss-last">{words}</p>;
+            })()}
           {L.focus && !L.skipped && <p className="nv-ss-focus">{L.focus}</p>}
           {L.cue && <CueLine c={L.cue} />}
           <div className="nv-ss-lacts">
@@ -645,6 +652,26 @@ const Head = ({ icon, title, sub, action, onAction, hue }) => (
     <button type="button" className="nv-ss-done-a" onClick={onAction}>{action}</button>
   </>
 );
+
+// ======================================================= the history ==
+// The lift's last sessions, newest first, his best set on top to beat.
+function HistorySheet({ s }) {
+  return (
+    <Sheet label={`History of ${s.name}`} onClose={s.close}
+      head={(close) => <Head icon={<Ico p={P.again} size={17} />} title={s.name} sub={s.pb ? `Best ${s.pb}${s.pbDate ? ` · ${s.pbDate}` : ''}` : 'Recent sessions'} action="Done" onAction={close} />}>
+      {() => (
+        <ol className="nv-ss-hrows">
+          {s.rows.map((r, i) => (
+            <li key={r.key} className={`nv-ss-hrow${r.pb ? ' pb' : ''}`} style={{ '--i': i }}>
+              <span className="d"><b>{r.day}</b>{r.routine && <small>{r.routine}</small>}</span>
+              <span className="w">{r.words}{r.pb && <em>Best</em>}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </Sheet>
+  );
+}
 
 function MoreSheet({ s }) {
   return (

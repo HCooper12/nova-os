@@ -402,7 +402,11 @@ test('mockup 101: a ticked set whose estimate beats his best opens the banner, p
   assert.deepEqual(S.record.history, [70, 74, 76], 'his line, then today');
   assert.equal(S.record.set, '60 × 8');
   assert.equal(S.pills[0].pb, true, 'the set that did it wears the badge');
-  assert.equal(S.lift.best, '74');
+  // his best on the card is a set he can match, not the estimate (19 Oct)
+  assert.equal(S.lift.pb, null, 'no heaviest set read: nothing claimed');
+  const T = run({ a: { e1rm: 74, history: [], top: { weight: 65, reps: 6, date: '2026-10-08' }, recent: [{ date: '2026-10-08', routine: 'Push', sets: [{ weight: 65, reps: 6 }] }] } });
+  assert.equal(T.lift.pb, '65 kg × 6');
+  assert.equal(typeof T.lift.openHistory, 'function');
   // compared at the resolution shown: a tie is not a record
   assert.equal(run({ a: { e1rm: 76, history: [] } }).record, null);
   // no best yet (a lift never done, or the read failed): nothing is claimed
