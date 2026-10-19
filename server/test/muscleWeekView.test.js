@@ -93,3 +93,22 @@ test('day chips: focus sets as counted, accessory sets at half, biggest first', 
   assert.deepEqual(d.focus.map((c) => [c.muscle, c.sets]), [['Chest', '3'], ['Front Delts', '3']]);
   assert.deepEqual(d.accessory.map((c) => [c.muscle, c.sets]), [['Triceps', '1½']]);
 });
+
+test('the tray under the set card: goal muscles, done against the low end, how many are there', async () => {
+  const { weekTrayOf } = await import('../../src/muscleWeekView.js');
+  assert.equal(weekTrayOf(null), null);
+  assert.equal(weekTrayOf({ muscles: [] }), null);
+  const t = weekTrayOf(WEEK);
+  assert.equal(t.label, 'V-taper muscles in range');
+  assert.deepEqual(t.bars.map((b) => b.muscle), ['Side Delts', 'Rear Delts', 'Lats', 'Upper Back', 'Biceps', 'Triceps']);
+  // Biceps 6 + 9/2 = 10.5 and Triceps 6 + 3 = 9: one of six at 10 or more
+  assert.equal(t.count, '1 of 6');
+  const bi = t.bars.find((b) => b.muscle === 'Biceps');
+  assert.equal(bi.fill, 100); assert.equal(bi.met, true); assert.equal(bi.done, '10½');
+  assert.equal(t.bars.find((b) => b.muscle === 'Side Delts').fill, 10);
+  // no goal muscles: the six that have done most, said plainly
+  const none = weekTrayOf({ ...WEEK, goalMuscles: [], muscles: WEEK.muscles.map((m) => ({ ...m, goal: false })) });
+  assert.equal(none.label, 'Muscles in range this week');
+  assert.equal(none.bars[0].muscle, 'Biceps');
+  assert.equal(none.bars.length, 6);
+});

@@ -654,6 +654,11 @@ export function valsSessionSummary(app, ctx, v) {
       progressTotal: total,
       openFinish: () => openSheet('finish'),
       finishLabel: editing ? 'Save' : 'Finish',
+      // THE WEEK IN MUSCLE SETS, under the set card (19 Oct, his ask): the
+      // overview's model, which counts this session's ticked sets once the
+      // draft lands (App.jsx, ~1.5 s after a tick). Not while editing a past
+      // session: that one is already in the week.
+      week: editing ? null : (st.liveTrainOverview?.muscleWeek || null),
       rail, lift, pills, set, record, allDone, skipped,
       pad: padView,
       rest,

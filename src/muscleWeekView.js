@@ -124,3 +124,28 @@ export function muscleWeekView(w) {
     coachQuestion: `Look at my week in muscle sets. ${goalRows.length ? `${goalRows.length - short.length} of ${goalRows.length} ${vt ? 'V-taper' : 'goal'} muscles reach the growth range by Sunday on my plan.` : ''} ${w.muscles.map((m) => `${m.muscle}: ${fmt(m.done)} done, ${fmt(m.bySunday)} by Sunday (range ${m.low}–${m.high})`).join('; ')}. What would you change?`.replace(/\s+/g, ' ').trim(),
   };
 }
+
+/**
+ * THE TRAY UNDER THE SET CARD (19 Oct 2026, his ask mid-session): the week
+ * folded into one line at the foot of the live session. His goal muscles
+ * (or, with none set, the six that have done the most), each a short bar of
+ * done against the low end of its range, and how many are already there.
+ * The sheet itself opens out of it.
+ */
+export function weekTrayOf(w) {
+  if (!w?.muscles?.length) return null;
+  const goal = w.muscles.filter((m) => m.goal);
+  const shown = (goal.length ? goal : [...w.muscles].sort((a, b) => b.done - a.done)).slice(0, 6);
+  const there = shown.filter((m) => m.done >= m.low).length;
+  return {
+    label: goal.length ? `${isVTaper(w.goalMuscles || []) ? 'V-taper' : 'Goal'} muscles in range` : 'Muscles in range this week',
+    count: `${there} of ${shown.length}`,
+    bars: shown.map((m) => ({
+      muscle: m.muscle,
+      done: fmt(m.done),
+      fill: round(Math.min(100, (m.done / Math.max(1, m.low)) * 100)),
+      met: m.done >= m.low,
+    })),
+    aria: `${there} of ${shown.length} muscles in range this week: ${shown.map((m) => `${m.muscle} ${fmt(m.done)} of ${m.low}`).join(', ')}. Open the week.`,
+  };
+}

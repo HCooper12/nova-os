@@ -15,6 +15,9 @@ import { useStickToBottom } from '../useStickToBottom.js';
 import { restState } from '../sessionSummaryFacts.js';
 import { ConsultFlow } from '../motion/ConsultFlow.jsx';
 import { RecordBanner } from '../motion/RecordBanner.jsx';
+import { WeekSetsSheet } from '../WeekSets.jsx';
+import { weekTrayOf } from '../muscleWeekView.js';
+import { muscleVar } from '../muscleHue.js';
 
 // THE LIVE SESSION, SUMMARY — Train round B (28 Sep 2026), drawn from
 // design/mockups/61-redesign-train-session-r2.html and approved with his
@@ -188,6 +191,7 @@ export function SessionSummary({ v, parts }) {
         <RailCard S={S} />
         {S.set ? <SetCard S={S} rs={rs} /> : S.skipped ? <SkippedCard S={S} /> : S.allDone ? <DoneCard S={S} rs={rs} /> : null}
         {S.voice && <VoiceLine vo={S.voice} />}
+        {S.week && <WeekTray model={S.week} />}
       </div>
       {S.receipt && <Receipt r={S.receipt} />}
       {S.pad && <Pad p={S.pad} />}
@@ -199,6 +203,51 @@ export function SessionSummary({ v, parts }) {
       {sh.form && <FormSheet s={sh.form} />}
       {sh.picker && <PickerSheet s={sh.picker} v={v} parts={parts} />}
       {sh.finish && <FinishSheet s={sh.finish} />}
+    </div>
+  );
+}
+
+// ======================================================= the week tray ==
+// THE WEEK IN MUSCLE SETS, at the foot of the session (19 Oct 2026, his
+// ask): his goal muscles as short bars of done against the low end of the
+// range. The model moves as he ticks (the draft lands, the overview is read
+// again), so a bar that grew glows once in its hue. A tap grows the whole
+// weekly sheet up out of the tray (GlassSheet's morph) and folds it back.
+function WeekTray({ model }) {
+  const t = weekTrayOf(model);
+  const ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const prev = useRef(null);
+  const [grew, setGrew] = useState(() => new Set());
+  useEffect(() => {
+    if (!t) return undefined;
+    const now = Object.fromEntries(t.bars.map((b) => [b.muscle, b.fill]));
+    const was = prev.current;
+    prev.current = now;
+    if (!was) return undefined;
+    const up = new Set(t.bars.filter((b) => now[b.muscle] > (was[b.muscle] ?? 0)).map((b) => b.muscle));
+    if (!up.size) return undefined;
+    setGrew(up);
+    const id = setTimeout(() => setGrew(new Set()), 1100);
+    return () => clearTimeout(id);
+  }, [t?.aria]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!t) return null;
+  return (
+    <div ref={ref} className={`nv-ss-wk nv-sum-rise${open ? ' open' : ''}`} style={{ '--i': 3 }}>
+      <Interactive as="button" type="button" className="nv-ss-wk-btn" haptic="tick" onClick={() => setOpen(true)}
+        aria-label={t.aria} aria-haspopup="dialog" aria-expanded={open}>
+        <span className="nv-ss-wk-lb">{t.label}</span>
+        <span className="nv-ss-wk-bars" aria-hidden="true">
+          {t.bars.map((b) => (
+            <span key={b.muscle} className={`nv-ss-wk-m${b.met ? ' met' : ''}${grew.has(b.muscle) ? ' up' : ''}`} style={{ '--h': muscleVar(b.muscle) }}>
+              <s style={{ transform: `scaleY(${b.fill / 100})` }} />
+            </span>
+          ))}
+        </span>
+        <b className="nv-ss-wk-n">{t.count}</b>
+        <svg className="nv-ss-ico nv-ss-wk-cv" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+      </Interactive>
+      {open && <WeekSetsSheet model={model} originEl={ref.current} onClose={() => setOpen(false)} />}
     </div>
   );
 }

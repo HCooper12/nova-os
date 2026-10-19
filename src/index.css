@@ -6135,3 +6135,32 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 .nv-checkmark path { stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset .26s var(--nv-ease) .06s; }
 .nv-checkmark[data-on="1"] path { stroke-dashoffset: 0; }
 @media (prefers-reduced-motion: reduce) { .nv-checkmark, .nv-checkmark path { transition: none; } }
+
+/* THE WEEK TRAY (19 Oct 2026; WeekTray in src/screens/SessionSummary.jsx):
+   the week in muscle sets folded to a strip at the foot of the session.
+   Each bar is done against the low end of the muscle's range, in its own
+   hue; a bar that a tick just grew springs and glows once. The chevron
+   points up while the sheet it opens is out. */
+.nv-ss-wk { margin-top: 8px; }
+.nv-ss-wk-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px 0 14px;
+  border: 0; cursor: pointer; text-align: left; border-radius: 22px; color: var(--nv-ink);
+  background: var(--ss-quiet); box-shadow: inset 0 0 0 1px var(--ss-edge);
+}
+.nv-ss-wk-lb { flex: 1; min-width: 0; font: 600 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-ss-wk-n { flex: none; font: 700 15px/1 var(--nv-font-ui); font-variant-numeric: tabular-nums; }
+.nv-ss-wk-cv { color: var(--nv-ink60); transform: rotate(0deg); transition: transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy); }
+.nv-ss-wk.open .nv-ss-wk-cv { transform: rotate(180deg); }
+/* one pill per muscle, filling upward to the low end of its range */
+.nv-ss-wk-bars { flex: none; display: flex; align-items: flex-end; gap: 4px; height: 20px; }
+.nv-ss-wk-m { position: relative; width: 7px; height: 100%; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--h) 18%, transparent); }
+.nv-ss-wk-m > s {
+  position: absolute; inset: 0; border-radius: inherit; transform-origin: bottom; background: var(--h); opacity: .7;
+  transition: transform var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy), opacity 300ms ease, box-shadow 300ms ease;
+}
+.nv-ss-wk-m.met > s { opacity: 1; }
+.nv-ss-wk-m.up { box-shadow: 0 0 10px color-mix(in srgb, var(--h) 75%, transparent); }
+.nv-ss-wk-m.up > s { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-ss-wk-m > s, .nv-ss-wk-cv { transition: none; }
+}
