@@ -99,7 +99,7 @@ test('the tray under the set card: goal muscles, done against the low end, how m
   assert.equal(weekTrayOf(null), null);
   assert.equal(weekTrayOf({ muscles: [] }), null);
   const t = weekTrayOf(WEEK);
-  assert.equal(t.label, 'V-taper muscles in range');
+  assert.equal(t.label, 'Goal muscles in range');
   assert.deepEqual(t.bars.map((b) => b.muscle), ['Side Delts', 'Rear Delts', 'Lats', 'Upper Back', 'Biceps', 'Triceps']);
   // Biceps 6 + 9/2 = 10.5 and Triceps 6 + 3 = 9: one of six at 10 or more
   assert.equal(t.count, '1 of 6');

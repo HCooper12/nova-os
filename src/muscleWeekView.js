@@ -138,7 +138,7 @@ export function weekTrayOf(w) {
   const shown = (goal.length ? goal : [...w.muscles].sort((a, b) => b.done - a.done)).slice(0, 6);
   const there = shown.filter((m) => m.done >= m.low).length;
   return {
-    label: goal.length ? `${isVTaper(w.goalMuscles || []) ? 'V-taper' : 'Goal'} muscles in range` : 'Muscles in range this week',
+    label: goal.length ? 'Goal muscles in range' : 'Muscles in range this week',
     count: `${there} of ${shown.length}`,
     bars: shown.map((m) => ({
       muscle: m.muscle,
