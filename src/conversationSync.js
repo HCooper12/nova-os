@@ -103,6 +103,7 @@ export function pendingTurns(chat, synced, { dev, device = '' } = {}) {
       ...((m.device || device) ? { device: m.device || device } : {}),
       ...(agent ? { by: m.who } : (m.by ? { by: m.by } : {})),
       ...(Array.isArray(m.from) && m.from.length ? { from: m.from } : {}),
+      ...(m.provider === 'local' ? { provider: 'local', ...(m.fallback ? { fallback: true } : {}), ...(m.reason ? { reason: m.reason } : {}) } : {}),
     });
   });
   return out;
@@ -122,6 +123,7 @@ export function mergeRecord(chat, turns, { dev } = {}) {
     incoming.push({
       at, who: t.who, text: t.text, via: t.via, device: t.device, cid: t.id, fromRecord: true,
       ...(t.by ? { by: t.by } : {}), ...(Array.isArray(t.from) ? { from: t.from } : {}),
+      ...(t.provider === 'local' ? { provider: 'local', fallback: !!t.fallback, ...(t.reason ? { reason: t.reason } : {}) } : {}),
     });
   }
   if (!incoming.length) return local;

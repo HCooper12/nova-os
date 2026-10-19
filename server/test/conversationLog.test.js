@@ -102,3 +102,26 @@ test('the file on disk is append-only JSON lines', async () => {
   const raw = (await readFile(path.join(DIR, '2026-09.jsonl'), 'utf8')).trim().split('\n');
   assert.equal(raw.length, 2, 'the edit is a new line; nothing is rewritten');
 });
+
+test('an answer from the model on his Mac keeps who answered and why; a Claude answer and his own words carry none of it', async () => {
+  const local = normaliseTurn({ who: 'nova', text: 'Your next free hour is 14:00.', provider: 'local', fallback: true, reason: '  Claude was at its usage limit  ' });
+  assert.equal(local.provider, 'local');
+  assert.equal(local.fallback, true);
+  assert.equal(local.reason, 'Claude was at its usage limit');
+  const chosen = normaliseTurn({ who: 'nova', text: 'Done.', provider: 'local', fallback: false });
+  assert.equal(chosen.provider, 'local');
+  assert.equal('fallback' in chosen, false, 'he chose local: nothing stood in');
+  const claude = normaliseTurn({ who: 'nova', text: 'Done.', provider: 'claude', fallback: true, reason: 'x' });
+  assert.equal('provider' in claude, false);
+  assert.equal('reason' in claude, false);
+  const his = normaliseTurn({ who: 'you', text: 'when am I free?', provider: 'local' });
+  assert.equal('provider' in his, false, 'only a nova row can say who answered');
+  const long = normaliseTurn({ who: 'nova', text: 'x', provider: 'local', reason: 'r'.repeat(500) });
+  assert.equal(long.reason.length, 120);
+
+  const now = new Date();
+  await appendTurns([{ who: 'nova', text: 'A local answer, read back.', provider: 'local', fallback: true, reason: 'Claude was at its usage limit', at: now.toISOString() }], { now });
+  const block = await recentConversationBlock({ now });
+  assert.match(block, /You \[on his Mac, the small model\]: A local answer, read back\./);
+  assert.match(block, /weigh it as such/);
+});

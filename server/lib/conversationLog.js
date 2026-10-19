@@ -57,6 +57,16 @@ function cleanFrom(raw) {
   }
   return out.length ? out : null;
 }
+
+// WHO ANSWERED (19 Oct 2026): a 'nova' row the model on his Mac wrote says
+// so, and why when it stood in for Claude, so the label under the reply
+// survives a reload and Nova reading the record back knows which answers
+// came from the small model. A Claude answer carries none of these.
+function cleanVia(raw) {
+  if (raw.who !== 'nova' || raw.provider !== 'local') return {};
+  const reason = typeof raw.reason === 'string' ? raw.reason.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+  return { provider: 'local', ...(raw.fallback === true ? { fallback: true } : {}), ...(reason ? { reason } : {}) };
+}
 const ID = /^[A-Za-z0-9_.:-]{6,96}$/;
 const WORD = /^[a-z][a-z0-9-]{0,23}$/;
 const MAX_TEXT = 20_000;          // a long spoken turn, never a payload
@@ -82,6 +92,7 @@ export function normaliseTurn(raw, now = new Date()) {
     ...(device ? { device } : {}),
     ...(by ? { by } : {}),
     ...(from ? { from } : {}),
+    ...cleanVia(raw),
   };
 }
 
@@ -183,7 +194,8 @@ export async function recentConversationBlock({ now = new Date(), days = 7, maxR
     const text = r.text.length > 500 ? `${r.text.slice(0, 500)}…` : r.text;
     const asked = Array.isArray(r.from) && r.from.length
       ? ` [consulted: ${[...new Set(r.from.map((a) => BY_LABEL[a.agent] || a.agent))].join(', ')}]` : '';
-    return `- [${stamp(r.at)} · ${where}] ${who}${asked}: ${text.replace(/\s+/g, ' ')}`;
+    const local = r.provider === 'local' ? ' [on his Mac, the small model]' : '';
+    return `- [${stamp(r.at)} · ${where}] ${who}${asked}${local}: ${text.replace(/\s+/g, ' ')}`;
   });
   // newest lines survive the character budget, oldest go first
   const kept = [];
@@ -196,6 +208,7 @@ export async function recentConversationBlock({ now = new Date(), days = 7, maxR
   return 'YOUR CONVERSATION WITH HIM, FROM THE RECORD (the last week, every door: the app on his phone and Mac, Siri, the Action Button; oldest first; "He" is Hayden, "You" is you, Nova). '
     + 'These are real exchanges you had. Refer back to them when they bear on what he says now, and never tell him you have no memory of them. '
     + 'A "System" line is a turn that failed; if he asks whether you heard him, it tells you. '
-    + '"(through you)" is a specialist who answered in this thread; "[consulted: …]" names the agents that answer asked.\n'
+    + '"(through you)" is a specialist who answered in this thread; "[consulted: …]" names the agents that answer asked; '
+    + '"[on his Mac, the small model]" is an answer the local model gave while Claude was not answering: weigh it as such, and correct it plainly if it was wrong.\n'
     + kept.join('\n');
 }

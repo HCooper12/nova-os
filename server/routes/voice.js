@@ -9,6 +9,12 @@ import { composeShow } from '../lib/morningShow.js';
 import { lintSpoken } from '../../src/spokenLint.js';
 import { normWhere, whereLine, suppressGlass, forceConfirmFor, handsFreeWhere } from '../lib/register.js';
 
+// Who answered, for the conversation record: only an answer from the model
+// on his Mac carries it (lib/askDispatch.js, lib/conversationLog.js).
+const viaOf = (result) => (result?.provider === 'local'
+  ? { provider: 'local', fallback: !!result.fallback, ...(result.reason ? { reason: result.reason } : {}) }
+  : {});
+
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
 
@@ -693,7 +699,7 @@ export function voiceRouter(vaultPath) {
         // the opener a model reaches for ("Sure,", "Great question.") is
         // taken off what Siri SAYS (src/spokenLint.js), and the record holds
         // what was said
-        return finish({ text: lintSpoken(String(job.result.text || '')), sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}) } });
+        return finish({ text: lintSpoken(String(job.result.text || '')), sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}), ...viaOf(job.result) } });
       }
       if (waited.kind === 'error') {
         // A dead process or a spent budget must not poison the next ask:
@@ -714,7 +720,7 @@ export function voiceRouter(vaultPath) {
           onReady: (job) => {
             const from = trimForRecord(job.result.consult);
             console.log(`ask/sync late answer after ${Date.now() - started}ms reply=${String(job.result.text || '').length}ch`);
-            logTurn({ who: 'nova', by: 'nova', text: job.result.text, via, ...(from ? { from } : {}) });
+            logTurn({ who: 'nova', by: 'nova', text: job.result.text, via, ...(from ? { from } : {}), ...viaOf(job.result) });
           },
           onError: (error, job) => {
             console.log(`ask/sync late answer FAILED after ${Date.now() - started}ms: ${error}`);

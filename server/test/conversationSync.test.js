@@ -109,3 +109,16 @@ test('lines that share a millisecond get distinct ids, and go up once', () => {
   const turns = up.map((r) => ({ ...r }));
   assert.equal(mergeRecord(chat, turns, { dev: DEV }), chat);
 });
+
+test('a reply answered on his Mac goes up with who answered, and comes back down with its label', async () => {
+  const { pendingTurns: pend, mergeRecord: merge, providerNote: note } = await import('../../src/conversationSync.js');
+  const chat = [{ at: 1000, who: 'nova', text: 'Free at 14:00.', provider: 'local', fallback: true, reason: 'Claude was at its usage limit' },
+    { at: 2000, who: 'nova', text: 'A Claude answer.' }];
+  const up = pend(chat, {}, { dev: 'd1' });
+  assert.equal(up[0].provider, 'local');
+  assert.equal(up[0].fallback, true);
+  assert.equal(up[0].reason, 'Claude was at its usage limit');
+  assert.equal('provider' in up[1], false);
+  const back = merge([], [{ ...up[0], id: 'rec-local-1' }], { dev: 'd2' });
+  assert.equal(note(back[0]), 'answered on this Mac · Claude was at its usage limit', 'the label survives a reload');
+});
