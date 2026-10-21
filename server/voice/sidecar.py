@@ -46,6 +46,30 @@ BLENDS = {
     "nova-light": [("bm_fable", 0.40), ("bm_lewis", 0.40), ("bm_daniel", 0.20)],
 }
 
+# MEMORY (22 Oct 2026). MLX keeps every GPU buffer it has used in a cache and, with no limit, never gives
+# one back. Wren's copy of this engine reached 12 GB in an hour of speaking, and on 21 Oct the voice engines
+# held 16 GB of the 16 GB Mac until it froze and restarted itself. The cache is capped, and emptied after
+# every sentence in synth().
+mx.set_cache_limit(int(os.environ.get("NOVA_TTS_CACHE_MB", "256")) * 1024 * 1024)
+
+
+def _orphan_watch():
+    """Exit when the server that started this engine is gone, so it never sits alone holding memory."""
+    import threading
+    import time
+    parent = os.getppid()
+
+    def watch():
+        while True:
+            time.sleep(5)
+            if os.getppid() != parent:
+                print("sidecar: the server that started me is gone, so I stop", flush=True)
+                os._exit(0)
+    threading.Thread(target=watch, daemon=True).start()
+
+
+_orphan_watch()
+
 print("sidecar: loading model…", flush=True)
 model = load_model(REPO)
 pipeline = KokoroPipeline(lang_code="b", model=model, repo_id=REPO)
@@ -60,9 +84,12 @@ print(f"sidecar: ready on 127.0.0.1:{PORT} voices={list(BLENDS)}", flush=True)
 
 def synth(text, voice, speed):
     chunks = []
-    for result in pipeline(text, voice=voice, speed=speed):
-        audio = result.audio
-        chunks.append(np.asarray(audio) if not isinstance(audio, np.ndarray) else audio)
+    try:
+        for result in pipeline(text, voice=voice, speed=speed):
+            audio = result.audio
+            chunks.append(np.array(audio) if not isinstance(audio, np.ndarray) else audio)
+    finally:
+        mx.clear_cache()  # this sentence's GPU buffers go back to the Mac (see MEMORY above)
     if not chunks:
         raise ValueError("no audio produced")
     wav = np.concatenate(chunks) if len(chunks) > 1 else chunks[0]
@@ -88,7 +115,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            return self._json(200, {"ok": True, "voices": list(BLENDS)})
+            mb = lambda b: round(b / 1048576)  # noqa: E731
+            return self._json(200, {"ok": True, "voices": list(BLENDS),
+                                    "memory": {"activeMb": mb(mx.get_active_memory()), "cacheMb": mb(mx.get_cache_memory()), "peakMb": mb(mx.get_peak_memory())}})
         self._json(404, {"error": "not found"})
 
     def do_POST(self):
