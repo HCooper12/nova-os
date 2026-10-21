@@ -587,7 +587,7 @@ export const api = {
   // never arrived — observed in the harness, ERR_ABORTED on /api/show.
   glassToday: (conn) => call(conn, '/api/glass/today'),
   show: (conn, variant) => post(conn, '/api/show', { variant }, { timeoutMs: 60_000 }),
-  greet: (conn, gap) => post(conn, '/api/greet', { gap }),
+  greet: (conn, gap, since = null) => post(conn, '/api/greet', since ? { gap, since } : { gap }),
   askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),
   // stuck promises (server/lib/planObserve.js): his answer, and starting one with Nova
   answerStuck: (conn, key, action, text) => post(conn, '/api/plan-today/stuck', { key, action, text }),

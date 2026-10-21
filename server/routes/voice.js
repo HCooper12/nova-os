@@ -421,13 +421,20 @@ export function voiceRouter(vaultPath) {
     try {
       const gap = req.body?.gap === 'return' ? 'return' : 'new-day';
       const now = new Date();
+      // a return is told only what happened while he was away (21 Oct): the
+      // client sends when it last saw him; a bad stamp is no window at all
+      const sinceMs = Date.parse(req.body?.since || '');
+      const since = gap === 'return' && Number.isFinite(sinceMs) && sinceMs < now.getTime() ? sinceMs : null;
       const bits = [
         `Local time: ${now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })} on ${now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}.`,
         gap === 'return' ? 'He is RETURNING after a few hours away today.' : 'This is his FIRST arrival today.',
       ];
       try {
         const { fleetContext } = await import('../lib/fleetContext.js');
-        const fleet = await fleetContext();
+        // a return: only receipts since he left, and no Inbox count; the
+        // count lives on the Inbox, and said at every hello it was noise
+        // (fifteen times on 20 Oct, "seven drafts wait in your Inbox")
+        const fleet = gap === 'return' ? await fleetContext({ since: since ?? now.getTime() - 3 * 3600e3, pending: false }) : await fleetContext();
         if (fleet) bits.push(fleet);
       } catch { /* quiet rails, quiet greeting */ }
       try {
@@ -446,7 +453,7 @@ export function voiceRouter(vaultPath) {
         const leisure = leisureEventToday(await fetchEventsForDay(now));
         if (leisure) bits.push(`Today's calendar includes "${leisure.label}" — worth a warm word if it genuinely fits, never forced.`);
       } catch { /* quiet rails, quiet greeting */ }
-      res.json({ jobId: startGreeting(vaultPath, { facts: bits.join('\n\n') }) });
+      res.json({ jobId: startGreeting(vaultPath, { facts: bits.join('\n\n'), gap }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

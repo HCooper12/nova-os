@@ -14,6 +14,8 @@ import { localModelConfigured } from './localModel.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
+import { foldReply } from '../../src/turnFold.js';
+import { TURN_TAKING } from './talk.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
@@ -553,7 +555,7 @@ Ground rules:${direct ? `
   the calendar, for his day and what is booked.
   When a question spans several of these, ask each of them at once in one CONSULT line. A question only he can answer, or one the live context below already answers, needs no one.
 ${consultCapability('nova', { chain: consulted?.chain || [], handsFree: direct })}
-- Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. TWO OR THREE SENTENCES — under ~50 words — unless he explicitly asks for detail. A conversation is a series of short turns, not a briefing: one idea per turn, and if there is more worth saying, say the most useful thing and offer the rest ("there's more on the sleep side if you want it").
+- Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. TWO OR THREE SENTENCES — under ~50 words — unless he explicitly asks for detail. A conversation is a series of short turns, not a briefing: one idea per turn, and if there is more worth saying, say the most useful thing, offer the rest ("there's more on the sleep side if you want it") and hold it after a MORE line (HOW YOU TAKE A TURN, below).
 ${spoken ? `
 - HE IS LISTENING, NOT READING — TWO SENTENCES. He cannot skim a voice or re-read it, and he is usually driving. Say the one thing that matters and stop; offer the rest in four words.` : ''}${placeLines ? `
 ${placeLines}` : ''}
@@ -608,7 +610,7 @@ ${glass ? GLASS_CONTRACT : ''}
 
 ${ARTIFACT_CONTRACT}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `Hayden asks: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${direct ? '' : `${TURN_TAKING}\n\n`}Hayden asks: ${question}`}`;
 }
 
 // A RESUMED spoken turn sends only the question — the live process already
@@ -825,6 +827,13 @@ export async function settleAskReply(cwd, replyText, turnJob, { question, noGlas
     // PROPOSE/CARD/SHOW line living inside a document's body can never be
     // mistaken for a directive of this turn's own.
     const filed = await fileArtifacts(cwd, replyText, { agent: 'nova', question });
+    // THE TURN AND THE REST (src/turnFold.js): what follows a MORE line is
+    // held for "go on", so it is folded off before any directive is read.
+    // The hands-free one-shot has no next turn to ask in: there the rest is
+    // simply not said.
+    const fold = foldReply(filed.text);
+    filed.text = fold.said;
+    const held = direct ? null : fold.held;
     // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
     // out and build the panel DETERMINISTICALLY from the vault — the model
     // names a view, our code draws it. A bad directive degrades honestly.
@@ -1045,7 +1054,7 @@ export async function settleAskReply(cwd, replyText, turnJob, { question, noGlas
     // the code-written line of who he asked opens the reply he reads
     text = ctl.finalText(text);
     if (direct) text = speakableText(text, { final: true });
-    turnJob.result = { text, sessionId: effectiveSessionId, panel: noGlass ? null : panel, proposal, acted, research, watch, modelChoicePending, card: noGlass ? null : (card || playedCard), played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null, ...(extra || {}) };
+    turnJob.result = { text, more: held, sessionId: effectiveSessionId, panel: noGlass ? null : panel, proposal, acted, research, watch, modelChoicePending, card: noGlass ? null : (card || playedCard), played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null, ...(extra || {}) };
     turnJob.status = 'ready';
   } catch (e) {
     turnJob.status = 'error';
@@ -1127,12 +1136,19 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
 // construction: haiku, no vault reads, streams through the same jobs map so
 // the client renders it like any reply. A failed greeting stays silent
 // rather than falling back to a canned line.
-export function buildGreetingPrompt({ facts }) {
+export function buildGreetingPrompt({ facts, gap = 'new-day' }) {
+  // HOW LONG A HELLO IS (21 Oct 2026, design/TALK-STUDY.md). Jarvis's
+  // "Welcome home, sir." is the bar. His greetings ran 14 to 49 words, most
+  // a rundown of the Inbox; a return now gets a few words and at most the
+  // one thing that changed while he was away.
+  const shape = gap === 'return'
+    ? 'He is back after a few hours away. Compose ONE short spoken line: a hello in under 15 words. Add at most ONE thing from the facts, and only if it happened while he was away and he would want it now; otherwise the hello alone is the whole greeting. No Inbox counts, no list, no question.'
+    : 'This is his first arrival today. Compose ONE spoken greeting: one or two sentences, under 30 words. At most ONE thing from the facts, the one that matters most today. No Inbox counts, no rundown, no question unless something genuinely needs his decision.';
   return `${NOVA_LENS}
 
-You are Nova greeting Hayden as he arrives — "sir", the way a great butler would: warm, brief, never stiff. Compose ONE spoken greeting: 1–3 sentences, under 55 words, plain text, no markdown, no questions unless something genuinely needs his decision. Register: unflappable and dry — even tone regardless of what the facts hold, understatement over emphasis, at most one deadpan aside. Quiet competence, never enthusiasm for its own sake.
+You are Nova greeting Hayden as he arrives, "sir", the way a great butler would: warm, brief, never stiff. ${shape} Plain text, no markdown. Register: unflappable and dry, understatement over emphasis, at most one deadpan aside. Quiet competence, never enthusiasm for its own sake.
 
-Ground every specific ONLY in the facts below — never invent activity, numbers, or receipts. Pick the one or two most useful things to mention; if the facts are thin, a warm brief hello is perfect. Vary your phrasing naturally between visits — never a stock template. Do not read any files; answer immediately.
+Ground every specific ONLY in the facts below; never invent activity, numbers, or receipts. If the facts are thin, a warm brief hello is perfect. Vary your phrasing naturally between visits; never a stock template. Do not read any files; answer immediately.
 
 FACTS (deterministic, computed just now):
 ${facts}`;
@@ -1210,14 +1226,14 @@ function greetLocally(job, prompt, { fallback }) {
   });
 }
 
-export function startGreeting(cwd, { facts }) {
+export function startGreeting(cwd, { facts, gap = 'new-day' }) {
   assertLaneOn('greeting');
   const jobId = randomUUID().slice(0, 8);
   const effectiveSessionId = randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
   if (providerFor('greeting') === 'local') {
-    greetLocally(job, buildGreetingPrompt({ facts }), { fallback: false });
+    greetLocally(job, buildGreetingPrompt({ facts, gap }), { fallback: false });
     return jobId;
   }
   // at Claude's limit the greeting may still be said, by the model on this Mac
@@ -1230,7 +1246,7 @@ export function startGreeting(cwd, { facts }) {
     set: (v) => {
       if (v === 'error' && !handed && job.limited && fallbackEnabled() && laneCanRunLocal('greeting') && localModelConfigured()) {
         handed = true;
-        setImmediate(() => greetLocally(job, buildGreetingPrompt({ facts }), { fallback: true }));
+        setImmediate(() => greetLocally(job, buildGreetingPrompt({ facts, gap }), { fallback: true }));
         return;
       }
       status = v;
@@ -1263,7 +1279,7 @@ export function startGreeting(cwd, { facts }) {
     // into ~15s of deliberation before one sentence of hello (20s → 3s).
     // A doorman greets from the hip; the facts are already on the tray.
     env: { MAX_THINKING_TOKENS: '0' },
-    text: buildGreetingPrompt({ facts }),
+    text: buildGreetingPrompt({ facts, gap }),
     job,
     finishTurn: (replyText, turnJob) => {
       turnJob.result = { text: replyText.trim() };
@@ -1326,7 +1342,7 @@ ${GLASS_CONTRACT}
 
 ${ARTIFACT_CONTRACT}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question, { canPropose: true })}\n\nThe question: ${question}` : `Hayden asks: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question, { canPropose: true })}\n\nThe question: ${question}` : `${TURN_TAKING}\n\nHayden asks: ${question}`}`;
 }
 
 // Prepended to every RESUMED coach turn. Deliberately short — it is a
@@ -1484,7 +1500,10 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
       // so a PROPOSE line sitting inside a document's body (a plan he asked
       // for, say) can never be mistaken for a card of its own.
       const filed = await fileArtifacts(cwd, replyText, { agent: 'coach', question: asked || question });
-      replyText = filed.text;
+      // THE TURN AND THE REST (src/turnFold.js): the Coach's held detail is
+      // folded off first, so its receipts land under what he hears
+      const fold = foldReply(filed.text);
+      replyText = fold.said;
       // The Coach may PROPOSE program changes — the model decides, code acts.
       // EVERY line is checked before any card exists; a refused one goes back
       // to THIS session to be fixed (once), an instructed change applies on
@@ -1509,7 +1528,10 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
         }),
       });
       // the code-written line of who the Coach asked opens the reply
-      const text = ctl.finalText(settled.text);
+      // a rewrite replaced the answer: its own mark, if it wrote one, wins
+      const refold = foldReply(settled.text);
+      const coachHeld = refold.held ?? (settled.text.includes(fold.said.slice(0, 40)) ? fold.held : null);
+      const text = ctl.finalText(refold.said);
       const proposalsOut = settled.filed.map((f) => ({ recordId: f.recordId, title: f.title, ...(f.status ? { status: f.status } : {}), destination: f.destination || null }));
       const withdrawn = settled.withdrawn.filter((w) => w.ok).map((w) => w.id);
       const proposalOut = proposalsOut[0] || null;
@@ -1530,7 +1552,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
         });
         if (guess) coachPanel = await buildPanel(cwd, guess);
       } catch { /* no panel rather than a wrong one */ }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
+      turnJob.result = { text, more: coachHeld, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
@@ -1600,7 +1622,7 @@ ${ARTIFACT_CONTRACT}
 His current picture:
 ${context || '(unavailable)'}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `Hayden says: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${TURN_TAKING}\n\nHayden says: ${question}`}`;
 }
 
 const LEADER_TURN_REMINDER = `[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix. PUSHING BACK: VIS {"stance":"contest"} on its own line immediately before each sentence that disagrees with, or advises against, what he proposed or asked to do; never before your reasons, bad news or a missed target, and say the disagreement in words too. ${consultReminder('leader')}]`;
@@ -1669,7 +1691,8 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
       // THE DOCUMENTS, FIRST — before REFLECT ever sees this text.
       const filed = await fileArtifacts(cwd, replyText, { agent: 'leader', question });
       const { parseLeaderReflect, applyLeaderReflection } = await import('./leader.js');
-      const { cleanText, reflect, parseError } = parseLeaderReflect(filed.text);
+      const fold = foldReply(filed.text);
+      const { cleanText, reflect, parseError } = parseLeaderReflect(fold.said);
       let text = cleanText;
       let reflected = null;
       if (reflect) {
@@ -1686,7 +1709,7 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
       } else if (parseError) {
         text += `\n\n(I tried to note that in your profile but ${parseError} — tell me again and I'll get it down.)`;
       }
-      turnJob.result = { text: ctl.finalText(text), sessionId: effectiveSessionId, reflected, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
+      turnJob.result = { text: ctl.finalText(text), more: fold.held, sessionId: effectiveSessionId, reflected, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
       // KEPT, ON THE LEADER'S OWN DOOR (Blend 1): the reply as he will read
       // it, with whom it asked, so it survives a reload and can be marked
       // seen. Before the job is ready, so the page's next read has it.

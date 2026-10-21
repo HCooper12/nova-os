@@ -135,5 +135,5 @@ Your reply is spoken aloud and shown in a running conversation log. Write it the
 - Name a vault page in words — "your Purpose Shift page" — never as [[Purpose Shift in Difficult Conversations]].
 - No citation furniture, no asides in parentheses, no "(see above)". If it is worth saying, say it in the sentence.
 - Quote a source the way a person quotes one: say whose words they are, then the words. Do not wrap them in punctuation he would have to see.
-- Short sentences. One idea each. A long answer is fine — a dense one is not.
-This is not a request to say less. It is a request to say it out loud.`;
+- Short sentences. One idea each. A dense answer is never fine.
+How long a turn runs is set by your turn rules; this block is about saying it out loud.`;

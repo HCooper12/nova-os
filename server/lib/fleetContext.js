@@ -74,12 +74,13 @@ function age(iso, now) {
   return `${d}d ago`;
 }
 
-export async function fleetContext({ now = Date.now() } = {}) {
+export async function fleetContext({ now = Date.now(), since = null, pending: withPending = true } = {}) {
   let records;
   try { records = await listRecords(); } catch { return null; }
   if (!Array.isArray(records) || !records.length) return null;
 
-  const cutoff = now - HOURS * 3600e3;
+  // `since` (the doorman's return): only what landed while he was away
+  const cutoff = Number.isFinite(since) ? Math.max(since, now - HOURS * 3600e3) : now - HOURS * 3600e3;
   const recent = records
     .filter((r) => r.createdAt && new Date(r.createdAt).getTime() > cutoff && KIND_AGENT[r.kind])
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
@@ -101,13 +102,15 @@ export async function fleetContext({ now = Date.now() } = {}) {
   const oldestPending = pending.length
     ? Math.round((now - Math.min(...pending.map((r) => new Date(r.createdAt).getTime()))) / 86400e3)
     : 0;
-  const pendingLine = pending.length
+  const pendingLine = withPending && pending.length
     ? `His Inbox holds ${pending.length} pending draft${pending.length === 1 ? '' : 's'} awaiting review${oldestPending >= 2 ? ` (oldest ${oldestPending}d)` : ''}.`
     : null;
 
   if (!lines.length && !pendingLine) return null;
   return [
-    `THE FLEET LATELY (other agents' receipts, last ${HOURS}h — reference naturally when relevant, never re-announce wholesale):`,
+    Number.isFinite(since)
+      ? 'WHILE HE WAS AWAY (other agents\' receipts since he was last here):'
+      : `THE FLEET LATELY (other agents' receipts, last ${HOURS}h — reference naturally when relevant, never re-announce wholesale):`,
     ...lines,
     pendingLine,
   ].filter(Boolean).join('\n');

@@ -314,7 +314,7 @@ test('the captions keep the stance: a sentence that pushes back says so, every o
 test('App wires it: the poll keeps the stances, every piece carries its own, both voices hand it to the captions, and state mirrors the clock', () => {
   const app = read('src/App.jsx');
   assert.match(app, /import \{ stanceOfSpan \} from '\.\/glassBeats\.js';/);
-  assert.match(app, /const seen = parseVisualStream\(streamShown\(job\.partial\)\);\n\s*this\.setGlassBeats\(seen\.beats\);\n(?:\s*\/\/[^\n]*\n)*\s*stream\.stances = seen\.stances;\n\s*const shown = stripShow\(seen\.text\);/);
+  assert.match(app, /const seen = parseVisualStream\(streamShown\(job\.partial\)\);\n\s*this\.setGlassBeats\(seen\.beats\);\n(?:\s*\/\/[^\n]*\n)*\s*stream\.stances = seen\.stances;\n(?:\s*\/\/[^\n]*\n)*\s*const shown = stripShow\(cutHeld\(seen\.text\)\);/);
   assert.match(app, /const stream = \{ spokenUpTo: 0, stances: \[\] \};/);
   // both splitters, exactly as streamPieces above models them
   assert.match(app, /const pieces = fresh\.match\(\/\[\^\.!\?\]\*\[\.!\?\]\+\[\\s\]\*\|\[\^\.!\?\]\+\$\/g\) \|\| \[fresh\];\n\s*let off = startedAt;\n\s*for \(const p of pieces\) \{ if \(p\.trim\(\)\) say\(p, off, stanceOfSpan\(stream\.stances, text, off, off \+ p\.length\)\); off \+= p\.length; \}/);

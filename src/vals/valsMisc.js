@@ -371,6 +371,8 @@ export function valsMisc(app, ctx) {
       tag: m.who === 'nova' ? '» NOVA' : m.who === 'coach' ? '» COACH' : m.who === 'leader' ? '» LEADER' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { color: m.who === 'nova' || m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'leader' ? 'var(--nv-gold)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 },
       remember: !demoMode && m.who === 'nova' ? () => app.rememberFromChat(m.text) : null,
+      // THE REST it held for "go on" (src/turnFold.js)
+      more: !demoMode && m.more && !m.moreSaid ? () => app.revealHeld(m.at) : null,
     })),
     voiceContinuing: !demoMode && !!st.voiceSessionId,
     newVoiceChat: () => app.newVoiceChat(),

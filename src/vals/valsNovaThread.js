@@ -71,6 +71,8 @@ export function valsNovaThread(app, ctx, v) {
         approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,
         dismiss: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, false) : null,
       } : null,
+      // THE REST it held for "go on" (src/turnFold.js): a tap says it
+      more: live && m.more && !m.moreSaid ? { words: String(m.more).split(/\s+/).filter(Boolean).length, open: () => app.revealHeld(m.at) } : null,
       planReport: live && m.planReport ? {
         status: m.planReport.status,
         walk: () => app.walkThroughPlan(),

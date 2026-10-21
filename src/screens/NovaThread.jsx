@@ -470,6 +470,11 @@ function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
           <Ico name="chart" /><span className="t">{m.evidence.label}</span><span className="s">Evidence <Ico name="right" /></span>
         </button>
       )}
+      {m.more && (
+        <button type="button" className="nv-nt-erow nv-nt-more" onClick={m.more.open} aria-label={`The rest of this answer, ${m.more.words} words`}>
+          <Ico name="downc" /><span className="t">The rest</span><span className="s">{m.more.words} words · or say “go on”</span>
+        </button>
+      )}
       {m.research && <Research r={m.research} at={m.at} />}
       {m.acted && (
         <div className="nv-nt-receipt">

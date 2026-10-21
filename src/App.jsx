@@ -16,6 +16,8 @@ import { lintSpoken } from './spokenLint.js';
 import { stanceOfSpan } from './glassBeats.js';
 import { speakableText } from './artifactBlocks.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
+import { cutHeld, asksForRest, HELD_UNHEARD_LINE } from './turnFold.js';
+import { greetDue, standsDown, notePresence } from './greetDue.js';
 import { firstClauseCut, artifactOpenerLine, ttsFetchesToStart, ttsFailureAction } from './voicePacing.js';
 import { toSpokenProse } from './spokenProse.js';
 import { UNDO_KEY, stashOf, usableUndo } from './chatUndo.js';
@@ -1070,6 +1072,15 @@ export default class App extends Component {
     this.askVisH = () => { if (document.visibilityState === 'visible') this.pollAskNow(); };
     document.addEventListener('visibilitychange', this.askVisH);
     window.addEventListener('pageshow', this.askVisH);
+    // HE IS HERE (src/greetDue.js): a touch, a key, or the page coming into
+    // view is presence, and a return after three quiet hours is greeted on
+    // the spot. Opening the app on his phone is presence too; on the Mac a
+    // page can sit visible all night with nobody at it, so there boot is not.
+    this.presenceH = () => { if (document.visibilityState === 'visible') this.notePresenceNow(); };
+    window.addEventListener('pointerdown', this.presenceH, { capture: true, passive: true });
+    window.addEventListener('keydown', this.presenceH, { capture: true, passive: true });
+    document.addEventListener('visibilitychange', this.presenceH);
+    if (!isMacDevice() && document.visibilityState === 'visible') this.notePresenceNow();
     // Apply updates the moment the new service worker takes over — but only
     // on a real handover (skip the first-ever install claim), and only once.
     // Resume is the safe moment: drafts are mirrored and boot is ~0.4s.
@@ -1237,6 +1248,9 @@ export default class App extends Component {
     document.removeEventListener('visibilitychange', this.visH);
     document.removeEventListener('visibilitychange', this.askVisH);
     window.removeEventListener('pageshow', this.askVisH);
+    window.removeEventListener('pointerdown', this.presenceH, { capture: true });
+    window.removeEventListener('keydown', this.presenceH, { capture: true });
+    document.removeEventListener('visibilitychange', this.presenceH);
     try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }
     this.ivs.forEach(clearInterval);
     if (this.gRaf) cancelAnimationFrame(this.gRaf);
@@ -7773,7 +7787,9 @@ export default class App extends Component {
         // where it pushes back: the same offsets, never a beat (4 Oct 2026);
         // each sentence queued below carries its own stance to the captions
         stream.stances = seen.stances;
-        const shown = stripShow(seen.text);
+        // THE TURN, NOT THE REST (src/turnFold.js): nothing after a MORE line
+        // is shown or spoken while it streams; it arrives held on the line
+        const shown = stripShow(cutHeld(seen.text));
         if (!shown) return;
         if (turn && !turn.firstSpeakableAt && speakableText(shown, { final: false }).trim()) turn.firstSpeakableAt = Date.now();
         if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
@@ -7842,7 +7858,9 @@ export default class App extends Component {
             bindGlassSentences(glass, spokenText);
             // who answered: only a local answer says so (the meta line reads it)
             const via = job.result.provider === 'local' ? { provider: 'local', fallback: !!job.result.fallback, reason: job.result.reason || undefined } : {};
-            const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...via, ...(meta || {}) };
+            // the rest it held for "go on" rides the line (src/turnFold.js)
+            const more = job.result.more || undefined;
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -10309,6 +10327,15 @@ export default class App extends Component {
       }
       this.setState({ voicePendingOffer: null });
     }
+    // "go on" after a turn that held its rest: code says the rest at once,
+    // no model call (src/turnFold.js). A bare yes counts only when the turn
+    // ended by asking and no decision is waiting on that yes.
+    const heldLine = this.latestReply();
+    if (asksForRest(q, heldLine, { pending: !!this.state.voicePendingProposal })) {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+      this.revealHeld(heldLine.at);
+      return;
+    }
     if (this.tryBriefingVoice(q)) return;
     // asked on the Briefing's own stage (round 2): the briefing rides along
     if (this.state.screen === 'briefing' && this.state.briefingAsk && this.askAboutBriefing(q)) return;
@@ -10828,6 +10855,27 @@ export default class App extends Component {
     if (!bits.length) return null;
     return `[On his screen right now — resolve "this/that/it/the first one" against it and answer from it; never read this block back: ${bits.join('. ')}.]`;
   }
+  // THE TURN AND THE REST (src/turnFold.js). The newest settled reply from
+  // any agent: the one "go on" means.
+  latestReply() {
+    return [...(this.state.voiceChat || [])].reverse().find((m) => m.who && m.who !== 'you' && m.who !== 'system' && !m.streaming && !m.handoff) || null;
+  }
+  // Say the rest a turn held, as the next line under the same agent's name:
+  // a tap on More or "go on". Marked said first, so a double tap says it once.
+  revealHeld(at) {
+    const line = (this.state.voiceChat || []).find((m) => m.at === at);
+    if (!line?.more || line.moreSaid) return;
+    const rest = { at: Date.now(), who: line.who, text: line.more, heldFrom: at };
+    this.setState((s) => ({ voiceChat: [...s.voiceChat.map((m) => (m.at === at ? { ...m, moreSaid: true } : m)), rest] }));
+    if (this.state.voiceSpeak) {
+      this.stopSpeaking();
+      // sentence-sized pieces, as a reply's flush speaks them: a held Coach
+      // answer can run to hundreds of words, and one /api/tts call that long
+      // times out into silence
+      for (const p of line.more.match(/[^.!?]*[.!?]+\s*|[^.!?]+$/g) || [line.more]) if (p.trim()) this.speakTtsSentence(p.trim(), null, {});
+      this.queueTtsFinalize(() => this.maybeAutoListen());
+    } else this.maybeAutoListen();
+  }
   // `context`, when present, is a bracketed situational preamble a CALLER
   // decided Nova needs (the live brief decision). The screen situation is
   // added here regardless — one choke point, every ask has eyes. Both travel
@@ -10855,7 +10903,11 @@ export default class App extends Component {
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
-    const sent = [context, situation, question].filter(Boolean).join('\n\n');
+    // the last reply held its rest and he did not ask for it: the model
+    // wrote that rest, so it is told he never heard it (src/turnFold.js)
+    const last = this.latestReply();
+    const heldNote = last?.more && !last.moreSaid ? HELD_UNHEARD_LINE : null;
+    const sent = [context, situation, heldNote, question].filter(Boolean).join('\n\n');
     // `raw` is his sentence undressed: the server matches the reflex, the
     // verbs and the lane against it, while the model still gets the
     // situation block. Without it, anything on screen silently disabled all
@@ -11057,8 +11109,11 @@ export default class App extends Component {
     const today = new Date().toDateString();
     let last = {};
     try { last = JSON.parse(localStorage.getItem('novaos.voiceGreet')) || {}; } catch { /* fresh */ }
-    const gap = last.date !== today ? 'new-day'
-      : (last.at && now - last.at > 3 * 3600e3) ? 'return' : null;
+    // DUE ONLY ON AN ARRIVAL (src/greetDue.js, 21 Oct 2026): he is here
+    // now, and it is his first arrival today or a return after three hours
+    // with no presence at all. It used to be three hours since the last
+    // greeting, so an open Mac greeted an empty room every three hours.
+    const gap = greetDue({ now, today, last, presenceAt: this.presenceAt || 0, awayFrom: this.awayFrom || 0, visible: document.visibilityState === 'visible' });
     if (!gap) return;
     this.greetInFlight = true;
     const conn = getConnection();
@@ -11069,21 +11124,42 @@ export default class App extends Component {
     // hello again after his phone already had — the brief's own documented
     // lesson (briefState.js), finally applied to its sibling. Offline, the
     // local memory decides, as before.
-    const stoodDown = (st) => !!st && (st.greet?.date === st.today || st.briefedToday);
-    const decide = gap === 'new-day'
-      ? api.briefState(conn).then((st) => (stoodDown(st) ? 'stand-down' : gap)).catch(() => gap)
-      : Promise.resolve(gap);
+    // a return asks too (21 Oct): his other device may have said hello
+    // to this same arrival a minute ago
+    const decide = api.briefState(conn).then((st) => (standsDown(gap, st, now) ? 'stand-down' : gap)).catch(() => gap);
+    const since = gap === 'return' && this.awayFrom ? new Date(this.awayFrom).toISOString() : null;
     decide.then((verdict) => {
       if (verdict === 'stand-down') {
         this.greetInFlight = false;
+        this.awayFrom = 0;
         try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: now })); } catch { /* best-effort */ }
         return;
       }
-      this.greetJob(conn, verdict, origin, today);
+      this.greetJob(conn, verdict, origin, today, since);
     });
   }
-  greetJob(conn, gap, origin, today) {
-    api.greet(conn, gap).then(({ jobId }) => {
+  // a presence on this device (src/greetDue.js notePresence), kept across a
+  // reload so a phone iOS killed overnight still knows how long he was gone
+  notePresenceNow() {
+    const now = Date.now();
+    let prevAt = this.presenceAt || 0;
+    if (!prevAt) { try { prevAt = Number(localStorage.getItem('novaos.presenceAt')) || 0; } catch { /* fresh */ } }
+    const next = notePresence({ now, prevAt, awayFrom: this.awayFrom || 0 });
+    const opened = next.awayFrom && next.awayFrom !== this.awayFrom;
+    this.presenceAt = next.presenceAt;
+    this.awayFrom = next.awayFrom;
+    if (now - (this.presenceSavedAt || 0) > 60e3) {
+      this.presenceSavedAt = now;
+      try { localStorage.setItem('novaos.presenceAt', String(now)); } catch { /* best-effort */ }
+    }
+    // back after a real gap, or the first presence of a new day: greet now,
+    // rather than waiting on the next sync
+    if (opened || !prevAt || new Date(prevAt).toDateString() !== new Date(now).toDateString()) {
+      if (this.state.connectionStatus === 'connected') this.maybeGreet('arrive');
+    }
+  }
+  greetJob(conn, gap, origin, today, since = null) {
+    api.greet(conn, gap, since).then(({ jobId }) => {
       this.startPoll('greet', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 45_000,
         intervalMs: 700,
@@ -11094,7 +11170,10 @@ export default class App extends Component {
           this.greetInFlight = false;
           // delivered — NOW it counts, here and for his other devices
           try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.now() })); } catch { /* best-effort */ }
-          if (gap === 'new-day') api.markGreeted(conn).catch(() => {});
+          // every delivered hello is stamped for his other devices (21 Oct):
+          // a return used to be this device's secret, so both said it
+          api.markGreeted(conn).catch(() => {});
+          this.awayFrom = 0;
           const text = job.result.text;
           this.finalizeStream('voiceChat', { at: Date.now(), who: 'nova', text });
           if (this.state.screen !== 'voice') {

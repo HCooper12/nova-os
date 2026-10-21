@@ -5142,6 +5142,10 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-erow .t { font: 600 15px var(--nv-font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-nt-erow .s { display: inline-flex; align-items: center; gap: 2px; font: 400 13px var(--nv-font-ui); color: var(--nv-sum-ink3); white-space: nowrap; }
 .nv-nt-erow .s .nv-nt-ico { width: 14px; height: 14px; }
+/* THE REST a turn held (src/turnFold.js): the Evidence row's shape, quieter,
+   because it is an offer, not a finding */
+.nv-nt-more { margin-top: 6px; background: color-mix(in srgb, var(--nv-ink) 4%, transparent); }
+.nv-nt-more .t { font-weight: 500; justify-self: start; text-align: left; }
 .nv-nt-receipt, .nv-nt-job, .nv-nt-offl {
   display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 52px;
   padding: 4px 4px 4px 12px; border-radius: 26px; background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);

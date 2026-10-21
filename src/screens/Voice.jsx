@@ -302,6 +302,9 @@ function VoiceClassic({ v }) {
                       : <Tag key={k} tone="faint">{a.kind === 'file' ? 'file' : 'video'} · {a.name}</Tag>)}
                   </div>
                 )}
+                {m.more && (
+                  <TextAction compact tone="cyan" onClick={m.more} title="The rest of this answer, or say go on" style={{ marginLeft: '6px' }}>The rest</TextAction>
+                )}
                 {m.remember && (
                   <TextAction compact tone="gold" onClick={m.remember} title="File this into the vault via the Inbox" style={{ marginLeft: '6px' }}>Remember</TextAction>
                 )}
