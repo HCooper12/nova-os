@@ -98,17 +98,32 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // edit. It goes when the workDir goes (cleanup).
 export const stagingBaseDir = (stagingVault) => path.join(path.dirname(stagingVault), 'base');
 
+// EVICTED FILES (23 Oct 2026). iCloud's "Optimise Mac Storage" turns an old
+// page into a dataless placeholder, and fs.cp's copyfile on one fails with
+// errno -11 (EDEADLK) instead of fetching it — one evicted journal page
+// failed every ingest for two days. A plain read makes iCloud download the
+// file, so the Wiki is copied by read + write, never by copyfile.
+export async function copyFromICloud(src, dest) {
+  await writeFile(dest, await readFile(src));
+}
+
+export async function copyTreeFromICloud(src, dest) {
+  await mkdir(dest, { recursive: true });
+  for (const entry of readdirSync(src, { withFileTypes: true })) {
+    if (SKIP.has(entry.name)) continue;
+    const from = path.join(src, entry.name);
+    const to = path.join(dest, entry.name);
+    if (entry.isDirectory()) await copyTreeFromICloud(from, to);
+    else if (entry.isFile()) await copyFromICloud(from, to);
+  }
+}
+
 export async function stageVault(vaultPath, stagingVault) {
   await mkdir(stagingVault, { recursive: true });
   const claudeMd = path.join(vaultPath, 'CLAUDE.md');
-  if (existsSync(claudeMd)) await cp(claudeMd, path.join(stagingVault, 'CLAUDE.md'));
+  if (existsSync(claudeMd)) await copyFromICloud(claudeMd, path.join(stagingVault, 'CLAUDE.md'));
   const wikiDir = path.join(vaultPath, 'Wiki');
-  if (existsSync(wikiDir)) {
-    await cp(wikiDir, path.join(stagingVault, 'Wiki'), {
-      recursive: true,
-      filter: (src) => !SKIP.has(path.basename(src)),
-    });
-  }
+  if (existsSync(wikiDir)) await copyTreeFromICloud(wikiDir, path.join(stagingVault, 'Wiki'));
   await mkdir(path.join(stagingVault, 'Raw', 'assets'), { recursive: true });
   // The baseline. The live vault keeps moving while a pass runs — the
   // Guardian files its report, Coach writes an observation — and a diff
