@@ -1,3 +1,4 @@
+import { fetchCarousel, carouselBrief } from './carousel.js';
 import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
@@ -308,9 +309,19 @@ async function runWatchJob(vaultPath, recordId, url, question, model) {
   let workDir = null;
   try {
     workDir = await mkdtemp(path.join(os.tmpdir(), 'nova-watch-'));
-    const report = await fetchVideoTranscript(url, workDir);
-    if (!report.transcript) {
-      throw new Error('no transcript available — the video has no captions and no Whisper key is configured (~/.config/watch/.env)');
+    let report;
+    let videoError = null;
+    try { report = await fetchVideoTranscript(url, workDir); } catch (e) { videoError = e; }
+    if (!report?.transcript) {
+      // A photo carousel has no video to transcribe: read its slides instead.
+      const slides = await fetchCarousel(url, path.join(workDir, 'slides')).catch(() => null);
+      if (slides) {
+        report = { title: slides.title, uploader: slides.uploader, duration: null, transcriptSource: `${slides.slidePaths.length} carousel slides`, transcript: carouselBrief(slides) };
+      } else if (videoError) {
+        throw videoError;
+      } else {
+        throw new Error('no transcript available — the video has no captions and no Whisper key is configured (~/.config/watch/.env)');
+      }
     }
     // Long transcript → condense first; the judgment pass reads the notes.
     const digest = report.transcript.length > SINGLE_PASS_MAX_CHARS;

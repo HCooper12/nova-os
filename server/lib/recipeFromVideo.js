@@ -41,6 +41,7 @@
 // fills in only what that recipe is missing (photo, servings, times, source)
 // and never touches a value he has, its macros or its ingredients.
 
+import { fetchCarousel, carouselBrief } from './carousel.js';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, readdir, mkdir, copyFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -80,7 +81,21 @@ function run(cmd, args, { timeoutMs = 90_000 } = {}) {
 
 /** { title, uploader, caption, thumbnail, duration } for a video URL. */
 export async function fetchCaption(url, { timeoutMs = 90_000 } = {}) {
-  const out = await run('yt-dlp', ['--skip-download', '--no-warnings', '--no-playlist', '-J', url], { timeoutMs });
+  let out;
+  try {
+    out = await run('yt-dlp', ['--skip-download', '--no-warnings', '--no-playlist', '-J', url], { timeoutMs });
+  } catch (e) {
+    // A photo carousel (22 Oct: a 13-slide bar recipe) has no video formats;
+    // its recipe is on the slides and in the caption, so read those instead.
+    const workDir = await mkdtemp(path.join(os.tmpdir(), 'nova-recipe-slides-'));
+    const slides = await fetchCarousel(url, workDir).catch(() => null);
+    if (!slides) throw e;
+    return {
+      title: slides.title, uploader: slides.uploader, caption: slides.caption,
+      thumbnail: slides.slides[0] || null, duration: null,
+      slideBrief: carouselBrief(slides),
+    };
+  }
   const j = JSON.parse(out);
   return {
     title: String(j.title || ''),
@@ -267,14 +282,14 @@ export function captionHasRecipe(text) {
 
 // `medium: 'page'` (1 Oct, recipeFromPage.js): the same read over a recipe
 // WEB PAGE's text — its schema.org Recipe block, or its readable words.
-export function buildRecipePrompt({ title, uploader, caption, transcript, prose, medium }) {
+export function buildRecipePrompt({ title, uploader, caption, transcript, prose, medium, slideBrief }) {
   const page = medium === 'page';
   return `Read the recipe(s) out of this ${page ? "web page's text" : `video's caption${transcript ? ' and transcript' : ''}`} for Hayden's recipe collection.${prose ? ` He said: "${prose}".` : ''}
 
 ${page ? 'Page' : 'Video'}: ${title || '(untitled)'} by ${uploader || 'unknown'}
 ${page ? 'PAGE' : 'CAPTION'}:
 ${caption || (page ? '(no readable text)' : '(no caption)')}
-${transcript ? `\nTRANSCRIPT:\n${transcript.slice(0, 20_000)}\n` : ''}
+${transcript ? `\nTRANSCRIPT:\n${transcript.slice(0, 20_000)}\n` : ''}${slideBrief ? `\n${slideBrief}\n(The slides count as part of the caption for every rule below.)\n` : ''}
 Output ONLY a JSON object:
 {"recipes":[{"name":"short natural name","servings":<number of portions the whole recipe makes>,"makes":"e.g. 6 jars","prepMin":<minutes or null>,"cookMin":<minutes or null>,"ingredients":[{"text":"240 g oats","name":"rolled oats","grams":240}],"method":["step one","step two"],"statedPerServing":{"kcal":471,"p":48,"c":44,"f":11},"category":"TREATS for desserts, sweets and snacks | ROTATION / SWAP MEALS for meals"}],"notFound":""}
 Rules:
