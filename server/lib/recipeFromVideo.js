@@ -301,17 +301,17 @@ Rules:
 - No recipe at all → {"recipes":[],"notFound":"<one short reason>"}.`;
 }
 
-async function askModel(prompt, deps) {
+async function askModel(prompt, deps, { tools = '' } = {}) {
   if (deps.ask) return deps.ask(prompt);
   const stdout = await run(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    ...boundaryArgs(''),
+    ...boundaryArgs(tools),
     '--output-format', 'json',
     '--model', modelFor(LANE),
     ...effortArgs(LANE),
     '--no-session-persistence',
-  ], { timeoutMs: 180_000 });
+  ], { timeoutMs: tools ? 300_000 : 180_000 });
   const outer = parseEnvelope(stdout, { lane: LANE });
   const m = firstBalancedObjectMatch(String(outer.result || '').trim());
   if (!m) throw new Error('the recipe read came back empty');
@@ -453,7 +453,8 @@ export async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
     else {
       try {
         if (!laneEnabled(LANE) && !deps.ask) throw laneOffError(LANE);
-        parsed = await askModel(buildRecipePrompt({ ...meta, transcript, prose }), deps);
+        // a carousel's recipe is on its slides: Read (and nothing else) to open them
+        parsed = await askModel(buildRecipePrompt({ ...meta, transcript, prose }), deps, { tools: meta.slideBrief ? 'Read' : '' });
       } catch (e) {
         await update(recordId, { status: 'error', error: RETRY_MESSAGE, errorDetail: String(e.message || e).slice(0, 300) });
         return;
