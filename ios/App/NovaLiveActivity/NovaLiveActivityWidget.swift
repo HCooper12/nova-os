@@ -91,9 +91,14 @@ private struct LockScreenCard: View {
             HStack(alignment: .center, spacing: 14) {
                 if workout { SetRing(state: state, size: 52) } else { JobMark(state: state, size: 44) }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(workout ? "NOVA · TRAIN" : "NOVA")
-                        .font(.caption2.weight(.semibold)).tracking(1.2)
-                        .foregroundStyle(accent(state, workout: workout))
+                    Label {
+                        Text(workout ? "NOVA · TRAIN" : "NOVA").tracking(1.2)
+                    } icon: {
+                        if workout { Image(systemName: "dumbbell.fill") }
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accent(state, workout: workout))
                     Text(state.title).font(.headline).foregroundStyle(Ink.primary).lineLimit(1)
                     Text(state.detail).font(.subheadline).foregroundStyle(Ink.secondary).lineLimit(1)
                 }
@@ -144,6 +149,7 @@ private struct JobMark: View {
             Image(systemName: state.finished == true ? "checkmark" : "sparkle")
                 .font(.system(size: size * 0.45, weight: .semibold))
                 .foregroundStyle(state.finished == true ? Ink.good : Ink.cyan)
+                .contentTransition(.symbolEffect(.replace))   // the sparkle turns into the tick when the job lands
         }
         .frame(width: size, height: size)
     }
@@ -163,7 +169,7 @@ private struct SessionClock: View {
                 if big { Text("Ready").foregroundStyle(Ink.good) } else { Image(systemName: "checkmark").foregroundStyle(Ink.good) }
             } else if state.paused == true {
                 VStack(alignment: .trailing, spacing: 1) {
-                    if big { Text("PAUSED").font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Ink.secondary) }
+                    if big { Label("PAUSED", systemImage: "pause.fill").labelStyle(.titleAndIcon).font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Ink.secondary) }
                     Text(clockText(state.elapsed ?? 0)).foregroundStyle(Ink.secondary)
                 }
             } else if let started = state.started {
@@ -207,7 +213,7 @@ private struct RestRow: View {
     var body: some View {
         if let start = state.restStart, let end = state.restEnd, resting(state, stale: stale) {
             HStack(spacing: 10) {
-                Text("REST").font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Ink.gold)
+                Label("REST", systemImage: "timer").labelStyle(.titleAndIcon).font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Ink.gold)
                 Text(timerInterval: start...end, countsDown: true)
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .monospacedDigit()

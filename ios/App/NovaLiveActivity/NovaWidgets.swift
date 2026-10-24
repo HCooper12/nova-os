@@ -401,7 +401,10 @@ struct FuelView: View {
     }
     private func line(_ r: Reading, of: String?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(r.key.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(r.key.hue)
+            HStack(spacing: 4) {
+                Glyph(key: r.key, size: 11)
+                Text(r.key.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(r.key.hue)
+            }
             (Text(r.short).font(.system(size: 21, weight: .semibold, design: .rounded)).foregroundColor(WInk.ink)
                 + Text(of ?? "").font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundColor(r.key.hue))
                 .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
@@ -480,7 +483,7 @@ struct TodayMediumView: View {
                 ForEach(Array(others), id: \.self) { k in
                     let r = Reading(k, day)
                     HStack(spacing: 5) {
-                        Circle().fill(k.hue).frame(width: 6, height: 6)
+                        Glyph(key: k, size: 10)
                         Text(r.value == nil ? "\(k.name) —" : "\(r.short)\(k == .protein ? " g" : k == .kcal ? " kcal" : " steps")")
                             .font(.system(size: 12, weight: .medium)).foregroundStyle(WInk.ink2).monospacedDigit()
                     }
@@ -500,7 +503,12 @@ struct TodaySmallView: View {
             SingleView(reading: Reading(key, day), day: day, stamp: entry.stamp, sub: lead.short)
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Today").font(.system(size: 13, weight: .semibold)).foregroundStyle(WInk.ink2)
+                HStack(spacing: 5) {
+                    if lead.short == "All met" {
+                        Image(systemName: "checkmark.seal.fill").font(.system(size: 13, weight: .semibold)).foregroundStyle(WInk.protein)
+                    }
+                    Text("Today").font(.system(size: 13, weight: .semibold)).foregroundStyle(WInk.ink2)
+                }
                 Spacer(minLength: 0)
                 Text(lead.say).font(.system(size: 18, design: .serif)).foregroundStyle(WInk.ink).lineLimit(4)
                 Text(entry.stamp).font(.system(size: 11, weight: .medium)).foregroundStyle(WInk.ink3)
