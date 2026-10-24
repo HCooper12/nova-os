@@ -1,3 +1,4 @@
+import { keptBecause } from './plainCause.js';
 import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { rm, mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
@@ -58,7 +59,7 @@ function normalizeResult(parsed) {
 // draft recipe.
 export const SCANS_DIR_REL = 'Wiki/Health/Recipe Scans';
 export const NEEDS_READING = 'Needs reading: the photos are kept and Nova reads them when Claude is available (Retry on the Inbox card).';
-export const SCAN_KEPT_MESSAGE = "Claude isn't available right now. Nova kept your photos as a draft recipe and will read them when you retry.";
+export const scanKeptMessage = (err) => keptBecause(err, 'Nova kept your photos as a draft recipe and will read them when you retry.');
 
 export async function keepScanAsDraft(vaultPath, { imagePaths, name = '', reason = '' }) {
   const { addRecipe, loadRecipes } = await import('./recipes.js');
@@ -88,13 +89,13 @@ export async function keepScanAsDraft(vaultPath, { imagePaths, name = '', reason
   const record = {
     id: randomUUID().slice(0, 8), kind: 'recipe-scan', text: `Recipe photos: ${title}`,
     source: 'capture', mode: 'draft', status: 'error', createdAt: new Date().toISOString(),
-    error: SCAN_KEPT_MESSAGE,
+    error: scanKeptMessage(reason),
     errorDetail: String(reason || '').slice(0, 300),
     recipeId: draft.id, recipeName: draft.name, photos: kept,
     undoData: { route: 'recipe', recipeId: draft.id },
   };
   await createRecord(record);
-  return { message: SCAN_KEPT_MESSAGE, recipeId: draft.id, recordId: record.id, name: draft.name };
+  return { message: scanKeptMessage(reason), recipeId: draft.id, recordId: record.id, name: draft.name };
 }
 
 /** Retry for kept photos: read them now and fill the draft recipe in. */
@@ -121,7 +122,7 @@ export async function retryRecipeScan(vaultPath, record, deps = {}) {
       }
       await updateRecord(record.id, { status: 'filed', filedAt: new Date().toISOString(), error: null, destination: `Recipe bank - ${record.recipeName} (read from your photos)` });
     } catch (e) {
-      await updateRecord(record.id, { status: 'error', error: SCAN_KEPT_MESSAGE, errorDetail: String(e.message || e).slice(0, 300) });
+      await updateRecord(record.id, { status: 'error', error: scanKeptMessage(e), errorDetail: String(e.message || e).slice(0, 300) });
     }
   };
   const done = finish();

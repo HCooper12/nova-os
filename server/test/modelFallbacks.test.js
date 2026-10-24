@@ -151,7 +151,7 @@ test('2. the weave with the lane off answers plainly and keeps the link and the 
     const res = await fetch(`${base}/ingest`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sourceUrl: 'https://example.test/talk', text: 'my own note' }) });
     assert.equal(res.status, 400);
     const j = await res.json();
-    assert.equal(j.error, "Claude isn't available right now. Nova kept the link and will weave it when you retry.");
+    assert.match(j.error, /^.+ is switched off in Settings → Claude models\. Nova kept the link and will weave it when you retry\.$/);
     assert.equal(j.kept, true);
     const rec = await getRecord(j.recordId);
     assert.equal(rec.kind, 'ingest');

@@ -147,7 +147,7 @@ export function recipesRouter(vaultPath) {
       res.json({ jobId: startLabelMacros(prepared, servings) });
     } catch (err) {
       // the photos and grams are still on his screen; say so plainly
-      if (err.laneOff) return res.status(400).json({ error: "Claude isn't available right now. Your label photos and grams are still on this screen, so try again in a bit." });
+      if (err.laneOff) return res.status(400).json({ error: `${err.message} Your label photos and grams are still on this screen.` });
       if (/needs the grams|servings|label/.test(err.message)) return res.status(400).json({ error: err.message });
       next(err);
     }

@@ -41,6 +41,7 @@
 // fills in only what that recipe is missing (photo, servings, times, source)
 // and never touches a value he has, its macros or its ingredients.
 
+import { keptBecause } from './plainCause.js';
 import { fetchCarousel, carouselBrief } from './carousel.js';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, readdir, mkdir, copyFile } from 'node:fs/promises';
@@ -433,7 +434,7 @@ export async function startRecipeFromVideo(vaultPath, url, prose = '', deps = {}
   return record;
 }
 
-export const RETRY_MESSAGE = "Claude isn't available right now. Nova kept the link and will read the recipe when you retry.";
+export const retryMessage = (err) => keptBecause(err, 'Nova kept the link and will read the recipe when you retry.');
 
 export async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
   const update = deps.updateRecord || updateRecord;
@@ -456,7 +457,7 @@ export async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
         // a carousel's recipe is on its slides: Read (and nothing else) to open them
         parsed = await askModel(buildRecipePrompt({ ...meta, transcript, prose }), deps, { tools: meta.slideBrief ? 'Read' : '' });
       } catch (e) {
-        await update(recordId, { status: 'error', error: RETRY_MESSAGE, errorDetail: String(e.message || e).slice(0, 300) });
+        await update(recordId, { status: 'error', error: retryMessage(e), errorDetail: String(e.message || e).slice(0, 300) });
         return;
       }
     }

@@ -25,11 +25,14 @@ export function quickCaptureModel(st, app) {
   const open = st.qcSheetId ? byId.get(st.qcSheetId) : null;
   const tag = open ? captureTag(open) : null;
   const here = open?.decision && !open.decision.unsorted && open.status !== 'error' ? open.decision.route : null;
+  // the real cause the server recorded (plainCause), never a guessed one
+  const unsorted = rows.filter((r) => r.tag.tone === 'unsorted');
+  const cause = unsorted.map((r) => byId.get(r.id)?.modelCause).find(Boolean);
   return {
     rows,
     error: st.qcError || null,
-    unsortedNote: rows.some((r) => r.tag.tone === 'unsorted')
-      ? "Claude isn't available right now. Nova's own rules filed what they know. Pick a place for the rest, or it sorts itself when Claude is back."
+    unsortedNote: unsorted.length
+      ? `${cause ? `${cause}, so ` : ''}Claude couldn't sort ${unsorted.length === 1 ? 'this one' : 'these'}. Nova's own rules filed what they know. Pick a place for the rest, or it sorts itself on the next try.`
       : null,
     sheet: open ? {
       text: open.text,

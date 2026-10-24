@@ -1620,7 +1620,7 @@ function runClassification(vaultPath, record) {
       }
       const { unsortedDecision } = await import('./captureLocal.js');
       try {
-        await updateRecord(record.id, { status: 'pending', decision: { ...normalizeDecision(unsortedDecision(record.text)), unsorted: true }, error: null, modelError: err.message });
+        await updateRecord(record.id, { status: 'pending', decision: { ...normalizeDecision(unsortedDecision(record.text)), unsorted: true }, error: null, modelError: err.message, modelCause: (await import('./plainCause.js')).plainCause(err) });
       } catch (storeErr) { console.error('inbox: failed to park an unsorted capture', storeErr); }
     });
   })();

@@ -1,3 +1,4 @@
+import { keptBecause } from './plainCause.js';
 import { spawn } from 'node:child_process';
 import { mkdir, cp, readFile, writeFile, rm, rename } from 'node:fs/promises';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
@@ -308,9 +309,10 @@ export async function findExistingVideoPages(vaultPath, url) {
 // text are kept on an inbox record he can retry from the stream: kind
 // 'ingest', status 'error', the whole input on `ingestRetry`. Retrying
 // re-runs the weave exactly as first asked and retires this copy.
-export function keptMessage({ sourceUrl, book }) {
+// The message names the real cause (plainCause), never a guessed one.
+export function keptMessage({ sourceUrl, book }, reason = '') {
   const what = sourceUrl ? 'the link' : book ? 'the book' : 'what you pasted';
-  return `Claude isn't available right now. Nova kept ${what} and will weave it when you retry.`;
+  return keptBecause(reason, `Nova kept ${what} and will weave it when you retry.`);
 }
 
 export async function keepIngestForRetry({ text = null, sourceUrl = null, book = null, opts = {} }, reason = '') {
@@ -323,7 +325,7 @@ export async function keepIngestForRetry({ text = null, sourceUrl = null, book =
     mode: 'draft',
     status: 'error',
     createdAt: new Date().toISOString(),
-    error: keptMessage({ sourceUrl, text, book }),
+    error: keptMessage({ sourceUrl, text, book }, reason),
     ingestRetry: {
       text: text && String(text).trim() ? String(text) : null,
       sourceUrl: sourceUrl || null,
@@ -371,7 +373,7 @@ export function startIngest(vaultPath) {
     const keep = (why) => {
       if (person || opts.noKeep) return;
       keepIngestForRetry({ text: transcriptText, sourceUrl, book, opts }, why).then(() => {
-        job.error = `${job.error ? `${job.error} ` : ''}${keptMessage({ sourceUrl, text: transcriptText, book })}`;
+        job.error = keptMessage({ sourceUrl, text: transcriptText, book }, why);
         persistJob(job);
       }).catch(() => {});
     };

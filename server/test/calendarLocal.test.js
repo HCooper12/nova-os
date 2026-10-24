@@ -88,10 +88,10 @@ test('flow: stub CLI fails, the local add is still filed on the inbox rails', as
 });
 
 test('flow: an add that cannot be read, with Claude down, gives the plain error', async () => {
-  await assert.rejects(() => runCalendarCommand('dentist sometime next week'), /Claude isn't available, and Nova couldn't read a time in that\. Try 'dentist Friday 3pm'\./);
+  await assert.rejects(() => runCalendarCommand('dentist sometime next week'), /Nova couldn't read a time in that, and .* is switched off in Settings → Claude models\. Try 'dentist Friday 3pm'\./);
 });
 
 test('flow: move/delete with Claude down says nothing changed', async () => {
-  await assert.rejects(() => runCalendarCommand('move my gym to 7am'), /Moving or deleting needs Claude, which isn't available right now\. Nothing changed\./);
+  await assert.rejects(() => runCalendarCommand('move my gym to 7am'), /Moving or deleting needs Claude, and .* is switched off in Settings → Claude models\. Nothing changed\./);
   await assert.rejects(() => runCalendarCommand('cancel dentist friday 3pm'), /Moving or deleting needs Claude/);
 });

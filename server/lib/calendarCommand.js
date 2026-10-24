@@ -2,7 +2,7 @@ import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
-import { laneEnabled } from './modelPrefs.js';
+import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { runTextLane } from './textLane.js';
 import { parseEventLocal, EDIT_WORDS_RE } from './calendarLocal.js';
 
@@ -82,9 +82,10 @@ export async function runCalendarCommand(text, vaultPath = null) {
     return proposeOne({ action: 'create', title: local.title, start: local.start.toISOString(), end: local.end.toISOString(), notes: null, calendarName: null }, clean, [], vaultPath);
   }
 
+  // factual (24 Oct): this only fires when the lane is switched off, so say that
   const claudeDown = () => new Error(EDIT_WORDS_RE.test(clean)
-    ? "Moving or deleting needs Claude, which isn't available right now. Nothing changed."
-    : "Claude isn't available, and Nova couldn't read a time in that. Try 'dentist Friday 3pm'.");
+    ? `Moving or deleting needs Claude, and ${laneOffError('calendar-command').message} Nothing changed.`
+    : `Nova couldn't read a time in that, and ${laneOffError('calendar-command').message} Try 'dentist Friday 3pm'.`);
   if (!laneEnabled('calendar-command')) throw claudeDown();
 
   let events = [];
