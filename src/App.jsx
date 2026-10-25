@@ -9508,11 +9508,11 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('The Mac is unreachable — your numbers live in your vault'); return Promise.reject(new Error('offline')); }
     return api.intakeApply(conn, change).then((r) => {
       const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
-      refresh();
       tickReceipt({ key: `numbers:${r.record?.id}`, label: 'Your numbers', done: true,
         title: `${r.plan.targetKcal.toLocaleString('en-AU')} kcal · ${r.plan.proteinG} g protein from today`,
         undo: () => api.inboxUndo(conn, r.record.id).then(refresh).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
-      return r;
+      // resolve only once the page shows the saved numbers, so the editor never flicks back to the old ones
+      return refresh().then(() => r);
     }).catch((e) => { this.toastMsg(`Could not change your numbers: ${e.message}`); throw e; });
   }
   loadNumbersContext() {

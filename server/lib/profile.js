@@ -143,7 +143,7 @@ export async function setProfile(vaultPath, input) {
   await mkdir(path.dirname(full), { recursive: true });
   const priorRaw = existsSync(full) ? await readFile(full, 'utf8') : null;
   if (priorRaw !== null) await backupFile(full);
-  const frontmatter = { type: 'profile', focus, bestSelf, updated: new Date().toISOString().slice(0, 10) };
+  const frontmatter = { type: 'profile', focus, bestSelf, updated: localDay() };
   if (priorities.length) frontmatter.priorities = priorities;
   // the Intake's numbers live on this page too — never dropped by a prose edit
   const prior = await getProfile(vaultPath);
@@ -279,7 +279,7 @@ export async function setIntake(vaultPath, intake) {
   const prior = await getProfile(vaultPath);
   await mkdir(path.dirname(full), { recursive: true });
   if (existsSync(full)) await backupFile(full);
-  const frontmatter = { type: 'profile', focus: prior?.focus || '', bestSelf: prior?.bestSelf || '', updated: new Date().toISOString().slice(0, 10) };
+  const frontmatter = { type: 'profile', focus: prior?.focus || '', bestSelf: prior?.bestSelf || '', updated: localDay() };
   if (prior?.priorities?.length) frontmatter.priorities = prior.priorities;
   if (intake) frontmatter.intake = intake;
   await writeFile(full, matter.stringify(`# Profile\n\n${prior?.notes || ''}\n`, frontmatter), 'utf8');

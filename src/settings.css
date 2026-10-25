@@ -282,6 +282,13 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 .nv-set-numd { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 10px 8px; padding: 10px 12px; border-radius: 12px;
   background: color-mix(in srgb, var(--s-acc) 12%, transparent); font: 400 var(--t13)/1.35 var(--nv-font-ui); color: var(--s-ink2);
   animation: nvNumIn var(--nv-spring-snappy-ms, 320ms) var(--nv-spring-snappy, ease-out) both; }
+.nv-set-numd.is-saved { background: color-mix(in srgb, var(--s-good) 13%, transparent); }
+.nv-set-numd.is-error { background: color-mix(in srgb, var(--s-bad) 16%, transparent); color: var(--nv-ink); }
+.nv-set-numd > span:first-child { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.nv-set-numsp, .nv-set-numok { flex: none; align-self: center; width: 14px; height: 14px; border-radius: 50%; }
+.nv-set-numsp { border: 2px solid color-mix(in srgb, var(--s-acc) 30%, transparent); border-top-color: var(--s-acc); animation: nvNumSpin .7s linear infinite; }
+.nv-set-numok { background: var(--s-good); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.4l2.6 2.6L11 4.6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.4l2.6 2.6L11 4.6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat; }
+@keyframes nvNumSpin { to { transform: rotate(360deg); } }
 .nv-set-numd b { font: 700 var(--t15)/1 var(--s-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; }
 @keyframes nvNumIn { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 .nv-set-numa { display: inline-flex; align-items: center; gap: 14px; }
@@ -619,6 +626,7 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
   .nv-set-nudge { animation: none; }
   .nv-set-numd, .nv-set-numm, .nv-set-numl li, .nv-set-bfe { animation: nvSetFade .2s ease both !important; }
   .nv-set-bfb { transition: border-color .2s ease, background .2s ease; }
+  .nv-set-numsp { animation: none; border-color: var(--s-acc); }
   .nv-set-bfb:active { transform: none; }
   .nv-set-stg { animation: nvSetFade .2s linear backwards !important; }
   .nv-set-stg path { animation: none; stroke-dashoffset: 0; }
