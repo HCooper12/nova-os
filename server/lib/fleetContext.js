@@ -16,7 +16,7 @@ export const KIND_AGENT = {
   dispatch: 'Dispatch', review: 'Daily Review', 'plan-today': 'Plan Today',
   'weekly-debrief': 'Weekly Debrief', 'week-plan': 'Week Plan',
   'training-check': 'Training Check', coach: 'Coach',
-  'food-suggestion': 'Food Scout', 'meal-prep': 'Meal Prep',
+  'food-suggestion': 'Food Scout', 'meal-prep': 'Meal Prep', intake: 'Numbers Review',
   money: 'Money', cfo: 'CFO', research: 'Researcher', studio: 'Studio',
   // his own change on the Money screen, filed with Undo (lib/moneyRails.js)
   'money-write': 'Money',
