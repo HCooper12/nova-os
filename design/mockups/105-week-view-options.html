@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>This week, three ways</title>
+<!--
+  105 · THE WEEK VIEW, THREE WAYS (26 Oct 2026)
+  His words: "I think I want the weekly view refined and altered in some way.
+  Not sure how but something just makes me feel off with the current layout."
+  He said yes to seeing options.
+
+  WHAT IS PROBABLY OFF with today's card (seven equal dashed capsules):
+    - the capsules carry no words: you can't see WHAT is on a day without tapping
+    - a rest day, a training day and an optional day all look the same
+    - seven equal shapes with no hierarchy; today is just a ring
+    - the headline "0 of 7 done" counts a rest day as something to do
+  Each option below fixes those differently.
+
+  REAL DATA: his week of 26 Oct as /api/train/overview returned it on 26 Oct:
+  Mon Push (today), Tue Active rest, Wed Pull, Thu Legs, Fri Upper,
+  Sat Arms Optional, Sun Delts and Back Optional. Lift and set counts are the routines' own (GET /api/workouts/routines). The ticked Monday in option C's "after" state is DEMO,
+  to show what done looks like.
+-->
+<style>
+:root{
+  --bg:#0d1022; --bg2:#1b1f45; --glass:rgba(255,255,255,.07); --glass-2:rgba(255,255,255,.12);
+  --line:rgba(255,255,255,.12); --text:#f2f3fa; --text-2:rgba(242,243,250,.62); --text-3:rgba(242,243,250,.4);
+  --cyan:#59e6ff; --violet:#b68cff; --gold:#FFD27A; --green:#5fe0a8; --or:#ff9a5c; --rose:#e9a3b0; --blue:#7aa8ff;
+  --radius:22px; --font:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif; --spring:cubic-bezier(.34,1.4,.64,1);
+}
+*{box-sizing:border-box;margin:0}
+body{background:radial-gradient(120% 80% at 50% 0%,var(--bg2),var(--bg));color:var(--text);font:15px/1.4 var(--font);padding:32px 16px 64px;min-height:100vh}
+header.page{max-width:1180px;margin:0 auto 28px}
+header.page h1{font:600 26px var(--font)}
+header.page p{color:var(--text-2);margin-top:6px;max-width:72ch}
+.row{display:flex;flex-wrap:wrap;gap:36px;justify-content:center;max-width:1180px;margin:0 auto}
+.col{width:375px;max-width:100%}
+.col h2{font:600 13px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:4px}
+.col .why{color:var(--text-2);font-size:13px;margin-bottom:14px;min-height:72px}
+.phone{background:linear-gradient(180deg,#141838,#0e1128);border:1px solid var(--line);border-radius:40px;padding:28px 16px;overflow:hidden}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:16px;animation:in .5s var(--spring) both}
+.hd{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.hd b{font:600 17px var(--font)} .hd .n{margin-left:auto;color:var(--text-2);font-size:14px}
+.hd .n strong{color:var(--text);font-size:16px;font-variant-numeric:tabular-nums}
+.foot{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;color:var(--text-2);font-size:14px}
+
+/* A · agenda rows */
+.ag{list-style:none;padding:0}
+.ag li{display:grid;grid-template-columns:34px 4px 1fr auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.ag li:first-child{border-top:0}
+.ag .d{font:600 13px var(--font);color:var(--text-2);text-align:center}
+.ag .bar{height:30px;border-radius:2px;background:var(--h)}
+.ag .nm{font-weight:600}
+.ag .mt{font-size:12.5px;color:var(--text-2)}
+.ag .st{font-size:13px;color:var(--text-3)}
+.ag li.rest .nm{font-weight:400;color:var(--text-2)}
+.ag li.rest .bar{background:none;border-left:2px dashed var(--green)}
+.ag li.opt .nm::after{content:' · optional';font-weight:400;color:var(--text-3);font-size:13px}
+.ag li.today{background:var(--glass-2);border-radius:14px;margin:4px -8px;padding:12px 8px;border-top:0}
+.ag li.today + li{border-top:0}
+.ag li.today .d{color:var(--gold)}
+.go{background:var(--cyan);color:#062029;border-radius:999px;padding:6px 14px;font:600 14px var(--font)}
+
+/* B · connected path */
+.path{position:relative;display:grid;grid-template-columns:repeat(7,1fr);text-align:center;padding-top:6px}
+.path::before{content:'';position:absolute;left:7%;right:7%;top:26px;height:2px;background:linear-gradient(90deg,var(--gold) 0 7%,var(--line) 7%)}
+.node{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}
+.node .c{width:40px;height:40px;border-radius:50%;background:#171b3e;border:2px solid var(--h);display:grid;place-items:center;font:700 13px var(--font);color:var(--h)}
+.node.rest .c{width:22px;height:22px;margin:9px 0;border-style:dashed}
+.node.opt .c{border-style:dashed}
+.node.today .c{width:48px;height:48px;margin-top:-4px;background:var(--h);color:#1a1530;box-shadow:0 0 0 5px rgba(182,140,255,.18)}
+.node .dl{font:600 11.5px var(--font);color:var(--text-2)}
+.node .wn{font-size:11px;color:var(--text-3);line-height:1.15;max-width:46px}
+.node.today .dl{color:var(--text)}
+.nextup{margin-top:16px;display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:var(--glass-2)}
+.nextup .t{flex:1}
+.nextup .t b{display:block}
+.nextup .t span{font-size:13px;color:var(--text-2)}
+
+/* C · rail of day cards with a peek */
+.rail{display:flex;gap:10px;overflow:hidden;margin:0 -16px;padding:0 16px}
+.dc{flex:0 0 132px;border-radius:18px;padding:12px;background:var(--glass);border:1px solid var(--line);position:relative}
+.dc .dl{font:600 12px var(--font);color:var(--text-2)}
+.dc .nm{font:600 16px/1.2 var(--font);margin:6px 0 4px;min-height:38px}
+.dc .mt{font-size:12.5px;color:var(--text-2)}
+.dc .strip{height:4px;border-radius:2px;margin-top:10px;background:var(--h)}
+.dc.today{flex-basis:168px;border-color:var(--h);background:linear-gradient(160deg,rgba(182,140,255,.22),var(--glass))}
+.dc.today .dl{color:var(--text)}
+.dc.rest .nm{color:var(--text-2);font-weight:400}
+.dc.rest .strip{background:none;border-top:2px dashed var(--green);height:0}
+.dc .ck{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--h);color:#1a1530;display:grid;place-items:center;font-size:12px;font-weight:700;animation:pop .5s var(--spring) both}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:14px}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--h);width:18px;border-radius:3px}
+.ring{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.ring svg{width:46px;height:46px}
+.ring circle{fill:none;stroke-width:6}
+.ring .tr{stroke:var(--glass-2)} .ring .fg{stroke:var(--violet);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;stroke-dasharray:113;stroke-dashoffset:113;animation:close 1s .3s cubic-bezier(.2,.8,.2,1) forwards}
+.ring b{font:600 17px var(--font)} .ring span{display:block;font-size:13px;color:var(--text-2)}
+
+.note{max-width:1180px;margin:36px auto 0;color:var(--text-2);font-size:14px}
+.note h3{color:var(--text);font:600 15px var(--font);margin:16px 0 6px}
+.note li{margin:4px 0 4px 18px}
+@keyframes in{from{transform:translateY(14px);opacity:0}}
+@keyframes pop{from{transform:scale(0)}}
+@keyframes close{to{stroke-dashoffset:94}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.ring .fg{stroke-dashoffset:94}}
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>This week, three ways</h1>
+  <p>Mockup 105. All three show your real week of 26 October. My guess at what feels off now: seven identical empty boxes with no words, so you can't tell Pull from Legs or a rest day from a training day without tapping, and "0 of 7 done" counts Tuesday's rest as a job. Each option fixes that differently. Point at the one that feels right, or at pieces of each.</p>
+</header>
+
+<div class="row">
+  <!-- A -->
+  <div class="col">
+    <h2>A · The week as a list</h2>
+    <p class="why">Every day says what it is. Today is lifted out with its Begin button. Rest and optional days read quieter. Tap a row to plan that day (the sheet from before). It's the tallest of the three.</p>
+    <div class="phone"><div class="card">
+      <div class="hd"><b>This week</b><span class="n"><strong>0</strong> of 6 sessions</span></div>
+      <ul class="ag">
+        <li class="today" style="--h:var(--violet)"><span class="d">Mon</span><span class="bar"></span><span><span class="nm">Push</span><br><span class="mt">6 lifts · 22 sets</span></span><span class="go">Begin</span></li>
+        <li class="rest"><span class="d">Tue</span><span class="bar"></span><span class="nm">Active rest · a walk counts</span><span class="st"></span></li>
+        <li style="--h:var(--green)"><span class="d">Wed</span><span class="bar"></span><span><span class="nm">Pull</span><br><span class="mt">6 lifts · 18 sets</span></span><span class="st">›</span></li>
+        <li style="--h:var(--blue)"><span class="d">Thu</span><span class="bar"></span><span><span class="nm">Legs</span><br><span class="mt">6 lifts · 19 sets</span></span><span class="st">›</span></li>
+        <li style="--h:var(--or)"><span class="d">Fri</span><span class="bar"></span><span><span class="nm">Upper</span><br><span class="mt">6 lifts · 20 sets</span></span><span class="st">›</span></li>
+        <li class="opt" style="--h:var(--rose)"><span class="d">Sat</span><span class="bar"></span><span><span class="nm">Arms</span><br><span class="mt">4 lifts · 12 sets</span></span><span class="st">›</span></li>
+        <li class="opt" style="--h:var(--gold)"><span class="d">Sun</span><span class="bar"></span><span><span class="nm">Delts and Back</span><br><span class="mt">4 lifts · 11 sets</span></span><span class="st">›</span></li>
+      </ul>
+    </div></div>
+  </div>
+
+  <!-- B -->
+  <div class="col">
+    <h2>B · The week as a path</h2>
+    <p class="why">One line joins the days so the week reads as one route, filled as far as you've got. Training days are full circles, optional days dashed circles, rest days small dots. Under the line is just the next thing to do.</p>
+    <div class="phone"><div class="card">
+      <div class="hd"><b>This week</b><span class="n"><strong>0</strong> of 6 sessions</span></div>
+      <div class="path">
+        <div class="node today" style="--h:var(--violet)"><span class="c">P</span><span class="dl">Mon</span><span class="wn">Push</span></div>
+        <div class="node rest" style="--h:var(--green)"><span class="c"></span><span class="dl">Tue</span><span class="wn">rest</span></div>
+        <div class="node" style="--h:var(--green)"><span class="c">Pl</span><span class="dl">Wed</span><span class="wn">Pull</span></div>
+        <div class="node" style="--h:var(--blue)"><span class="c">L</span><span class="dl">Thu</span><span class="wn">Legs</span></div>
+        <div class="node" style="--h:var(--or)"><span class="c">U</span><span class="dl">Fri</span><span class="wn">Upper</span></div>
+        <div class="node opt" style="--h:var(--rose)"><span class="c">A</span><span class="dl">Sat</span><span class="wn">Arms</span></div>
+        <div class="node opt" style="--h:var(--gold)"><span class="c">DB</span><span class="dl">Sun</span><span class="wn">Delts &amp; Back</span></div>
+      </div>
+      <div class="nextup"><div class="t"><b>Push, today</b><span>6 lifts · 22 sets · then Pull on Wednesday</span></div><span class="go">Begin</span></div>
+    </div></div>
+  </div>
+
+  <!-- C -->
+  <div class="col">
+    <h2>C · The week as cards you swipe</h2>
+    <p class="why">One card per day in a sideways row. Today's card is bigger and the next day's peeks in from the edge, so you know there's more. A ring above counts the week. Shown here after Monday is done (that tick is made up).</p>
+    <div class="phone"><div class="card">
+      <div class="ring"><svg viewBox="0 0 46 46"><circle class="tr" cx="23" cy="23" r="18"/><circle class="fg" cx="23" cy="23" r="18"/></svg><div><b>1 of 6 sessions</b><span>Pull next, Wednesday</span></div></div>
+      <div class="rail">
+        <div class="dc today" style="--h:var(--violet)"><span class="ck">✓</span><div class="dl">Mon · today</div><div class="nm">Push</div><div class="mt">6 lifts · 5,818 kg</div><div class="strip"></div></div>
+        <div class="dc rest" style="--h:var(--green)"><div class="dl">Tue</div><div class="nm">Active rest</div><div class="mt">a walk counts</div><div class="strip"></div></div>
+        <div class="dc" style="--h:var(--green)"><div class="dl">Wed</div><div class="nm">Pull</div><div class="mt">6 lifts · 18 sets</div><div class="strip"></div></div>
+      </div>
+      <div class="dots" style="--h:var(--violet)"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Same in all three</h3>
+  <ul>
+    <li>Tapping a day opens the planning sheet you approved (tick one or more workouts).</li>
+    <li>The count is <b>sessions</b>, not days: a rest day isn't a job, a double day counts twice, and a walk on active rest adds one.</li>
+    <li>Optional days (Arms, Delts and Back) read quieter, so missing one doesn't look like a failure.</li>
+    <li>A day with two workouts shows both names (A), two half circles (B) or a two-colour strip (C).</li>
+  </ul>
+  <h3>My pick</h3>
+  <p>A. It's the only one where you can read the whole week at a glance without tapping, and it fits what you check most: what's today and what's next. The cost is height: it's about twice as tall as today's card.</p>
+</div>
+</body>
+</html>
