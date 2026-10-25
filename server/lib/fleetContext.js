@@ -25,6 +25,8 @@ export const KIND_AGENT = {
   'stash-write': 'Stash', stash: 'Stash',
   // a tier-later alert (lib/alerts.js): the one line Nova raised, Inbox only
   alert: 'Nova',
+  // a fact he told Nova about himself, filed to Wiki/Profile.md with Undo (profileTalk.js)
+  'profile-fact': 'Nova',
   // his own commit on the Code screen, filed with Undo (lib/codeChanges.js)
   'code-commit': 'Code',
   // his own answer on the Daily review card, filed with Undo (conceptReview.js)

@@ -90,6 +90,8 @@ export const KIND_BEING = {
   plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', briefing: 'core',
   // a tier-later alert (lib/alerts.js): Nova saying something first, filed to the Inbox
   alert: 'core',
+  // a fact he told Nova about himself (profileTalk.js): his own words, on his profile page
+  'profile-fact': 'core',
   // his tick on a suggested skill (skillSets.js): his own answer, filed to the build list
   'skill-suggest': 'core',
 };

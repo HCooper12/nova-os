@@ -760,6 +760,23 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'profile-section') {
+    // ABOUT YOU (26 Oct 2026): one section of Wiki/Profile.md, rewritten by
+    // code (lib/profile.js setSection) from a fact he said or a section he
+    // edited. The whole prior page rides the undo, so Undo puts back exactly
+    // the file he had.
+    const { setSection, PROFILE_SECTIONS } = await import('./profile.js');
+    const spec = PROFILE_SECTIONS.find((s) => s.key === payload.key);
+    if (!spec) throw new Error(`there is no "${payload.key}" section on the profile page`);
+    const { prior } = await setSection(vaultPath, payload.key, payload.text, {
+      confirm: !!payload.confirm, append: !!payload.append, said: payload.said || null,
+    });
+    return {
+      destination: `About you — ${spec.title}`,
+      undo: { route, priorText: prior },
+    };
+  }
+
   if (route === 'intake') {
     // THE INTAKE's yes (lib/intake.js): code recomputes the plan from the
     // facts he answered — never trusting a number that rode in the payload —
@@ -1363,6 +1380,11 @@ export async function undoFiling(vaultPath, undo) {
       : `cleared the today-variant — ${undo.slot} is ${undo.recipeName} as written again`;
   }
 
+  if (undo.route === 'profile-section') {
+    const { restoreProfileText } = await import('./profile.js');
+    await restoreProfileText(vaultPath, undo.priorText ?? null);
+    return 'restored your profile page as it was';
+  }
   if (undo.route === 'intake') {
     const { restoreTargets } = await import('./recipes.js');
     const { setIntake } = await import('./profile.js');
@@ -2017,6 +2039,41 @@ export async function discardRecord(id, reason, { vaultPath = null } = {}) {
     } catch { /* the plan also polls; this only makes it prompt */ }
   }
   return updated;
+}
+
+// ABOUT YOU, ON THE RAILS (26 Oct 2026). A fact he said in the About-you
+// conversation, a draft he confirmed, or a section he edited by hand: filed
+// at once (auto) as a 'profile-fact' record with its undo, the way the weekly
+// debrief files in auto mode, so the Inbox's Undo takes it back like any
+// other filing.
+export async function fileProfileFact(vaultPath, { key, text = '', confirm = false, append = false, said = null, source = 'profile' } = {}) {
+  const { PROFILE_SECTIONS } = await import('./profile.js');
+  const spec = PROFILE_SECTIONS.find((s) => s.key === key);
+  if (!spec) throw new Error(`there is no "${key}" section on the profile page`);
+  const decision = {
+    route: 'profile-section',
+    confidence: 'high',
+    title: `About you — ${spec.title}`,
+    reason: confirm && !append ? 'He confirmed this section.' : (source === 'profile-talk' ? 'He said it in the About-you conversation.' : 'His own edit to his profile.'),
+    payload: { key, text: String(text ?? ''), confirm: !!confirm, append: !!append, said },
+  };
+  const { destination, undo } = await fileDecision(vaultPath, decision, { source });
+  const now = new Date().toISOString();
+  const line = confirm && !append ? `Confirmed: ${spec.title}` : `${spec.title}: ${String(text ?? '').trim()}`;
+  return createRecord({
+    id: randomUUID().slice(0, 8),
+    kind: 'profile-fact',
+    text: line.slice(0, 300),
+    source,
+    mode: 'auto',
+    status: 'filed',
+    auto: true,
+    decision,
+    destination,
+    undoData: undo,
+    createdAt: now,
+    filedAt: now,
+  });
 }
 
 export async function undoRecord(vaultPath, id) {
