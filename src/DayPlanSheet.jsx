@@ -46,7 +46,7 @@ export function DayPlanSheet({ s }) {
                 <button type="button" className="nv-dp-opt" data-on={o.on ? 'true' : undefined} style={{ '--h': o.hue }} onClick={o.toggle} aria-pressed={o.on}>
                   <span className="nv-dp-dot" aria-hidden="true" />
                   <span className="nv-dp-lab">{o.label}</span>
-                  {o.meta && <span className="nv-dp-meta">{o.meta}</span>}
+                  <span className="nv-dp-meta">{o.meta || ""}</span>
                   <span className="nv-dp-tick" aria-hidden="true">{o.on ? (o.order || '✓') : ''}</span>
                 </button>
               </li>
