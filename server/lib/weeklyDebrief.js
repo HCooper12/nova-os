@@ -154,6 +154,10 @@ export async function buildDebriefContext(vaultPath, now = new Date(), { weekSta
   });
 
   add('profile', () => profileContext(vaultPath));
+  // WHERE HE STANDS (bodyComp.js) and his Protocols page: the STRATEGY
+  // paragraph and the lifestyle/protocol changes reason from these two
+  add('standing', async () => (await import('./bodyComp.js')).standingContext(vaultPath));
+  add('protocols', async () => (await import('./protocols.js')).protocolsContext(vaultPath));
   add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
   add('tunes', async () => (await import('./progressionTunes.js')).tunesContext(vaultPath));
   add('week-sessions', async () => {
@@ -234,20 +238,39 @@ ${JOURNAL_AUTHORSHIP_RULE}
 
 What to produce:
 - READ (2-4 sentences): the true shape of the week — training done vs planned, strength direction, recovery, fuel — connected to what he's working toward. If last week's debrief set changes, say plainly whether they happened. If Nova drafted a week plan, hold the week against it: training days planned vs done, conflicts flagged vs what actually collided, carry-overs placed vs cleared.
+- STRATEGY (1-3 sentences): the phase he is in and whether it is the right one for his goal, from WHERE HE STANDS. If his estimated body fat sits above the band where a lean bulk builds muscle without fat, say so, say the band, and say the weeks to it at his pace. If the data is missing, say what is missing in one sentence.
 - WINS (1-3): concrete, earned, from the data. Never manufactured.
-- CHANGES (1-3): what next week does differently, each one specific and small enough to actually happen, with a one-line why. If the week was on plan, one change or even none ("keep the pattern") is the honest answer.
+- CHANGES (1-4): what next week does differently, each one specific and small enough to actually happen, with a one-line why. Each carries a "kind": "training", "nutrition", "lifestyle" or "protocol". Add a "source" only when the change really comes from the Protocols page, naming its section (for example "Protocols page: sleep"). If the week was on plan, one change or even none ("keep the pattern") is the honest answer.
 - QUESTION (exactly 1): the one reflective question a good coach would leave him with — about the week, not a platitude.
 - LEADERSHIP (only if the context carries a LEADERSHIP THIS WEEK section): 1-2 sentences holding his leadership week against the ideas the Leader suggested and his open struggles, plus ONE reflective leadership question. Tell him his answer belongs in the Leader chat, where it shapes the coming week's ideas and research. Omit the key entirely when there is no leadership context.
 
 Discipline:
 - Ground everything in the data below or the vault; name gaps honestly ("only 2 of 4 planned sessions logged — can't judge volume").
 - His own journal words outrank metrics when they conflict — engage with what he SAID. Only the entries under HIS OWN WORDS are his; when there are none, do not tell him what he said or wrote this week.
+- Reflect on his activity level and lifestyle, not only his lifts: steps, sleep, HRV, active energy.
+- A lifestyle or protocol change must be tied to a number in WHERE HE STANDS (short sleep, low steps, falling HRV). Never propose a protocol for a problem the data does not show.
 - Warm, direct, on his side. Say the useful hard thing kindly. No pep-talk filler.
 
 The week:
 ${context || '(context unavailable — say so and keep it brief)'}
 
-Output ONLY a JSON object: {"read": "…", "wins": ["…"], "changes": [{"do": "…", "why": "…"}], "question": "…", "leadership": {"note": "…", "question": "…"}}. The leadership key only when leadership context exists. No code fences, no commentary.`;
+Output ONLY a JSON object: {"read": "…", "strategy": "…", "wins": ["…"], "changes": [{"do": "…", "why": "…", "kind": "training|nutrition|lifestyle|protocol", "source": "…"}], "question": "…", "leadership": {"note": "…", "question": "…"}}. The leadership key only when leadership context exists. No code fences, no commentary.`;
+}
+
+// A change: what to do, why, and (since 26 Oct 2026) its kind and the
+// Protocols page section it came from. kind/source are kept only when real,
+// so a record from before them keeps its old shape.
+export const CHANGE_KINDS = ['training', 'nutrition', 'lifestyle', 'protocol'];
+function cleanChange(c) {
+  const out = { do: String(c?.do || '').trim(), why: String(c?.why || '').trim() };
+  const kind = String(c?.kind || '').trim().toLowerCase();
+  if (CHANGE_KINDS.includes(kind)) out.kind = kind;
+  const source = String(c?.source || '').trim();
+  if (source) out.source = source.slice(0, 80);
+  return out;
+}
+export function changeLine(c) {
+  return `${c.kind ? `[${c.kind}] ` : ''}${c.do}${c.why ? ` — ${c.why}` : ''}${c.source ? ` (${c.source})` : ''}`;
 }
 
 export function composeDebriefText(parsed, now = new Date(), { weekEnd = null } = {}) {
@@ -255,14 +278,16 @@ export function composeDebriefText(parsed, now = new Date(), { weekEnd = null } 
   const read = String(parsed?.read || '').trim();
   const wins = (Array.isArray(parsed?.wins) ? parsed.wins : []).map((w) => String(w || '').trim()).filter(Boolean).slice(0, 3);
   const changes = (Array.isArray(parsed?.changes) ? parsed.changes : [])
-    .map((c) => ({ do: String(c?.do || '').trim(), why: String(c?.why || '').trim() }))
+    .map(cleanChange)
     .filter((c) => c.do)
-    .slice(0, 3);
+    .slice(0, 4);
+  const strategy = String(parsed?.strategy || '').trim();
   const question = String(parsed?.question || '').trim();
   if (!read && !wins.length && !changes.length) throw new Error('the debrief came back empty');
   const title = `Weekly Debrief — week ending ${dateLong}`;
   const lines = [title, ''];
   if (read) lines.push(`**The week.** ${read}`, '');
+  if (strategy) lines.push(`**Strategy.** ${strategy}`, '');
   if (wins.length) {
     lines.push('**Wins.**');
     wins.forEach((w) => lines.push(`- ${w}`));
@@ -270,7 +295,7 @@ export function composeDebriefText(parsed, now = new Date(), { weekEnd = null } 
   }
   if (changes.length) {
     lines.push('**Next week.**');
-    changes.forEach((c, i) => lines.push(`${i + 1}. ${c.do}${c.why ? ` — ${c.why}` : ''}`));
+    changes.forEach((c, i) => lines.push(`${i + 1}. ${changeLine(c)}`));
     lines.push('');
   }
   const leadNote = String(parsed?.leadership?.note || '').trim();
@@ -433,7 +458,7 @@ export async function weekChangesContext(now = new Date()) {
     .filter((r) => r.kind === 'weekly-debrief' && ['filed', 'pending'].includes(r.status) && Array.isArray(r.decision?.payload?.changes) && r.decision.payload.changes.length && new Date(r.createdAt || 0).getTime() >= cutoff)
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
   if (!latest) return '';
-  return `STANDING CHANGES THIS WEEK (set by the weekly debrief — check adherence, don't re-litigate them):\n${latest.decision.payload.changes.map((c, i) => `${i + 1}. ${c.do}${c.why ? ` — ${c.why}` : ''}`).join('\n')}`;
+  return `STANDING CHANGES THIS WEEK (set by the weekly debrief — check adherence, don't re-litigate them):\n${latest.decision.payload.changes.map((c, i) => `${i + 1}. ${changeLine(c)}`).join('\n')}`;
 }
 
 export async function getWeeklyDebriefStatus() {

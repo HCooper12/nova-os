@@ -186,6 +186,10 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
   // today looks like, then the reflective surfaces.
   const sections = [
     { label: 'profile', load: () => profileContext(vaultPath) },
+    // WHERE HE STANDS (bodyComp.js): the code-computed body, activity and
+    // recovery picture, and the phase verdict; then his Protocols page
+    { label: 'where he stands', load: async () => (await import('./bodyComp.js')).standingContext(vaultPath) },
+    { label: 'protocols', load: async () => (await import('./protocols.js')).protocolsContext(vaultPath, { budget: 1800 }) },
     { label: 'learned preferences', load: () => preferencesContext(vaultPath) },
     { label: 'standing rules', load: () => standingContext(vaultPath) },
     { label: 'skills', load: async () => (await import('./skills.js')).skillsContext(vaultPath) },

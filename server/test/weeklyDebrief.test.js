@@ -51,7 +51,8 @@ test('compose: builds the debrief, caps lists, refuses empty', () => {
       { do: '', why: 'ignored' },
       { do: 'Book Thursday session in the calendar', why: 'the unplanned day is the one that slips' },
       { do: 'A third change', why: 'fine' },
-      { do: 'A fourth that must drop', why: 'over cap' },
+      { do: 'A fourth change', why: 'fine' },
+      { do: 'A fifth that must drop', why: 'over cap (4 since 26 Oct 2026)' },
     ],
     question: 'Which session this week felt best, and why?',
   }, new Date('2026-08-09T17:00:00'));
@@ -60,7 +61,8 @@ test('compose: builds the debrief, caps lists, refuses empty', () => {
   assert.match(text, /- Bench moved \+2\.5kg/);
   assert.match(text, /1\. Front-load protein at breakfast — floor missed/);
   assert.match(text, /3\. A third change/);
-  assert.ok(!text.includes('A fourth'));
+  assert.match(text, /4\. A fourth change/);
+  assert.ok(!text.includes('A fifth'));
   assert.match(text, /\*\*To sit with\.\*\* Which session/);
 
   assert.throws(() => composeDebriefText({}), /came back empty/);
@@ -182,4 +184,62 @@ test('the journal block gives only his own entries the weight of his words; the 
 
   // and the prompt carries the rule a model reading Wiki/Journal itself needs
   assert.match(buildDebriefPrompt('x'), /WHO WROTE A JOURNAL ENTRY/);
+});
+
+// ---- 26 Oct 2026: WHERE HE STANDS, the strategy paragraph, kinds and sources ----
+test('the prompt asks for STRATEGY, kinded changes with a source, and ties lifestyle changes to the data', () => {
+  const p = buildDebriefPrompt('WHERE HE STANDS (code-computed from the last 28 days; every number is real; a missing one says so):', new Date('2026-10-25T17:00:00'));
+  assert.match(p, /- STRATEGY \(1-3 sentences\)/);
+  assert.ok(p.indexOf('- READ') < p.indexOf('- STRATEGY') && p.indexOf('- STRATEGY') < p.indexOf('- WINS'), 'STRATEGY sits between READ and WINS');
+  assert.match(p, /CHANGES \(1-4\)/);
+  assert.match(p, /"kind": "training\|nutrition\|lifestyle\|protocol"/);
+  assert.match(p, /"strategy"/);
+  assert.match(p, /Never propose a protocol for a problem the data does not show/);
+  assert.match(p, /steps, sleep, HRV, active energy/);
+});
+
+test('compose: strategy paragraph after the week, kinds and sources printed, kept on the record; old shapes still compose', async () => {
+  const composed = composeDebriefText({
+    read: 'Four sessions, steps low.',
+    strategy: 'He is cutting at about 17.5%. The cut comes first, about 5 weeks to 14%.',
+    wins: ['Four of four sessions'],
+    changes: [
+      { do: 'Walk 10 minutes after dinner', why: 'steps averaged 7,900 against 10,000', kind: 'lifestyle', source: 'Protocols page: movement' },
+      { do: 'Lights dim from 22:00', why: 'sleep averaged 6.4 h', kind: 'Protocol', source: 'Protocols page: sleep' },
+      { do: 'Hold bench at 80 kg', why: 'RPE crept to 9', kind: 'training' },
+      { do: 'Protein at breakfast', why: 'floor missed 4 of 7', kind: 'astrology' },
+    ],
+    question: 'What got in the way of the walks?',
+  }, new Date('2026-10-25T17:00:00'));
+  const t = composed.text;
+  assert.ok(t.indexOf('**The week.**') < t.indexOf('**Strategy.**') && t.indexOf('**Strategy.**') < t.indexOf('**Wins.**'));
+  assert.match(t, /\*\*Strategy\.\*\* He is cutting at about 17\.5%/);
+  assert.match(t, /1\. \[lifestyle\] Walk 10 minutes after dinner — steps averaged 7,900 against 10,000 \(Protocols page: movement\)/);
+  assert.match(t, /2\. \[protocol\] Lights dim from 22:00 — sleep averaged 6\.4 h \(Protocols page: sleep\)/);
+  assert.match(t, /3\. \[training\] Hold bench at 80 kg — RPE crept to 9\n/);
+  assert.match(t, /4\. Protein at breakfast — floor missed 4 of 7/, 'an unknown kind is dropped, not printed');
+  assert.equal(composed.changes.length, 4);
+  assert.deepEqual(composed.changes[0], { do: 'Walk 10 minutes after dinner', why: 'steps averaged 7,900 against 10,000', kind: 'lifestyle', source: 'Protocols page: movement' });
+  assert.deepEqual(composed.changes[3], { do: 'Protein at breakfast', why: 'floor missed 4 of 7' });
+
+  await createRecord({
+    id: 'wdb1025', kind: 'weekly-debrief', weekStart: '2026-10-19', status: 'filed', text: composed.title, source: 'coach', mode: 'auto', createdAt: '2026-10-25T17:20:00',
+    decision: { route: 'journal', confidence: 'high', title: composed.title, reason: 'x', payload: { text: composed.text, category: 'training', label: 'Weekly debrief', changes: composed.changes, weekStart: '2026-10-19' } },
+  });
+  const ctx = await weekChangesContext(new Date('2026-10-27T08:30:00'));
+  assert.match(ctx, /1\. \[lifestyle\] Walk 10 minutes after dinner — steps averaged 7,900 against 10,000 \(Protocols page: movement\)/);
+  assert.match(ctx, /4\. Protein at breakfast — floor missed 4 of 7/);
+
+  // a record from before kinds: no strategy, no kind, composes exactly as before
+  const old = composeDebriefText({ read: 'Solid.', changes: [{ do: 'Bed by 22:30', why: 'short nights' }] }, new Date('2026-09-06T17:00:00'));
+  assert.doesNotMatch(old.text, /\*\*Strategy\.\*\*/);
+  assert.match(old.text, /1\. Bed by 22:30 — short nights/);
+  assert.deepEqual(old.changes, [{ do: 'Bed by 22:30', why: 'short nights' }]);
+});
+
+test('the debrief context carries WHERE HE STANDS and the Protocols page right after the profile', async () => {
+  const ctx = await buildDebriefContext(vault, new Date('2026-10-25T17:00:00'));
+  assert.match(ctx, /WHERE HE STANDS \(code-computed/);
+  assert.match(ctx, /PROTOCOLS \(his page/);
+  assert.doesNotMatch(ctx, /standing FAILED|protocols FAILED/);
 });

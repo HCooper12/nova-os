@@ -51,6 +51,11 @@ const LIVE_HEAD = /^LIVE UPDATE \([^)]*\): ([\s\S]*?)\.?$/;
 // found. (The first version said "answer from what is in front of you before
 // any tool call", which pushed toward a guess.)
 export const SPEAK_FIRST_RULE = "[LOOK IT UP, NEVER GUESS: if the answer depends on anything not in the context above, read it with your tools before you answer; a guess is a failure. Spoken turn: if you need to look, your first sentence says what you are checking (for example \"Checking your last six bench sessions.\"), never a provisional answer; then answer from what you found.]";
+// RAISE THE STRATEGY ONCE (26 Oct 2026, his ask that Coach act on what it
+// notices). One rule, carried only when WHERE HE STANDS holds a real phase
+// verdict. It is deliberately narrow: one sentence, once per conversation,
+// then a question; never a remark on every reply (nova-turn-taking).
+export const STRATEGY_RAISE_RULE = 'STRATEGY RULE: If WHERE HE STANDS carries a STRATEGY line he has not been told this week (no weekly debrief in context says it), raise it in one sentence before answering, then ask if he wants the plan. Never more than once per conversation.';
 export const speakFirstLine = (spoken) => (spoken === true ? SPEAK_FIRST_RULE : '');
 
 // What was last sent to each session, so the next turn can send the change.
@@ -173,6 +178,18 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
       try {
         parts.push(await profileContext(vaultPath)); // who he is, first
       } catch { failures.push('profile'); }
+      try {
+        // WHERE HE STANDS (bodyComp.js): body fat and the phase verdict,
+        // steps, sleep, HRV, weight, all code-computed from 28 days
+        const { standingContext: whereHeStands } = await import('./bodyComp.js');
+        const standing = await whereHeStands(vaultPath);
+        parts.push(standing);
+        if (/STRATEGY: He is /.test(standing)) parts.push(STRATEGY_RAISE_RULE);
+      } catch { failures.push('standing'); }
+      try {
+        const { protocolsContext } = await import('./protocols.js');
+        parts.push(await protocolsContext(vaultPath));
+      } catch { failures.push('protocols'); }
       try {
         parts.push(await goalsContext(vaultPath));
       } catch { failures.push('goals'); }
