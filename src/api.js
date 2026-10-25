@@ -169,6 +169,12 @@ export const api = {
   learning: (conn) => call(conn, '/api/learning'),
   profile: (conn) => call(conn, '/api/profile'),
   setProfile: (conn, body) => put(conn, '/api/profile', body),
+  // ABOUT YOU, BY SECTION (26 Oct 2026): one section replaced or confirmed,
+  // filed on the Inbox rails (undo = inboxUndo with the recordId it returns)
+  profileSection: (conn, key, text, confirm) => put(conn, '/api/profile/section', { key, text, confirm }),
+  // the spoken back-and-forth that fills About you: Nova asks, code files what he learned
+  profileTalkStart: (conn) => post(conn, '/api/profile/talk/start', {}, { timeoutMs: 60_000 }),
+  profileTalk: (conn, history, text) => post(conn, '/api/profile/talk', { history, text }, { timeoutMs: 120_000 }),
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),
   noteSummaryJob: (conn, jobId) => call(conn, `/api/notes/summary/${encodeURIComponent(jobId)}`),
   activity: (conn) => call(conn, '/api/activity'),

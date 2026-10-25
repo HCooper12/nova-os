@@ -66,6 +66,20 @@ export function demoSettingsSeed() {
   };
 }
 
+// About you, by part, in the shape GET /api/profile sends (demo only): some
+// in his own words, some still Claude's draft, two not yet talked about
+export const DEMO_SECTIONS = [
+  { key: 'about', title: 'About me', text: 'A team lead who trains in the evenings and reads on the train.', drafted: false },
+  { key: 'toward', title: "What I'm working toward", text: 'A 140 kg bench by March, and leading the team without carrying all of it myself.', drafted: false },
+  { key: 'training', title: 'Training', text: 'Four days a week, upper and lower split. A left shoulder that complains overhead.', drafted: false },
+  { key: 'fuel', title: 'Fuel', text: 'Lean gain at about 2,450 kcal. Cooks on Sunday, eats out once a week.', drafted: true, draftedOn: '2026-10-20' },
+  { key: 'work', title: 'Work and projects', text: 'Runs a team of six. Science Atlas on the side, mostly on weekends.', drafted: true, draftedOn: '2026-10-20' },
+  { key: 'mind', title: 'Mind and learning', text: 'Podcasts on leadership and sport science; wants ideas he can use the same day.', drafted: true, draftedOn: '2026-10-20' },
+  { key: 'life', title: 'Life', text: '', drafted: false },
+  { key: 'talk', title: 'How to talk to me', text: 'Short and straight. Ask before giving advice. No pep talks.', drafted: false },
+  { key: 'taste', title: 'Taste', text: '', drafted: false },
+];
+
 export const DEMO_NUMBERS = { on: '2 Oct', plan: { targetKcal: 2450, proteinG: 170, tdee: 2780 }, facts: { weightKg: 82, activity: 'moderately active', goal: 'lean gain' } };
 export const DEMO_LADDER = [
   { kind: 'recipe', label: 'Recipe suggestions from food', kept: 2, total: 11, verdict: 'skips' },

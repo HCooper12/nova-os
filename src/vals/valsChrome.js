@@ -637,6 +637,13 @@ export function valsChrome(app, ctx) {
       applyNumbers: (change) => (isOffline ? Promise.reject(app.toastMsg('Offline — reconnect to change your numbers')) : app.applyNumbers(change)),
       loadNumbersContext: () => app.loadNumbersContext(),
       runNumbersReview: () => app.runNumbersReview(),
+      // ABOUT YOU, BY PART (26 Oct 2026): nine parts, each his own words or
+      // Claude's draft waiting for his word; a talk with Nova fills them
+      sections: st.liveProfile?.sections || [],
+      knows: st.liveProfile?.knows || null,
+      saveSection: (key, text, confirm) => (isOffline ? Promise.reject(app.toastMsg('Offline — reconnect to change About you')) : app.saveProfileSection(key, text, confirm)),
+      confirmSection: (key) => (isOffline ? Promise.reject(app.toastMsg('Offline — reconnect to change About you')) : app.saveProfileSection(key, null, true)),
+      startTalk: (key) => { if (isOffline) { app.toastMsg('Offline — reconnect to talk with Nova'); return; } app.startProfileTalk(key || null); },
     } : null,
     learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],

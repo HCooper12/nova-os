@@ -6,7 +6,8 @@ import { getConnection } from '../api.js';
 import {
   cleanPath, pageTitle, lookName, notifValue, talkOver, bareName, dockSlots, tabsCopy, SPOKEN,
 } from '../settingsModel.js';
-import { demoSettingsSeed, demoBoard, DEMO_NUMBERS, DEMO_LADDER } from '../settingsDemo.js';
+import { demoSettingsSeed, demoBoard, DEMO_NUMBERS, DEMO_LADDER, DEMO_SECTIONS } from '../settingsDemo.js';
+import { normaliseSections, knowsOf } from '../profileSections.js';
 
 // The CLI's effort levels, in his words (server/lib/modelPrefs.js EFFORT_LEVELS).
 const EFFORT_CHOICES = [
@@ -306,6 +307,13 @@ export function valsSettings(app, ctx, v) {
         app.toastMsg('Demo: kept on this screen only. Connected, it saves to About you in your vault');
       }
       : profile?.save,
+    // the nine parts of About you, always nine, in order (an older server
+    // that sends none shows nine empty parts and a ring at nought)
+    sections: normaliseSections(demo ? DEMO_SECTIONS : profile?.sections),
+    knows: knowsOf(demo ? null : profile?.knows, demo ? DEMO_SECTIONS : profile?.sections),
+    saveSection: demo ? () => { app.toastMsg('Demo: nothing is written'); return Promise.resolve(null); } : profile?.saveSection,
+    confirmSection: demo ? () => { app.toastMsg('Demo: nothing is written'); return Promise.resolve(null); } : profile?.confirmSection,
+    startTalk: demo ? () => app.toastMsg('Demo: the conversation runs once the Mac is connected') : profile?.startTalk,
     ladder: demo ? DEMO_LADDER : (learning?.enoughData ? (learning.lanes || []) : []),
     noticed: demo ? [] : (learning?.enoughData && !(learning.lanes || []).length ? learning.noticed || [] : []),
     ladderLoaded: demo || !!learning?.loaded,

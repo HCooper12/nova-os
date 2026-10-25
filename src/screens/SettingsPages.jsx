@@ -10,6 +10,7 @@ import {
 } from './SettingsKit.jsx';
 import { Mini, Disc, MaterialPatch } from './SettingsMini.jsx';
 import { NumbersEditor } from './NumbersEditor.jsx';
+import { AboutFacets } from './AboutFacets.jsx';
 import { FIcon } from '../FuelIcon.jsx';
 import { say, refuse, lightRow } from '../settingsToast.js';
 import { PUSH_MS, FADE_MS, reducedMotion } from '../settingsNav.js';
@@ -352,8 +353,6 @@ export function CheckPage({ P }) {
 
 // ------------------------------------------------------------------- you --
 
-const ABOUT = [['focus', 'Focus'], ['priorities', 'Priorities'], ['bestSelf', 'At your best'], ['notes', 'Context']];
-
 export function YouPage({ P }) {
   const Y = P.you;
   const n = Y.numbers;
@@ -371,7 +370,7 @@ export function YouPage({ P }) {
               </ActRow>
             )}
           </Group>
-          <AboutGroup Y={Y} staleAt={P.staleAt} />
+          <AboutFacets Y={Y} staleAt={P.staleAt} />
           {(Y.ladder.length > 0 || Y.noticed.length > 0) && (
             <Group label="What Nova has noticed" k="ladder" i={3} foot={`Learned from what you kept and dismissed, and it decides what Nova does without asking.${Y.demo ? ' Demo figures.' : ''}`}>
               {Y.ladder.length ? Y.ladder.map((l) => {
@@ -390,46 +389,6 @@ export function YouPage({ P }) {
         </>
       )}
     </>
-  );
-}
-
-function AboutGroup({ Y, staleAt }) {
-  const a = Y.about;
-  const editing = Y.editing;
-  const btn = editing
-    ? <TextAction onClick={Y.saving ? undefined : Y.save} disabled={Y.saving}>Done</TextAction>
-    : <TextAction onClick={Y.startEdit}>{Y.aboutSet ? 'Edit' : 'Set up'}</TextAction>;
-  const foot = `Nova reads this before every answer, coaching session and brief.${Y.readOnly && staleAt ? ` Offline: as your vault said it at ${staleAt}, read only.` : ''}`;
-  return (
-    <Group label="About you" k="about" i={2} btn={btn} foot={foot}>
-      {editing && Y.draft ? (
-        <>
-          {ABOUT.map(([key, name]) => (
-            <label key={key} className="nv-set-fl" htmlFor={`set-ab-${key}`}>
-              <span>{name}</span>
-              {key === 'focus'
-                ? <input className="nv-set-fin" id={`set-ab-${key}`} value={Y.draft.focus} onChange={Y.setField('focus')} style={{ fontFamily: 'var(--nv-font-ui)' }} />
-                : <textarea className="nv-set-fin" id={`set-ab-${key}`} rows={key === 'priorities' ? 4 : 2} value={Y.draft[key]} onChange={Y.setField(key)} />}
-            </label>
-          ))}
-          <div className="nv-set-row nx" style={{ borderTop: '1px solid var(--s-sep)' }}>
-            <span className="nv-set-rt" />
-            <span style={{ display: 'flex' }}>
-              <TextAction onClick={Y.cancelEdit}>Cancel</TextAction>
-              <TextAction onClick={Y.saving ? undefined : Y.save} disabled={Y.saving}>{Y.saving ? 'Saving' : 'Save'}</TextAction>
-            </span>
-          </div>
-        </>
-      ) : a && Y.aboutSet ? (
-        ABOUT.map(([key, name]) => {
-          const val = key === 'priorities' ? (a.priorities || []).join(', ') : a[key];
-          if (!val) return null;
-          return <div key={key} className="nv-set-row nx3"><span className="nv-set-rt"><span className="nv-set-rl">{name}</span><span className="nv-set-rs" style={{ whiteSpace: 'pre-wrap' }}>{val}</span></span></div>;
-        })
-      ) : (
-        <div className="nv-set-row nx3"><span className="nv-set-rt"><span className="nv-set-rs">Nova knows your data but not yet your intentions. Tell him what you are working toward and he reasons through it in every answer, coaching session and brief.</span></span></div>
-      )}
-    </Group>
   );
 }
 
