@@ -2,6 +2,7 @@ import Foundation
 import Capacitor
 import HealthKit
 import WidgetKit
+import UIKit
 
 /// Nova reads Apple Health itself (his call, 14 Oct 2026: "so that all of the
 /// data is as accurate all the time as possible"). Replaces the "Nova Health
@@ -84,6 +85,9 @@ final class NovaHealthReader {
             if let t = HKObjectType.quantityType(forIdentifier: id) { s.insert(t) }
         }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
+        // workouts (walks, runs, rides…) and heart rate for each one's average
+        s.insert(HKObjectType.workoutType())
+        if let hr = HKObjectType.quantityType(forIdentifier: .heartRate) { s.insert(hr) }
         return s
     }
 
@@ -107,6 +111,82 @@ final class NovaHealthReader {
         let nightEnd = cal.date(byAdding: .hour, value: 12, to: start)!
         if let mins = await asleepMinutes(nightStart, nightEnd), mins > 0 { m["sleepAsleepMinutes"] = Int(mins.rounded()) }
         return m
+    }
+
+    /// Workouts that started in the last `days` days, in the shape the
+    /// server's /api/health-data/workouts route keeps (healthWorkouts.js).
+    /// A figure Health doesn't have is left out, never sent as zero.
+    func workouts(days: Int = 14) async -> [[String: Any]] {
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        let pred = HKQuery.predicateForSamples(withStart: start, end: nil, options: .strictStartDate)
+        let found: [HKWorkout] = await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType: .workoutType(), predicate: pred, limit: HKObjectQueryNoLimit,
+                                  sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, s, _ in
+                cont.resume(returning: (s as? [HKWorkout]) ?? [])
+            }
+            store.execute(q)
+        }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        iso.timeZone = .current
+        return found.map { w in
+            var o: [String: Any] = [
+                "uuid": w.uuid.uuidString,
+                "type": Self.workoutName(w),
+                "startISO": iso.string(from: w.startDate),
+                "endISO": iso.string(from: w.endDate),
+                "minutes": Self.round1(w.duration / 60),
+                "source": w.device?.name ?? w.sourceRevision.source.name,
+            ]
+            if let t = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+               let v = w.statistics(for: t)?.sumQuantity()?.doubleValue(for: .kilocalorie()), v > 0 { o["kcal"] = Int(v.rounded()) }
+            for id in [HKQuantityTypeIdentifier.distanceWalkingRunning, .distanceCycling, .distanceSwimming] {
+                if let t = HKQuantityType.quantityType(forIdentifier: id),
+                   let v = w.statistics(for: t)?.sumQuantity()?.doubleValue(for: .meterUnit(with: .kilo)), v > 0 {
+                    o["distanceKm"] = Self.round2(v); break
+                }
+            }
+            if o["distanceKm"] == nil, let v = w.totalDistance?.doubleValue(for: .meterUnit(with: .kilo)), v > 0 { o["distanceKm"] = Self.round2(v) }
+            if let t = HKQuantityType.quantityType(forIdentifier: .heartRate),
+               let v = w.statistics(for: t)?.averageQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute())) { o["avgHr"] = Int(v.rounded()) }
+            return o
+        }
+    }
+
+    /// The name the Fitness app shows: "Indoor Walk", "Outdoor Run", "Pool Swim"…
+    static func workoutName(_ w: HKWorkout) -> String {
+        let indoor = (w.metadata?[HKMetadataKeyIndoorWorkout] as? NSNumber)?.boolValue
+        let place = indoor == nil ? "" : (indoor! ? "Indoor " : "Outdoor ")
+        switch w.workoutActivityType {
+        case .walking: return place + "Walk"
+        case .running: return place + "Run"
+        case .cycling: return place + "Cycle"
+        case .swimming:
+            if let loc = (w.metadata?[HKMetadataKeySwimmingLocationType] as? NSNumber)?.intValue {
+                return loc == HKWorkoutSwimmingLocationType.pool.rawValue ? "Pool Swim" : loc == HKWorkoutSwimmingLocationType.openWater.rawValue ? "Open Water Swim" : "Swim"
+            }
+            return "Swim"
+        case .rowing: return place + "Row"
+        case .hiking: return "Hike"
+        case .elliptical: return "Elliptical"
+        case .stairClimbing: return "Stair Climbing"
+        case .stairs: return "Stairs"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .mixedCardio: return "Mixed Cardio"
+        case .jumpRope: return "Jump Rope"
+        case .crossCountrySkiing: return "Cross Country Skiing"
+        case .paddleSports: return "Paddling"
+        case .wheelchairWalkPace, .wheelchairRunPace: return "Wheelchair"
+        case .traditionalStrengthTraining: return "Traditional Strength Training"
+        case .functionalStrengthTraining: return "Functional Strength Training"
+        case .coreTraining: return "Core Training"
+        case .yoga: return "Yoga"
+        case .pilates: return "Pilates"
+        case .flexibility: return "Flexibility"
+        case .cooldown: return "Cooldown"
+        case .mindAndBody: return "Mind and Body"
+        default: return "Workout"
+        }
     }
 
     // MARK: - queries
@@ -211,6 +291,37 @@ final class NovaHealthBackground {
             store.execute(q)
             store.enableBackgroundDelivery(for: type, frequency: .hourly) { _, _ in }
         }
+        // a finished walk or run wakes the app at once; opening the app pushes too
+        let wq = HKObserverQuery(sampleType: .workoutType(), predicate: nil) { [weak self] _, done, error in
+            guard error == nil, let self else { done(); return }
+            Task { await self.pushWorkouts(); done() }
+        }
+        store.execute(wq)
+        store.enableBackgroundDelivery(for: .workoutType(), frequency: .immediate) { _, _ in }
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { [weak self] _ in
+            Task { await self?.pushWorkouts() }
+        }
+    }
+
+    private var workoutsInFlight = false
+
+    /// The last 14 days of workouts to POST /api/health-data/workouts. The
+    /// server merges by uuid, so re-sending the same fortnight is harmless.
+    private func pushWorkouts() async {
+        if workoutsInFlight { return }
+        workoutsInFlight = true
+        defer { workoutsInFlight = false }
+        guard let shared = UserDefaults(suiteName: NovaWidgetsPlugin.suite),
+              let base = shared.string(forKey: "nova.baseUrl"), let token = shared.string(forKey: "nova.token"),
+              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/health-data/workouts") else { return }
+        let list = await NovaHealthReader.shared.workouts(days: 14)
+        guard !list.isEmpty else { return } // locked, refused, or none: say nothing
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["workouts": list, "source": "healthkit"])
+        _ = try? await URLSession.shared.data(for: req)
     }
 
     private func push() async {

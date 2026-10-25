@@ -11,7 +11,8 @@
 // evening's last steps and the Watch's late sync always land in full).
 
 export const MIN_GAP_MS = 5 * 60_000;
-const ASKED_KEY = 'novaos.healthAsked';
+// v2 (26 Oct): workouts + heart rate joined the read set, so iOS must be asked once more
+const ASKED_KEY = 'novaos.healthAsked.v2';
 
 function plugin() {
   try {

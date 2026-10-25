@@ -68,16 +68,61 @@ export function normalizeWorkout(raw, fallbackDate) {
   if (!type || minutes <= 0 || minutes > 24 * 60) return null;
   const date = localDateOf(startISO) || (DATE_RE.test(String(fallbackDate)) ? fallbackDate : null);
   if (!date) return null;
-  return { type, date, startISO: localDateOf(startISO) ? new Date(startISO).toISOString() : null, minutes, kcal: kcal > 0 ? kcal : null };
+  const out = { type, date, startISO: localDateOf(startISO) ? new Date(startISO).toISOString() : null, minutes, kcal: kcal > 0 ? kcal : null };
+  // HealthKit (NovaHealthPlugin.swift) sends more: exact length, distance,
+  // average heart rate, the device, and Health's own id. Kept only when real.
+  const exact = workoutMinutes(raw, startISO);
+  if (Number.isFinite(exact) && exact > 0) out.minutesExact = Math.round(exact * 100) / 100;
+  const endISO = String(raw.endISO || raw.end || raw.endDate || '').trim();
+  if (endISO && localDateOf(endISO)) out.endISO = new Date(endISO).toISOString();
+  const km = parseFloat(raw.distanceKm);
+  if (km > 0 && km < 1000) out.distanceKm = Math.round(km * 100) / 100;
+  const hr = parseFloat(raw.avgHr);
+  if (hr > 20 && hr < 250) out.avgHr = Math.round(hr);
+  const uuid = String(raw.uuid || '').trim();
+  if (/^[0-9a-f-]{8,64}$/i.test(uuid)) out.uuid = uuid.toUpperCase();
+  const source = String(raw.source || '').trim().slice(0, 60);
+  if (source) out.source = source;
+  return out;
+}
+
+// What kind of cardio a workout name is, or null when it isn't cardio
+// (strength, yoga, unknown). Pure; reads the Fitness-app name.
+export function cardioKind(type) {
+  const t = String(type || '').toLowerCase();
+  if (!t || STRENGTH_RE.test(t) || /yoga|pilates|flexibility|cooldown|mind and body|stretch/.test(t)) return null;
+  if (/hik/.test(t)) return 'hike';
+  if (/walk/.test(t)) return 'walk';
+  if (/run|jog|treadmill/.test(t)) return 'run';
+  if (/cycl|bike|biking|spin/.test(t)) return 'cycle';
+  if (/swim/.test(t)) return 'swim';
+  if (/row/.test(t)) return 'row';
+  if (/elliptical|stair|hiit|cardio|jump rope|skiing|paddl|wheelchair|dance|kickbox|boxing/.test(t)) return 'other-cardio';
+  return null;
+}
+
+// His call: cardio of at least 15 minutes ticks off an active-rest day.
+export const ACTIVE_REST_MIN_MINUTES = 15;
+export function countsForActiveRest(w) {
+  if (!w || !cardioKind(w.type)) return false;
+  const m = Number(w.minutesExact ?? w.minutes);
+  return Number.isFinite(m) && m >= ACTIVE_REST_MIN_MINUTES;
 }
 
 // Idempotent merge: a re-push of the same workout (same type + start, or
 // same type + minutes when start is missing) replaces rather than
 // duplicates — the Shortcut runs "today's workouts" and may fire many times.
 export function mergeWorkouts(existing, incoming) {
+  // HealthKit's uuid is the surest key; a uuid-less record of the same
+  // type + start (an old Shortcut push) is the same workout and is replaced.
   const key = (w) => `${w.type}|${w.startISO || `~${w.minutes}`}`;
   const byKey = new Map(existing.map((w) => [key(w), w]));
-  for (const w of incoming) byKey.set(key(w), w);
+  for (const w of incoming) {
+    if (w.uuid) {
+      for (const [k, old] of byKey) if (old.uuid === w.uuid) byKey.delete(k);
+    }
+    byKey.set(key(w), w);
+  }
   return [...byKey.values()].sort((a, b) => String(a.startISO || '').localeCompare(String(b.startISO || '')));
 }
 
@@ -109,6 +154,21 @@ export async function ingestWorkouts({ date, workouts, rawBody }) {
 
 export async function workoutsForDay(date) {
   try { return (await readJsonRetry(path.join(DIR(), `${date}.json`))).workouts || []; } catch { return []; }
+}
+
+// Every workout from fromISO to toISO (YYYY-MM-DD, inclusive). No file for
+// a day means nothing recorded: that day contributes nothing, never a zero.
+export async function workoutsForRange(fromISO, toISO) {
+  if (!DATE_RE.test(String(fromISO)) || !DATE_RE.test(String(toISO))) return [];
+  let files = [];
+  try { files = (await readdir(DIR())).filter((f) => DATE_RE.test(f.replace('.json', '')) && f.endsWith('.json')); } catch { return []; }
+  const out = [];
+  for (const f of files.sort()) {
+    const d = f.replace('.json', '');
+    if (d < fromISO || d > toISO) continue;
+    try { out.push(...((await readJsonRetry(path.join(DIR(), f))).workouts || [])); } catch { /* skip corrupt */ }
+  }
+  return out;
 }
 
 export async function recentWorkoutDays(days = 7) {
