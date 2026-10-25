@@ -411,6 +411,10 @@ async function main() {
   // seen, not ticked: the day's plan learns what the log already knows
   import('./lib/planObserve.js').then(({ startPlanObserver }) => startPlanObserver(process.env.VAULT_PATH))
     .catch((e) => console.error('plan observer failed to start:', e.message));
+  // his numbers, reviewed each Monday against his weight, food log, Apple
+  // Health and training; a change is proposed, never applied (lib/fuelReview.js)
+  import('./lib/fuelReview.js').then(({ startFuelReviewScheduler }) => startFuelReviewScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('fuel-review scheduler failed to start:', e.message));
   import('./lib/weeklyDebrief.js').then(({ startWeeklyDebriefScheduler }) => startWeeklyDebriefScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('weekly-debrief scheduler failed to start:', e.message));
   import('./lib/reminders.js').then(({ startRemindersScheduler }) => startRemindersScheduler())

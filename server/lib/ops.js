@@ -49,6 +49,7 @@ const SCHEDULED = [
   { id: 'embeddings', label: 'Meaning Index', role: 'the vault, searchable by meaning', cadenceHours: 2 },
   { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas', cadenceHours: 2 },
   { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
+  { id: 'fuel-review', label: 'Numbers Review', role: 'his calorie and protein targets against his weight, log and training, Mondays', cadenceHours: 2 },
   // ticks every 30 min; opens Chrome and reads the menus only once a fortnight, 3–5am
   { id: 'eat-out', label: 'Takeaway Catalogue', role: 'chain and supermarket menus refreshed every two weeks', cadenceHours: 2 },
   // ticks every 30 min: his rewards emails read, today's supermarket prices queued politely
@@ -152,6 +153,7 @@ export const AGENT_DEPARTMENTS = {
   compost: ['Platform'],
   'food-suggest': ['Fuel'],
   mealprep: ['Fuel'],
+  'fuel-review': ['Fuel'],
   'eat-out': ['Fuel'],
   shopping: ['Fuel'],
   'training-check': ['Train'],
@@ -202,6 +204,7 @@ export const AGENT_RECORD_KINDS = {
   compost: ['compost'],
   'food-suggest': ['food-suggestion'],
   mealprep: ['meal-prep'],
+  'fuel-review': ['intake'],
   'training-check': ['training-check'],
   followups: ['followup'],
   'week-plan': ['week-plan'],

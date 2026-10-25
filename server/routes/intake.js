@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
-import { QUESTIONS, compute, describe, parseAnswer } from '../lib/intake.js';
+import { QUESTIONS, STABLE_FACTS, compute, describe, parseAnswer, mergeFacts, bodyFat } from '../lib/intake.js';
 import { createRecord } from '../lib/inboxStore.js';
 
 // THE INTAKE (lib/intake.js). The interview itself runs on the glass; the
@@ -23,12 +23,19 @@ export function intakeRouter(vaultPath) {
       const days = await loadRecentDays(60);
       const t = computeWeightTrend(days);
       // weighIns is a COUNT on the trend; the latest reading rides as latestKg/latestDate
+      // body fat: the newest reading Apple Health sent in the window
+      const bf = [...days].reverse().find((d) => bodyFat(d.bodyFatPct) != null);
+      if (bf) out.known.bodyFatPct = { value: bodyFat(bf.bodyFatPct), on: bf.date, from: `Apple Health (${bf.date})` };
       if (t?.latestKg) out.known.weightKg = { value: t.latestKg, on: t.latestDate, from: `your last weigh-in (${t.latestDate}${t.staleDays > 1 ? `, ${t.staleDays} days ago` : ''})` };
     } catch { /* no health data → nothing known */ }
     try {
       const { getProfile } = await import('../lib/profile.js');
       const p = await getProfile(vaultPath);
-      if (p?.intake) out.known.intake = p.intake;
+      if (p?.intake) {
+        out.known.intake = p.intake;
+        // what an edit or a redo keeps without asking (26 Oct 2026, his ask)
+        out.stable = STABLE_FACTS;
+      }
     } catch { /* no profile yet */ }
     res.json(out);
   });
@@ -55,6 +62,51 @@ export function intakeRouter(vaultPath) {
       res.json({ record, plan, lines: plan.lines, title: d.title, body: d.body });
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // AN EDIT (26 Oct 2026, his ask): change what changed — a pace, a weight, a
+  // body fat — and keep every other answer. It is his own act, so it files
+  // at once instead of waiting in the Inbox, through the same approve path
+  // (and the same undo) as the Intake's yes.
+  router.post('/intake/apply', async (req, res) => {
+    try {
+      const { getProfile } = await import('../lib/profile.js');
+      const stored = (await getProfile(vaultPath))?.intake;
+      if (!stored?.facts) return res.status(400).json({ error: 'there is no Intake to edit yet — set your numbers first' });
+      const facts = mergeFacts(stored.facts, req.body?.change || {});
+      const plan = compute(facts);
+      const d = describe(facts, plan);
+      const id = randomUUID().slice(0, 8);
+      await createRecord({
+        id,
+        kind: 'intake',
+        text: d.title,
+        source: 'intake-edit',
+        mode: 'review-all',
+        status: 'pending',
+        decision: { route: 'intake', title: d.title, payload: { facts, plan, body: d.body } },
+        createdAt: new Date().toISOString(),
+      });
+      const { approveRecord } = await import('../lib/inbox.js');
+      const record = await approveRecord(vaultPath, id);
+      res.json({ record, plan, facts, title: d.title });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // THE WEEKLY REVIEW (lib/fuelReview.js): what it last saw, or a run now
+  router.get('/intake/review', async (req, res) => {
+    const { readReviewState } = await import('../lib/fuelReview.js');
+    res.json((await readReviewState()).last || null);
+  });
+  router.post('/intake/review', async (req, res) => {
+    try {
+      const { runFuelReview } = await import('../lib/fuelReview.js');
+      res.json(await runFuelReview(vaultPath, { force: true }));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
   });
 
