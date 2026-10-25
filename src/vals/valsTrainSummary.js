@@ -133,7 +133,10 @@ export function valsTrainSummary(app, ctx, v) {
         sub: done.meta,
         // several sessions: each its own line, in the order done (3 Oct)
         lines: done.lines,
-        also: !g.rest && !done.scheduledDone && g.begin ? { text: `Also scheduled today · ${g.name}`, label: 'Begin it anyway', run: enter(g.begin) } : null,
+        // a two-a-day's next one is the day's plan, not an "anyway" (mockup 104)
+        also: !g.rest && g.begin && (o?.todayPlan || []).some((p) => !p.done)
+          ? { text: `Next today · ${(o.todayPlan.find((p) => !p.done) || {}).name}`, label: 'Begin it', run: enter(g.begin) }
+          : !g.rest && !done.scheduledDone && g.begin ? { text: `Also scheduled today · ${g.name}`, label: 'Begin it anyway', run: enter(g.begin) } : null,
         readiness,
       };
     }
@@ -141,7 +144,8 @@ export function valsTrainSummary(app, ctx, v) {
       const begin = v.gymHero?.begin || (() => app.startWorkoutSession(todayRoutine));
       return {
         kind: 'scheduled', eyebrow: "On today's card", when, title: tc.title,
-        sub: `${plural(liftCount, 'lift')} · about ${estMinutes(liftCount)} min${lastVolume ? ` · last time ${Number(lastVolume).toLocaleString('en-AU')} kg` : ''}`,
+        sub: v.gymHero?.planLine ? `Two today · ${v.gymHero.planLine}`
+          : `${plural(liftCount, 'lift')} · about ${estMinutes(liftCount)} min${lastVolume ? ` · last time ${Number(lastVolume).toLocaleString('en-AU')} kg` : ''}`,
         chips: chipsOf(v.gymHero?.targets),
         glyph: routineGlyph(todayRoutine.name, v.gymHero?.targets),
         focus,
@@ -187,8 +191,19 @@ export function valsTrainSummary(app, ctx, v) {
       const lead = r?.targetChips?.[0]?.muscle;
       return lead ? muscleVar(lead) : 'var(--nv-cy)';
     };
-    const planned = dots.filter((d) => d.state !== 'rest').length;
-    const doneCount = dots.filter((d) => d.state === 'done').length;
+    // PER WORKOUT, FROM THE SERVER (mockup 104, lib/weekCount.js): a double
+    // day counts two and a 15-minute walk ticks active rest. An older server
+    // without it keeps the per-day count from before.
+    const wc = o?.weekCount || null;
+    const wcDay = new Map((wc?.days || []).map((d) => [d.day, d]));
+    const planned = wc ? wc.planned : dots.filter((d) => d.state !== 'rest').length;
+    const doneCount = wc ? wc.done : dots.filter((d) => d.state === 'done').length;
+    const hueOfSlot = (x) => (x.kind === 'active-rest' ? 'var(--nv-good)' : hueOfDay(x.makeup ? x.sourceName : x.name));
+    const walkDay = (wc?.days || []).find((d) => d.isToday && d.walk?.counted);
+    if (walkDay) notes.unshift(`${cap(walkDay.day)}'s active rest is done: you ${walkDay.walk.type && /run|jog/i.test(walkDay.walk.type) ? 'ran' : /walk|hik/i.test(walkDay.walk.type || '') ? 'walked' : 'moved'}.`);
+    for (const d of wc?.days || []) {
+      if (d.slots.length >= 2) notes.push(`${cap(d.day)} · ${d.slots.map((x) => `${x.done ? '✓ ' : ''}${x.name}`).join(', then ')}`);
+    }
     return {
       line,
       notes,
@@ -196,15 +211,21 @@ export function valsTrainSummary(app, ctx, v) {
       done: doneCount,
       dots: dots.map((d) => {
         const s = strip.get(d.day);
-        const shown = s?.options?.find((x) => x.value === s.value)?.label || d.routine || 'Rest';
+        const k = wcDay.get(d.day);
+        const shown = s?.planNames?.join(' and ') || s?.options?.find((x) => x.value === s.value)?.label || d.routine || 'Rest';
+        const state = k ? (k.state === 'partial' ? (d.isToday ? 'today' : k.isPast ? 'missed' : 'planned') : k.state) : d.state;
+        const segs = k && k.slots.length >= 2 ? k.slots.map((x) => ({ key: `${x.routineId || x.name}`, hue: hueOfSlot(x), done: x.done })) : null;
+        const activeRest = !!k?.slots.some((x) => x.kind === 'active-rest');
         return {
           ...d,
-          hue: d.state === 'rest' ? null : hueOfDay(d.routine),
+          state,
+          hue: state === 'rest' ? null : activeRest ? 'var(--nv-good)' : k?.slots[0] ? hueOfSlot(k.slots[0]) : hueOfDay(d.routine),
+          segs,
+          walk: !!k?.slots.some((x) => x.byWalk),
           makeup: / make-up$/.test(d.routine || ''),
-          aria: `${d.label}: ${shown}, ${STATE_WORD[d.state]}${s?.doneMarks?.length ? ` (${dayDoneText(s.doneMarks)})` : ''}${d.isToday && d.state !== 'today' ? ', today' : ''}. Change the day`,
-          // the day's own select from valsWorkouts — the same writes the
-          // classic strip makes, with make-up days as a choice
-          select: s ? { value: s.value, options: s.options, onChange: s.onChange } : null,
+          aria: `${d.label}: ${shown}, ${k && k.plannedCount >= 2 ? `${k.doneCount} of ${k.plannedCount} done` : STATE_WORD[state] || state}${k?.slots.some((x) => x.byWalk) ? ' by a walk' : ''}${s?.doneMarks?.length ? ` (${dayDoneText(s.doneMarks)})` : ''}${d.isToday && state !== 'today' ? ', today' : ''}. Plan the day`,
+          // the day sheet (mockup 104) in place of the platform select
+          openPlan: s?.openPlan || null,
         };
       }),
     };
@@ -301,6 +322,40 @@ export function valsTrainSummary(app, ctx, v) {
     // sets on unaudited lifts, left out of the ring: said, never hidden
     uncounted: uncountedView(o?.uncounted),
   } : null;
+
+  // ---------------------------------------------------------------- walk --
+  // TODAY'S WALK FROM APPLE HEALTH (mockup 104). Every figure is one Health
+  // sent; a missing one is left out, never drawn as a zero. Absent when the
+  // phone has sent nothing for today.
+  const walk = (() => {
+    const w = o?.walk;
+    if (!w) return null;
+    const mins = Number(w.minutes) || 0;
+    const clock = (m) => { const t = Math.round(m * 60); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+    const tf = (iso) => (iso ? dtf('en-AU', { hour: 'numeric', minute: '2-digit' }).format(new Date(iso)).replace(/\s?(am|pm)$/i, (x) => ` ${x.trim().toLowerCase()}`) : null);
+    const day = dtf('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${w.date}T12:00:00`));
+    const span = w.startISO && w.endISO ? `${tf(w.startISO).replace(/ (am|pm)$/, (x) => (tf(w.endISO).endsWith(x.trim()) ? '' : x))} to ${tf(w.endISO)}` : null;
+    const pace = w.distanceKm > 0 ? (() => { const sec = Math.round((mins * 60) / w.distanceKm); return `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"`; })() : null;
+    const line = w.counted ? `${Math.round(mins)} minutes on your feet. Today's active rest is done.`
+      : !w.qualifies ? `${Math.round(mins)} minutes. Under 15, so it does not tick the day.`
+        : w.dayKind === 'training' ? `${Math.round(mins)} minutes, beside today's session, not in place of it.`
+          : `${Math.round(mins)} minutes on your feet.`;
+    return {
+      title: `${w.type}${w.distanceKm ? ` · ${w.distanceKm} km` : ''}`,
+      when: `${day}${span ? ` · ${span}` : ''}`,
+      line,
+      // the ring closes to the 15-minute mark: full once it counts
+      ring: Math.max(0.04, Math.min(1, mins / 15)),
+      counted: !!w.counted,
+      stats: [
+        { k: 'time', v: clock(mins) },
+        pace ? { k: 'per km', v: pace } : null,
+        w.kcal ? { k: 'active kcal', v: String(w.kcal) } : null,
+        w.avgHr ? { k: 'avg bpm', v: String(w.avgHr) } : null,
+      ].filter(Boolean),
+      source: `From Apple Health${w.source ? `, recorded on your ${w.source}` : ''}`,
+    };
+  })();
 
   // ------------------------------------------------------------ momentum --
   const mo = o?.momentum;
@@ -437,6 +492,8 @@ export function valsTrainSummary(app, ctx, v) {
         dismiss: () => app.setState({ trainSumRemoved: null }),
       } : null,
       picker: { open: !!v.exercisePickerOpen, show: v.openExercisePicker },
+      // EDIT MODE (mockup 104): src/vals/valsWorkouts.js routineEdit
+      edit: v.routineEdit || null,
     };
   })() : null;
 
@@ -500,6 +557,7 @@ export function valsTrainSummary(app, ctx, v) {
       allSessions: v.openAllSessions,
       quick,
       hardSets,
+      walk,
       momentum,
       recovery,
       detail,

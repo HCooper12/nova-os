@@ -476,6 +476,30 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // TWO WORKOUTS ON ONE DAY, that date only (lib/extraWorkouts.js, mockup
+  // 104). The weekly template is never touched here. Each write returns the
+  // record it replaced, which is what the client's Undo puts back.
+  router.get('/workouts/day-plans', async (req, res) => {
+    try {
+      const { listDayPlans } = await import('../lib/extraWorkouts.js');
+      res.json({ plans: await listDayPlans({ from: req.query.from || null, to: req.query.to || null }) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  router.put('/workouts/day-plans/:date', async (req, res) => {
+    try {
+      const { setDayPlan } = await import('../lib/extraWorkouts.js');
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      const { routines } = await loadRoutines(vaultPath, exercises);
+      res.json(await setDayPlan(req.params.date, req.body?.routineIds, { known: new Set(routines.map((r) => r.id)) }));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  router.delete('/workouts/day-plans/:date', async (req, res) => {
+    try {
+      const { clearDayPlan } = await import('../lib/extraWorkouts.js');
+      res.json(await clearDayPlan(req.params.date));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   router.get('/workouts/carryovers', async (req, res, next) => {
     try {
       res.json({ carryovers: await listCarryovers() });

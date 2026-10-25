@@ -319,6 +319,9 @@ export const api = {
   // MAKE-UP DAY — this date is finishing a prior session, not a standard one
   setMakeupDay: (conn, date, routineId) => post(conn, '/api/workouts/makeup', { date, routineId }),
   clearMakeupDay: (conn, date) => del(conn, `/api/workouts/makeup/${encodeURIComponent(date)}`),
+  // TWO WORKOUTS ON ONE DAY, that date only (mockup 104): the reply carries `prior` for Undo
+  dayPlans: (conn, from) => call(conn, `/api/workouts/day-plans${from ? `?from=${encodeURIComponent(from)}` : ''}`),
+  setDayPlan: (conn, date, routineIds) => put(conn, `/api/workouts/day-plans/${encodeURIComponent(date)}`, { routineIds }),
   // FORM CHECK — the protocol first, then one clip of one working set
   formCheckProtocol: (conn, exercise) => call(conn, `/api/form-check/protocol?exercise=${encodeURIComponent(exercise || '')}`),
   formCheckStart: (conn, body) => post(conn, '/api/form-check', body, { timeoutMs: 180_000 }),

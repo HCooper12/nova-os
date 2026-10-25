@@ -72,9 +72,11 @@ test('BOTH IDIOMS lost the second control', async () => {
   const screen = await read('src', 'screens', 'Workouts.jsx');
   assert.doesNotMatch(screen, /d\.setMakeup/, 'a second make-up control survives');
   assert.doesNotMatch(screen, /d\.makeupOptions/, 'a second make-up option list survives');
-  // exactly two selects remain in the strip — one per idiom
-  const selects = [...screen.matchAll(/value=\{d\.value\}/g)];
-  assert.equal(selects.length, 2, `expected one focus select per idiom, found ${selects.length}`);
+  // exactly one day control per idiom: since mockup 104 (26 Oct 2026) it is
+  // the button that opens the day sheet, where a make-up is one more choice
+  const controls = [...screen.matchAll(/onClick=\{d\.openPlan\}/g)];
+  assert.equal(controls.length, 2, `expected one day control per idiom, found ${controls.length}`);
+  assert.doesNotMatch(screen, /value=\{d\.value\}/, 'a platform select survives beside the sheet');
   // and the gold "Make-up · …" note stays in both, so the day still says what it is
   assert.equal([...screen.matchAll(/Make-up ·/g)].length, 2);
 });

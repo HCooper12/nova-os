@@ -180,7 +180,7 @@ export function commitVaultState(vaultPath, relPath, raw) {
 }
 
 const byId = (exercises) => new Map(exercises.map((e) => [e.id, e]));
-const entriesOf = (routine) => routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}) }));
+const entriesOf = (routine) => routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}), ...(e.note ? { note: e.note } : {}) }));
 
 // Every op against an in-memory copy of the plan. Nothing here writes.
 async function planOps(vaultPath, ops, { why }) {

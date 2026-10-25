@@ -35,7 +35,19 @@ function resolveExercise(entry, exercisesById) {
     targetRepsHigh: entry.targetRepsHigh,
     // the last n sets are drop sets (src/fitSets.js); absent when none
     ...(cleanDropSets(entry.dropSets, entry.targetSets) ? { dropSets: cleanDropSets(entry.dropSets, entry.targetSets) } : {}),
+    // his own line for this lift in this routine (mockup 104): absent when none
+    ...(cleanNote(entry.note) ? { note: cleanNote(entry.note) } : {}),
   };
+}
+
+// A PER-LIFT NOTE (mockup 104, 26 Oct 2026): one short line of his own on a
+// routine entry ("drop sets · behind back"). Optional, plain text, one line.
+// Every writer of routine entries carries it (App.routineEntriesFrom,
+// coachPlan entriesOf, inbox entriesOf and a moved lift), so an edit made
+// anywhere else never strips it.
+export function cleanNote(v) {
+  const t = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  return t || null;
 }
 
 function bodyFor(routines, schedule, exercisesById) {
@@ -53,7 +65,7 @@ function bodyFor(routines, schedule, exercisesById) {
   const listLifts = (r) => {
     for (const entry of r.exercises) {
       const resolved = resolveExercise(entry, exercisesById);
-      lines.push(`- ${resolved.name} — ${resolved.targetSets} × ${resolved.targetRepsLow}-${resolved.targetRepsHigh}${resolved.dropSets ? ` (${resolved.targetSets - resolved.dropSets} top, ${resolved.dropSets} drop)` : ''}`);
+      lines.push(`- ${resolved.name} — ${resolved.targetSets} × ${resolved.targetRepsLow}-${resolved.targetRepsHigh}${resolved.dropSets ? ` (${resolved.targetSets - resolved.dropSets} top, ${resolved.dropSets} drop)` : ''}${resolved.note ? ` · ${resolved.note}` : ''}`);
     }
     lines.push('');
   };
@@ -152,7 +164,8 @@ function validateExerciseEntries(exercises, exercisesById) {
     const targetRepsLow = Number(e.targetRepsLow) || 8;
     const targetRepsHigh = Number(e.targetRepsHigh) || targetRepsLow;
     const dropSets = cleanDropSets(e.dropSets, targetSets);
-    return { exerciseId: e.exerciseId, targetSets, targetRepsLow, targetRepsHigh, ...(dropSets ? { dropSets } : {}) };
+    const note = cleanNote(e.note);
+    return { exerciseId: e.exerciseId, targetSets, targetRepsLow, targetRepsHigh, ...(dropSets ? { dropSets } : {}), ...(note ? { note } : {}) };
   });
 }
 

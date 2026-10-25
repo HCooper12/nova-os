@@ -309,6 +309,47 @@ export async function buildTrainOverview(vaultPath) {
     } catch { return null; }
   })();
 
+  // "N OF M DONE", PER WORKOUT (mockup 104, 26 Oct 2026): a date holding two
+  // workouts counts two, and a cardio workout of 15+ minutes from Apple Health
+  // ticks an active-rest day (lib/weekCount.js). The day plans ride along so
+  // Train can split a day's capsule and Begin can ask which first. Null on
+  // failure: the card falls back to the counting it did before.
+  let weekCountModel = null;
+  let dayPlans = [];
+  try {
+    const { weekCount } = await import('./weekCount.js');
+    const { listDayPlans } = await import('./extraWorkouts.js');
+    const { workoutsForRange, countsForActiveRest, cardioKind } = await import('./healthWorkouts.js');
+    const { listCarryovers } = await import('./workoutCarryover.js');
+    const { todayIso } = await import('./makeupDay.js');
+    const start = mondayOf(new Date());
+    const sunday = (() => { const d = new Date(`${start}T12:00:00`); d.setDate(d.getDate() + 6); return todayIso(d); })();
+    const live = new Set(routines.map((r) => r.id));
+    dayPlans = (await listDayPlans({ from: start, to: sunday }).catch(() => []))
+      .map((p) => ({ date: p.date, routineIds: p.routineIds.filter((id) => live.has(id)) }))
+      .filter((p) => p.routineIds.length >= 2);
+    const makeups = (await listCarryovers().catch(() => [])).filter((c) => c.plannedAs === 'day' && c.forDate >= start && c.forDate <= sunday);
+    weekCountModel = weekCount({
+      start, today: todayIso(), schedule, routines, dayPlans, makeups,
+      sessions: sessions.filter((s) => s?.date >= start && s.date <= sunday),
+      cardio: await workoutsForRange(start, sunday).catch(() => []),
+      counts: countsForActiveRest,
+      isCardio: (w) => !!cardioKind(w?.type),
+    });
+  } catch { /* honest absence */ }
+  // today's whole plan, in his order, when today holds more than one workout
+  const todayPlan = (() => {
+    const t = weekCountModel?.days?.find((d) => d.isToday);
+    const rs = (t?.slots || []).filter((x) => x.kind === 'routine' && x.routineId && !x.makeup);
+    return rs.length >= 2 ? rs.map((x) => ({ routineId: x.routineId, name: x.name, done: x.done })) : null;
+  })();
+
+  // on a two-a-day the card leads with the first one not yet done, whatever
+  // the weekday template holds (the template is untouched by a day plan)
+  const lead = todayPlan
+    ? routines.find((r) => r.id === (todayPlan.find((p) => !p.done) || todayPlan[0]).routineId) || routine
+    : routine;
+
   const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null || d.restingHeartRate != null) || {};
 
   return {
@@ -346,14 +387,14 @@ export async function buildTrainOverview(vaultPath) {
         return doneTodayOf(todayIso(), sessions, routines, { scheduledRoutine: routine, carryovers });
       } catch { return null; }
     })(),
-    today: routine ? {
-      routineId: routine.id, name: routine.name, exerciseCount: routine.exercises.length,
+    today: lead ? {
+      routineId: lead.id, name: lead.name, exerciseCount: lead.exercises.length,
       lastVolume: (() => {
-        const prev = sessions.find((s) => s.routineId === routine.id);
+        const prev = sessions.find((s) => s.routineId === lead.id);
         return prev ? Math.round(prev.exercises.reduce((v, e) => v + e.sets.reduce((x, s) => x + s.weight * s.reps, 0), 0)) : null;
       })(),
     } : null,
-    restDay: !routine,
+    restDay: !lead,
     // the watch's account of TODAY — walks, cardio, anything tracked on
     // his wrist. Absent when nothing was pushed (honest, never zeros).
     watch: await (async () => {
@@ -385,5 +426,11 @@ export async function buildTrainOverview(vaultPath) {
     uncounted,
     week,
     muscleWeek,
+    // mockup 104: the week counted per workout, the dated two-a-day plans,
+    // today's plan when it holds more than one, and today's walk
+    weekCount: weekCountModel,
+    dayPlans,
+    todayPlan,
+    walk: weekCountModel?.days?.find((d) => d.isToday)?.walk || null,
   };
 }

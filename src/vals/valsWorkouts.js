@@ -49,6 +49,13 @@ export function valsWorkouts(app, ctx) {
   // THE WHOLE DAY (his report, 3 Oct): several sessions are each named, in
   // the order done, with the day's totals once. "+ 2 more today" hid his
   // main session behind the last make-up. One session keeps the simple card.
+  // TWO WORKOUTS TODAY (mockup 104): the ones not yet done, in his order;
+  // Begin asks which first. Null on an ordinary day.
+  const todayPlanRoutines = (() => {
+    const left = (overview?.todayPlan || []).filter((p) => !p.done)
+      .map((p) => (st.liveWorkoutRoutines || []).find((r) => r.id === p.routineId)).filter(Boolean);
+    return (overview?.todayPlan || []).length >= 2 && left.length ? left : null;
+  })();
   const doneCard = doneTodayCard(overview?.doneToday);
   const todayIsoDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
   const trainToday = {
@@ -66,7 +73,8 @@ export function valsWorkouts(app, ctx) {
       clearMakeup: overview?.makeup ? () => app.clearMakeupDay(todayIsoDate) : null,
       // BEGIN lands you in the logger; feed cards land you in the Coach
       // with the question already asked — every card is a doorway
-      begin: overviewRoutine ? () => { app.setState({ trainTab: 'gym' }); app.startWorkoutSession(overviewRoutine); } : null,
+      begin: todayPlanRoutines ? (ev) => app.beginDayPlan(todayPlanRoutines, ev && { x: ev.clientX, y: ev.clientY })
+        : overviewRoutine ? () => { app.setState({ trainTab: 'gym' }); app.startWorkoutSession(overviewRoutine); } : null,
       // the plateau card now opens a VERDICT first — evidence before advice
       askPlateau: (name) => app.openVerdict('stalled', name),
       askTired: () => app.openVerdict('tired'),
@@ -145,6 +153,14 @@ export function valsWorkouts(app, ctx) {
     carryoversByDate.set(c.forDate, [...(carryoversByDate.get(c.forDate) || []), c]);
   }
 
+  // a routine's colour is its lead muscle's (the week's capsules, mockup 101)
+  function routineHue(r) {
+    if (!r) return 'var(--nv-cy)';
+    const lead = targetSummary(r.exercises || []).chips.find((c) => c.muscle !== 'Unmapped');
+    return lead ? muscleVar(lead.muscle) : 'var(--nv-cy)';
+  }
+  const estMin = (n) => Math.round(((Number(n) || 0) * 8 + 4) / 5) * 5;
+
   const weekStrip = liveWeekdays.map((day) => {
     const routineId = liveSchedule[day] || '';
     const isToday = day === todayWeekday;
@@ -185,9 +201,19 @@ export function valsWorkouts(app, ctx) {
         || liveRoutines.find((r) => r.name === dayMakeup.sourceRoutineName)?.id
         || '')
       : '';
+    // THE DAY SHEET (mockup 104): what the sheet opens with ticked — the
+    // date's two-a-day record, else the make-up, else the weekday's value
+    const dayPlan = (st.liveDayPlans || []).find((p) => p.date === dayDate && (p.routineIds || []).length >= 2) || null;
+    const planIds = dayPlan ? dayPlan.routineIds.filter((id) => liveRoutines.some((r) => r.id === id)) : [];
+    const picked = planIds.length >= 2 ? planIds : plannedMakeup ? [`makeup:${makeupRoutineId}`] : [routineId];
+    const planNames = planIds.length >= 2 ? planIds.map((id) => liveRoutines.find((r) => r.id === id)?.name).filter(Boolean) : null;
     return {
       day, dayLabel: WEEKDAY_SHORT[day], isToday, carryoverNote,
       date: dayDate,
+      // the date's own plan when it holds two or more (that date only)
+      planNames,
+      planHues: planIds.length >= 2 ? planIds.map((id) => routineHue(liveRoutines.find((r) => r.id === id))) : null,
+      openPlan: () => app.openDayPlan({ date: dayDate, day, picked }),
       makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null, done: !!dayMakeup.done,
         leftOff: dayMakeup.leftOff ? `${dayMakeup.leftOff} left off` : null } : null,
       doneMarks,
@@ -226,6 +252,97 @@ export function valsWorkouts(app, ctx) {
         .map((o) => (dayMakeup?.done && o.value === `makeup:${makeupRoutineId}` ? { ...o, label: `Made up ${dayMakeup.sourceRoutineName}` } : o)),
     };
   });
+
+  // THE DAY SHEET'S MODEL (mockup 104), one for both idioms. Choice overload:
+  // what is ticked, then his most-done routines, to five, with Active rest
+  // and Rest; everything else (the other routines and the make-ups) behind
+  // Show all.
+  const dayPlanSheet = (() => {
+    const sh = st.dayPlanSheet;
+    if (!sh) return null;
+    const picked = sh.picked || [];
+    const dateLabel = dtf('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(`${sh.date}T12:00:00`));
+    const dayName = dtf('en-GB', { weekday: 'long' }).format(new Date(`${sh.date}T12:00:00`));
+    const opt = (value, label, meta, hue) => {
+      const k = picked.indexOf(value);
+      return { value, label, meta, hue, on: k >= 0, order: k >= 0 && picked.filter((x) => liveRoutines.some((r) => r.id === x)).length > 1 ? picked.indexOf(value) + 1 : null, toggle: () => app.toggleDayPlanPick(value) };
+    };
+    const routineOpt = (r) => opt(r.id, r.name, `${r.exercises.length} lift${r.exercises.length === 1 ? '' : 's'}${r.exercises.length ? ` · ${estMin(r.exercises.length)} min` : ''}`, routineHue(r));
+    const pickedRoutines = picked.map((id) => liveRoutines.find((r) => r.id === id)).filter(Boolean);
+    const others = liveRoutines.filter((r) => !picked.includes(r.id)).sort((a, b) => (b.completedCount || 0) - (a.completedCount || 0));
+    const lead = [...pickedRoutines, ...others].slice(0, Math.max(3, pickedRoutines.length));
+    const rest = liveRoutines.filter((r) => !lead.includes(r));
+    const makeups = liveRoutines.map((r) => opt(`makeup:${r.id}`, `Make-up · finish ${r.name}`, 'what is left of the last one', routineHue(r)));
+    const anyMakeupOn = makeups.some((m) => m.on);
+    const more = [...rest.map(routineOpt), ...makeups];
+    const minutes = pickedRoutines.reduce((n, r) => n + estMin(r.exercises.length), 0);
+    const several = pickedRoutines.length >= 2;
+    return {
+      title: dateLabel,
+      sub: several ? 'Two or more are for this date only. Your weekly plan stays as it is.'
+        : `One workout sets every ${dayName}. Tick a second and the pair is for this date only.`,
+      options: [
+        ...lead.map(routineOpt),
+        opt('active-rest', 'Active rest', 'a walk counts', 'var(--nv-good)'),
+        opt('', 'Rest', '', 'var(--nv-ink40)'),
+        ...(st.dayPlanSheet.showAll || anyMakeupOn ? more : []),
+      ],
+      showAll: more.length && !(st.dayPlanSheet.showAll || anyMakeupOn) ? {
+        label: `Show all · ${[...rest.map((r) => r.name), ...(liveRoutines.length ? ['make-ups'] : [])].join(', ')}`,
+        go: () => app.showAllDayPlan(),
+      } : null,
+      commitLabel: pickedRoutines.length ? `Plan ${dayName} · ${minutes} min`
+        : anyMakeupOn ? `Plan ${dayName} · make-up` : picked.includes('active-rest') ? `Plan ${dayName} · active rest` : `Plan ${dayName} · rest`,
+      commit: () => app.commitDayPlan(),
+      close: () => app.closeDayPlan(),
+    };
+  })();
+
+  // EDIT MODE ON A ROUTINE PAGE (mockup 104). One model for both idioms:
+  // the title as a draft (saved on Done), each lift with its handle, steppers,
+  // swap, note and remove, and the page's tools. Every write leaves Undo
+  // (App.editRoutine).
+  const editRoutineModel = (() => {
+    const r = usingLiveWorkouts ? liveRoutines.find((x) => x.id === st.openRoutineId) || null : null;
+    if (!r) return null;
+    const editing = st.routineEditing === r.id;
+    return {
+      on: editing,
+      start: () => app.startRoutineEdit(),
+      done: () => app.finishRoutineEdit(),
+      name: editing ? st.routineEditName : r.name,
+      was: editing && st.routineEditName.trim() && st.routineEditName.trim() !== r.name ? `was "${r.name}"` : null,
+      setName: (e) => app.setRoutineEditName(e),
+      sub: `${r.exercises.length} lift${r.exercises.length === 1 ? '' : 's'} · about ${estMin(r.exercises.length)} min`,
+      rows: r.exercises.map((e, i) => ({
+        id: e.exerciseId,
+        name: e.name,
+        tag: e.note || e.muscleGroup || 'Muscle not mapped',
+        hasNote: !!e.note,
+        note: e.note || '',
+        hue: muscleVar(e.muscleGroup),
+        sets: e.targetSets,
+        reps: e.targetRepsLow === e.targetRepsHigh ? `${e.targetRepsLow}` : `${e.targetRepsLow}–${e.targetRepsHigh}`,
+        unit: e.trackingType === 'weight_time' || e.trackingType === 'bodyweight_time' ? 'sec' : 'reps',
+        index: i,
+        up: i > 0 ? () => app.moveExerciseTo(e.exerciseId, i - 1) : null,
+        down: i < r.exercises.length - 1 ? () => app.moveExerciseTo(e.exerciseId, i + 1) : null,
+        moveTo: (to) => app.moveExerciseTo(e.exerciseId, to),
+        setsLess: e.targetSets > 1 ? () => app.stepRoutineEntry(e.exerciseId, 'sets', -1) : null,
+        setsMore: e.targetSets < 12 ? () => app.stepRoutineEntry(e.exerciseId, 'sets', 1) : null,
+        repsLess: e.targetRepsLow > 1 ? () => app.stepRoutineEntry(e.exerciseId, 'reps', -1) : null,
+        repsMore: () => app.stepRoutineEntry(e.exerciseId, 'reps', 1),
+        swap: () => app.openSwapPicker(e.exerciseId),
+        remove: () => app.removeRoutineEntry(e.exerciseId),
+        noteOpen: st.routineEditNote === e.exerciseId,
+        openNote: () => app.setState({ routineEditNote: st.routineEditNote === e.exerciseId ? null : e.exerciseId }),
+        saveNote: (text) => app.setRoutineEntryNote(e.exerciseId, text),
+      })),
+      add: () => app.openExercisePicker(),
+      duplicate: () => app.duplicateRoutine(),
+      create: () => app.newRoutineFromEdit(),
+    };
+  })();
 
   const routinesList = liveRoutines.map((r) => ({
     id: r.id,
@@ -302,7 +419,10 @@ export function valsWorkouts(app, ctx) {
       done: doneToday,
       name: o.today.name,
       meta: `${o.today.exerciseCount} exercises · ~${estMin} min${o.today.lastVolume ? ` · last time ${o.today.lastVolume.toLocaleString()} kg` : ''}`,
-      begin: r ? () => app.startWorkoutSession(r) : null,
+      begin: todayPlanRoutines ? (ev) => app.beginDayPlan(todayPlanRoutines, ev && { x: ev.clientX, y: ev.clientY })
+        : r ? () => app.startWorkoutSession(r) : null,
+      // a two-a-day names both, in order (mockup 104)
+      planLine: overview?.todayPlan?.length >= 2 ? overview.todayPlan.map((p) => `${p.done ? '✓ ' : ''}${p.name}`).join(', then ') : null,
       // TODAY ONLY: what the Coach card he approved changes in this session
       todayOnly: r && todayPlanFor(st.liveTrainToday, r.id) ? todayLines(st.liveTrainToday) : null,
       // absent when the routine can't be resolved — an empty chip row would
@@ -849,6 +969,9 @@ export function valsWorkouts(app, ctx) {
     // failed shows an honest unavailable state, never the scripted plan
     workoutsDemo: ctx.demoMode,
     weekStrip,
+    dayPlanSheet,
+    routineEdit: editRoutineModel,
+    exercisePickerSwapName: st.exercisePickerMode === 'swap' ? (openRoutine?.exercises || []).find((e) => e.exerciseId === st.exercisePickerSwapId)?.name || null : null,
     routinesList,
     gymHero,
     sessionLive: !!st.workoutSession,

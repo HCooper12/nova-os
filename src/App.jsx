@@ -818,6 +818,8 @@ export default class App extends Component {
     // today's card stays a card, expandable to the per-exercise breakdown
     gymTargetsOpen: false,
     routineCreating: false, routineNewName: '',
+    // mockup 104: the day sheet, the dated two-a-day plans, and Edit mode
+    dayPlanSheet: null, liveDayPlans: [], routineEditing: null, routineEditName: '', routineEditNote: null, exercisePickerSwapId: null,
     inboxVideoUrl: '', inboxVideoQuestion: '', inboxVideoAsk: false, inboxVideoBusy: false, inboxVideoError: null, inboxVideoSent: [],
     routineDeleteConfirm: false,
     exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerShowAll: false,
@@ -3061,6 +3063,85 @@ export default class App extends Component {
       .then(() => { this.loadCarryovers(); this.toastMsg('Back to the scheduled session'); })
       .catch((e) => this.toastMsg(e.message));
   }
+  // ---------- THE DAY SHEET (mockup 104, 26 Oct 2026) ----------
+  // Tap a day: tick each workout for it. Two or more are that DATE only (a
+  // dated record, server/lib/extraWorkouts.js); one sets the weekday as the
+  // week plan always did; a make-up, rest or active rest stand alone.
+  // `picked` holds the sheet's values in the order he ticked them.
+  openDayPlan({ date, day, picked }) {
+    this.setState({ dayPlanSheet: { date, day, picked: picked || [], showAll: false } });
+  }
+  closeDayPlan() { this.setState({ dayPlanSheet: null }); }
+  toggleDayPlanPick(value) {
+    this.setState((s) => {
+      const sh = s.dayPlanSheet;
+      if (!sh) return null;
+      const alone = (v) => v === '' || v === 'active-rest' || String(v).startsWith('makeup:');
+      let picked = sh.picked.includes(value) ? sh.picked.filter((x) => x !== value)
+        : alone(value) ? [value] : [...sh.picked.filter((x) => !alone(x)), value];
+      if (picked.length > 4) picked = picked.slice(-4);
+      return { dayPlanSheet: { ...sh, picked } };
+    });
+    haptic('tick');
+  }
+  showAllDayPlan() { this.setState((s) => (s.dayPlanSheet ? { dayPlanSheet: { ...s.dayPlanSheet, showAll: true } } : null)); }
+  // the write, and its Undo: the date's record as it was and the weekday as
+  // it was, put back through the same two calls
+  commitDayPlan() {
+    const conn = getConnection();
+    const sh = this.state.dayPlanSheet;
+    if (!conn || !sh) return;
+    const { date, day, picked } = sh;
+    const prevTemplate = (this.state.liveWorkoutSchedule || {})[day] || null;
+    const prevPlan = (this.state.liveDayPlans || []).find((p) => p.date === date) || null;
+    const hadMakeup = (this.state.liveCarryovers || []).some((c) => c.forDate === date && c.plannedAs === 'day');
+    this.setState({ dayPlanSheet: null });
+    const refresh = () => { this.loadCarryovers(); api.trainOverview(conn).then((r) => this.setState({ liveTrainOverview: r })).catch(() => {}); };
+    const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+    const mk = picked.find((x) => String(x).startsWith('makeup:'));
+    if (mk) {
+      (prevPlan ? api.setDayPlan(conn, date, []) : Promise.resolve()).then(() => { this.markMakeupDay(date, mk.slice(7)); refresh(); });
+      return;
+    }
+    const ids = picked.filter((x) => x && x !== 'active-rest');
+    const clearMk = hadMakeup ? api.clearMakeupDay(conn, date).catch(() => {}) : Promise.resolve();
+    const undo = () => {
+      api.setDayPlan(conn, date, prevPlan?.routineIds || [])
+        .then(() => (((this.state.liveWorkoutSchedule || {})[day] || null) !== prevTemplate ? api.setWorkoutScheduleDay(conn, day, prevTemplate) : null))
+        .then((r) => { if (r?.schedule) this.setState({ liveWorkoutSchedule: r.schedule }); refresh(); })
+        .catch((e) => this.toastMsg('Could not put the day back: ' + e.message));
+    };
+    if (ids.length >= 2) {
+      const names = ids.map((id) => (this.state.liveWorkoutRoutines || []).find((r) => r.id === id)?.name || 'Workout');
+      clearMk.then(() => api.setDayPlan(conn, date, ids)).then(() => {
+        refresh();
+        haptic('commit');
+        tickReceipt({ key: `day-plan:${date}`, label: dayName, done: true, title: `${dayName}: ${names.join(', then ')}`, undo });
+      }).catch((e) => this.toastMsg('Could not plan the day: ' + e.message));
+      return;
+    }
+    const next = ids[0] || (picked.includes('active-rest') ? 'active-rest' : null);
+    clearMk.then(() => (prevPlan ? api.setDayPlan(conn, date, []) : null))
+      .then(() => (next !== prevTemplate ? api.setWorkoutScheduleDay(conn, day, next) : null))
+      .then((r) => {
+        if (r?.schedule) this.setState({ liveWorkoutSchedule: r.schedule });
+        refresh();
+        if (!prevPlan && next === prevTemplate) return;
+        const label = next === 'active-rest' ? 'Active rest' : next ? (this.state.liveWorkoutRoutines || []).find((x) => x.id === next)?.name || 'Workout' : 'Rest';
+        tickReceipt({ key: `day-plan:${date}`, label: dayName, done: true, title: `${dayName}s: ${label}`, undo });
+      })
+      .catch((e) => this.toastMsg('Could not update schedule: ' + e.message));
+  }
+  // BEGIN ON A TWO-WORKOUT DAY ASKS WHICH FIRST (mockup 104). Each runs as
+  // its own session, so each keeps its own history.
+  beginDayPlan(routines, at) {
+    const open = routines.filter(Boolean);
+    if (open.length <= 1) { if (open[0]) this.startWorkoutSession(open[0]); return; }
+    this.openContextMenu({
+      x: at?.x ?? 200, y: at?.y ?? 300, title: 'WHICH FIRST?',
+      items: open.map((r) => ({ label: r.name, hint: `${r.exercises.length} lift${r.exercises.length === 1 ? '' : 's'}`, onSelect: () => { this.setState({ trainTab: 'gym' }); this.startWorkoutSession(r); } })),
+    });
+  }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
   }
@@ -4832,11 +4913,149 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not update routine: ' + e.message));
   }
   routineEntriesFrom(routine) {
-    return routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}) }));
+    return routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}), ...(e.note ? { note: e.note } : {}) }));
+  }
+  // ---------- EDIT MODE (mockup 104, 26 Oct 2026) ----------
+  // Every edit is one write of the routine's entries (or its name), and each
+  // leaves a receipt whose Undo re-PUTs exactly what was there before. The
+  // routine keeps its id through all of it, and sessions file under the id,
+  // so a rename keeps every past session and record linked.
+  editRoutine(entries, title, { name } = {}) {
+    const conn = getConnection();
+    const routine = this.currentRoutine();
+    if (!conn || !routine) return Promise.resolve();
+    const prior = { exercises: this.routineEntriesFrom(routine), name: routine.name };
+    const patch = { ...(entries ? { exercises: entries } : {}), ...(name ? { name } : {}) };
+    return api.updateWorkoutRoutine(conn, routine.id, patch).then(() => this.refreshWorkoutRoutines()).then(() => {
+      tickReceipt({ key: `routine-edit:${routine.id}:${Date.now()}`, label: routine.name, done: true, title,
+        undo: () => api.updateWorkoutRoutine(conn, routine.id, { exercises: prior.exercises, ...(name ? { name: prior.name } : {}) })
+          .then(() => this.refreshWorkoutRoutines())
+          .catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+    }).catch((e) => this.toastMsg(e.message || 'Could not update routine'));
+  }
+  startRoutineEdit() {
+    const r = this.currentRoutine();
+    if (r) this.setState({ routineEditing: r.id, routineEditName: r.name, routineEditNote: null, exercisePickerOpen: false });
+  }
+  setRoutineEditName(e) { this.setState({ routineEditName: typeof e === 'string' ? e : e.target.value }); }
+  // Done: the title saves here, once, if it changed
+  finishRoutineEdit() {
+    const r = this.currentRoutine();
+    const name = String(this.state.routineEditName || '').trim();
+    this.setState({ routineEditing: null, routineEditNote: null, exercisePickerOpen: false });
+    if (r && name && name !== r.name) this.editRoutine(null, `Renamed to "${name}"`, { name });
+  }
+  // a lift dragged to a new place (or stepped up/down): one write
+  moveExerciseTo(exerciseId, to) {
+    const r = this.currentRoutine();
+    if (!r) return;
+    const entries = this.routineEntriesFrom(r);
+    const from = entries.findIndex((e) => e.exerciseId === exerciseId);
+    const at = Math.max(0, Math.min(entries.length - 1, to));
+    if (from < 0 || from === at) return;
+    const [moving] = entries.splice(from, 1);
+    entries.splice(at, 0, moving);
+    const name = r.exercises[from]?.name || 'Lift';
+    this.editRoutine(entries, `Moved ${name} to ${at + 1}`);
+  }
+  // −/+ on sets, or the rep range moved as a whole
+  stepRoutineEntry(exerciseId, field, by) {
+    const r = this.currentRoutine();
+    if (!r) return;
+    const entries = this.routineEntriesFrom(r);
+    const i = entries.findIndex((e) => e.exerciseId === exerciseId);
+    if (i < 0) return;
+    const e = { ...entries[i] };
+    if (field === 'sets') {
+      e.targetSets = Math.max(1, Math.min(12, (Number(e.targetSets) || 1) + by));
+      if (e.dropSets) e.dropSets = Math.min(e.dropSets, e.targetSets - 1) || undefined;
+      if (!e.dropSets) delete e.dropSets;
+    } else {
+      const lo = Math.max(1, (Number(e.targetRepsLow) || 1) + by);
+      const span = Math.max(0, (Number(e.targetRepsHigh) || lo) - (Number(e.targetRepsLow) || lo));
+      e.targetRepsLow = lo; e.targetRepsHigh = lo + span;
+    }
+    if (e.targetSets === entries[i].targetSets && e.targetRepsLow === entries[i].targetRepsLow) return;
+    entries[i] = e;
+    const nm = r.exercises[i]?.name || 'Lift';
+    this.editRoutine(entries, `${nm}: ${e.targetSets} × ${e.targetRepsLow === e.targetRepsHigh ? e.targetRepsLow : `${e.targetRepsLow}–${e.targetRepsHigh}`}`);
+  }
+  setRoutineEntryNote(exerciseId, text) {
+    const r = this.currentRoutine();
+    this.setState({ routineEditNote: null });
+    if (!r) return;
+    const entries = this.routineEntriesFrom(r);
+    const i = entries.findIndex((e) => e.exerciseId === exerciseId);
+    if (i < 0) return;
+    const note = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if ((entries[i].note || '') === note) return;
+    const next = { ...entries[i] };
+    if (note) next.note = note; else delete next.note;
+    entries[i] = next;
+    this.editRoutine(entries, note ? `Note on ${r.exercises[i]?.name || 'the lift'}` : `Note removed from ${r.exercises[i]?.name || 'the lift'}`);
+  }
+  removeRoutineEntry(exerciseId) {
+    const r = this.currentRoutine();
+    if (!r) return;
+    const name = r.exercises.find((e) => e.exerciseId === exerciseId)?.name || 'Lift';
+    this.editRoutine(this.routineEntriesFrom(r).filter((e) => e.exerciseId !== exerciseId), `Removed ${name}`);
+  }
+  // swap a lift: the same picker, and the slot keeps its sets and reps
+  openSwapPicker(exerciseId) {
+    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'swap', exercisePickerSwapId: exerciseId, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerShowAll: false, exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
+  }
+  duplicateRoutine() {
+    const conn = getConnection();
+    const r = this.currentRoutine();
+    if (!conn || !r) return;
+    const taken = new Set((this.state.liveWorkoutRoutines || []).map((x) => String(x.name).toLowerCase()));
+    let name = `${r.name} copy`;
+    for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${r.name} copy ${n}`;
+    api.createWorkoutRoutine(conn, name, this.routineEntriesFrom(r)).then(({ routine }) => this.refreshWorkoutRoutines().then(() => {
+      this.setState({ routineEditing: null });
+      this.openRoutine(routine.id);
+      tickReceipt({ key: `routine-dup:${routine.id}`, label: name, done: true, title: `Made ${name}`,
+        undo: () => api.deleteWorkoutRoutine(conn, routine.id).then(() => { this.backToRoutines(); return this.refreshWorkoutRoutines(); }).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+    })).catch((e) => this.toastMsg('Could not duplicate: ' + e.message));
+  }
+  // a new routine opens straight into Edit, its title ready to type
+  newRoutineFromEdit() {
+    const conn = getConnection();
+    if (!conn) return;
+    const taken = new Set((this.state.liveWorkoutRoutines || []).map((x) => String(x.name).toLowerCase()));
+    let name = 'New routine';
+    for (let n = 2; taken.has(name.toLowerCase()); n++) name = `New routine ${n}`;
+    api.createWorkoutRoutine(conn, name, []).then(({ routine }) => this.refreshWorkoutRoutines().then(() => {
+      this.openRoutine(routine.id);
+      this.setState({ routineEditing: routine.id, routineEditName: '', routineEditNote: null });
+      tickReceipt({ key: `routine-new:${routine.id}`, label: name, done: true, title: 'New routine',
+        undo: () => api.deleteWorkoutRoutine(conn, routine.id).then(() => { this.setState({ routineEditing: null }); this.backToRoutines(); return this.refreshWorkoutRoutines(); }).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+    })).catch((e) => this.toastMsg('Could not create routine: ' + e.message));
   }
   addExerciseToRoutine(exerciseId) {
     const routine = this.currentRoutine();
     if (!routine) return;
+    // SWAP (edit mode): the picked lift takes the old one's place, sets and reps
+    if (this.state.exercisePickerMode === 'swap' && this.state.exercisePickerSwapId) {
+      const entries = this.routineEntriesFrom(routine);
+      const i = entries.findIndex((e) => e.exerciseId === this.state.exercisePickerSwapId);
+      this.setState({ exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMode: 'routine', exercisePickerSwapId: null });
+      if (i < 0 || entries.some((e) => e.exerciseId === exerciseId)) return;
+      const was = routine.exercises[i]?.name || 'the lift';
+      const { note, ...keep } = entries[i]; // a note about the old lift is not about the new one
+      void note;
+      entries[i] = { ...keep, exerciseId };
+      const nm = (this.state.liveWorkoutExercises || []).find((e) => e.id === exerciseId)?.name || 'a new lift';
+      this.editRoutine(entries, `Swapped ${was} for ${nm}`);
+      return;
+    }
+    // in edit mode, an added lift leaves a receipt like every other edit
+    if (this.state.routineEditing === routine.id) {
+      const nm = (this.state.liveWorkoutExercises || []).find((e) => e.id === exerciseId)?.name || 'a lift';
+      this.editRoutine([...this.routineEntriesFrom(routine), { exerciseId, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10 }], `Added ${nm}`);
+      this.setState({ exercisePickerOpen: false, exercisePickerQuery: '' });
+      return;
+    }
     const entries = [...this.routineEntriesFrom(routine), { exerciseId, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10 }];
     this.updateRoutineExercises(entries);
     this.setState({ exercisePickerOpen: false, exercisePickerQuery: '' });
@@ -5003,7 +5222,7 @@ export default class App extends Component {
     });
   }
   closeExercisePicker() {
-    this.setState({ exercisePickerOpen: false });
+    this.setState((s) => ({ exercisePickerOpen: false, ...(s.exercisePickerMode === 'swap' ? { exercisePickerMode: 'routine', exercisePickerSwapId: null } : {}) }));
   }
   setExercisePickerQuery(e) {
     this.setState({ exercisePickerQuery: e.target.value });
@@ -5419,6 +5638,10 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.workoutCarryovers(conn).then(({ carryovers }) => this.setState({ liveCarryovers: carryovers })).catch(() => {});
+    // the dated two-a-day plans from today on (mockup 104), for the day sheet
+    const d = new Date();
+    const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    api.dayPlans(conn, from).then(({ plans }) => this.setState({ liveDayPlans: plans || [] })).catch(() => {});
   }
   pushMissedToDay() {
     const conn = getConnection();

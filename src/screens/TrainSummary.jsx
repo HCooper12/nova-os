@@ -11,6 +11,9 @@ import { SwipeRow } from '../SwipeRow.jsx';
 import { useExit } from '../useExit.js';
 import { useSheetDrag } from '../useSheetDrag.js';
 import { GlyphTile } from '../BodyGlyph.jsx';
+import { DayPlanSheet } from '../DayPlanSheet.jsx';
+import { RoutineEditor, RoutineTitleEdit } from '../RoutineEditor.jsx';
+import { WalkCard } from '../WalkCard.jsx';
 
 // THE SUMMARY TRAIN PAGE — redesign round 1, variation A, his pick (27 Sep
 // 2026): "Train: let's go option A" on design/mockups/58-redesign-train.html.
@@ -123,6 +126,7 @@ export function TrainSummary({ v, parts }) {
             : <GymPage T={T} />}
       </div>
       {T.coachSheet.open && <CoachSheet s={T.coachSheet} v={v} parts={parts} />}
+      {v.dayPlanSheet && <DayPlanSheet s={v.dayPlanSheet} />}
     </div>
   );
 }
@@ -135,6 +139,7 @@ function GymPage({ T }) {
         <Hero h={T.hero} />
         <Recovery r={T.recovery} />
         <WeekCard w={T.week} carry={T.recovery.carryovers} />
+        {T.walk && <WalkCard w={T.walk} style={{ '--i': 2 }} />}
         <CoachRow c={T.coach} />
       </div>
       <Routines T={T} />
@@ -326,6 +331,12 @@ function Recovery({ r }) {
 // opens the platform's picker: a routine, rest, or a make-up for that date.
 // The make-ups Nova is holding sit at the foot: Do it now, Move (the free
 // days as pills; the capsule travels to the one he picks) and Remove.
+// the walker on an active-rest day a walk ticked (mockup 104 phone 2)
+const WalkMark = () => (
+  <svg className="nv-ts-ico thick nv-ts-capwk" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ width: 16, height: 16 }}>
+    <circle cx="13" cy="4.5" r="1.8" /><path d="M10 21l2.2-6.2L15 17v4M12.2 14.8l.8-5.8-3 1.6-1.5 3M13 9l2.2 3 2.8.8" />
+  </svg>
+);
 const WEEKDAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const dayOfIso = (iso) => WEEKDAY[new Date(`${iso}T12:00:00`).getDay()];
 function WeekCard({ w, carry }) {
@@ -348,19 +359,24 @@ function WeekCard({ w, carry }) {
         meta={w.planned ? <><b className="nv-ts-cnt">{w.done}</b> of {w.planned} done</> : null} />
       <div ref={capsRef} className="nv-ts-caps">
         {w.dots.map((d) => (
-          <label key={d.day} className="nv-ts-cd" data-day={d.day} data-state={d.state} data-today={d.isToday ? 'true' : undefined} style={d.hue ? { '--h': d.hue } : undefined}>
-            <span className={`nv-ts-pod${d.state === 'rest' ? ' rest' : ''}`} aria-hidden="true">
-              {d.state !== 'rest' && <i className="f" />}
-              {d.state === 'done' && <Ico p={P.check} size={13} cls="thick nv-ts-capck" />}
-              {d.makeup && d.state !== 'done' && <Ico p={P.undo} size={12} cls="thick nv-ts-capmk" />}
-            </span>
-            <span className="nv-ts-cl" aria-hidden="true">{d.letter}</span>
-            {d.select && (
-              <select className="nv-ts-wsel" value={d.select.value} onChange={d.select.onChange} aria-label={d.aria}>
-                {d.select.options.map((o) => <option key={o.value || 'rest'} value={o.value}>{o.label}</option>)}
-              </select>
+          <button type="button" key={d.day} className="nv-ts-cd" data-day={d.day} data-state={d.state} data-today={d.isToday ? 'true' : undefined} data-walk={d.walk ? 'true' : undefined}
+            style={d.hue ? { '--h': d.hue } : undefined} onClick={d.openPlan || undefined} disabled={!d.openPlan} aria-label={d.aria}>
+            {d.segs ? (
+              // TWO ON ONE DAY (mockup 104): the capsule splits, one hue per
+              // workout in his order, each filling when its session is filed;
+              // the second slides in on a spring
+              <span className="nv-ts-pod split" aria-hidden="true">
+                {d.segs.map((g, i) => <i key={g.key} className={`seg${g.done ? ' on' : ''}`} style={{ '--h': g.hue, '--k': i }} />)}
+              </span>
+            ) : (
+              <span className={`nv-ts-pod${d.state === 'rest' ? ' rest' : ''}`} aria-hidden="true">
+                {d.state !== 'rest' && <i className="f" />}
+                {d.walk ? <WalkMark /> : d.state === 'done' && <Ico p={P.check} size={13} cls="thick nv-ts-capck" />}
+                {d.makeup && d.state !== 'done' && <Ico p={P.undo} size={12} cls="thick nv-ts-capmk" />}
+              </span>
             )}
-          </label>
+            <span className="nv-ts-cl" aria-hidden="true">{d.letter}</span>
+          </button>
         ))}
         {ghost && <span className="nv-ts-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, '--h': ghost.hue, '--dx': `${ghost.dx}px` }} aria-hidden="true" />}
       </div>
@@ -651,10 +667,28 @@ function RoutinePage({ d, v, parts }) {
   return (
     <>
       <button type="button" className="nv-ts-back nv-sum-rise" style={{ '--i': 0 }} onClick={d.back}><Ico p={P.left} size={24} />Train</button>
-      <div className="nv-ts-titlerow nv-sum-rise" style={{ '--i': 0 }}>
-        <h1 className="nv-ts-title" style={{ margin: 0 }}>{d.name}</h1>
-        <button type="button" className="nv-ts-dots bg" aria-label={`${d.name}: more`} onClick={(e) => d.menu({ x: e.clientX, y: e.clientY })}><Dots /></button>
-      </div>
+      {d.edit?.on ? (
+        // EDIT MODE (mockup 104): the title is the input; Done saves it
+        <div className="nv-ts-titlerow nv-sum-rise" style={{ '--i': 0 }}>
+          <RoutineTitleEdit m={d.edit} />
+          <TextAction tone="accent" onClick={d.edit.done}>Done</TextAction>
+        </div>
+      ) : (
+        <div className="nv-ts-titlerow nv-sum-rise" style={{ '--i': 0 }}>
+          <h1 className="nv-ts-title" style={{ margin: 0 }}>{d.name}</h1>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 'none' }}>
+            {d.edit && <TextAction tone="accent" onClick={d.edit.start}>Edit</TextAction>}
+            <button type="button" className="nv-ts-dots bg" aria-label={`${d.name}: more`} onClick={(e) => d.menu({ x: e.clientX, y: e.clientY })}><Dots /></button>
+          </span>
+        </div>
+      )}
+      {d.edit?.on && (
+        <>
+          <div className="nv-ts-sub" style={{ marginLeft: '4px' }}>{d.edit.sub}</div>
+          <RoutineEditor m={d.edit} picker={d.picker.open ? <Picker v={v} /> : null} />
+        </>
+      )}
+      {!d.edit?.on && <>
       <div className="nv-ts-sub nv-sum-rise" style={{ '--i': 1, marginLeft: '4px' }}>{d.sub}</div>
       <div className="nv-ts-acts nv-sum-rise" style={{ '--i': 1 }}>
         <Interactive as="button" data-grow="begin" className="nv-ts-begin" onClick={d.startDisabled ? undefined : d.start} disabled={d.startDisabled} haptic={d.startDisabled ? undefined : 'commit'} activeStyle={{ transform: 'scale(.97)' }}>
@@ -689,6 +723,7 @@ function RoutinePage({ d, v, parts }) {
         <button type="button" className="nv-ts-more nv-sum-rise" style={{ '--i': 3 }} onClick={d.picker.show}><Ico p={P.plus} size={15} cls="thick" />Add exercise</button>
       )}
       {d.sheet && <LiftSheet s={d.sheet} />}
+      </>}
     </>
   );
 }

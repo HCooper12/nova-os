@@ -23,6 +23,8 @@ import '../motion/recordBanner.css';
 import { useRef } from 'react';
 import { useSearchMotion } from '../motion/useSearchMotion.js';
 import { SearchCount } from '../motion/SearchCount.jsx';
+import { DayPlanSheet } from '../DayPlanSheet.jsx';
+import { RoutineEditor, RoutineTitleEdit } from '../RoutineEditor.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -56,7 +58,7 @@ function ExercisePicker({ v }) {
   return (
     <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-cy) 18%, transparent);border-radius:12px;padding:16px 18px;background:color-mix(in srgb, var(--nv-cy) 03%, transparent)")}>
       <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-        <span style={css("font:italic 400 15px var(--nv-font-serif);color:var(--nv-cy)")}>{v.exercisePickerMode === 'session' ? 'Add for this session' : 'Add an exercise'}</span>
+        <span style={css("font:italic 400 15px var(--nv-font-serif);color:var(--nv-cy)")}>{v.exercisePickerMode === 'session' ? 'Add for this session' : v.exercisePickerMode === 'swap' ? `Swap ${v.exercisePickerSwapName || 'the lift'} for…` : 'Add an exercise'}</span>
         <Interactive as="span" onClick={v.closeExercisePicker} base="cursor:pointer;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">×</Interactive>
       </div>
       <Interactive
@@ -263,13 +265,12 @@ function RoutinesView({ v }) {
             <div key={d.day} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '7px 16px', borderTop: i === 0 ? 'none' : '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
               <span style={{ font: '600 12px var(--nv-font-ui)', letterSpacing: '.06em', textTransform: 'uppercase', width: '46px', flex: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>{d.dayLabel}</span>
               <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                <select
-                  value={d.value}
-                  onChange={d.onChange}
-                  style={{ width: '100%', background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: 'var(--nv-font-ui)', fontWeight: 550, outline: 'none', textAlign: 'right', paddingRight: '2px' }}
-                >
-                  {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
-                </select>
+                {/* the day sheet (mockup 104): tick one or more */}
+                <button type="button" onClick={d.openPlan} aria-label={`${d.dayLabel}: plan the day`}
+                  style={{ width: '100%', minHeight: '36px', background: 'transparent', border: 'none', cursor: 'pointer', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', font: '550 15px var(--nv-font-ui)', textAlign: 'right', paddingRight: '2px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
+                  {d.planHues && <span aria-hidden="true" style={css("display:inline-flex;gap:3px")}>{d.planHues.map((h, k) => <i key={k} style={{ width: '8px', height: '8px', borderRadius: '50%', background: h }} />)}</span>}
+                  <span style={css("min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{d.planNames ? d.planNames.join(' + ') : (d.options.find((o) => o.value === d.value)?.label || 'Rest')}</span>
+                </button>
                 {/* everything done this day, a tick each (3 Oct): the
                     make-ups finished and anything beside them */}
                 {d.doneMarks?.length
@@ -293,14 +294,10 @@ function RoutinesView({ v }) {
           {v.weekStrip.map((d) => (
             <div key={d.day} style={d.style}>
               <Meta as="div" tone={d.labelColor}>{d.dayLabel}</Meta>
-              <select
-                className="nv-compact"
-                value={d.value}
-                onChange={d.onChange}
-                style={{ marginTop: '6px', width: '100%', background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: "var(--nv-font-ui)", outline: 'none', textAlign: 'center' }}
-              >
-                {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
-              </select>
+              <button type="button" className="nv-compact" onClick={d.openPlan} aria-label={`${d.dayLabel}: plan the day`}
+                style={{ marginTop: '6px', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: 'var(--nv-font-ui)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {d.planNames ? d.planNames.join(' + ') : (d.options.find((o) => o.value === d.value)?.label || 'Rest')}
+              </button>
               {d.doneMarks?.length > 1
                 ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-good);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.doneMarks.map((m) => `${m.text}${m.note ? ` (${m.note})` : ''}`).join(', ')}>✓ {d.doneMarks.length} sessions</div>
                 : d.makeup
@@ -500,7 +497,21 @@ function RoutineDetailView({ v }) {
   return (
     <>
       <TextAction tone="quiet" onClick={v.backToRoutines} style={{ marginTop: '18px', marginLeft: '-8px' }}>← Routines</TextAction>
-      <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.openRoutineName}</h1>
+      {/* EDIT MODE (mockup 104): the same model and editor as the summary page */}
+      {v.routineEdit?.on ? (
+        <>
+          <div style={css("margin-top:10px;display:flex;align-items:center;gap:12px")}>
+            <RoutineTitleEdit m={v.routineEdit} />
+            <TextAction onClick={v.routineEdit.done}>Done</TextAction>
+          </div>
+          <Meta as="div" tone="faint" style={{ marginTop: '6px' }}>{v.routineEdit.sub}</Meta>
+          <RoutineEditor m={v.routineEdit} picker={v.exercisePickerOpen ? <ExercisePicker v={v} /> : null} />
+        </>
+      ) : <>
+      <div style={css("margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px")}>
+        <h1 style={css("margin:0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.openRoutineName}</h1>
+        {v.routineEdit && <TextAction onClick={v.routineEdit.start}>Edit</TextAction>}
+      </div>
 
       <div style={css("margin-top:18px;display:flex;gap:10px;flex-wrap:wrap")}>
         <Button
@@ -569,6 +580,7 @@ function RoutineDetailView({ v }) {
           </div>
         )}
       </div>
+      </>}
     </>
   );
 }
@@ -1383,6 +1395,7 @@ export function Workouts({ v }) {
       {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'routine' && <RoutineDetailView v={v} />}
       {(v.usingLiveWorkouts || v.sessionLive) && v.trainTab === 'gym' && v.workoutsView === 'session' && <SessionView v={v} />}
       {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'history' && <HistoryView v={v} />}
+      {v.dayPlanSheet && <DayPlanSheet s={v.dayPlanSheet} />}
     </div>
   );
 }

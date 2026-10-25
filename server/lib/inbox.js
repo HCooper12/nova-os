@@ -527,6 +527,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const entriesOf = (r) => r.exercises.map((e) => ({
       exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
       ...(e.dropSets ? { dropSets: e.dropSets } : {}),
+      ...(e.note ? { note: e.note } : {}),
     }));
     // a card's dropSets (n: the last n sets are drops, 0: straight sets), else
     // what the entry already had, always held below the set count
@@ -576,6 +577,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
         targetRepsLow: payload.targetRepsLow || moving.targetRepsLow,
         targetRepsHigh: payload.targetRepsHigh || moving.targetRepsHigh,
         ...(moving.dropSets ? { dropSets: moving.dropSets } : {}),
+        ...(moving.note ? { note: moving.note } : {}),
       };
       const nextTo = [...priorEntries];
       const at = landing(nextTo);
