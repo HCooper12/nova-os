@@ -776,7 +776,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     // so it follows the Intake's yes rather than shadowing it
     const { setGoalTargets } = await import('./fitnessGoals.js');
     const g = await setGoalTargets(vaultPath, { kcalTarget: plan.targetKcal, proteinTarget: plan.proteinG }).catch(() => ({ prior: null }));
-    const p = await setIntake(vaultPath, { on, facts, plan: { bmr: plan.bmr, tdee: plan.tdee, targetKcal: plan.targetKcal, proteinG: plan.proteinG, fatG: plan.fatG, carbsG: plan.carbsG, waterL: plan.waterL } });
+    const p = await setIntake(vaultPath, { on, facts, plan: { bmr: plan.bmr, bmrFormula: plan.bmrFormula, leanKg: plan.leanKg, formulaTdee: plan.formulaTdee, tdeeAdjust: plan.tdeeAdjust, tdee: plan.tdee, targetKcal: plan.targetKcal, proteinG: plan.proteinG, fatG: plan.fatG, carbsG: plan.carbsG, waterL: plan.waterL } });
     return {
       destination: `Your numbers — ${plan.targetKcal} kcal, ${plan.proteinG} g protein (the recipe collection and your profile page)`,
       undo: { route, priorTargets: t.prior, priorIntake: p.prior, priorGoalTargets: g.prior },

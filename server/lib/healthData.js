@@ -34,6 +34,8 @@ const HEALTH_DIR = path.join(DATA_ROOT, 'health');
 export const HEALTH_METRICS = [
   'steps', 'restingHeartRate', 'hrv', 'sleepAsleepMinutes', 'sleepInBedMinutes',
   'activeEnergyKcal', 'walkingRunningDistanceKm', 'vo2Max', 'weightKg',
+  // body composition (26 Oct 2026): Katch-McArdle needs his lean mass
+  'bodyFatPct', 'leanBodyMassKg',
 ];
 
 // Metrics where a literal 0 is physiologically impossible — when the Shortcut
@@ -43,6 +45,7 @@ export const HEALTH_METRICS = [
 // NOT steps/activeEnergy/distance: 0 of those at 00:05 is a real reading.
 export const IMPOSSIBLE_ZERO = new Set([
   'restingHeartRate', 'hrv', 'sleepAsleepMinutes', 'sleepInBedMinutes', 'vo2Max', 'weightKg',
+  'bodyFatPct', 'leanBodyMassKg',
 ]);
 
 function isValidDate(date) {
@@ -326,19 +329,24 @@ async function lastWeightBefore(date) {
 // vs goal vs the scale"). Pure and honest: null when no weight has ever
 // arrived; delta only when two points exist. days must be oldest-first (the
 // loadRecentDays shape).
-export function computeWeightTrend(days, today = null) {
-  const withW = (days || []).filter((d) => d.weightKg != null && d.weightKg !== 0 && d.date);
-  if (!withW.length) return null;
-  // one entry per WEIGH-IN. A carried-forward reading is the same event as the
-  // one before it, so counting both would invent a data point he never made —
-  // and, worse, make a real 10-day change look like a one-day spike.
+// one entry per WEIGH-IN. A carried-forward reading is the same event as the
+// one before it, so counting both would invent a data point he never made —
+// and, worse, make a real 10-day change look like a one-day spike.
+export function weighInsOf(days) {
   const weighIns = [];
-  for (const d of withW) {
+  for (const d of (days || []).filter((x) => x.weightKg != null && x.weightKg !== 0 && x.date)) {
     const on = d.weightMeasuredOn || d.date;
     const last = weighIns[weighIns.length - 1];
     if (last && last.on === on) { last.kg = d.weightKg; continue; }
     weighIns.push({ on, kg: d.weightKg });
   }
+  return weighIns;
+}
+
+export function computeWeightTrend(days, today = null) {
+  const withW = (days || []).filter((d) => d.weightKg != null && d.weightKg !== 0 && d.date);
+  if (!withW.length) return null;
+  const weighIns = weighInsOf(withW);
   const latest = weighIns[weighIns.length - 1];
   const ref = today || (withW[withW.length - 1].date);
   const staleDays = Math.round((new Date(`${ref}T12:00:00`) - new Date(`${latest.on}T12:00:00`)) / 86400000);
@@ -587,6 +595,9 @@ const METRIC_RANGE = {
   // sane reading (50k kJ is 12,000 kcal, which nobody burns), so that is where
   // the guess stops being a guess. Between the two it stays refused.
   activeEnergyKcal: { min: 0, max: 10_000, rescue: (n) => (n > 50_000 ? n / 4184 : null) },
+  // HealthKit's percent unit is a fraction: 0.18 means 18%
+  bodyFatPct: { min: 3, max: 60, rescue: (n) => (n > 0.03 && n < 0.6 ? Math.round(n * 1000) / 10 : null) },
+  leanBodyMassKg: { min: 20, max: 150, rescue: (n) => (n > 20_000 && n < 150_000 ? n / 1000 : null) }, // grams → kg
 };
 
 export function normalizeMetric(key, value) {

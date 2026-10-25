@@ -81,7 +81,8 @@ final class NovaHealthReader {
     static var readTypes: Set<HKObjectType> {
         var s = Set<HKObjectType>()
         for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .distanceWalkingRunning,
-                   .restingHeartRate, .heartRateVariabilitySDNN, .vo2Max, .bodyMass] {
+                   .restingHeartRate, .heartRateVariabilitySDNN, .vo2Max, .bodyMass,
+                   .bodyFatPercentage, .leanBodyMass] {
             if let t = HKObjectType.quantityType(forIdentifier: id) { s.insert(t) }
         }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
@@ -106,6 +107,11 @@ final class NovaHealthReader {
         if let v = await latest(.vo2Max, HKUnit(from: "ml/kg*min"), start, end) { m["vo2Max"] = Self.round1(v) }
         // weight carries forward: the latest reading up to the day's end
         if let v = await latest(.bodyMass, .gramUnit(with: .kilo), cal.date(byAdding: .day, value: -60, to: start)!, end) { m["weightKg"] = Self.round1(v) }
+        // body composition for Katch-McArdle (26 Oct 2026): the latest reading in
+        // 90 days, as a percent (HealthKit's percent unit is a fraction)
+        let since90 = cal.date(byAdding: .day, value: -90, to: start)!
+        if let v = await latest(.bodyFatPercentage, .percent(), since90, end) { m["bodyFatPct"] = Self.round1(v * 100) }
+        if let v = await latest(.leanBodyMass, .gramUnit(with: .kilo), since90, end) { m["leanBodyMassKg"] = Self.round1(v) }
         // last night: 6 pm the evening before to noon of this day
         let nightStart = cal.date(byAdding: .hour, value: -6, to: start)!
         let nightEnd = cal.date(byAdding: .hour, value: 12, to: start)!

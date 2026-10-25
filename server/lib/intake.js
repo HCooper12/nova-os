@@ -9,9 +9,16 @@
 // arithmetic shown; his yes writes the targets every reader already uses.
 //
 // Doctrine: models decide, code acts — here there is no model at all. The
-// formulas are textbook (Mifflin-St Jeor, activity multipliers, a deficit or
-// surplus by pace, protein by bodyweight), every step is a line he can read,
+// formulas are textbook (Katch-McArdle from lean mass when his body fat is
+// known, Mifflin-St Jeor when it is not; activity multipliers; a deficit or
+// surplus by pace; protein by bodyweight), every step is a line he can read,
 // and a number he disagrees with is one he can re-answer.
+//
+// 26 Oct 2026 (his ask): Katch-McArdle is the formula he wants; the answers
+// that never change (sex, height) are kept, so a change of pace is one tap,
+// not the interview; and a weekly review (fuelReview.js) may calibrate the
+// daily burn from what his weight and food log actually did — `tdeeAdjust`,
+// a fact like any other, so this function stays the only arithmetic.
 
 export const ACTIVITY = {
   sedentary: { factor: 1.2, label: 'sedentary — desk job, little training' },
@@ -35,6 +42,7 @@ export const QUESTIONS = [
   { key: 'age', ask: 'How old are you?', unit: 'years', min: 14, max: 90 },
   { key: 'heightCm', ask: 'How tall are you? Centimetres, or feet and inches.', unit: 'cm', min: 120, max: 230, prefill: 'recipes.heightCm' },
   { key: 'weightKg', ask: 'What do you weigh right now? I have your last weigh-in if you want to use it.', unit: 'kg', min: 35, max: 250, prefill: 'health.weightKg' },
+  { key: 'bodyFatPct', ask: 'Do you know your body fat percentage? It makes the resting burn more exact. Say "skip" if not.', unit: '%', min: 3, max: 60, optional: true, prefill: 'health.bodyFatPct' },
   { key: 'activity', ask: 'How active is a normal week — sedentary, light, moderate, very active, or athlete?', choices: Object.keys(ACTIVITY) },
   { key: 'goal', ask: 'Are you trying to lose, maintain, or gain?', choices: GOALS },
   { key: 'pace', ask: 'How fast — gentle, steady, or aggressive?', choices: Object.keys(PACE), skipIf: (f) => f.goal === 'maintain' },
@@ -54,6 +62,7 @@ export function parseAnswer(key, text) {
   const raw = String(text || '').trim().toLowerCase();
   const q = QUESTIONS.find((x) => x.key === key);
   if (!q) return { error: 'that is not a question I asked' };
+  if (q.optional && !q.free && /^(skip|no|nope|don'?t know|not sure|no idea|pass)\b/.test(raw)) return { value: null };
   if (q.free) return { value: /^(nothing|no|none|nope|skip)\.?$/.test(raw) ? '' : String(text || '').trim().slice(0, 300) };
   if (q.choices) {
     // the EARLIEST word he said wins: "slow and steady" is gentle, "steady,
@@ -96,11 +105,28 @@ export function compute(f) {
   if (!GOALS.includes(f.goal)) throw new Error('a goal is needed');
   const pace = f.goal === 'maintain' ? null : (PACE[f.pace] || PACE.steady);
   const lines = [];
-  // Mifflin-St Jeor (1990): the equation most validated against measured RMR
-  const bmr = Math.round(10 * w + 6.25 * h - 5 * a + (f.sex === 'female' ? -161 : 5));
-  lines.push(`Resting burn (BMR, Mifflin-St Jeor): 10×${w} + 6.25×${h} − 5×${a} ${f.sex === 'female' ? '− 161' : '+ 5'} = ${bmr} kcal`);
-  const tdee = Math.round(bmr * ACTIVITY[f.activity].factor);
-  lines.push(`Daily burn (TDEE): ${bmr} × ${ACTIVITY[f.activity].factor} (${ACTIVITY[f.activity].label}) = ${tdee} kcal`);
+  const bf = bodyFat(f.bodyFatPct);
+  let bmr, bmrFormula, leanKg = null;
+  if (bf != null) {
+    // Katch-McArdle: resting burn from lean mass, so it does not over-count
+    // fat as tissue that burns energy — his chosen formula (26 Oct 2026)
+    leanKg = Math.round(w * (1 - bf / 100) * 10) / 10;
+    bmr = Math.round(370 + 21.6 * leanKg);
+    bmrFormula = 'katch-mcardle';
+    lines.push(`Resting burn (BMR, Katch-McArdle): 370 + 21.6 × ${leanKg} kg lean mass (${w} kg at ${bf}% fat) = ${bmr} kcal`);
+  } else {
+    // Mifflin-St Jeor (1990): the best of the formulas that need no body fat
+    bmr = Math.round(10 * w + 6.25 * h - 5 * a + (f.sex === 'female' ? -161 : 5));
+    bmrFormula = 'mifflin-st-jeor';
+    lines.push(`Resting burn (BMR, Mifflin-St Jeor, because Katch-McArdle needs a body fat %): 10×${w} + 6.25×${h} − 5×${a} ${f.sex === 'female' ? '− 161' : '+ 5'} = ${bmr} kcal`);
+  }
+  const formulaTdee = Math.round(bmr * ACTIVITY[f.activity].factor);
+  lines.push(`Daily burn (TDEE): ${bmr} × ${ACTIVITY[f.activity].factor} (${ACTIVITY[f.activity].label}) = ${formulaTdee} kcal`);
+  // the weekly review's calibration: what his weight and food log say he
+  // really burns, held to ±500 so one odd fortnight cannot run away with it
+  const adj = Number.isFinite(Number(f.tdeeAdjust)) ? Math.max(-500, Math.min(500, Math.round(Number(f.tdeeAdjust)))) : 0;
+  const tdee = formulaTdee + adj;
+  if (adj) lines.push(`Calibrated from your own record: ${formulaTdee} ${adj < 0 ? '−' : '+'} ${Math.abs(adj)}${f.tdeeAdjustOn ? ` (weekly review, ${f.tdeeAdjustOn})` : ''} = ${tdee} kcal`);
   const delta = pace ? (f.goal === 'lose' ? -pace.kcal : pace.kcal) : 0;
   const targetKcal = Math.max(1200, tdee + delta);
   lines.push(pace
@@ -117,13 +143,39 @@ export function compute(f) {
   const waterL = Math.round(w * 0.035 * 10) / 10;
   lines.push(`Water: ${w} kg × 35 ml = ${waterL} L a day, more on training days`);
   const weeksTo = null; // no target weight is asked; the pace line already says the rate
-  return { bmr, tdee, targetKcal, proteinG, fatG, carbsG, waterL, deltaKcal: delta, pacePerWeekKg: pace ? pace.kcal / 1000 : 0, lines, weeksTo };
+  return { bmr, bmrFormula, leanKg, formulaTdee, tdeeAdjust: adj, tdee, targetKcal, proteinG, fatG, carbsG, waterL, deltaKcal: delta, pacePerWeekKg: pace ? pace.kcal / 1000 : 0, lines, weeksTo };
+}
+
+// a body fat % is a fact only inside a believable band; anything else is absent
+export function bodyFat(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 3 && n <= 60 ? Math.round(n * 10) / 10 : null;
+}
+
+// The facts that do not change week to week. An edit keeps them unless he
+// names a new value, so changing his pace never asks his height again.
+export const STABLE_FACTS = ['sex', 'heightCm'];
+
+// An edit: the stored facts, with only what he changed laid over them. A key
+// he did not send keeps its stored value; a null clears an optional one.
+export function mergeFacts(stored, change) {
+  const out = { ...(stored || {}) };
+  for (const [k, v] of Object.entries(change || {})) {
+    if (!QUESTIONS.some((q) => q.key === k) && k !== 'tdeeAdjust' && k !== 'tdeeAdjustOn') continue;
+    if (v === undefined) continue;
+    if (v === null) delete out[k];
+    else out[k] = v;
+  }
+  if (out.goal === 'maintain') delete out.pace;
+  else if (out.goal && !out.pace) out.pace = 'steady';
+  return out;
 }
 
 // The card he approves: the numbers, and every step that made them.
 export function describe(f, plan) {
   const head = `${plan.targetKcal} kcal a day · ${plan.proteinG} g protein · ${plan.fatG} g fat · ${plan.carbsG} g carbs`;
-  const who = `${f.sex}, ${f.age}, ${f.heightCm} cm, ${f.weightKg} kg, ${ACTIVITY[f.activity].label}; goal: ${f.goal}${f.pace && f.goal !== 'maintain' ? ` (${f.pace})` : ''}`;
+  const who = `${f.sex}, ${f.age}, ${f.heightCm} cm, ${f.weightKg} kg${bodyFat(f.bodyFatPct) != null ? ` at ${bodyFat(f.bodyFatPct)}% fat` : ''}, ${ACTIVITY[f.activity].label}; goal: ${f.goal}${f.pace && f.goal !== 'maintain' ? ` (${f.pace})` : ''}`;
   const body = [`**${head}**`, '', `From: ${who}.`, '', ...plan.lines.map((l) => `- ${l}`), f.eating ? `\nEating style he asked the plan to respect: ${f.eating}` : ''].join('\n');
   return { title: `Your numbers: ${head}`, body };
 }

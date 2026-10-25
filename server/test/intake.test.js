@@ -1,7 +1,7 @@
 // THE INTAKE — code computes the numbers, every line readable, nothing tuned.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAnswer, compute, describe, QUESTIONS } from '../lib/intake.js';
+import { parseAnswer, compute, describe, QUESTIONS, mergeFacts, bodyFat, STABLE_FACTS } from '../lib/intake.js';
 
 test('answers arrive the way he says them — units, words, feet and inches', () => {
   assert.equal(parseAnswer('sex', "I'm a bloke").value, 'male');
@@ -63,6 +63,50 @@ test('the card carries the head number and every step', () => {
 
 test('the pace question is skipped for maintain, and the questions are in the order the arithmetic needs', () => {
   const keys = QUESTIONS.map((q) => q.key);
-  assert.deepEqual(keys.slice(0, 6), ['sex', 'age', 'heightCm', 'weightKg', 'activity', 'goal']);
+  assert.deepEqual(keys.slice(0, 7), ['sex', 'age', 'heightCm', 'weightKg', 'bodyFatPct', 'activity', 'goal']);
   assert.equal(QUESTIONS.find((q) => q.key === 'pace').skipIf({ goal: 'maintain' }), true);
+});
+
+test('with a body fat %, the resting burn is Katch-McArdle from lean mass, printed', () => {
+  const f = { sex: 'male', age: 28, heightCm: 188.5, weightKg: 84, bodyFatPct: 18, activity: 'moderate', goal: 'lose', pace: 'aggressive' };
+  const p = compute(f);
+  // lean mass 84 × 0.82 = 68.9 kg; 370 + 21.6 × 68.9 = 1858.2
+  assert.equal(p.leanKg, 68.9);
+  assert.equal(p.bmr, 1858);
+  assert.equal(p.bmrFormula, 'katch-mcardle');
+  assert.match(p.lines[0], /Katch-McArdle\): 370 \+ 21\.6 × 68\.9 kg lean mass \(84 kg at 18% fat\) = 1858/);
+  assert.equal(p.tdee, Math.round(1858 * 1.55));
+  assert.equal(p.targetKcal, p.tdee - 750);
+});
+
+test('without one it says why it fell back to Mifflin-St Jeor; a silly body fat is absent, not believed', () => {
+  const p = compute({ sex: 'male', age: 28, heightCm: 188.5, weightKg: 84, activity: 'moderate', goal: 'lose', pace: 'steady' });
+  assert.equal(p.bmrFormula, 'mifflin-st-jeor');
+  assert.match(p.lines[0], /because Katch-McArdle needs a body fat %/);
+  assert.equal(bodyFat(85), null);
+  assert.equal(bodyFat('0'), null);
+  assert.equal(bodyFat(''), null);
+  assert.equal(bodyFat(17.25), 17.3);
+  assert.equal(parseAnswer('bodyFatPct', "don't know").value, null, 'skippable');
+  assert.equal(parseAnswer('bodyFatPct', 'about 17%').value, 17);
+});
+
+test('the weekly calibration shifts the daily burn by a printed line, held to ±500', () => {
+  const f = { sex: 'male', age: 28, heightCm: 188.5, weightKg: 84, activity: 'moderate', goal: 'lose', pace: 'steady', tdeeAdjust: -150, tdeeAdjustOn: '2026-11-02' };
+  const p = compute(f);
+  assert.equal(p.tdee, p.formulaTdee - 150);
+  assert.equal(p.targetKcal, p.tdee - 500);
+  assert.ok(p.lines.some((l) => /Calibrated from your own record: \d+ − 150 \(weekly review, 2026-11-02\)/.test(l)));
+  assert.equal(compute({ ...f, tdeeAdjust: -2000 }).tdeeAdjust, -500);
+});
+
+test('an edit keeps what he did not change — his sex and height are never asked again', () => {
+  const stored = { sex: 'male', age: 28, heightCm: 188.5, weightKg: 83, activity: 'moderate', goal: 'lose', pace: 'aggressive', eating: '' };
+  const m = mergeFacts(stored, { pace: 'steady' });
+  assert.deepEqual(m, { ...stored, pace: 'steady' });
+  for (const k of STABLE_FACTS) assert.equal(m[k], stored[k]);
+  assert.equal(mergeFacts(stored, { goal: 'maintain' }).pace, undefined, 'maintain has no pace');
+  assert.equal(mergeFacts({ ...stored, goal: 'maintain', pace: undefined }, { goal: 'lose' }).pace, 'steady', 'a cut needs one; steady is the default');
+  assert.equal(mergeFacts({ ...stored, bodyFatPct: 18 }, { bodyFatPct: null }).bodyFatPct, undefined, 'null clears an optional fact');
+  assert.equal(mergeFacts(stored, { targetKcal: 1500 }).targetKcal, undefined, 'a number is never a fact — only answers are');
 });

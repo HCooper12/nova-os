@@ -12,7 +12,9 @@
 
 export const MIN_GAP_MS = 5 * 60_000;
 // v2 (26 Oct): workouts + heart rate joined the read set, so iOS must be asked once more
-const ASKED_KEY = 'novaos.healthAsked.v2';
+// v3 (26 Oct 2026): body fat and lean mass were added, and iOS only shows the
+// sheet for types it has not asked about — so the new ones need one more ask
+const ASKED_KEY = 'novaos.healthAsked.v3';
 
 function plugin() {
   try {
