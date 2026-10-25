@@ -464,6 +464,9 @@ export const api = {
   intakePrefill: (conn) => call(conn, '/api/intake/prefill'),
   intakeAnswer: (conn, key, text) => post(conn, '/api/intake/answer', { key, text }),
   intakePropose: (conn, facts) => post(conn, '/api/intake/propose', { facts }),
+  intakeApply: (conn, change) => post(conn, '/api/intake/apply', { change }),
+  intakeReview: (conn) => call(conn, '/api/intake/review'),
+  intakeReviewRun: (conn) => post(conn, '/api/intake/review'),
   browseShotBlobUrl: async (conn, id, file) => {
     const res = await fetch(baseOf(conn) + `/api/browse/${encodeURIComponent(id)}/shot/${encodeURIComponent(file)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
     if (!res.ok) return null;

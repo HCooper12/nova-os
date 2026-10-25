@@ -274,7 +274,34 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 .nv-set-rring b { display: block; font: 700 var(--t20)/1.1 var(--s-round); color: var(--nv-ink); }
 .nv-set-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 16px 14px 6px; text-align: center; }
 .nv-set-nums b { display: block; font: 700 calc(26px * var(--ts))/1 var(--s-round); font-variant-numeric: tabular-nums; }
-.nv-set-nums span span { display: block; margin-top: 4px; font: 400 var(--t13)/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-set-nums > span > span { display: block; margin-top: 4px; font: 400 var(--t13)/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-set-nums b { transition: color .24s ease; }
+/* a draft: the numbers he is about to choose take the accent, so a preview never reads as what is set */
+.nv-set-nums.is-draft b { color: var(--s-acc); }
+.nv-set-numf { margin: 0; padding: 2px 14px 12px; text-align: center; font: 400 var(--t13)/1.35 var(--nv-font-ui); color: var(--s-ink3); text-wrap: balance; }
+.nv-set-numd { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 10px 8px; padding: 10px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--s-acc) 12%, transparent); font: 400 var(--t13)/1.35 var(--nv-font-ui); color: var(--s-ink2);
+  animation: nvNumIn var(--nv-spring-snappy-ms, 320ms) var(--nv-spring-snappy, ease-out) both; }
+.nv-set-numd b { font: 700 var(--t15)/1 var(--s-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; }
+@keyframes nvNumIn { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.nv-set-numa { display: inline-flex; align-items: center; gap: 14px; }
+.nv-set-numr { display: grid; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--s-sep); }
+.nv-set-numr > .nv-set-rl { font-size: var(--t15); color: var(--s-ink2); }
+.nv-set-numr > [role="tablist"] { width: 100%; }
+.nv-set-numr > span:has(> select) { justify-self: start; }
+.nv-set-numm { animation: nvNumIn .26s ease-out both; }
+.nv-set-numi > span:not(.nv-set-rs) { display: inline-flex; align-items: baseline; gap: 6px; font: 400 var(--t15)/1 var(--nv-font-ui); color: var(--s-ink3); }
+.nv-set-numi input { width: 5.5em; height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);
+  background: var(--nv-well); color: var(--nv-ink); font: 700 16px/1 var(--s-round); font-variant-numeric: tabular-nums; }
+.nv-set-numi input:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 1px; }
+.nv-set-numi > button, .nv-set-numi > [role="button"] { justify-self: start; }
+.nv-set-numk { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--s-sep); font: 400 var(--t13)/1.4 var(--nv-font-ui); color: var(--s-ink3); }
+.nv-set-numw { display: grid; gap: 8px; padding: 12px 14px 14px; border-top: 1px solid var(--s-sep); }
+.nv-set-numw .nv-set-rs { margin: 0; }
+.nv-set-sk.nv-set-numsk { display: block; width: 72%; height: 14px; border-radius: 7px; margin: 0; }
+.nv-set-numl { display: grid; gap: 8px; margin: 2px 0 0; padding: 0 0 0 14px; border-left: 2px solid color-mix(in srgb, var(--s-acc) 40%, transparent); list-style: none;
+  font: 400 var(--t13)/1.45 var(--nv-font-ui); color: var(--s-ink2); }
+.nv-set-numl li { animation: nvNumIn .24s ease-out both; animation-delay: calc(var(--i) * 40ms); text-wrap: pretty; }
 .nv-set-lad { display: grid; gap: 7px; padding: 12px 14px; }
 .nv-set-lad + .nv-set-lad { border-top: 1px solid var(--s-sep); }
 .nv-set-ladh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
@@ -465,6 +492,7 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
   .nv-set-sw .kn, .nv-set-sw .tr, .nv-set-seg .th, .nv-set-qarc, .nv-set-nt, .nv-set-menu, .nvm.ghost, .nv-set-rring .rr, .nv-set-tlmark { transition-duration: .01ms !important; }
   .nv-set-sk { animation: none; }
   .nv-set-nudge { animation: none; }
+  .nv-set-numd, .nv-set-numm, .nv-set-numl li { animation: nvSetFade .2s ease both !important; }
   .nv-set-stg { animation: nvSetFade .2s linear backwards !important; }
   .nv-set-stg path { animation: none; stroke-dashoffset: 0; }
 }

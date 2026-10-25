@@ -9,6 +9,7 @@ import {
   Ico, Tile, Val, NavRow, SwitchRow, MenuRow, SegBlock, ActRow, Group, HeaderCard, Stages, MenuPill, Switch, Seg,
 } from './SettingsKit.jsx';
 import { Mini, Disc, MaterialPatch } from './SettingsMini.jsx';
+import { NumbersEditor } from './NumbersEditor.jsx';
 import { FIcon } from '../FuelIcon.jsx';
 import { say, refuse, lightRow } from '../settingsToast.js';
 import { PUSH_MS, FADE_MS, reducedMotion } from '../settingsNav.js';
@@ -363,16 +364,7 @@ export function YouPage({ P }) {
         <>
           <Group label="Your numbers" k="numbers" i={1} foot={Y.demo ? 'Demo numbers.' : ''}>
             {n ? (
-              <>
-                <div className="nv-set-nums">
-                  <span><b>{Number(n.plan?.targetKcal).toLocaleString('en-AU')}</b><span>kcal a day</span></span>
-                  <span><b>{n.plan?.proteinG} g</b><span>protein floor</span></span>
-                  <span><b>{Number(n.plan?.tdee).toLocaleString('en-AU')}</b><span>TDEE</span></span>
-                </div>
-                <ActRow sub={`From the Intake on ${n.on}: ${n.facts?.weightKg} kg, ${n.facts?.activity}, ${n.facts?.goal}.`}>
-                  <TextAction onClick={Y.setNumbers}>Redo</TextAction>
-                </ActRow>
-              </>
+              <NumbersEditor n={n} apply={Y.applyNumbers} loadContext={Y.loadNumbersContext} runReview={Y.runNumbersReview} readOnly={Y.readOnly} demo={Y.demo} />
             ) : (
               <ActRow sub="No Intake yet. Every calorie target in Fuel rests on numbers typed once: seven questions, by voice or typing, and code works out the rest.">
                 <TextAction onClick={Y.setNumbers}>Set</TextAction>

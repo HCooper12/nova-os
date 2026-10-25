@@ -278,6 +278,10 @@ export function valsSettings(app, ctx, v) {
     connected: demo || !!profile,
     numbers: demo ? DEMO_NUMBERS : profile?.numbers || null,
     setNumbers: demo ? () => app.toastMsg('Demo: the Intake runs once the Mac is connected') : profile?.setNumbers,
+    // the edit without the interview, and the weekly review (26 Oct 2026)
+    applyNumbers: demo ? () => { app.toastMsg('Demo: nothing is written'); return Promise.resolve(); } : profile?.applyNumbers,
+    loadNumbersContext: demo ? null : profile?.loadNumbersContext,
+    runNumbersReview: demo ? null : profile?.runNumbersReview,
     about: aboutView ? {
       focus: aboutView.focus || '',
       priorities: aboutView.priorities || [],

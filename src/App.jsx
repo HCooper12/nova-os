@@ -471,7 +471,7 @@ function wrapStageCard(w) {
   return { kind: 'list', label: 'WRAP THE DAY', tone: f.floorMet === false ? 'gold' : 'good', items, foot: f.date || null };
 }
 
-const INTAKE_LABEL = { sex: 'Sex', age: 'Age', heightCm: 'Height (cm)', weightKg: 'Weight (kg)', activity: 'Activity', goal: 'Goal', pace: 'Pace', eating: 'Eating style' };
+const INTAKE_LABEL = { sex: 'Sex', age: 'Age', heightCm: 'Height (cm)', weightKg: 'Weight (kg)', bodyFatPct: 'Body fat (%)', activity: 'Activity', goal: 'Goal', pace: 'Pace', eating: 'Eating style' };
 
 export default class App extends Component {
   constructor(props) {
@@ -9415,13 +9415,27 @@ export default class App extends Component {
     api.intakePrefill(conn).then((pre) => {
       const known = pre.known || {};
       const cur = known.currentTargets;
+      // a redo keeps what does not change (26 Oct 2026, his ask): sex and
+      // height always, age while the last Intake is under a year old
+      const prior = known.intake;
+      const kept = {};
+      if (prior?.facts) {
+        for (const k of pre.stable || ['sex', 'heightCm']) if (prior.facts[k] != null) kept[k] = prior.facts[k];
+        if (prior.facts.age != null && prior.on && Date.now() - new Date(prior.on).getTime() < 365 * 86400000) kept.age = prior.facts.age;
+      }
+      const left = (pre.questions || []).filter((qq) => kept[qq.key] == null).length;
+      if (Object.keys(kept).length) {
+        this.sayLine(`I kept ${[kept.sex, kept.heightCm && `${kept.heightCm} cm`, kept.age && `${kept.age}`].filter(Boolean).join(', ')} from your last Intake, so ${left} questions. To change just your pace, say "make my cut gentle", or use Settings › You.`);
+        this.setState({ intake: { facts: kept, idx: 0, questions: pre.questions || [], known }, voicePendingProposal: null, briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0 }, () => this.askIntake(0));
+        return;
+      }
       const intro = cur
-        ? `Let's work your numbers out properly. Right now the collection says ${cur.targetKcal} kcal and a ${cur.proteinFloorG} g protein floor — typed once, never derived. Seven quick questions; say "stop" any time.`
-        : 'Let\'s work your numbers out properly. Seven quick questions; say "stop" any time.';
+        ? `Let's work your numbers out properly. Right now the collection says ${cur.targetKcal} kcal and a ${cur.proteinFloorG} g protein floor — typed once, never derived. ${(pre.questions || []).length} quick questions; say "stop" any time.`
+        : `Let's work your numbers out properly. ${(pre.questions || []).length} quick questions; say "stop" any time.`;
       this.sayLine(intro);
       // the interview owns the chat: a brief-close queue running alongside would
       // fight it for his yes (seen live, 8 Sep) — its questions stay in the Inbox
-      this.setState({ intake: { facts: {}, idx: 0, questions: pre.questions || [], known }, voicePendingProposal: null, briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0 }, () => this.askIntake(0));
+      this.setState({ intake: { facts: kept, idx: 0, questions: pre.questions || [], known }, voicePendingProposal: null, briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0 }, () => this.askIntake(0));
     }).catch((e) => this.sayLine(`I could not start the intake: ${e?.message || e}`));
   }
   askIntake(idx) {
@@ -9429,13 +9443,13 @@ export default class App extends Component {
     if (!it) return;
     const q = it.questions[idx];
     if (!q) return this.finishIntake();
-    if (q.key === 'pace' && it.facts.goal === 'maintain') { this.setState({ intake: { ...it, idx: idx + 1 } }, () => this.askIntake(idx + 1)); return; }
+    if ((q.key === 'pace' && it.facts.goal === 'maintain') || Object.hasOwn(it.facts, q.key)) { this.setState({ intake: { ...it, idx: idx + 1 } }, () => this.askIntake(idx + 1)); return; }
     let ask = q.ask;
     const k = it.known?.[q.key];
-    if (k?.value != null) ask = `${q.ask.replace(/ I have your last weigh-in if you want to use it\./, '')} I have ${k.value}${q.unit === 'cm' ? ' cm' : q.unit === 'kg' ? ' kg' : ''} from ${k.from} — say "use it" or give me the number.`;
+    if (k?.value != null) ask = `${q.ask.replace(/ I have your last weigh-in if you want to use it\./, '').replace(/ Say "skip" if not\./, '')} I have ${k.value}${q.unit === 'cm' ? ' cm' : q.unit === 'kg' ? ' kg' : q.unit === '%' ? '%' : ''} from ${k.from} — say "use it" or give me the number.`;
     this.setState({ intake: { ...it, idx } });
     const done = Object.keys(it.facts).length;
-    this.putCard({ kind: 'list', label: 'THE INTAKE', tone: 'gold', items: [...Object.entries(it.facts).map(([kk, v]) => ({ name: `${INTAKE_LABEL[kk] || kk}: ${v === '' ? '—' : v}`, note: '✓' })), { name: `${idx + 1}. ${INTAKE_LABEL[q.key] || q.key}`, note: 'NOW', tone: 'gold' }], foot: `${done} of ${it.questions.length} answered` });
+    this.putCard({ kind: 'list', label: 'THE INTAKE', tone: 'gold', items: [...Object.entries(it.facts).map(([kk, v]) => ({ name: `${INTAKE_LABEL[kk] || kk}: ${v === '' || v == null ? '—' : v}`, note: '✓' })), { name: `${idx + 1}. ${INTAKE_LABEL[q.key] || q.key}`, note: 'NOW', tone: 'gold' }], foot: `${done} of ${it.questions.length} answered` });
     this.sayLine(ask);
   }
   answerIntake(q) {
@@ -9483,6 +9497,43 @@ export default class App extends Component {
       if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
       this.refreshInbox?.();
     }).catch((e) => this.sayLine(`I could not compute the plan: ${e?.message || e}`));
+  }
+  // YOUR NUMBERS, EDITED (26 Oct 2026, his ask): change what changed and keep
+  // the rest. It files at once on the Intake's own approve path, so the
+  // receipt's Undo is the Inbox undo that restores the previous targets.
+  applyNumbers(change) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('The Mac is unreachable — your numbers live in your vault'); return Promise.reject(new Error('offline')); }
+    return api.intakeApply(conn, change).then((r) => {
+      const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
+      refresh();
+      tickReceipt({ key: `numbers:${r.record?.id}`, label: 'Your numbers', done: true,
+        title: `${r.plan.targetKcal.toLocaleString('en-AU')} kcal · ${r.plan.proteinG} g protein from today`,
+        undo: () => api.inboxUndo(conn, r.record.id).then(refresh).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+      return r;
+    }).catch((e) => { this.toastMsg(`Could not change your numbers: ${e.message}`); throw e; });
+  }
+  loadNumbersContext() {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('offline'));
+    return Promise.all([api.intakePrefill(conn), api.intakeReview(conn).catch(() => null)])
+      .then(([pre, review]) => ({ known: pre?.known || {}, review }));
+  }
+  runNumbersReview() {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('offline'));
+    return api.intakeReviewRun(conn).then((r) => { this.refreshInbox?.(); return r; })
+      .catch((e) => { this.toastMsg(`The review could not run: ${e.message}`); throw e; });
+  }
+  // "make my cut aggressive", "set my pace to gentle": one change by voice,
+  // without the interview — the same apply the Settings page uses
+  tryNumbersPaceVoice(q) {
+    const m = q.match(/\b(?:set|change|switch|make|move|put)\s+(?:my\s+)?(?:pace|cut|deficit|diet|calories)\b.*?\b(gentle|slow|steady|moderate|normal|aggressive|fast|hard)\b/i);
+    if (!m || !this.state.liveProfile?.intake) return false;
+    const pace = { gentle: 'gentle', slow: 'gentle', steady: 'steady', moderate: 'steady', normal: 'steady', aggressive: 'aggressive', fast: 'aggressive', hard: 'aggressive' }[m[1].toLowerCase()];
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+    this.applyNumbers({ pace }).then((r) => this.sayLine(`Done: ${pace} from today. ${r.plan.targetKcal} kcal and ${r.plan.proteinG} grams of protein. Past days keep their own targets, and Undo is on the receipt.`)).catch(() => {});
+    return true;
   }
   // one line from Nova into the chat, spoken if he has voice on
   sayLine(line) {
@@ -10564,6 +10615,7 @@ export default class App extends Component {
     if (this.state.screen === 'briefing' && this.state.briefingAsk && this.askAboutBriefing(q)) return;
     if (this.tryBrowseVoice(q)) return;
     if (this.tryWrapVoice(q)) return;
+    if (this.tryNumbersPaceVoice(q)) return;
     if (this.tryIntakeVoice(q)) return;
     if (this.tryGymVoice(q)) return;
     if (this.trySettingsVoice(q)) return;

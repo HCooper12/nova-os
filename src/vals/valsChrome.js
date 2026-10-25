@@ -634,6 +634,9 @@ export function valsChrome(app, ctx) {
       // THE INTAKE — the numbers under every calorie target, derived by code from his answers
       numbers: st.liveProfile?.intake || null,
       setNumbers: () => { if (isOffline) { app.toastMsg('Offline — reconnect to work out your numbers'); return; } app.navigate('voice'); app.startIntake(); },
+      applyNumbers: (change) => (isOffline ? Promise.reject(app.toastMsg('Offline — reconnect to change your numbers')) : app.applyNumbers(change)),
+      loadNumbersContext: () => app.loadNumbersContext(),
+      runNumbersReview: () => app.runNumbersReview(),
     } : null,
     learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],
