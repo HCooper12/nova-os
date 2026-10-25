@@ -643,7 +643,11 @@ export function valsChrome(app, ctx) {
       knows: st.liveProfile?.knows || null,
       saveSection: (key, text, confirm) => (isOffline ? Promise.reject(app.toastMsg('Offline — reconnect to change About you')) : app.saveProfileSection(key, text, confirm)),
       confirmSection: (key) => (isOffline ? Promise.reject(app.toastMsg('Offline — reconnect to change About you')) : app.saveProfileSection(key, null, true)),
-      startTalk: (key) => { if (isOffline) { app.toastMsg('Offline — reconnect to talk with Nova'); return; } app.startProfileTalk(key || null); },
+      startTalk: (mode, key) => { if (isOffline) { app.toastMsg('Offline — reconnect to talk with Nova'); return; } app.startProfileTalk(mode || 'interview', key || null); },
+      // the options and his own lines (27 Oct); offline rejects with the reason, which the panel shows
+      toggleOption: (key, phrase, on) => (isOffline ? Promise.reject(new Error('Offline, so nothing was written')) : app.toggleProfileOption(key, phrase, on)),
+      appendSection: (key, text) => (isOffline ? Promise.reject(new Error('Offline, so nothing was written')) : app.appendProfileSection(key, text)),
+      loadReach: () => app.loadProfileReach(),
     } : null,
     learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],

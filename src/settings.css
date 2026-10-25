@@ -605,11 +605,80 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 .nv-ab-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 .nv-ab-lab { display: block; margin: 12px 0 6px; font: 600 var(--t13)/1.2 var(--nv-font-ui); color: var(--s-ink3); }
 .nv-ab-ed + .nv-ab-acts { justify-content: flex-end; }
+/* 27 Oct: the interview hero line, the option chips, "Add your own", the
+   chosen count on a tile, and who reads the part. A chosen chip is filled in
+   its part's hue, the fill growing from the chip's centre on the snappy
+   spring while the plus turns into a drawn tick (no width change, so the
+   wrap never jumps); an unchosen chip is a quiet outline with a faint plus. */
+.nv-ab-gosub { margin: 8px 0 0; text-align: center; font: 400 12.5px/1.35 var(--nv-font-ui); color: var(--s-ink3); text-wrap: balance; }
+.nv-ab-cnt {
+  margin-top: auto; align-self: flex-start; display: inline-flex; align-items: baseline; gap: 3px;
+  padding: 3px 8px; border-radius: 999px; font: 600 11.5px/1.2 var(--nv-font-ui); font-variant-numeric: tabular-nums;
+  color: var(--h); background: color-mix(in srgb, var(--h) 15%, transparent);
+  animation: nvAbPop var(--nv-spring-bouncy-ms, 800ms) var(--nv-spring-bouncy, ease) backwards;
+}
+@keyframes nvAbPop { from { opacity: 0; transform: scale(.7); } }
+.nv-ab-opts { margin-top: 14px; }
+.nv-ab-ol { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font: 600 var(--t13)/1.2 var(--nv-font-ui); color: var(--s-ink3); }
+.nv-ab-oc { color: var(--h); font-variant-numeric: tabular-nums; }
+.nv-ab-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.nv-ab-chip {
+  position: relative; isolation: isolate; overflow: hidden; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 7px 13px 7px 10px; border-radius: 999px; text-align: left;
+  font: 500 13.5px/1.25 var(--nv-font-ui); color: var(--s-ink2); background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 34%, var(--s-sep));
+  transition: color .2s var(--s-ease), box-shadow .2s var(--s-ease), transform .16s var(--s-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.nv-ab-chip::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: color-mix(in srgb, var(--h) 26%, transparent);
+  transform: scale(0, .2); opacity: 0;
+  transition: transform var(--nv-spring-snappy-ms, 640ms) var(--nv-spring-snappy, ease), opacity .18s var(--s-ease);
+}
+.nv-ab-chip.on { color: var(--nv-ink); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--h) 75%, transparent); }
+.nv-ab-chip.on::before { transform: none; opacity: 1; }
+.nv-ab-chip:active:not(:disabled) { transform: scale(.96); }
+.nv-ab-chip:disabled { cursor: default; }
+.nv-ab-ck { flex: none; width: 13px; height: 13px; overflow: visible; fill: none; stroke: var(--h); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.nv-ab-ck path { stroke-dasharray: 11; stroke-dashoffset: 11; transition: stroke-dashoffset .26s var(--s-ease) .09s; }
+.nv-ab-chip.on .nv-ab-ck path { stroke-dashoffset: 0; }
+/* the faint plus an unchosen chip carries, gone as the tick draws */
+.nv-ab-chip:not(.on) .nv-ab-ck { background: linear-gradient(currentColor, currentColor) center / 9px 1.4px no-repeat, linear-gradient(currentColor, currentColor) center / 1.4px 9px no-repeat; color: color-mix(in srgb, var(--h) 55%, var(--s-ink3)); }
+.nv-ab-more {
+  min-height: 36px; padding: 7px 13px; border-radius: 999px; font: 600 13px/1.2 var(--nv-font-ui);
+  color: var(--h); background: color-mix(in srgb, var(--h) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--h) 45%, transparent);
+}
+.nv-ab-err { margin: 8px 0 0; font: 500 var(--t13)/1.4 var(--nv-font-ui); color: var(--nv-warn); text-wrap: pretty; }
+.nv-ab-add { margin-top: 4px; }
+.nv-ab-addrow { display: flex; gap: 8px; align-items: center; }
+.nv-ab-addin { flex: 1; min-width: 0; font: 400 16px/1.2 var(--nv-font-ui); }
+.nv-ab-addin::placeholder { color: var(--s-ink3); }
+.nv-ab-reach {
+  display: grid; gap: 6px; margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--nv-ink) 9%, transparent);
+}
+.nv-ab-rl { font: 600 12px/1.2 var(--nv-font-ui); color: var(--s-ink3); }
+.nv-ab-rchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nv-ab-rchips + .nv-ab-rl { margin-top: 4px; }
+.nv-ab-rchip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px;
+  font: 500 12px/1.2 var(--nv-font-ui); color: var(--s-ink2); background: color-mix(in srgb, var(--nv-ink) 7%, transparent);
+  animation: nvSetFade .3s var(--s-ease) backwards;
+}
+.nv-ab-rchip.strong { color: var(--h); background: color-mix(in srgb, var(--h) 14%, transparent); }
+.nv-ab-rchip.strong::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--h); }
+.nv-ab-rsk { display: inline-block; height: 22px; border-radius: 999px; background: color-mix(in srgb, var(--nv-ink) 8%, transparent); animation: nvAbSk 1.2s ease-in-out infinite alternate; }
+@keyframes nvAbSk { to { opacity: .45; } }
 :root[data-nv-calm="1"] .nv-ab-tile { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .nv-ab-tile, .nv-ab-open { animation: nvSetFade .2s ease backwards !important; }
   .nv-ab-ring .dr, .nv-ab-ring .cf { transition: none !important; }
   .nv-ab-tile:active { transform: none; }
+  .nv-ab-chip, .nv-ab-chip::before, .nv-ab-ck path { transition: none !important; }
+  .nv-ab-chip:active:not(:disabled) { transform: none; }
+  .nv-ab-cnt, .nv-ab-rchip, .nv-ab-rsk { animation: none !important; }
 }
 
 /* reduced motion: every slide a short fade (settingsNav.js), and nothing

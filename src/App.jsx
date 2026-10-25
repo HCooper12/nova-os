@@ -96,7 +96,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
-import { PROFILE_SECTIONS, normaliseSections, knowsOf } from './profileSections.js';
+import { PROFILE_SECTIONS, normaliseSections, knowsOf, sectionTitle, isProfileTalkVoice } from './profileSections.js';
 import { fitSets, applyDrops } from './fitSets.js';
 import { readVideoLink, readLink } from './videoDrop.js';
 import { isLongForm } from './captureTag.js';
@@ -9543,43 +9543,43 @@ export default class App extends Component {
   // the opener for a chosen part and the closing count; the model only
   // interprets. Every filing gets a receipt whose Undo is the Inbox undo.
   tryProfileTalkVoice(q) {
-    if (!/\b(?:tell you (?:about me|about myself|more about me)|get to know me|learn (?:about|more about) me|update my profile|fill (?:in|out) my profile|(?:fill (?:in|out)|update|go through|work on) (?:my )?about me|(?:let's |let us )?(?:talk|chat) about me)\b/i.test(q)) return false;
+    if (!isProfileTalkVoice(q)) return false;
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
-    this.startProfileTalk();
+    this.startProfileTalk('interview');
     return true;
   }
-  startProfileTalk(focusKey = null) {
+  // mode 'interview': Nova asks, random or pointed, like getting to know
+  // someone; mode 'section': one part, from its tile's "Discuss with Nova".
+  // The server picks each question and hands back its id, which goes back
+  // with his answer so it knows what he was answering.
+  startProfileTalk(mode = 'interview', key = null) {
     if (this.state.screen !== 'voice') this.navigate('voice');
     const conn = getConnection();
     if (!conn) { this.sayLine('I need the Mac to be reachable for this. About you lives in your vault.'); return; }
-    const focus = focusKey ? PROFILE_SECTIONS.find((p) => p.key === focusKey) : null;
+    const focus = mode === 'section' && key ? PROFILE_SECTIONS.find((p) => p.key === key) : null;
+    const m = focus ? 'section' : 'interview';
+    const focusKey = focus?.key || null;
     // the talk owns the chat, as the Intake does: a brief queue alongside
     // would fight it for his words; its questions stay in the Inbox
     const base = { voicePendingProposal: null, briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0, intake: null };
-    if (focus) {
-      const line = focus.ask;
-      this.setState({ ...base, profileTalk: { history: [{ who: 'nova', text: line }], learned: [], focusKey: focus.key } });
-      this.sayLine(line);
-      this.putProfileTalkCard(this.state.liveProfile, [], focus.key);
-      return;
-    }
-    this.setState({ ...base, profileTalk: { history: [], learned: [], focusKey: null } });
-    this.putProfileTalkCard(this.state.liveProfile, [], null);
-    api.profileTalkStart(conn).then((r) => {
+    this.setState({ ...base, profileTalk: { history: [], learned: [], focusKey, mode: m, questionId: null } });
+    this.putProfileTalkCard(this.state.liveProfile, [], focusKey, { mode: m });
+    api.profileTalkStart(conn, { mode: m, key: focusKey }).then((r) => {
       if (!this.state.profileTalk) return; // he stopped before the opener came back
       if (r?.profile) this.setState({ liveProfile: r.profile });
-      const say = String(r?.say || '').trim() || 'Tell me about yourself. Anything you like, and I will keep what matters.';
-      this.setState((s) => (s.profileTalk ? { profileTalk: { ...s.profileTalk, history: [...s.profileTalk.history, { who: 'nova', text: say }] } } : null));
+      const say = String(r?.say || '').trim() || focus?.ask || 'Tell me about yourself. Anything you like, and I will keep what matters.';
+      this.setState((s) => (s.profileTalk ? { profileTalk: { ...s.profileTalk, questionId: r?.questionId ?? null, history: [...s.profileTalk.history, { who: 'nova', text: say }] } } : null));
       this.sayLine(say);
-      this.putProfileTalkCard(r?.profile || this.state.liveProfile, [], null, { replaceSame: true });
+      this.putProfileTalkCard(r?.profile || this.state.liveProfile, [], focusKey, { replaceSame: true, mode: m });
     }).catch((e) => {
       this.setState({ profileTalk: null });
       this.sayLine(`I couldn't start that: ${e?.message || e}`);
     });
   }
-  // the glass while they talk: the nine parts, a tick on each he has
+  // the glass while they talk: the twelve parts, a tick on each he has
   // confirmed, the ones filed in this talk named as new
   putProfileTalkCard(profile, learnedKeys = [], focusKey = null, opts = {}) {
+    const { mode = this.state.profileTalk?.mode || 'interview', ...cardOpts } = opts;
     const parts = normaliseSections(profile?.sections);
     const k = knowsOf(profile?.knows, profile?.sections);
     const fresh = new Set(learnedKeys);
@@ -9588,7 +9588,8 @@ export default class App extends Component {
       note: fresh.has(p.key) ? 'NEW ✓' : p.text && !p.drafted ? '✓' : p.drafted ? 'DRAFT' : focusKey === p.key ? 'NOW' : '',
       ...(fresh.has(p.key) || focusKey === p.key ? { tone: 'gold' } : {}),
     }));
-    this.putCard({ kind: 'list', label: 'ABOUT YOU', tone: 'gold', items, foot: `Nova knows ${k.confirmed} of ${k.total}` }, opts);
+    const label = mode === 'section' && focusKey ? `ABOUT YOU · ${sectionTitle(focusKey).toUpperCase()}` : 'INTERVIEW';
+    this.putCard({ kind: 'list', label, tone: 'gold', items, foot: `Nova knows ${k.confirmed} of ${k.total}` }, cardOpts);
   }
   answerProfileTalk(q) {
     const pt = this.state.profileTalk;
@@ -9605,7 +9606,7 @@ export default class App extends Component {
     const history = pt.history;
     this.setState({ profileTalk: { ...pt, history: [...history, { who: 'you', text }] } });
     const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
-    api.profileTalk(conn, history, text).then((r) => {
+    api.profileTalk(conn, history, text, { mode: pt.mode || 'interview', questionId: pt.questionId ?? null }).then((r) => {
       if (!this.state.profileTalk) return; // he said stop while this was thinking
       if (r?.error) { this.sayLine(`I couldn't take that in: ${r.error}`); return; }
       const filed = [...(r.learned || []), ...(r.confirmed || [])];
@@ -9620,11 +9621,11 @@ export default class App extends Component {
       const say = String(r.say || '').trim();
       const learned = [...this.state.profileTalk.learned, ...filed.map((f) => f.key).filter(Boolean)];
       this.setState((s) => (s.profileTalk ? {
-        profileTalk: { ...s.profileTalk, learned, history: say ? [...s.profileTalk.history, { who: 'nova', text: say }] : s.profileTalk.history },
+        profileTalk: { ...s.profileTalk, learned, questionId: r.questionId ?? s.profileTalk.questionId, history: say ? [...s.profileTalk.history, { who: 'nova', text: say }] : s.profileTalk.history },
         ...(r.profile ? { liveProfile: r.profile } : {}),
       } : null));
       if (say) this.sayLine(say);
-      this.putProfileTalkCard(r.profile || this.state.liveProfile, learned, null, { replaceSame: true });
+      this.putProfileTalkCard(r.profile || this.state.liveProfile, learned, this.state.profileTalk?.focusKey || null, { replaceSame: true });
       refresh();
       if (r.done) this.closeProfileTalk();
     }).catch((e) => {
@@ -9659,6 +9660,45 @@ export default class App extends Component {
       }
       return r;
     }).catch((e) => { this.toastMsg(`Could not save ${title}: ${e.message}`); throw e; });
+  }
+  // one option on or off (27 Oct): the chip has already flipped on screen;
+  // this files it, raises the receipt, and rejects with the real cause so the
+  // chip can flip back and say why
+  toggleProfileOption(key, phrase, on) {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('The Mac is unreachable, so nothing was written'));
+    const title = sectionTitle(key);
+    return api.profileOption(conn, key, phrase, on).then((r) => {
+      const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
+      if (r?.profile) this.setState({ liveProfile: r.profile }); else refresh();
+      if (r?.recordId) {
+        tickReceipt({ key: `profile-opt:${r.recordId}`, label: title, done: true,
+          title: on ? `${title}: ${phrase}` : `${title}: took off ${phrase}`,
+          undo: () => api.inboxUndo(conn, r.recordId).then(refresh).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+      }
+      return r;
+    });
+  }
+  // one line of his own words added under a section ("Add your own")
+  appendProfileSection(key, text) {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('The Mac is unreachable, so nothing was written'));
+    const title = sectionTitle(key);
+    return api.profileSection(conn, key, text, false, true).then((r) => {
+      const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
+      if (r?.profile) this.setState({ liveProfile: r.profile }); else refresh();
+      if (r?.recordId) {
+        tickReceipt({ key: `profile-add:${r.recordId}`, label: title, done: true, title: `${title}: added "${text}"`,
+          undo: () => api.inboxUndo(conn, r.recordId).then(refresh).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+      }
+      return r;
+    });
+  }
+  // who reads About you: every agent the server says takes it in
+  loadProfileReach() {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('offline'));
+    return api.profileReach(conn).then((r) => (Array.isArray(r?.readers) ? r.readers : Promise.reject(new Error('no readers list'))));
   }
   // one line from Nova into the chat, spoken if he has voice on
   sayLine(line) {

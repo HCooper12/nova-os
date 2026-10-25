@@ -171,10 +171,16 @@ export const api = {
   setProfile: (conn, body) => put(conn, '/api/profile', body),
   // ABOUT YOU, BY SECTION (26 Oct 2026): one section replaced or confirmed,
   // filed on the Inbox rails (undo = inboxUndo with the recordId it returns)
-  profileSection: (conn, key, text, confirm) => put(conn, '/api/profile/section', { key, text, confirm }),
-  // the spoken back-and-forth that fills About you: Nova asks, code files what he learned
-  profileTalkStart: (conn) => post(conn, '/api/profile/talk/start', {}, { timeoutMs: 60_000 }),
-  profileTalk: (conn, history, text) => post(conn, '/api/profile/talk', { history, text }, { timeoutMs: 120_000 }),
+  // `append: true` adds one line of his own words under what is there
+  profileSection: (conn, key, text, confirm, append) => put(conn, '/api/profile/section', { key, text, confirm, ...(append ? { append: true } : {}) }),
+  // one option phrase on or off in a section (27 Oct): its `- phrase` line, on the same rails
+  profileOption: (conn, key, phrase, on) => put(conn, '/api/profile/option', { key, phrase, on }),
+  // every Nova agent that reads his profile, so the page can show who uses it
+  profileReach: (conn) => call(conn, '/api/profile/reach'),
+  // the back-and-forth that fills About you: an interview (Nova picks the
+  // questions) or one section; code files what he learned
+  profileTalkStart: (conn, { mode = 'interview', key = null } = {}) => post(conn, '/api/profile/talk/start', { mode, key }, { timeoutMs: 60_000 }),
+  profileTalk: (conn, history, text, { mode = 'interview', questionId = null } = {}) => post(conn, '/api/profile/talk', { history, text, mode, questionId }, { timeoutMs: 120_000 }),
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),
   noteSummaryJob: (conn, jobId) => call(conn, `/api/notes/summary/${encodeURIComponent(jobId)}`),
   activity: (conn) => call(conn, '/api/activity'),
