@@ -373,15 +373,14 @@ function WeekCard({ w, carry }) {
               <span className="nv-ts-agt">
                 {d.rows.length ? d.rows.map((r) => (
                   <span key={r.key} className="nv-ts-agn" data-rest={r.rest ? 'true' : undefined}>
-                    <span className="nm">{r.name}{r.optional && <span className="op"> · optional</span>}</span>
-                    {r.meta && <span className="mt">{r.meta}</span>}
+                    <span className="nm">{r.name}</span>
+                    {(r.meta || r.optional) && <span className="mt">{[r.meta, r.optional && 'optional'].filter(Boolean).join(' · ')}</span>}
                   </span>
                 )) : <span className="nv-ts-agn" data-rest="true"><span className="nm">Rest</span></span>}
               </span>
-              {!d.begin && (d.walk ? <WalkMark /> : d.state === 'done' ? <Ico p={P.check} size={15} cls="thick nv-ts-agck" />
-                : d.makeup ? <Ico p={P.undo} size={14} cls="thick nv-ts-agck" /> : d.openPlan && <Ico p={P.right} size={15} cls="thick nv-ts-agch" />)}
+              {d.walk ? <WalkMark /> : d.state === 'done' ? <Ico p={P.check} size={15} cls="thick nv-ts-agck" />
+                : d.makeup ? <Ico p={P.undo} size={14} cls="thick nv-ts-agck" /> : d.openPlan && <Ico p={P.right} size={15} cls="thick nv-ts-agch" />}
             </button>
-            {d.begin && <button type="button" className="nv-ts-aggo" onClick={d.begin}>Begin</button>}
           </li>
         ))}
         {ghost && <span className="nv-ts-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, '--h': ghost.hue, '--dx': `${ghost.dx}px` }} aria-hidden="true" />}

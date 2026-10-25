@@ -249,7 +249,6 @@ export function valsTrainSummary(app, ctx, v) {
             meta: x.kind === 'active-rest' ? null : metaOf(x.makeup ? x.sourceName : x.name),
             hue: hueOfSlot(x),
           })),
-          begin: d.isToday && hero.kind === 'scheduled' && !(k && k.plannedCount && k.doneCount === k.plannedCount) ? hero.primary.run : null,
         };
       }),
     };
