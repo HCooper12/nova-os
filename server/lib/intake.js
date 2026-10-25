@@ -20,6 +20,8 @@
 // daily burn from what his weight and food log actually did — `tdeeAdjust`,
 // a fact like any other, so this function stays the only arithmetic.
 
+import { parseRange as parseRangeText } from './bodyFatEstimate.js';
+
 export const ACTIVITY = {
   sedentary: { factor: 1.2, label: 'sedentary — desk job, little training' },
   light: { factor: 1.375, label: 'light — 1-3 sessions a week' },
@@ -42,7 +44,7 @@ export const QUESTIONS = [
   { key: 'age', ask: 'How old are you?', unit: 'years', min: 14, max: 90 },
   { key: 'heightCm', ask: 'How tall are you? Centimetres, or feet and inches.', unit: 'cm', min: 120, max: 230, prefill: 'recipes.heightCm' },
   { key: 'weightKg', ask: 'What do you weigh right now? I have your last weigh-in if you want to use it.', unit: 'kg', min: 35, max: 250, prefill: 'health.weightKg' },
-  { key: 'bodyFatPct', ask: 'Do you know your body fat percentage? It makes the resting burn more exact. Say "skip" if not.', unit: '%', min: 3, max: 60, optional: true, prefill: 'health.bodyFatPct' },
+  { key: 'bodyFatPct', ask: 'Roughly what is your body fat? A range is fine, like "15 to 19" from the visual guide. Say "skip" if you have no idea.', unit: '%', min: 3, max: 60, optional: true, prefill: 'health.bodyFatPct' },
   { key: 'activity', ask: 'How active is a normal week — sedentary, light, moderate, very active, or athlete?', choices: Object.keys(ACTIVITY) },
   { key: 'goal', ask: 'Are you trying to lose, maintain, or gain?', choices: GOALS },
   { key: 'pace', ask: 'How fast — gentle, steady, or aggressive?', choices: Object.keys(PACE), skipIf: (f) => f.goal === 'maintain' },
@@ -63,6 +65,10 @@ export function parseAnswer(key, text) {
   const q = QUESTIONS.find((x) => x.key === key);
   if (!q) return { error: 'that is not a question I asked' };
   if (q.optional && !q.free && /^(skip|no|nope|don'?t know|not sure|no idea|pass)\b/.test(raw)) return { value: null };
+  if (key === 'bodyFatPct') {
+    const rg = parseRangeText(raw);
+    if (rg) return { value: rg.pct, also: { bodyFatRange: [rg.lo, rg.hi], bodyFatMethod: 'visual' } };
+  }
   if (q.free) return { value: /^(nothing|no|none|nope|skip)\.?$/.test(raw) ? '' : String(text || '').trim().slice(0, 300) };
   if (q.choices) {
     // the EARLIEST word he said wins: "slow and steady" is gentle, "steady,
@@ -114,6 +120,12 @@ export function compute(f) {
     bmr = Math.round(370 + 21.6 * leanKg);
     bmrFormula = 'katch-mcardle';
     lines.push(`Resting burn (BMR, Katch-McArdle): 370 + 21.6 × ${leanKg} kg lean mass (${w} kg at ${bf}% fat) = ${bmr} kcal`);
+    // an estimated range: say what its width is worth, so the middle is not mistaken for a measurement
+    const rg = Array.isArray(f.bodyFatRange) && f.bodyFatRange.length === 2 ? f.bodyFatRange.map(Number) : null;
+    if (rg && rg.every(Number.isFinite) && rg[1] > rg[0]) {
+      const at = (p) => Math.round((370 + 21.6 * w * (1 - p / 100)) * ACTIVITY[f.activity].factor);
+      lines.push(`Body fat is an estimate, ${rg[0]}–${rg[1]}%${f.bodyFatMethod ? ` (${methodWords(f.bodyFatMethod)})` : ''}; ${bf}% is its middle. Across the range the daily burn runs ${at(rg[1])}–${at(rg[0])} kcal.`);
+    }
   } else {
     // Mifflin-St Jeor (1990): the best of the formulas that need no body fat
     bmr = Math.round(10 * w + 6.25 * h - 5 * a + (f.sex === 'female' ? -161 : 5));
@@ -146,6 +158,10 @@ export function compute(f) {
   return { bmr, bmrFormula, leanKg, formulaTdee, tdeeAdjust: adj, tdee, targetKcal, proteinG, fatG, carbsG, waterL, deltaKcal: delta, pacePerWeekKg: pace ? pace.kcal / 1000 : 0, lines, weeksTo };
 }
 
+function methodWords(m) {
+  return String(m).split('+').map((x) => ({ visual: 'visual guide', navy: 'Navy tape method', rfm: 'relative fat mass', health: 'Apple Health' }[x] || x)).join(' + ');
+}
+
 // a body fat % is a fact only inside a believable band; anything else is absent
 export function bodyFat(v) {
   if (v == null || v === '') return null;
@@ -156,17 +172,23 @@ export function bodyFat(v) {
 // The facts that do not change week to week. An edit keeps them unless he
 // names a new value, so changing his pace never asks his height again.
 export const STABLE_FACTS = ['sex', 'heightCm'];
+// facts that no interview question asks: the weekly calibration, and how a
+// body fat figure was arrived at (bodyFatEstimate.js), kept beside it
+export const EXTRA_FACTS = ['tdeeAdjust', 'tdeeAdjustOn', 'bodyFatRange', 'bodyFatMethod', 'waistCm', 'neckCm', 'hipCm'];
 
 // An edit: the stored facts, with only what he changed laid over them. A key
 // he did not send keeps its stored value; a null clears an optional one.
 export function mergeFacts(stored, change) {
   const out = { ...(stored || {}) };
   for (const [k, v] of Object.entries(change || {})) {
-    if (!QUESTIONS.some((q) => q.key === k) && k !== 'tdeeAdjust' && k !== 'tdeeAdjustOn') continue;
+    if (!QUESTIONS.some((q) => q.key === k) && !EXTRA_FACTS.includes(k)) continue;
     if (v === undefined) continue;
     if (v === null) delete out[k];
     else out[k] = v;
   }
+  // a body fat typed by hand drops the estimate it no longer came from
+  if (change && 'bodyFatPct' in change && !('bodyFatRange' in change)) { delete out.bodyFatRange; if (!('bodyFatMethod' in change)) delete out.bodyFatMethod; }
+  if (out.bodyFatPct == null) { delete out.bodyFatRange; delete out.bodyFatMethod; }
   if (out.goal === 'maintain') delete out.pace;
   else if (out.goal && !out.pace) out.pace = 'steady';
   return out;

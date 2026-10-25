@@ -71,7 +71,10 @@ export function reviewNumbers({ intake, weighIns = [], logs = [], health = [], s
   const bfDay = [...health].reverse().find((d) => bodyFat(d.bodyFatPct) != null);
   if (bfDay && (bodyFat(facts.bodyFatPct) == null || Math.abs(bodyFat(bfDay.bodyFatPct) - bodyFat(facts.bodyFatPct)) >= 1)) {
     change.bodyFatPct = bodyFat(bfDay.bodyFatPct);
+    change.bodyFatMethod = 'health'; // a measured reading replaces an estimated range
     lines.push(`Body fat: ${change.bodyFatPct}% in Apple Health on ${bfDay.date}${bodyFat(facts.bodyFatPct) == null ? ', so the resting burn can use Katch-McArdle' : `, against the ${facts.bodyFatPct}% your numbers use`}.`);
+  } else if (bodyFat(facts.bodyFatPct) != null && Array.isArray(facts.bodyFatRange)) {
+    lines.push(`Body fat: your estimate of ${facts.bodyFatRange[0]}–${facts.bodyFatRange[1]}% stands; no measured reading in Apple Health to replace it.`);
   } else if (bodyFat(facts.bodyFatPct) == null) {
     lines.push('Body fat: none in Apple Health, so the resting burn stays on Mifflin-St Jeor. Katch-McArdle starts the week a reading arrives.');
   }
