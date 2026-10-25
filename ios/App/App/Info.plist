@@ -20,8 +20,6 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -33,14 +31,16 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Nova reads your steps, heart rate variability, resting heart rate, sleep, activity and weight so your goals, recovery and widgets use the same numbers as the Health app.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Nova listens when you talk to him, so you can ask, capture and log by voice.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Nova uses the camera to scan barcodes, photograph meals and check your lifting form.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Nova reads your steps, heart rate variability, resting heart rate, sleep, activity, weight and body fat so your goals, recovery, calorie targets and widgets use the same numbers as the Health app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Nova listens when you talk to him, so you can ask, capture and log by voice.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -62,14 +62,14 @@
 			</array>
 		</dict>
 	</dict>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
 	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>

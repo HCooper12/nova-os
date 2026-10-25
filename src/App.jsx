@@ -9449,7 +9449,7 @@ export default class App extends Component {
     if (k?.value != null) ask = `${q.ask.replace(/ I have your last weigh-in if you want to use it\./, '').replace(/ Say "skip" if not\./, '')} I have ${k.value}${q.unit === 'cm' ? ' cm' : q.unit === 'kg' ? ' kg' : q.unit === '%' ? '%' : ''} from ${k.from} — say "use it" or give me the number.`;
     this.setState({ intake: { ...it, idx } });
     const done = Object.keys(it.facts).length;
-    this.putCard({ kind: 'list', label: 'THE INTAKE', tone: 'gold', items: [...Object.entries(it.facts).map(([kk, v]) => ({ name: `${INTAKE_LABEL[kk] || kk}: ${v === '' || v == null ? '—' : v}`, note: '✓' })), { name: `${idx + 1}. ${INTAKE_LABEL[q.key] || q.key}`, note: 'NOW', tone: 'gold' }], foot: `${done} of ${it.questions.length} answered` });
+    this.putCard({ kind: 'list', label: 'THE INTAKE', tone: 'gold', items: [...Object.entries(it.facts).filter(([kk]) => INTAKE_LABEL[kk]).map(([kk, v]) => ({ name: `${INTAKE_LABEL[kk] || kk}: ${v === '' || v == null ? '—' : v}`, note: '✓' })), { name: `${idx + 1}. ${INTAKE_LABEL[q.key] || q.key}`, note: 'NOW', tone: 'gold' }], foot: `${done} of ${it.questions.length} answered` });
     this.sayLine(ask);
   }
   answerIntake(q) {
@@ -9466,8 +9466,8 @@ export default class App extends Component {
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text }], orbInput: '' }));
     const known = it.known?.[question.key];
     const useKnown = known?.value != null && /^(use it|use that|yes|yep|yeah|that's right|thats right|correct|same|keep it)[.!\s]*$/i.test(text);
-    const settle = (value) => {
-      const facts = { ...it.facts, [question.key]: value };
+    const settle = (value, also = null) => {
+      const facts = { ...it.facts, [question.key]: value, ...(also || {}) };
       this.setState({ intake: { ...it, facts, idx: it.idx + 1 } }, () => this.askIntake(it.idx + 1));
     };
     if (useKnown) { settle(known.value); return true; }
@@ -9475,7 +9475,7 @@ export default class App extends Component {
     if (!conn) { this.sayLine('The Mac is unreachable — I cannot check that answer.'); return true; }
     api.intakeAnswer(conn, question.key, text).then((r) => {
       if (r?.error) { this.sayLine(`I need ${r.error}.`); return; }
-      settle(r.value);
+      settle(r.value, r.also);
     }).catch((e) => this.sayLine(`I could not read that: ${e?.message || e}`));
     return true;
   }

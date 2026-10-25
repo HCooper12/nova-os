@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { TextAction, Segmented, Select, Chip } from '../Controls.jsx';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { TextAction, Segmented, Select, Chip, Rail } from '../Controls.jsx';
 import { NumberRoll } from '../NumberRoll.jsx';
 import { ACTIVITY, PACE, GOALS, compute, mergeFacts, bodyFat } from '../../server/lib/intake.js';
+import { VISUAL_BANDS, GUIDE_URL, estimateBodyFat } from '../../server/lib/bodyFatEstimate.js';
 
 // YOUR NUMBERS, EDITABLE (26 Oct 2026, his ask): "I should be able to go back
 // and edit it without going back through the entire process again." The
@@ -23,7 +24,8 @@ export function NumbersEditor({ n, apply, loadContext, runReview, readOnly, demo
   const [busy, setBusy] = useState(false);
   const [showChecks, setShowChecks] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [rev, setRev] = useState(0); // remounts the number fields after an outside change
+  const [rev, setRev] = useState(0);
+  const [estimating, setEstimating] = useState(false); // remounts the number fields after an outside change
 
   useEffect(() => {
     if (!loadContext) return undefined;
@@ -39,17 +41,21 @@ export function NumbersEditor({ n, apply, loadContext, runReview, readOnly, demo
   const plan = useMemo(() => { try { return compute(facts); } catch { return null; } }, [facts]);
   const dirty = Object.keys(change).length > 0 && plan && (plan.targetKcal !== n.plan?.targetKcal || plan.proteinG !== n.plan?.proteinG || JSON.stringify(facts) !== JSON.stringify(stored));
   const shown = dirty ? plan : n.plan;
-  const set = (k, v) => setChange((c) => {
-    const next = { ...c, [k]: v };
-    if (JSON.stringify(v) === JSON.stringify(stored[k] ?? null)) delete next[k];
+  const setMany = (obj) => setChange((c) => {
+    const next = { ...c };
+    for (const [k, v] of Object.entries(obj)) {
+      next[k] = v;
+      if (JSON.stringify(v) === JSON.stringify(stored[k] ?? null)) delete next[k];
+    }
     return next;
   });
+  const set = (k, v) => setMany({ [k]: v });
 
   const known = ctx?.known || {};
   const newerWeight = known.weightKg && Math.abs(Number(known.weightKg.value) - Number(facts.weightKg)) >= 0.1 ? known.weightKg : null;
   const healthFat = known.bodyFatPct && bodyFat(known.bodyFatPct.value) !== bodyFat(facts.bodyFatPct) ? known.bodyFatPct : null;
   const formula = shown?.bmrFormula === 'katch-mcardle' || bodyFat(facts.bodyFatPct) != null
-    ? `Katch-McArdle · ${bodyFat(facts.bodyFatPct)}% body fat`
+    ? `Katch-McArdle · ${bodyFat(facts.bodyFatPct)}% body fat${Array.isArray(facts.bodyFatRange) ? `, the middle of your ${facts.bodyFatRange[0]}–${facts.bodyFatRange[1]}% estimate` : facts.bodyFatMethod === 'health' ? ' from Apple Health' : ''}`
     : 'Mifflin-St Jeor · add your body fat % for Katch-McArdle';
 
   const commit = () => {
@@ -115,12 +121,21 @@ export function NumbersEditor({ n, apply, loadContext, runReview, readOnly, demo
             <span><NumField key={`weightKg${rev}`} value={facts.weightKg} min={35} max={250} onValue={(v) => set('weightKg', v ?? stored.weightKg)} label="Weight in kilograms" /> kg</span>
             {newerWeight ? <Chip onClick={() => { set('weightKg', newerWeight.value); setRev((r) => r + 1); }}>Use {newerWeight.value} kg from {newerWeight.on}</Chip> : null}
           </label>
-          <label className="nv-set-numr nv-set-numi">
+          <div className="nv-set-numr nv-set-numi">
             <span className="nv-set-rl">Body fat</span>
-            <span><NumField key={`bodyFatPct${rev}`} value={facts.bodyFatPct} min={3} max={60} onValue={(v) => set('bodyFatPct', v)} label="Body fat percent" /> %</span>
-            {healthFat ? <Chip onClick={() => { set('bodyFatPct', healthFat.value); setRev((r) => r + 1); }}>Use {healthFat.value}% from Apple Health</Chip>
-              : bodyFat(facts.bodyFatPct) == null ? <span className="nv-set-rs">None in Apple Health yet. A smart scale or a DEXA scan gives one.</span> : null}
-          </label>
+            <span>
+              <NumField key={`bodyFatPct${rev}`} value={facts.bodyFatPct} min={3} max={60} onValue={(v) => set('bodyFatPct', v)} label="Body fat percent" /> %
+              {Array.isArray(facts.bodyFatRange) ? <span className="nv-set-numrg">estimate {facts.bodyFatRange[0]}–{facts.bodyFatRange[1]}%</span> : null}
+            </span>
+            {healthFat ? <Chip onClick={() => { setMany({ bodyFatPct: healthFat.value, bodyFatMethod: 'health' }); setRev((r) => r + 1); }}>Use {healthFat.value}% from Apple Health</Chip>
+              : bodyFat(facts.bodyFatPct) == null ? <span className="nv-set-rs">None in Apple Health. Estimate it from the visual guide and a tape measure.</span> : null}
+            {!healthFat && !estimating ? <TextAction onClick={() => setEstimating(true)}>{bodyFat(facts.bodyFatPct) == null ? 'Estimate it' : 'Estimate again'}</TextAction> : null}
+            {estimating ? (
+              <BodyFatEstimator sex={stored.sex} heightCm={stored.heightCm} start={facts}
+                onUse={(e) => { setMany(e); setEstimating(false); setRev((r) => r + 1); }}
+                onClose={() => setEstimating(false)} />
+            ) : null}
+          </div>
           <label className="nv-set-numr nv-set-numi">
             <span className="nv-set-rl">Age</span>
             <span><NumField key={`age${rev}`} value={facts.age} min={14} max={90} integer onValue={(v) => set('age', v ?? stored.age)} label="Age in years" /> years</span>
@@ -172,5 +187,68 @@ function NumField({ value, min, max, integer, onValue, label }) {
         const v = parseFloat(e.target.value.replace(',', '.'));
         onValue(Number.isFinite(v) && v >= min && v <= max ? (integer ? Math.round(v) : Math.round(v * 10) / 10) : null);
       }} />
+  );
+}
+
+// THE ESTIMATE (26 Oct 2026, his ask): no scale and no scan, so a range from
+// the ATHLEAN-X visual guide (the one the Protocols book points to), checked
+// by the US Navy tape method and relative fat mass. The arithmetic and the
+// combining rule are server/lib/bodyFatEstimate.js, imported, so what this
+// shows is what the plan will use.
+function BodyFatEstimator({ sex, heightCm, start, onUse, onClose }) {
+  const startBand = VISUAL_BANDS.find((b) => Array.isArray(start.bodyFatRange) && b.lo === start.bodyFatRange[0] && b.hi === start.bodyFatRange[1])?.id || null;
+  const [bandId, setBandId] = useState(startBand);
+  const [waistCm, setWaist] = useState(start.waistCm ?? null);
+  const [neckCm, setNeck] = useState(start.neckCm ?? null);
+  const [hipCm, setHip] = useState(start.hipCm ?? null);
+  const est = estimateBodyFat({ sex, heightCm, bandId, waistCm, neckCm, hipCm });
+  const railRef = useRef(null);
+  // open on the band he chose before, or the middle of the plausible bands
+  useEffect(() => {
+    // the rail scrolls itself, never the page (scrollIntoView would move both)
+    const scroller = railRef.current?.firstElementChild;
+    const el = scroller?.querySelector(`[data-band="${startBand || '13-15'}"]`);
+    if (scroller && el) scroller.scrollLeft = el.offsetLeft - scroller.offsetLeft - 12;
+  }, [startBand]);
+  const female = sex === 'female';
+  return (
+    <div className="nv-set-bfe" role="group" aria-label="Estimate your body fat">
+      <div className="nv-set-bfeh">
+        <b>Which looks most like you?</b>
+        <a href={GUIDE_URL} target="_blank" rel="noreferrer">See the photos</a>
+      </div>
+      <div ref={railRef}>
+        <Rail gap="8px" ariaLabel="Body fat bands from the visual guide" style={{ padding: '2px 0 6px', alignItems: 'stretch' }}>
+          {VISUAL_BANDS.map((b) => (
+            <button key={b.id} type="button" data-band={b.id} aria-pressed={bandId === b.id}
+              className={`nv-set-bfb${bandId === b.id ? ' on' : ''}`} onClick={() => setBandId(bandId === b.id ? null : b.id)}>
+              <b>{b.lo}–{b.hi}%</b>
+              <span>{b.look}</span>
+            </button>
+          ))}
+        </Rail>
+      </div>
+      {female ? <p className="nv-set-rs">The guide shows men; for you the tape methods carry the estimate.</p> : null}
+      <div className="nv-set-bfeh"><b>With a tape measure</b><span className="nv-set-rs">optional, sharper</span></div>
+      <div className="nv-set-bft">
+        <label><span>Waist, at the navel</span><span><NumField value={waistCm} min={50} max={200} onValue={setWaist} label="Waist in centimetres at the navel" /> cm</span></label>
+        <label><span>Neck, below the Adam's apple</span><span><NumField value={neckCm} min={25} max={70} onValue={setNeck} label="Neck in centimetres" /> cm</span></label>
+        {female ? <label><span>Hips, at the widest</span><span><NumField value={hipCm} min={60} max={200} onValue={setHip} label="Hips in centimetres" /> cm</span></label> : null}
+      </div>
+      {est ? (
+        <div className="nv-set-bfr" role="status">
+          <b><NumberRoll value={est.lo} format={(v) => `${Math.round(v * 10) / 10}`} />–<NumberRoll value={est.hi} format={(v) => `${Math.round(v * 10) / 10}%`} /></b>
+          <span>Nova uses the middle, {est.pct}%, and shows what the range is worth in calories.</span>
+          <ul className="nv-set-numl">{est.lines.map((l, i) => <li key={i} style={{ '--i': i }}>{l}</li>)}</ul>
+        </div>
+      ) : <p className="nv-set-rs">Pick the photo band closest to you, or measure your waist and neck.</p>}
+      <span className="nv-set-numa">
+        <TextAction tone="faint" onClick={onClose}>Cancel</TextAction>
+        <TextAction disabled={!est} onClick={() => est && onUse({
+          bodyFatPct: est.pct, bodyFatRange: [est.lo, est.hi], bodyFatMethod: est.method,
+          waistCm: waistCm ?? null, neckCm: neckCm ?? null, hipCm: hipCm ?? null,
+        })}>Use this estimate</TextAction>
+      </span>
+    </div>
   );
 }
