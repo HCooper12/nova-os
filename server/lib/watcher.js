@@ -196,7 +196,7 @@ Dense bullets, not prose — no verdicts yet, no filler, no padding. Length foll
 Output the notes as PLAIN MARKDOWN — start directly with the first heading or bullet. No JSON, no code fences, no preamble, no sign-off.`;
 }
 
-export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false }) {
+export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false, him = '' }) {
   return `${NOVA_LENS}
 
 You are Nova's Watcher. Hayden submitted a video; ${digest ? 'it is LONG, so its full timestamped transcript was extracted locally and condensed by your own chunked extraction passes into the notes file below' : 'its full timestamped transcript has been extracted locally'}. Your job is to watch it FOR him — read ${digest ? 'the notes' : 'the transcript'}, weigh it, and draft the one note worth keeping.
@@ -208,7 +208,7 @@ The video:
 - Duration: ${duration || '(unknown)'}
 - Transcript source: ${transcriptSource || 'captions'}
 - ${digest ? 'Condensed notes file (Read this FIRST, in full — timestamps in it are from the real transcript)' : 'Transcript file (Read this FIRST, in full)'}: ${transcriptPath}
-${question ? `\nHayden's specific ask: ${question}\n` : ''}
+${question ? `\nHayden's specific ask: ${question}\n` : ''}${him ? `\nWHO YOU ARE WATCHING FOR (his profile page; judge relevance against it):\n${him}\n` : ''}
 First decide what this video is, then take the matching lane:
 
 LANE "coach" — training / nutrition / health / fitness content. Put on the Coach's hat:
@@ -440,7 +440,13 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
 }
 
 async function runWatchModel(vaultPath, promptInputs, model) {
-  const parsed = await runClaudeJson(vaultPath, buildWatchPrompt(promptInputs), {
+  // who he is (27 Oct 2026): "relevant to Hayden's goals" reads his profile
+  let him = '';
+  try {
+    const { profileContext } = await import('./profile.js');
+    him = await profileContext(vaultPath);
+  } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
+  const parsed = await runClaudeJson(vaultPath, buildWatchPrompt({ ...promptInputs, him }), {
     allowedTools: 'Read Grep Glob WebSearch WebFetch',
     model: model || modelFor('watcher-verdict'), // was unpinned until the model board
     lane: 'watcher-verdict',

@@ -26,6 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url'; // never URL.pathname: the repo path has a space
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
+import { talkPrefsBlock } from './talk.js';
 import { chatLocal, defaultModel } from './localModel.js';
 import { recordRun } from './modelSpend.js';
 import { assertLaneOn, refreshLocalStatus } from './modelPrefs.js';
@@ -79,7 +80,7 @@ const clip = (s, n) => {
 
 /** The system prompt for one local turn. Pure: every input is handed in. The
  *  history is dropped oldest-first until the whole prompt fits the budget. */
-export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false } = {}) {
+export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '' } = {}) {
   const wl = whereLine(place, { oneShot: direct });
   const lengthRule = direct
     ? '- This is a hands-free one-shot (Siri): answer exactly what he asked in one or two spoken sentences. No greeting, no follow-up question.'
@@ -114,6 +115,10 @@ Use vault_search, vault_read and vault_list when TODAY below does not already an
   const tail = [];
   tail.push(`TODAY (computed by code just now; trust it over older pages):\n${clip(today, 1600) || '(not available right now)'}`);
   if (liveLine) tail.push(`LIVE NOW: ${clip(liveLine, 1200)}`);
+  // who he is and how he wants to be spoken to (27 Oct 2026), clipped to
+  // the small model's budget
+  if (him) tail.push(clip(him, 1800));
+  if (talkPrefs) tail.push(clip(talkPrefs, 700));
   if (wl) tail.push(wl);
   const fixed = `${head}\n\n${tail.join('\n\n')}`;
 
@@ -548,7 +553,14 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
   (async () => {
     const history = sessionTurns(effectiveSessionId);
     const today = await todayBlock();
-    const promptOpts = { today, liveLine, place, spoken, direct, history };
+    let him = '';
+    try {
+      const { profileContext } = await import('./profile.js');
+      him = await profileContext(cwd);
+    } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
+    let talkPrefs = '';
+    try { talkPrefs = talkPrefsBlock(cwd); } catch { talkPrefs = ''; }
+    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs };
     let turn;
     try {
       turn = await converse(job, { cwd, question, promptOpts, deadline: started + TURN_TIMEOUT_MS() });

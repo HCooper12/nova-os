@@ -282,8 +282,17 @@ async function runPanel(vaultPath, recordId, question, model, context, consultOp
     answeringTo: (consultOpts?.chain || []).slice(-1)[0] || null,
     onRoster: (roster) => updateRecord(recordId, { consult: roster }).catch(() => {}),
   });
+  // WHO THE BRIEF IS FOR (27 Oct 2026): the merge writes for Hayden, so it
+  // reads his profile page; the workers stay on the web question. A failed
+  // read is named, never silent.
+  let him = '';
+  try {
+    const { profileContext } = await import('./profile.js');
+    him = await profileContext(vaultPath);
+  } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
+  const forHim = him ? `\n\nWHO THIS BRIEF IS FOR (use it to choose what matters and how it applies to him; it is never a source to cite):\n${him}` : '';
   let out = await askClaude(vaultPath, {
-    prompt: `${buildSynthesisPrompt(question, settledReports, context)}\n\nONE EXCEPTION TO THE OUTPUT RULE ABOVE:\n${consultCapability('researcher', { chain: ctl.chain })}`,
+    prompt: `${buildSynthesisPrompt(question, settledReports, context)}${forHim}\n\nONE EXCEPTION TO THE OUTPUT RULE ABOVE:\n${consultCapability('researcher', { chain: ctl.chain })}`,
     // NO WEB. The sources are chosen; a merge that searches on its own is a
     // fifth researcher citing sources no angle vouched for.
     tools: 'Read',

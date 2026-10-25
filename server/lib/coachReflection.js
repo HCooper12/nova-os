@@ -45,6 +45,8 @@ async function buildReflectionContext(vaultPath) {
   const add = async (label, fn) => {
     try { const v = await fn(); if (v) parts.push(v); } catch { failures.push(label); }
   };
+  // who he is, first (27 Oct 2026): the profile page, every section
+  await add('profile', async () => (await import('./profile.js')).profileContext(vaultPath));
   await add('org', async () => (await import('./orgContext.js')).orgContext(vaultPath, 'coach-reflection'));
   // Coach's own nightly outcome, read back. Written every night and read by
   // nothing but itself — so the self-improvement loop never closed and the

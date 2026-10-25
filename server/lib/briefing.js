@@ -115,14 +115,14 @@ export function normalizeAngles(parsed, topic) {
 
 /* ------------------------------ the synthesis ----------------------------- */
 
-export function buildComposePrompt({ title, topic, standing, findings, shelf }) {
+export function buildComposePrompt({ title, topic, standing, findings, shelf, him = '' }) {
   return `${NOVA_LENS}
 
 You are writing a BRIEFING for Hayden: a report he asked Nova to research, which he will both READ and LISTEN TO while visuals change on screen.
 
 THE TOPIC, in his words: "${topic}"
 ${standing ? `\nHIS STANDING INSTRUCTION FOR THIS REPORT — this outranks your defaults, follow it exactly:\n"${standing}"\n` : ''}
-${shelf ? `\n${shelf}\n` : ''}
+${shelf ? `\n${shelf}\n` : ''}${him ? `\nWHO HE IS (his profile page; use it for what this means for him, never as a source):\n${him}\n` : ''}
 WHAT THE RESEARCH FOUND (each angle was researched separately, and every citation in it was verified to resolve to a real source):
 
 ${findings}
@@ -143,7 +143,7 @@ RULES THAT ARE NOT NEGOTIABLE:
 - ATTRIBUTE, DON'T ASSERT. Say who found something and how strongly ("a 2024 study of 88,000 people", "one small trial", "this is his own coinage, not a trial"). Where the evidence is thin or contested, say so — that is the most useful sentence in any report.
 - WHERE HIS OWN SOURCES DISAGREE WITH THE LITERATURE, SAY SO by name. He saved that material; tell him where it holds up.
 - NEVER INVENT a study, a number or a source. Everything comes from the findings above.
-- Finish on what it means for HIM specifically — he trains hard, tracks his food, sleeps badly some weeks and runs a team.
+- Finish on what it means for HIM specifically, from WHO HE IS above (when that is empty: he trains hard, tracks his food, sleeps badly some weeks and runs a team).
 
 Also give:
 - \`glossary\`: every term you defined, as {term, plain} — plain is one sentence, no jargon inside it.
@@ -322,12 +322,18 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
     // weighed rather than ignored.
     setStage('writing');
     const shelf = await deps.shelfContext(vaultPath, `${topic} ${angles.angles.map((a) => a.q).join(' ')}`).catch(() => null);
+    // who he is (27 Oct 2026): "what it means for him" reads his profile page
+    let him = '';
+    try {
+      const { profileContext } = deps.profileContext ? { profileContext: deps.profileContext } : await import('./profile.js');
+      him = await profileContext(vaultPath);
+    } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
     const briefing = normalizeBriefing(
       // Read only, no web: the shelf cross-check means opening HIS pages, and a
       // pass that cannot open them announced it would and then stopped (the
       // first live run). The web stays shut — every outside fact was already
       // citation-gated upstream.
-      await model(deps, buildComposePrompt({ title: angles.title, topic, standing, findings, shelf }), { lane: 'briefing-compose', vaultPath, tools: 'Read' }),
+      await model(deps, buildComposePrompt({ title: angles.title, topic, standing, findings, shelf, him }), { lane: 'briefing-compose', vaultPath, tools: 'Read' }),
       { title: angles.title },
     );
     if (missing.length) briefing.incomplete = missing;

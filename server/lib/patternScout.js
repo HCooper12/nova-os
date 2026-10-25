@@ -41,6 +41,12 @@ const SCOUT_HOUR = 16;
 // repeated manual act without shipping his whole history into one prompt.
 export async function buildScoutContext(vaultPath) {
   const parts = [];
+  // who he is first (27 Oct 2026): a pattern worth a routine is one that
+  // serves what he is working toward
+  try {
+    const { profileContext } = await import('./profile.js');
+    parts.push(await profileContext(vaultPath));
+  } catch (e) { parts.push(`ABOUT HAYDEN: (his profile page could not be read: ${e.message})`); }
   try {
     const records = await listRecords();
     const cutoff = Date.now() - 30 * 86400e3;

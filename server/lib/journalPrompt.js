@@ -47,7 +47,21 @@ export function buildPrompt(seed = {}) {
     const sampleLines = (seed.sample || []).map((s) => `- ${s.title}: ${s.excerpt}`).join('\n');
     return `Hayden keeps a personal wiki of ideas he's read and reflected on. Here is a small random sample from it:\n${sampleLines || '(the wiki has nothing in it yet)'}\n\nWrite ONE short, thoughtful journaling prompt (1-2 sentences) for today. You may loosely draw on one of the ideas above if it fits naturally, or just ask a good general self-reflection question — don't force a connection if none of them fit. Speak directly to him ("you"). Output ONLY a JSON object with a single key "prompt". No markdown, no code fences, no commentary before or after.`;
   })();
-  return `${NOVA_LENS}\n\n${role}`;
+  // WHO HE IS (27 Oct 2026) rides the review and life prompts, so a question
+  // about his week knows his values, people and aims. The deep kind stays
+  // blind by his design: it "stands alone".
+  const him = seed.kind !== 'deep' && seed.him ? `\n\nWHO HE IS (his profile page; let it shape the question, never quote it back at him):\n${seed.him}` : '';
+  return `${NOVA_LENS}\n\n${role}${him}`;
+}
+
+/** His profile block for a journal prompt seed, or a named failure. */
+export async function himForPrompt(vaultPath) {
+  try {
+    const { profileContext } = await import('./profile.js');
+    return await profileContext(vaultPath);
+  } catch (e) {
+    return `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`;
+  }
 }
 
 // ---------------------------------------------------------------- life sources

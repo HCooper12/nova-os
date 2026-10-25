@@ -545,7 +545,7 @@ export async function resumePlan(vaultPath, recordId) {
 
 // THE REPORT. A plan without one is just several jobs — this is the step that
 // makes it a delegation rather than a dispatch.
-export function buildReportPrompt(goal, plan, progress) {
+export function buildReportPrompt(goal, plan, progress, { him = '' } = {}) {
   const parts = plan.steps.map((s) => {
     const c = CAPABILITIES[s.capability];
     if (s.status === 'failed') return `### ${c?.agent || s.capability} — ${s.what}\nFAILED: ${s.error}`;
@@ -563,7 +563,7 @@ ${goal}
 
 WHAT THE REPORT SHOULD ANSWER:
 ${plan.report || 'answer his request directly'}
-
+${him ? `\nWHO HE IS (his profile page; aim the answer at this man, never cite it as a source):\n${him}\n` : ''}
 WHAT YOUR AGENTS CAME BACK WITH:
 ${parts}
 
@@ -636,10 +636,16 @@ export function fallbackReport(goal, plan, progress, why) {
   return lines.join('\n').trim();
 }
 
-function writeReport(vaultPath, recordId, goal, plan, progress) {
+async function writeReport(vaultPath, recordId, goal, plan, progress) {
+  // who he is (27 Oct 2026): the report is written to him
+  let him = '';
+  try {
+    const { profileContext } = await import('./profile.js');
+    him = await profileContext(vaultPath);
+  } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
   return new Promise((resolve) => {
     const child = spawn(CLAUDE_BIN, [
-      '-p', buildReportPrompt(goal, plan, progress),
+      '-p', buildReportPrompt(goal, plan, progress, { him }),
       '--permission-mode', 'bypassPermissions',
       ...boundaryArgs(''), // synthesis only — everything it needs is in the prompt
       '--output-format', 'json',

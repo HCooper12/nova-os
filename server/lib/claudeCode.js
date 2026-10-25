@@ -15,7 +15,7 @@ import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './mode
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
 import { foldReply } from '../../src/turnFold.js';
-import { TURN_TAKING } from './talk.js';
+import { TURN_TAKING, talkPrefsBlock } from './talk.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
@@ -530,7 +530,7 @@ export function _dropAllWarm() {
 // answers questions from what's actually written there, in a spoken
 // register. Exported separately so tests can check the prompt contract
 // without spawning anything.
-export function buildAskPrompt({ question, context = '', direct = false, spoken = false, consulted = null, place = 'unknown' }) {
+export function buildAskPrompt({ question, context = '', direct = false, spoken = false, consulted = null, place = 'unknown', talkPrefs = '' }) {
   // WHERE HE IS (lib/register.js): the place appends to the spoken register
   // and, driving, takes the glass out of the prompt. The lens stays first.
   const placeLines = registerBlock(place, { oneShot: direct });
@@ -610,7 +610,7 @@ ${glass ? GLASS_CONTRACT : ''}
 
 ${ARTIFACT_CONTRACT}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${direct ? '' : `${TURN_TAKING}\n\n`}Hayden asks: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${talkPrefs ? `${talkPrefs}\n\n` : ''}${direct ? '' : `${TURN_TAKING}\n\n`}Hayden asks: ${question}`}`;
 }
 
 // A RESUMED spoken turn sends only the question — the live process already
@@ -1121,7 +1121,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     // `spoken` rides on turn ONE only. A resumed turn sends just the question
     // by design (spokenSession.test.js guards that minimalism), and turn one's
     // contract is still in the resumed process's own context.
-    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted, place })
+    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted, place, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
       : consulted ? consultedResumeText(consulted, question) : buildResumedAsk({ question, liveLine, direct, place }),
     job,
     finishTurn,
@@ -1136,7 +1136,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
 // construction: haiku, no vault reads, streams through the same jobs map so
 // the client renders it like any reply. A failed greeting stays silent
 // rather than falling back to a canned line.
-export function buildGreetingPrompt({ facts, gap = 'new-day' }) {
+export function buildGreetingPrompt({ facts, gap = 'new-day', talkPrefs = '' }) {
   // HOW LONG A HELLO IS (21 Oct 2026, design/TALK-STUDY.md). Jarvis's
   // "Welcome home, sir." is the bar. His greetings ran 14 to 49 words, most
   // a rundown of the Inbox; a return now gets a few words and at most the
@@ -1151,7 +1151,7 @@ You are Nova greeting Hayden as he arrives, "sir", the way a great butler would:
 Ground every specific ONLY in the facts below; never invent activity, numbers, or receipts. If the facts are thin, a warm brief hello is perfect. Vary your phrasing naturally between visits; never a stock template. Do not read any files; answer immediately.
 
 FACTS (deterministic, computed just now):
-${facts}`;
+${facts}${talkPrefs ? `\n\n${talkPrefs}` : ''}`;
 }
 
 // The post-session debrief — item 3 of the expertise plan: the thing a real
@@ -1159,13 +1159,13 @@ ${facts}`;
 // every fact arrives computed) reacting to THIS session; the caller sends
 // it wherever he'll see it. Sonnet, not haiku: this is coaching judgment,
 // not a doorman's hello.
-export function buildDebriefPrompt({ facts }) {
+export function buildDebriefPrompt({ facts, talkPrefs = '' }) {
   return `${NOVA_LENS}
 
 You are Hayden's strength coach, reacting the moment he finishes logging a session — the words a great coach says as the bar goes back in the rack. Compose ONE message: 2-4 sentences, plain text, no markdown. Register: direct, warm, expert — never sycophantic, never a cheerleader. React to what ACTUALLY happened: name the one thing that mattered most (a load moved up, effort where it counted, a note he left, something cut short) and, if the data warrants it, ONE pointed thing to carry into next time. If something concerns you (pain note, grinding RPE, a big drop), say so plainly. Ground every specific ONLY in the facts below — never invent numbers. No questions unless one genuinely needs answering before next session.
 
 FACTS (deterministic, computed just now):
-${facts}`;
+${facts}${talkPrefs ? `\n\n${talkPrefs}` : ''}`;
 }
 
 export function startSessionDebrief(cwd, { facts }, onReady) {
@@ -1195,7 +1195,7 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
     sessionId: effectiveSessionId,
     cwd,
     args,
-    text: buildDebriefPrompt({ facts }),
+    text: buildDebriefPrompt({ facts, talkPrefs: talkPrefsBlock(cwd) }),
     job,
     finishTurn: (replyText, turnJob) => {
       turnJob.result = { text: replyText.trim() };
@@ -1233,7 +1233,7 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
   if (providerFor('greeting') === 'local') {
-    greetLocally(job, buildGreetingPrompt({ facts, gap }), { fallback: false });
+    greetLocally(job, buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }), { fallback: false });
     return jobId;
   }
   // at Claude's limit the greeting may still be said, by the model on this Mac
@@ -1246,7 +1246,7 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
     set: (v) => {
       if (v === 'error' && !handed && job.limited && fallbackEnabled() && laneCanRunLocal('greeting') && localModelConfigured()) {
         handed = true;
-        setImmediate(() => greetLocally(job, buildGreetingPrompt({ facts, gap }), { fallback: true }));
+        setImmediate(() => greetLocally(job, buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }), { fallback: true }));
         return;
       }
       status = v;
@@ -1279,7 +1279,7 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
     // into ~15s of deliberation before one sentence of hello (20s → 3s).
     // A doorman greets from the hip; the facts are already on the tray.
     env: { MAX_THINKING_TOKENS: '0' },
-    text: buildGreetingPrompt({ facts, gap }),
+    text: buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }),
     job,
     finishTurn: (replyText, turnJob) => {
       turnJob.result = { text: replyText.trim() };
@@ -1296,7 +1296,7 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
 // boundary as Ask Nova, but a different persona: an evidence-based strength
 // coach who knows Hayden's goals, history, and recovery data, and answers
 // like a professional — principled, specific, honest about uncertainty.
-export function buildCoachPrompt({ question, context = '', consulted = null }) {
+export function buildCoachPrompt({ question, context = '', consulted = null, talkPrefs = '' }) {
   return `${NOVA_LENS}
 
 You are Nova's Coach — Hayden's personal strength & conditioning coach. This is a CONTINUING conversation that resumes across days — remember what he tells you and coach the long arc, not just today's question. You reason like an experienced, evidence-based practitioner: progressive overload, volume and intensity management, proximity to failure, recovery and sleep, protein targets, long-term adherence over heroics. You give the advice a great human coach would: specific to HIS data, decisive, and honest when evidence is mixed or his data is too thin to say.
@@ -1342,7 +1342,7 @@ ${GLASS_CONTRACT}
 
 ${ARTIFACT_CONTRACT}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question, { canPropose: true })}\n\nThe question: ${question}` : `${TURN_TAKING}\n\nHayden asks: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question, { canPropose: true })}\n\nThe question: ${question}` : `${talkPrefs ? `${talkPrefs}\n\n` : ''}${TURN_TAKING}\n\nHayden asks: ${question}`}`;
 }
 
 // Prepended to every RESUMED coach turn. Deliberately short — it is a
@@ -1584,7 +1584,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     // spawn, resumed ones included, so an old conversation still gets the
     // current rules), and a resumed turn sends only the live changes and his
     // question (lib/coachTurn.js liveDelta).
-    text: isNewSession ? buildCoachPrompt({ question, context, consulted })
+    text: isNewSession ? buildCoachPrompt({ question, context, consulted, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
       : consulted ? consultedResumeText(consulted, question, { canPropose: true }) : question,
     job,
     finishTurn,
@@ -1595,7 +1595,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
 
 /* ------------------------------- the Leader -------------------------------- */
 
-export function buildLeaderPrompt({ question, context = '', consulted = null }) {
+export function buildLeaderPrompt({ question, context = '', consulted = null, talkPrefs = '' }) {
   return `${NOVA_LENS}
 
 You are the LEADER — Hayden's leadership development partner inside Nova, focused on how he leads people at work. This is a CONTINUING conversation that resumes across days and weeks: remember what he tells you, hold the long arc of his development, and treat every struggle and win he shares as material for how you steer.
@@ -1622,7 +1622,7 @@ ${ARTIFACT_CONTRACT}
 His current picture:
 ${context || '(unavailable)'}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${TURN_TAKING}\n\nHayden says: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${talkPrefs ? `${talkPrefs}\n\n` : ''}${TURN_TAKING}\n\nHayden says: ${question}`}`;
 }
 
 const LEADER_TURN_REMINDER = `[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix. PUSHING BACK: VIS {"stance":"contest"} on its own line immediately before each sentence that disagrees with, or advises against, what he proposed or asked to do; never before your reasons, bad news or a missed target, and say the disagreement in words too. ${consultReminder('leader')}]`;
@@ -1732,7 +1732,7 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
     sessionId: effectiveSessionId,
     cwd,
     args,
-    text: isNewSession ? buildLeaderPrompt({ question, context: ctx, consulted })
+    text: isNewSession ? buildLeaderPrompt({ question, context: ctx, consulted, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
       : consulted ? consultedResumeText(consulted, question) : `${LEADER_TURN_REMINDER}\n\n${question}`,
     job,
     finishTurn,

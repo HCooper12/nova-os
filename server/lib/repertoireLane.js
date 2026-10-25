@@ -230,13 +230,25 @@ async function fetchCaptions(url, workDir, runner) {
 
 /* -------------------------- stage 2: the reasoning ------------------------ */
 
-export function buildRepertoirePrompt({ source, transcript, frames, prose, existing = [], focus }) {
+// WHO HE IS (27 Oct 2026): the techniques are for one man, his work and his
+// people, so both prompts read his profile page.
+const himLine = (him) => (him ? `\nWHO HE IS (his profile page; choose and pitch techniques for him, never quote it back):\n${him}\n` : '');
+async function himFor(vaultPath) {
+  try {
+    const { profileContext } = await import('./profile.js');
+    return await profileContext(vaultPath);
+  } catch (e) {
+    return `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`;
+  }
+}
+
+export function buildRepertoirePrompt({ source, transcript, frames, prose, existing = [], focus, him = '' }) {
   const isArticle = source?.kind === 'article';
   const known = existing.length
     ? `\nALREADY IN HIS REPERTOIRE — do NOT propose these again, but you may reference them:\n${existing.map((t) => `- ${t.name} (${t.family})`).join('\n')}`
     : '';
   return `${NOVA_LENS}
-
+${himLine(him)}
 You are Nova's Repertoire agent. Hayden sent a source and asked: "${prose || 'analyse this, research the techniques like it, and build me a plan I can practise one a day'}".
 
 THE SOURCE
@@ -427,7 +439,7 @@ async function runRepertoireJob(vaultPath, record, { url, prose, focus }) {
     }
 
     const existing = flatten(await loadRepertoire(vaultPath).catch(() => []));
-    const raw = await askModel(buildRepertoirePrompt({ source, transcript, frames, prose, existing, focus }));
+    const raw = await askModel(buildRepertoirePrompt({ source, transcript, frames, prose, existing, focus, him: await himFor(vaultPath) }));
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('the analysis did not come back as JSON');
     const proposal = normalizeProposal(parseModelJson(match[0]));
@@ -478,9 +490,9 @@ async function runRepertoireJob(vaultPath, record, { url, prose, focus }) {
 export const MIN_RUNWAY = 6;
 export const TOPUP_TARGET = 6;
 
-export function buildTopUpPrompt({ existing, families, prose }) {
+export function buildTopUpPrompt({ existing, families, prose, him = '' }) {
   return `${NOVA_LENS}
-
+${himLine(him)}
 You are Nova's Repertoire agent. Hayden is working through a curriculum of
 psychological techniques one at a time and is running low on new ones. Research
 and propose ${TOPUP_TARGET} MORE, in the same domain, that he does not already have.
@@ -543,7 +555,7 @@ async function runTopUpJob(vaultPath, record) {
   try {
     const existing = flatten(await loadRepertoire(vaultPath));
     const families = [...new Set(existing.map((t) => t.family))];
-    const raw = await askModel(buildTopUpPrompt({ existing, families, prose: record.repertoireProse || '' }));
+    const raw = await askModel(buildTopUpPrompt({ existing, families, prose: record.repertoireProse || '', him: await himFor(vaultPath) }));
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('the top-up did not come back as JSON');
     const proposal = normalizeProposal(parseModelJson(match[0]));

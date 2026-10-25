@@ -246,7 +246,15 @@ export async function reviewSummaryInput(vaultPath, vault, pageId, loaders) {
   const also = await alsoInVault(pages.find((p) => p.id === pageId) || page, pages, byTitle, vault);
   const { readLifeSources } = await import('./journalPrompt.js');
   const life = await readLifeSources(vaultPath, vault, { review: async () => null, ...(loaders || {}) });
-  const lifeFacts = Object.values(life).filter(Boolean).map((s) => `${s.from}:\n${s.facts}`).join('\n');
+  // his profile page (27 Oct 2026), the mind side of it: the reflection ties
+  // an idea to his life, and the review is mind concepts only (his 15 Oct
+  // rule), so training and fuel stay out
+  let him = '';
+  try {
+    const { profileContext } = await import('./profile.js');
+    him = await profileContext(vaultPath, { only: ['about', 'story', 'toward', 'values', 'work', 'mind', 'people', 'life'] });
+  } catch (e) { him = `(his profile page could not be read: ${e.message})`; }
+  const lifeFacts = [him ? `His profile page:\n${him}` : '', ...Object.values(life).filter(Boolean).map((s) => `${s.from}:\n${s.facts}`)].filter(Boolean).join('\n');
   return { pageId, title: page.title, body, sourceTitle: first?.title || null, sourceText, sourceTime: first?.time || null, lifeFacts, also };
 }
 

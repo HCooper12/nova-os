@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { addEntry, listEntries, updateEntry, getEntry, JOURNAL_TAGS } from '../lib/journal.js';
-import { startPromptJob, getPromptJob, PROMPT_KINDS, readLifeSources, pickLifeSource, reviewConcept, LIFE_SOURCES } from '../lib/journalPrompt.js';
+import { startPromptJob, getPromptJob, PROMPT_KINDS, readLifeSources, pickLifeSource, reviewConcept, LIFE_SOURCES, himForPrompt } from '../lib/journalPrompt.js';
 import { syncStatus, syncOnce, kickSync, unsaveEntry } from '../lib/notionJournal.js';
 
 function sampleConcepts(pages, n) {
@@ -83,7 +83,7 @@ export function journalRouter(vault, vaultPath, deps = {}) {
         const c = await reviewConcept(vaultPath, vault).catch(() => null);
         if (!c) return res.json({ empty: true, meta: { kind }, reason: 'No Daily review concept today. Add concepts to your wiki and they arrive here.' });
         const meta = { kind, concept: c.concept };
-        return res.json({ jobId: startPromptJob({ kind, concept: c.concept, gist: c.gist, avoid }, meta), meta });
+        return res.json({ jobId: startPromptJob({ kind, concept: c.concept, gist: c.gist, avoid, him: await himForPrompt(vaultPath) }, meta), meta });
       }
       const sources = await readLifeSources(vaultPath, vault);
       const turn = Number(req.body?.turn) || 0;
@@ -91,7 +91,7 @@ export function journalRouter(vault, vaultPath, deps = {}) {
       const lit = Object.fromEntries(LIFE_SOURCES.map((k) => [k, !!sources[k]]));
       if (!src) return res.json({ empty: true, meta: { kind, sources: lit }, reason: 'Nothing Nova reads about your life has anything in it today.' });
       const meta = { kind, source: src, from: sources[src].from, sources: lit };
-      res.json({ jobId: startPromptJob({ kind, source: src, facts: sources[src].facts, avoid }, meta), meta });
+      res.json({ jobId: startPromptJob({ kind, source: src, facts: sources[src].facts, avoid, him: await himForPrompt(vaultPath) }, meta), meta });
     } catch (err) {
       res.status(/off/i.test(err.message) ? 409 : 400).json({ error: err.message });
     }
@@ -103,7 +103,7 @@ export function journalRouter(vault, vaultPath, deps = {}) {
       const seedExcerpt = req.body?.seedExcerpt ? String(req.body.seedExcerpt).trim() : null;
       let seed;
       if (seedTitle) {
-        seed = { seedTitle, seedExcerpt };
+        seed = { seedTitle, seedExcerpt, him: await himForPrompt(vaultPath) };
       } else {
         const pages = await vault.listPages();
         seed = { sample: sampleConcepts(pages, 6) };

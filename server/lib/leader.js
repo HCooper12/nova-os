@@ -312,6 +312,14 @@ export async function buildLeaderDailyContext(vaultPath, state, now = new Date()
     const org = await orgContext(vaultPath, 'leader', { only: ['standing'] });
     if (org) parts.push(org);
   } catch { /* honest absence */ }
+  // WHO HE IS (27 Oct 2026), narrowed to what bears on leading: his work,
+  // values, people, story, aims and how he wants to be spoken to. Never his
+  // training or fuel: a single idea built from gym material is the exact
+  // failure this function was rebuilt against (his 15 Sep report).
+  try {
+    const { profileContext } = await import('./profile.js');
+    parts.push(await profileContext(vaultPath, { only: ['about', 'story', 'toward', 'values', 'work', 'mind', 'people', 'talk'] }));
+  } catch (e) { parts.push(`ABOUT HAYDEN: (his profile page could not be read: ${e.message})`); }
   // WHAT IS WORKING stays — building on a strength is general development and
   // is not tied to one thread. The STRUGGLE PILE does not: it is the live
   // situation, it has its own channel below, and feeding it here is precisely
@@ -800,6 +808,11 @@ export async function buildLeaderChatContext(vaultPath, now = new Date()) {
     const org = await orgContext(vaultPath, 'leader');
     if (org) parts.push(org);
   } catch { /* honest absence */ }
+  // who he is, from his profile page (27 Oct 2026): every section
+  try {
+    const { profileContext } = await import('./profile.js');
+    parts.push(await profileContext(vaultPath));
+  } catch (e) { parts.push(`ABOUT HAYDEN: (his profile page could not be read: ${e.message})`); }
   parts.push(...profileLines(state.profile, now.getTime()));
   const today = todayLead(state, now);
   if (today) parts.push(`TODAY'S IDEA (already on his homepage — build on it, don't repeat it at him): "${today.title}" — ${today.line}`);

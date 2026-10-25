@@ -304,6 +304,12 @@ async function hisFacts(vaultPath, deps) {
     }
     if (p?.focus) bits.push(`focus: ${p.focus}`);
   } catch { /* no profile */ }
+  // the whole profile page (27 Oct 2026): his story, aims and training as he
+  // told them, so "is he the population" is judged on what he said
+  try {
+    const prof = deps.profile || await import('./profile.js');
+    if (typeof prof.profileContext === 'function') bits.push(await prof.profileContext(vaultPath));
+  } catch (e) { bits.push(`(his profile page could not be read: ${e.message})`); }
   try {
     const { goalsContext } = deps.goals || await import('./fitnessGoals.js');
     const g = await goalsContext(vaultPath);

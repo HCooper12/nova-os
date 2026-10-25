@@ -102,8 +102,15 @@ export async function startOutline(vaultPath, id) {
   const org = await import('./orgContext.js')
     .then(({ orgContext }) => orgContext(vaultPath, 'studio'))
     .catch(() => '');
+  // who he is (27 Oct 2026): his story, values, work and taste shape what
+  // he would actually make and say
+  let him = '';
+  try {
+    const { profileContext } = await import('./profile.js');
+    him = await profileContext(vaultPath);
+  } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildOutlinePrompt(page, formatOf(page.raw), org ? `${taste}\n\n${org}` : taste),
+    '-p', buildOutlinePrompt(page, formatOf(page.raw), [him, taste, org].filter(Boolean).join('\n\n')),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', OUTLINE_DISALLOWED,
