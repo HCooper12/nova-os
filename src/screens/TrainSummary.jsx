@@ -356,30 +356,36 @@ function WeekCard({ w, carry }) {
   return (
     <section className="nv-sum-card nv-sum-rise nv-ts-week" style={{ '--i': 2, '--nv-sum-tint': 'var(--nv-good)', '--nv-g2': w.dots.find((d) => d.hue)?.hue || 'var(--nv-good)', '--nv-g3': [...w.dots].reverse().find((d) => d.hue)?.hue || 'var(--nv-good)' }} aria-label="This week">
       <Head tile={<ITile p={P.week} a="var(--nv-good)" />} label="This week"
-        meta={w.planned ? <><b className="nv-ts-cnt">{w.done}</b> of {w.planned} done</> : null} />
-      <div ref={capsRef} className="nv-ts-caps">
-        {w.dots.map((d) => (
-          <button type="button" key={d.day} className="nv-ts-cd" data-day={d.day} data-state={d.state} data-today={d.isToday ? 'true' : undefined} data-walk={d.walk ? 'true' : undefined}
-            style={d.hue ? { '--h': d.hue } : undefined} onClick={d.openPlan || undefined} disabled={!d.openPlan} aria-label={d.aria}>
-            {d.segs ? (
-              // TWO ON ONE DAY (mockup 104): the capsule splits, one hue per
-              // workout in his order, each filling when its session is filed;
-              // the second slides in on a spring
-              <span className="nv-ts-pod split" aria-hidden="true">
-                {d.segs.map((g, i) => <i key={g.key} className={`seg${g.done ? ' on' : ''}`} style={{ '--h': g.hue, '--k': i }} />)}
+        meta={w.planned ? <><b className="nv-ts-cnt">{w.done}</b> of {w.planned} session{w.planned === 1 ? '' : 's'}</> : null} />
+      {/* THE WEEK AS A LIST (mockup 105, his pick 26 Oct 2026): every day
+          says what it holds, today lifted out with its Begin, rest and
+          optional days quieter. A row opens the day sheet (mockup 104). */}
+      <ul ref={capsRef} className="nv-ts-ag">
+        {w.dots.map((d, i) => (
+          <li key={d.day} className="nv-ts-agr" data-day={d.day} data-state={d.state} data-today={d.isToday ? 'true' : undefined} style={{ '--k': i }}>
+            <button type="button" className="nv-ts-agb" onClick={d.openPlan || undefined} disabled={!d.openPlan} aria-label={d.aria}>
+              <span className="nv-ts-agd">{d.label.slice(0, 3)}</span>
+              <span className="nv-ts-agbars" aria-hidden="true">
+                {(d.rows.length ? d.rows : [{ key: 'rest', rest: true, hue: 'var(--nv-ink60)' }]).map((r, j) => (
+                  <i key={r.key} data-rest={r.rest ? 'true' : undefined} data-done={r.done ? 'true' : undefined} style={{ '--h': r.hue, '--j': j }} />
+                ))}
               </span>
-            ) : (
-              <span className={`nv-ts-pod${d.state === 'rest' ? ' rest' : ''}`} aria-hidden="true">
-                {d.state !== 'rest' && <i className="f" />}
-                {d.walk ? <WalkMark /> : d.state === 'done' && <Ico p={P.check} size={13} cls="thick nv-ts-capck" />}
-                {d.makeup && d.state !== 'done' && <Ico p={P.undo} size={12} cls="thick nv-ts-capmk" />}
+              <span className="nv-ts-agt">
+                {d.rows.length ? d.rows.map((r) => (
+                  <span key={r.key} className="nv-ts-agn" data-rest={r.rest ? 'true' : undefined}>
+                    <span className="nm">{r.name}{r.optional && <span className="op"> · optional</span>}</span>
+                    {r.meta && <span className="mt">{r.meta}</span>}
+                  </span>
+                )) : <span className="nv-ts-agn" data-rest="true"><span className="nm">Rest</span></span>}
               </span>
-            )}
-            <span className="nv-ts-cl" aria-hidden="true">{d.letter}</span>
-          </button>
+              {!d.begin && (d.walk ? <WalkMark /> : d.state === 'done' ? <Ico p={P.check} size={15} cls="thick nv-ts-agck" />
+                : d.makeup ? <Ico p={P.undo} size={14} cls="thick nv-ts-agck" /> : d.openPlan && <Ico p={P.right} size={15} cls="thick nv-ts-agch" />)}
+            </button>
+            {d.begin && <button type="button" className="nv-ts-aggo" onClick={d.begin}>Begin</button>}
+          </li>
         ))}
         {ghost && <span className="nv-ts-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, '--h': ghost.hue, '--dx': `${ghost.dx}px` }} aria-hidden="true" />}
-      </div>
+      </ul>
       <div className="nv-ts-wfoot">
         {carry.map((c) => (
           <div key={c.id} className="nv-ts-open" style={{ '--h': c.hue || 'var(--nv-cy)' }}>
@@ -406,7 +412,7 @@ function WeekCard({ w, carry }) {
             </div>
           </div>
         ))}
-        {w.line && <p className="nv-ts-wline">{w.line}</p>}
+        {/* the next-days line is the list itself now (mockup 105) */}
         {w.notes.map((n) => <p key={n} className="nv-ts-wnote">{n}</p>)}
       </div>
     </section>

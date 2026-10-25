@@ -196,8 +196,21 @@ export function valsTrainSummary(app, ctx, v) {
     // without it keeps the per-day count from before.
     const wc = o?.weekCount || null;
     const wcDay = new Map((wc?.days || []).map((d) => [d.day, d]));
-    const planned = wc ? wc.planned : dots.filter((d) => d.state !== 'rest').length;
-    const doneCount = wc ? wc.done : dots.filter((d) => d.state === 'done').length;
+    // SESSIONS, NOT DAYS (mockup 105, his pick 26 Oct): active rest is not a
+    // job, so it enters the count only once a walk has ticked it
+    const slotsAll = (wc?.days || []).flatMap((d) => d.slots);
+    const counts = (x) => x.kind !== 'active-rest' || x.byWalk;
+    const planned = wc ? slotsAll.filter(counts).length : dots.filter((d) => d.state !== 'rest').length;
+    const doneCount = wc ? slotsAll.filter((x) => counts(x) && x.done).length : dots.filter((d) => d.state === 'done').length;
+    // a row's own words: lifts and sets from the routine itself
+    const byLowName = new Map(routines.map((r) => [String(r.name).toLowerCase(), r]));
+    const metaOf = (name) => {
+      const r = byLowName.get(String(name || '').replace(/ make-up$/, '').toLowerCase());
+      if (!r?.exercises?.length) return null;
+      const sets = r.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0);
+      return `${plural(r.exercises.length, 'lift')}${sets ? ` · ${sets} sets` : ''}`;
+    };
+    const OPTIONAL = / optional$/i;
     const hueOfSlot = (x) => (x.kind === 'active-rest' ? 'var(--nv-good)' : hueOfDay(x.makeup ? x.sourceName : x.name));
     const walkDay = (wc?.days || []).find((d) => d.isToday && d.walk?.counted);
     if (walkDay) notes.unshift(`${cap(walkDay.day)}'s active rest is done: you ${walkDay.walk.type && /run|jog/i.test(walkDay.walk.type) ? 'ran' : /walk|hik/i.test(walkDay.walk.type || '') ? 'walked' : 'moved'}.`);
@@ -226,6 +239,17 @@ export function valsTrainSummary(app, ctx, v) {
           aria: `${d.label}: ${shown}, ${k && k.plannedCount >= 2 ? `${k.doneCount} of ${k.plannedCount} done` : STATE_WORD[state] || state}${k?.slots.some((x) => x.byWalk) ? ' by a walk' : ''}${s?.doneMarks?.length ? ` (${dayDoneText(s.doneMarks)})` : ''}${d.isToday && state !== 'today' ? ', today' : ''}. Plan the day`,
           // the day sheet (mockup 104) in place of the platform select
           openPlan: s?.openPlan || null,
+          // THE ROW (mockup 105): what the day holds, in words
+          rows: (k?.slots?.length ? k.slots : d.routine ? [{ kind: 'routine', name: d.routine }] : []).map((x) => ({
+            key: x.routineId || x.name,
+            name: x.kind === 'active-rest' ? (x.byWalk ? 'Active rest · walked' : 'Active rest · a walk counts') : String(x.name).replace(OPTIONAL, ''),
+            optional: OPTIONAL.test(x.name || ''),
+            rest: x.kind === 'active-rest',
+            done: !!x.done,
+            meta: x.kind === 'active-rest' ? null : metaOf(x.makeup ? x.sourceName : x.name),
+            hue: hueOfSlot(x),
+          })),
+          begin: d.isToday && hero.kind === 'scheduled' && !(k && k.plannedCount && k.doneCount === k.plannedCount) ? hero.primary.run : null,
         };
       }),
     };
