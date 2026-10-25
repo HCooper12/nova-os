@@ -164,6 +164,13 @@ export const LANES = [
     off: 'Calendar commands are refused with a plain message — nothing is guessed at your diary.',
   },
 
+  {
+    // local: pure text in, JSON out; code checks and files every fact (lib/profileTalk.js)
+    id: 'profile-talk', label: 'About you conversation', group: 'conversation', local: true, def: 'sonnet', defEffort: 'low',
+    hint: 'a back-and-forth where Nova learns about you, one question at a time, and keeps what you say on your profile page',
+    off: 'The About-you conversation says it is off; your profile page can still be edited by hand.',
+  },
+
   // ---- coach --------------------------------------------------------------
   {
     id: 'coach', label: 'Ask Coach', group: 'coach', def: 'opus', defEffort: 'medium',
