@@ -356,7 +356,8 @@ test('the Stash consult source answers "what skincare am I running low on" from 
   assert.match(text, /Restock items, soonest first: Hydrating cleanser 236 ml \(Skincare\): about \d+ days? left of 4 weeks/);
   // the shelf's date was set from a pinned 10 Oct in the test above; the
   // consult runs on the real clock, so the count is whatever today makes it
-  assert.match(text, /Gift lists: For Mum, \d{4}-\d{2}-\d{2} \((?:in \d+ days?|today|was [^)]+)\): Linen scarf/);
+  // (a day that has gone by reads "passed": the shelf date is pinned, the clock is not)
+  assert.match(text, /Gift lists: For Mum, \d{4}-\d{2}-\d{2} \((?:in \d+ days?|today|passed|was [^)]+)\): Linen scarf/);
   assert.match(text, /Bought, newest first: Monitor arm on 2026-10-08 for \$129\.00 \(from Desk setup\)/);
   const ask = await import('../lib/askContext.js');
   assert.equal(typeof ask.buildAskContext, 'function');
