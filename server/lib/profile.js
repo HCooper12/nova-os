@@ -1,8 +1,9 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
+import { chosenOptions } from './profileOptions.js';
 
 // Hayden's operating profile — the ROOT context every model-based agent
 // reasons from (per NOVA-METHOD.md's context ledger: "who Hayden is" is the
@@ -18,13 +19,22 @@ const PROFILE_REL = 'Wiki/Profile.md';
 // yet confirmed ends with the DRAFTED line below; it stays in the file (he
 // reads it in Obsidian) and is lifted out as provenance when parsed. Headings
 // not listed here are his own and are kept untouched on every write.
+//
+// TWELVE SINCE 27 OCT 2026 (his ask: "Nova should interview me just like you
+// would ... to get to know someone better"). My story, What matters to me and
+// People in my life were added; a page written with the old nine parses
+// unchanged (the new ones come back empty) and a new section is placed in
+// its order slot the first time it is written.
 export const PROFILE_SECTIONS = [
   { key: 'about', title: 'About me' },
+  { key: 'story', title: 'My story' },
   { key: 'toward', title: "What I'm working toward" },
+  { key: 'values', title: 'What matters to me' },
   { key: 'training', title: 'Training' },
   { key: 'fuel', title: 'Fuel' },
   { key: 'work', title: 'Work and projects' },
   { key: 'mind', title: 'Mind and learning' },
+  { key: 'people', title: 'People in my life' },
   { key: 'life', title: 'Life' },
   { key: 'talk', title: 'How to talk to me' },
   { key: 'taste', title: 'Taste' },
@@ -87,10 +97,21 @@ export function parseSections(body) {
   const { chunks } = splitBody(body);
   return PROFILE_SECTIONS.map(({ key, title }) => {
     const c = chunks.find((ch) => sectionByTitle(ch.title)?.key === key);
-    if (!c) return { key, title, text: '', drafted: false, draftedOn: null };
+    if (!c) return { key, title, text: '', drafted: false, draftedOn: null, chosen: [] };
     const r = readChunk(c.raw);
-    return { key, title, text: r.text, drafted: r.drafted && !!r.text, draftedOn: r.text ? r.draftedOn : null };
+    return { key, title, text: r.text, drafted: r.drafted && !!r.text, draftedOn: r.text ? r.draftedOn : null, chosen: chosenOptions(key, r.text) };
   });
+}
+
+// The sections, read synchronously: for the prompt builders that assemble a
+// turn without awaiting (lib/talk.js talkPrefsBlock). [] when there is no page.
+export function readSectionsSync(vaultPath) {
+  try {
+    const raw = readFileSync(path.join(vaultPath, PROFILE_REL), 'utf8');
+    return parseSections(splitRaw(raw).body);
+  } catch {
+    return [];
+  }
 }
 
 function knowsOf(sections) {
@@ -176,7 +197,10 @@ export async function setProfile(vaultPath, input) {
 //   append: `- text (said <date>)` is added under the section; a drafted
 //     section stays drafted (the draft itself is still unconfirmed).
 //   confirm: the drafted line goes (with no text, the section's words stay).
-export async function setSection(vaultPath, key, text, { confirm = false, append = false, said = null, now = new Date() } = {}) {
+//   keepDraft (27 Oct 2026, the options): the section becomes `text` but a
+//     drafted section STAYS drafted. Choosing an option is his word on that
+//     one line, not a yes to Claude's whole draft.
+export async function setSection(vaultPath, key, text, { confirm = false, append = false, said = null, keepDraft: keepDraftIn = false, now = new Date() } = {}) {
   const spec = PROFILE_SECTIONS.find((s) => s.key === key);
   if (!spec) throw new Error(`there is no "${key}" section on the profile page`);
   const clean = String(text ?? '').replace(/\r/g, '').trim();
@@ -218,7 +242,7 @@ export async function setSection(vaultPath, key, text, { confirm = false, append
     keepDraft = false;
   } else {
     nextText = clean;
-    keepDraft = false;
+    keepDraft = !!keepDraftIn && cur.drafted && !confirm;
   }
 
   const isLast = (i) => i === chunks.length - 1;
@@ -295,7 +319,15 @@ export function intakeLine(intake) {
 // Compact block for the top of agent prompts. When empty, it tells the agent
 // to reason honestly without it AND to nudge Hayden — an unset profile is a
 // gap the lens should surface, not paper over.
-export async function profileContext(vaultPath) {
+//
+// ALL TWELVE SECTIONS (27 Oct 2026, his ask: "ensure Nova is undoubtedly
+// referring to and using all of this information"). Every section prints,
+// an empty one as "not told yet" so an agent knows to ask rather than guess;
+// the options he chose are listed plainly; a drafted one is labelled.
+// `only` (section keys) narrows the block for a single generated artefact
+// that must not be built out of unrelated material: the Leader's daily idea
+// takes his work, values and people, never his training (lib/leader.js).
+export async function profileContext(vaultPath, { only = null } = {}) {
   const p = await getProfile(vaultPath);
   const sections = p?.sections || [];
   const anySection = sections.some((s) => s.text);
@@ -304,17 +336,27 @@ export async function profileContext(vaultPath) {
   }
   let intro = '';
   try { intro = introOf(matter(await readFile(path.join(vaultPath, PROFILE_REL), 'utf8')).content); } catch { intro = ''; }
+  const want = (key) => !Array.isArray(only) || only.includes(key);
   const flat = (t) => t.split('\n').map((l) => l.replace(/^\s*[-*]\s+/, '').trim()).filter(Boolean).join('; ');
+  const sectionLine = (s) => {
+    if (!s.text) return `- ${s.title}: (not told yet; ask him if it matters, never guess)`;
+    const chosen = s.chosen || [];
+    const own = s.text.split('\n').filter((l) => !chosen.some((c) => l.replace(/^\s*[-*]\s+/, '').trim().toLowerCase() === c.toLowerCase())).join('\n');
+    const draft = s.drafted
+      ? `(drafted by Claude on ${s.draftedOn || 'an unknown date'}, not yet confirmed by Hayden; treat as likely, not as his words) `
+      : '';
+    const picked = chosen.length ? `he chose: ${chosen.join('; ')}` : '';
+    const words = flat(own);
+    return `- ${s.title}: ${draft}${[picked, words].filter(Boolean).join('. ')}`;
+  };
   return [
     'ABOUT HAYDEN (from his profile page; sections marked drafted are Claude\'s draft, not his words):',
-    p.focus ? `- Current focus: ${p.focus}` : null,
-    p.priorities.length ? `- Priorities right now: ${p.priorities.join('; ')}` : null,
-    p.bestSelf ? `- What performing at his best means to him: ${p.bestSelf}` : null,
-    ...sections.filter((s) => s.text).map((s) => `- ${s.title}: ${s.drafted
-      ? `(drafted by Claude on ${s.draftedOn || 'an unknown date'}, not yet confirmed by Hayden; treat as likely, not as his words) `
-      : ''}${flat(s.text)}`),
-    intro ? `- Context & constraints: ${intro}` : null,
-    intakeLine(p.intake),
+    want('toward') && p.focus ? `- Current focus: ${p.focus}` : null,
+    want('toward') && p.priorities.length ? `- Priorities right now: ${p.priorities.join('; ')}` : null,
+    want('values') && p.bestSelf ? `- What performing at his best means to him: ${p.bestSelf}` : null,
+    ...sections.filter((s) => want(s.key)).map(sectionLine),
+    !only && intro ? `- Context & constraints: ${intro}` : null,
+    want('fuel') ? intakeLine(p.intake) : null,
     `- Nova knows ${p.knows.confirmed} of ${p.knows.total} sections confirmed (${p.knows.filled} filled). When a section he is asking about is empty or drafted, ask him about it rather than guess.`,
   ].filter(Boolean).join('\n');
 }

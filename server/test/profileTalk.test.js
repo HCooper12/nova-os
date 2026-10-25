@@ -96,7 +96,7 @@ test('a confirm removes the drafted line, and keeps his words', async () => {
     run: stub({ say: 'Good. What about fuel?', learned: [], confirmed: ['training'], done: false }),
   });
   assert.deepEqual(out.confirmed.map((c) => c.key), ['training']);
-  assert.deepEqual(sec(out.profile, 'training'), { key: 'training', title: 'Training', text: '- Lifts four days a week.', drafted: false, draftedOn: null });
+  assert.deepEqual(sec(out.profile, 'training'), { key: 'training', title: 'Training', text: '- Lifts four days a week.', drafted: false, draftedOn: null, chosen: [] });
   assert.doesNotMatch(await raw(v), /Drafted by Claude/);
   const r = await getRecord(out.confirmed[0].recordId);
   assert.equal(r.kind, 'profile-fact');
@@ -118,7 +118,7 @@ test('a replace on a confirmed section is downgraded to append; replace on a dra
   assert.equal(out.learned[0].mode, 'append');
   assert.equal(sec(out.profile, 'work').text, 'Leads a team of eight.\n- Leads a team of ten (said 2026-10-26)');
   assert.equal(out.learned[1].mode, 'replace');
-  assert.deepEqual(sec(out.profile, 'training'), { key: 'training', title: 'Training', text: 'Lifts three days a week', drafted: false, draftedOn: null });
+  assert.deepEqual(sec(out.profile, 'training'), { key: 'training', title: 'Training', text: 'Lifts three days a week', drafted: false, draftedOn: null, chosen: [] });
   assert.deepEqual(out.confirmed, [], 'the replace already made it his; no second filing');
 });
 
@@ -186,11 +186,11 @@ test('done is passed through when he stops', async () => {
 test('talkOpener names the thinnest section and the counts, with no model', async () => {
   const p = await getProfile(await vault());
   const line = talkOpener(p);
-  assert.equal(line, "Tell me about you. I have 3 of 9 sections, one of them a draft. Shall we start with What I'm working toward?");
-  assert.equal(talkOpener(null), 'Tell me about you. I have none of the 9 sections yet. Shall we start with About me?');
+  assert.equal(line, "Tell me about you. I have 3 of 12 sections, one of them a draft. Shall we start with My story?");
+  assert.equal(talkOpener(null), 'Tell me about you. I have none of the 12 sections yet. Shall we start with About me?');
   // every section filled: the drafted one is the thinnest
   const all = p.sections.map((s) => ({ ...s, text: s.text || 'something he said' }));
-  assert.equal(talkOpener({ sections: all }), 'Tell me about you. I have 9 of 9 sections, one of them a draft. Shall we check my draft of Training?');
+  assert.equal(talkOpener({ sections: all }), 'Tell me about you. I have 12 of 12 sections, one of them a draft. Shall we check my draft of Training?');
 });
 
 test('the prompt carries the lens, the turn-taking rule, the sections with their state, the history and his words', async () => {

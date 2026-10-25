@@ -769,7 +769,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const spec = PROFILE_SECTIONS.find((s) => s.key === payload.key);
     if (!spec) throw new Error(`there is no "${payload.key}" section on the profile page`);
     const { prior } = await setSection(vaultPath, payload.key, payload.text, {
-      confirm: !!payload.confirm, append: !!payload.append, said: payload.said || null,
+      confirm: !!payload.confirm, append: !!payload.append, said: payload.said || null, keepDraft: !!payload.keepDraft,
     });
     return {
       destination: `About you — ${spec.title}`,
@@ -2046,7 +2046,9 @@ export async function discardRecord(id, reason, { vaultPath = null } = {}) {
 // at once (auto) as a 'profile-fact' record with its undo, the way the weekly
 // debrief files in auto mode, so the Inbox's Undo takes it back like any
 // other filing.
-export async function fileProfileFact(vaultPath, { key, text = '', confirm = false, append = false, said = null, source = 'profile' } = {}) {
+// `keepDraft` (27 Oct 2026): an option he chose rewrites the section but
+// leaves Claude's draft unconfirmed (lib/profile.js setSection).
+export async function fileProfileFact(vaultPath, { key, text = '', confirm = false, append = false, said = null, keepDraft = false, option = null, source = 'profile' } = {}) {
   const { PROFILE_SECTIONS } = await import('./profile.js');
   const spec = PROFILE_SECTIONS.find((s) => s.key === key);
   if (!spec) throw new Error(`there is no "${key}" section on the profile page`);
@@ -2054,12 +2056,14 @@ export async function fileProfileFact(vaultPath, { key, text = '', confirm = fal
     route: 'profile-section',
     confidence: 'high',
     title: `About you — ${spec.title}`,
-    reason: confirm && !append ? 'He confirmed this section.' : (source === 'profile-talk' ? 'He said it in the About-you conversation.' : 'His own edit to his profile.'),
-    payload: { key, text: String(text ?? ''), confirm: !!confirm, append: !!append, said },
+    reason: option ? `He ${option.on ? 'chose' : 'took off'} "${option.phrase}".`
+      : confirm && !append ? 'He confirmed this section.' : (source === 'profile-talk' ? 'He said it in the About-you conversation.' : 'His own edit to his profile.'),
+    payload: { key, text: String(text ?? ''), confirm: !!confirm, append: !!append, said, ...(keepDraft ? { keepDraft: true } : {}) },
   };
   const { destination, undo } = await fileDecision(vaultPath, decision, { source });
   const now = new Date().toISOString();
-  const line = confirm && !append ? `Confirmed: ${spec.title}` : `${spec.title}: ${String(text ?? '').trim()}`;
+  const line = option ? `${spec.title}: ${option.on ? 'chose' : 'took off'} "${option.phrase}"`
+    : confirm && !append ? `Confirmed: ${spec.title}` : `${spec.title}: ${String(text ?? '').trim()}`;
   return createRecord({
     id: randomUUID().slice(0, 8),
     kind: 'profile-fact',

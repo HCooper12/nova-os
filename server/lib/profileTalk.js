@@ -1,9 +1,10 @@
 import { runTextLane } from './textLane.js';
 import { NOVA_LENS } from './lens.js';
-import { TURN_TAKING } from './talk.js';
+import { TURN_TAKING, talkPrefsBlock } from './talk.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { getProfile, PROFILE_SECTIONS, localDay } from './profile.js';
 import { fileProfileFact } from './inbox.js';
+import { questionById } from './profileQuestions.js';
 
 // THE ABOUT-YOU CONVERSATION (his ask, 26 Oct 2026): "a general conversation
 // with Nova that I can have back-and-forth while it learns about me."
@@ -68,8 +69,30 @@ function historyBlock(history) {
   return turns.map((t) => `${isHayden(t.role ?? t.who) ? 'Hayden' : 'Nova'}: ${t.text.trim().slice(0, 600)}`).join('\n');
 }
 
-export function buildProfileTalkPrompt({ profile, history, text, today }) {
+// THE INTERVIEW'S RULES (27 Oct 2026). Code picked the next question from
+// the bank (lib/profileQuestions.js); the model reacts like a curious friend,
+// may follow a thread for at most two turns, then asks the question code
+// handed it, verbatim or lightly reworded, and says so with "moved_on".
+function interviewBlock({ mode, nextQuestion, lastQuestion, followUps = 0 }) {
+  if (mode !== 'interview' && mode !== 'section') return '';
+  const lines = [
+    `THIS IS AN INTERVIEW${mode === 'section' ? ' ABOUT ONE SECTION' : ''}: you are getting to know him the way a warm, skilled interviewer or a new close friend would.`,
+    '- First react to what he just said in a few words, like a curious friend. No praise for answering, no summary of what he said.',
+    lastQuestion ? `- The question on the table: "${lastQuestion.q}"` : null,
+    followUps >= 2
+      ? '- You have already followed this thread twice. Move on now: ask the NEXT QUESTION below.'
+      : `- If his answer opens something worth knowing, ask ONE follow-up on the same thread (${2 - followUps} left on this thread). Otherwise move on with the NEXT QUESTION below.`,
+    nextQuestion ? `- NEXT QUESTION (picked by code; ask it verbatim or lightly reworded, keeping its meaning): "${nextQuestion.q}"` : '- There is no next question left in the bank right now: follow his lead, or ask what else he would like you to know.',
+    '- Never two questions in one reply. Your reply ends with exactly one question.',
+    '- Set "moved_on": true when your question is the NEXT QUESTION, false when it is a follow-up.',
+    '- Never ask for passwords, money in detail, or health conditions he has not raised himself.',
+  ];
+  return `\n${lines.filter(Boolean).join('\n')}\n`;
+}
+
+export function buildProfileTalkPrompt({ profile, history, text, today, mode = null, nextQuestion = null, lastQuestion = null, followUps = 0, talkPrefs = '' }) {
   const sections = sectionsOf(profile);
+  const interview = interviewBlock({ mode, nextQuestion, lastQuestion, followUps });
   return `${NOVA_LENS}
 
 You are Nova, getting to know Hayden so you hold full context of him. His profile page (Wiki/Profile.md) has these sections. Today is ${today}.
@@ -87,13 +110,13 @@ HOW THIS CONVERSATION WORKS:
 - When he confirms a draft ("yes", "that's right"), put its key in "confirmed". When he corrects a draft, record the corrected version with mode "replace".
 - Never invent. Never record something he did not say in his new words. A guess or an inference is not a fact; ask instead.
 - If he says to stop, or he is done, say a short goodbye and set "done": true.
-
-${TURN_TAKING}
+${interview}
+${talkPrefs ? `${talkPrefs}\n\n` : ''}${TURN_TAKING}
 
 Ignore the MORE rule above for this conversation: everything you say is spoken.
 
 OUTPUT ONLY JSON, nothing else:
-{"say": "...", "learned": [{"key": "<section key>", "text": "<one fact>", "mode": "append"}], "confirmed": ["<key>"], "done": false}
+{"say": "...", "learned": [{"key": "<section key>", "text": "<one fact>", "mode": "append"}], "confirmed": ["<key>"], "done": false${interview ? ', "moved_on": false' : ''}}
 
 HIS NEW WORDS:
 ${String(text || '').trim()}`;
@@ -134,7 +157,13 @@ export function vetTurn(parsed, sections) {
 
 /** One turn: his words in, Nova's short reply out, every fact filed by code
  *  with Undo. A model failure is { error } and writes nothing. */
-export async function profileTalkTurn(vaultPath, { history = [], text = '', now = new Date() } = {}, deps = {}) {
+//
+// Interview and section modes (27 Oct 2026): `nextQuestion` is the bank
+// question code picked; `questionId` the one on the table; `followUps` how
+// many follow-ups this thread has had. The result's `questionId` is the next
+// question's id when Nova moved on to it, else the one on the table, and
+// `movedOn` says which.
+export async function profileTalkTurn(vaultPath, { history = [], text = '', now = new Date(), mode = null, questionId = null, nextQuestion = null, followUps = 0 } = {}, deps = {}) {
   const run = deps.run || runTextLane;
   const words = String(text || '').trim();
   if (!words) return { error: 'Say something first' };
@@ -145,7 +174,14 @@ export async function profileTalkTurn(vaultPath, { history = [], text = '', now 
   let out;
   let parsed;
   try {
-    out = await run(LANE, buildProfileTalkPrompt({ profile: before, history, text: words, today }), { json: true, maxTokens: 700 });
+    const interviewing = mode === 'interview' || mode === 'section';
+    const lastQuestion = interviewing && questionId ? questionById(questionId) : null;
+    let talkPrefs = '';
+    try { talkPrefs = talkPrefsBlock(vaultPath); } catch { talkPrefs = ''; }
+    out = await run(LANE, buildProfileTalkPrompt({
+      profile: before, history, text: words, today, talkPrefs,
+      mode: interviewing ? mode : null, nextQuestion: interviewing ? nextQuestion : null, lastQuestion, followUps,
+    }), { json: true, maxTokens: 700 });
     const m = firstBalancedObjectMatch(out?.text || '');
     if (!m) throw new Error('no JSON in the reply');
     parsed = parseModelJson(m[0]);
@@ -170,8 +206,16 @@ export async function profileTalkTurn(vaultPath, { history = [], text = '', now 
     filedConfirmed.push({ key: c.key, title: c.title, recordId: rec.id });
   }
 
+  // did Nova move on to the question code handed it? Its own flag, or the
+  // question itself in its words
+  const squash = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, '').replace(/\s+/g, ' ').trim();
+  const movedOn = !!nextQuestion && (parsed?.moved_on === true || squash(say).includes(squash(nextQuestion.q)));
+  const nextId = movedOn ? nextQuestion.id : (questionId || null);
+
   return {
     say,
+    questionId: nextId,
+    movedOn,
     learned: filedLearned,
     confirmed: filedConfirmed,
     done: parsed?.done === true,

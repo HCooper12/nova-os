@@ -80,9 +80,9 @@ test('sections parse in order with provenance, drafted lines lifted out, knows c
   assert.deepEqual(p.sections.map((s) => s.key), PROFILE_SECTIONS.map((s) => s.key));
   assert.equal(sec(p, 'about').text, 'Hayden, 33, lives in Brisbane.');
   assert.equal(sec(p, 'about').drafted, false);
-  assert.deepEqual(sec(p, 'training'), { key: 'training', title: 'Training', text: '- Lifts four days a week.', drafted: true, draftedOn: '2026-10-20' });
+  assert.deepEqual(sec(p, 'training'), { key: 'training', title: 'Training', text: '- Lifts four days a week.', drafted: true, draftedOn: '2026-10-20', chosen: [] });
   assert.equal(sec(p, 'fuel').text, '');
-  assert.deepEqual(p.knows, { filled: 3, confirmed: 2, total: 9 });
+  assert.deepEqual(p.knows, { filled: 3, confirmed: 2, total: 12 });
   assert.equal(p.focus, 'lead well');
   assert.equal(p.intake.plan.targetKcal, 2534);
   assert.match(p.notes, /## My own heading/, 'notes stays the whole body minus the title');
@@ -102,7 +102,7 @@ test('replace rewrites only that section; frontmatter and every other section ar
 test('replacing a drafted section makes it his: the drafted line goes', async () => {
   const v = await vault();
   const { profile } = await setSection(v, 'training', 'Lifts three days a week.');
-  assert.deepEqual(sec(profile, 'training'), { key: 'training', title: 'Training', text: 'Lifts three days a week.', drafted: false, draftedOn: null });
+  assert.deepEqual(sec(profile, 'training'), { key: 'training', title: 'Training', text: 'Lifts three days a week.', drafted: false, draftedOn: null, chosen: [] });
   assert.doesNotMatch(await raw(v), /Drafted by Claude/);
   assert.match(await raw(v), /## My own heading\n\nSomething only he files here\./);
 });
@@ -124,7 +124,7 @@ test('append to an empty section creates it in PROFILE_SECTIONS order', async ()
   assert.equal(sec(profile, 'fuel').text, '- Eats four meals a day (said 2026-10-26)');
   const b = bodyOf(await raw(v));
   assert.ok(b.indexOf('## Training') < b.indexOf('## Fuel') && b.indexOf('## Fuel') < b.indexOf('## My own heading'));
-  assert.deepEqual(profile.knows, { filled: 4, confirmed: 3, total: 9 });
+  assert.deepEqual(profile.knows, { filled: 4, confirmed: 3, total: 12 });
 });
 
 test('confirm with no text keeps the words and drops the drafted line', async () => {
@@ -132,7 +132,7 @@ test('confirm with no text keeps the words and drops the drafted line', async ()
   const { profile } = await setSection(v, 'training', '', { confirm: true });
   assert.equal(sec(profile, 'training').text, '- Lifts four days a week.');
   assert.equal(sec(profile, 'training').drafted, false);
-  assert.deepEqual(profile.knows, { filled: 3, confirmed: 3, total: 9 });
+  assert.deepEqual(profile.knows, { filled: 3, confirmed: 3, total: 12 });
 });
 
 test('restore brings back the exact prior text, and null removes a page that did not exist', async () => {
@@ -164,7 +164,7 @@ test('profileContext labels drafted sections and prints what Nova knows', async 
   assert.match(ctx, /- Training: \(drafted by Claude on 2026-10-20, not yet confirmed by Hayden; treat as likely, not as his words\) Lifts four days a week\./);
   assert.match(ctx, /- Context & constraints: Gym has only dumbbells on weekends\.$/m);
   assert.doesNotMatch(ctx, /Context & constraints:.*## /, 'sections are not repeated inside the notes line');
-  assert.match(ctx, /- Nova knows 2 of 9 sections confirmed \(3 filled\)\. When a section he is asking about is empty or drafted, ask him about it rather than guess\./);
+  assert.match(ctx, /- Nova knows 2 of 12 sections confirmed \(3 filled\)\. When a section he is asking about is empty or drafted, ask him about it rather than guess\./);
   assert.match(ctx, /His numbers \(Intake, 2026-09-08/);
 });
 
