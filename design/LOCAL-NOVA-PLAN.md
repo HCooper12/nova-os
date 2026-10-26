@@ -312,6 +312,20 @@ workout), not this one.
 - Memory on this Mac is shared with his Claude sessions and Chrome. The
   guard refuses honestly; it does not fix a full machine.
 
+## 4b. His calls, 27 Oct (afternoon)
+
+1. Local-first stays on the inbox classifier at 53 % agreement and ~6 s;
+   tune it, the shorter decision for the small model first.
+2. "Claude should always be escalated to if the Mac cannot answer. Ideally
+   though the Mac would be able to solve and answer most things." So:
+   escalation is permanent, a hand-pin to This Mac still escalates, and the
+   roadmap's aim is the Mac answering MOST lanes, which means Phase B's
+   local paths for the lanes that spawn Claude Code with tools are the
+   main work, not a tail.
+3. Escalation is shown in the chat and Inbox meta lines now ("asked Claude
+   · why"), a shared-format change made across every reader and writer.
+4. Push after he has seen it on his phone.
+
 ## 5. Order of work
 
 1. Ollama backend + Qwen3.5 4B default + thinking policy + memory guard
