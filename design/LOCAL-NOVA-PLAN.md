@@ -162,7 +162,11 @@ and Chrome open it would not.
 captures, agreed with Haiku on 19/36 routes (53 %, the same note/todo/
 journal/idea boundaries as 25 Sep), and took 5.9 s median against Haiku's
 3.5 s. The time is generation, not the prompt: the inbox decision is ~150
-tokens and this Mac writes ~30 tok/s on the 4B.
+tokens and this Mac writes ~30 tok/s on the 4B. **Tuned the same
+afternoon** (the compact decision: `"*"` means "as written", eight-word
+reasons, five rules; empty note/journal text counts as `"*"`): 39/40
+parsed, 51 % agreement, 2/5 matched his own outcome (Haiku 1/5), 3.57 s
+median against Haiku's 3.52 s, measured through the real lane.
 
 Three facts this settles:
 

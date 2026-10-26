@@ -57,6 +57,33 @@ rest take a different but defensible route than Haiku would, and a decision
 takes ~6 s instead of ~3.5 s. The gains are the ones the plan names:
 answers when Claude is at its limit, nothing sent off the Mac, no spend.
 
+## The shorter decision, measured the same afternoon
+
+His call: keep local-first and tune. The compact prompt for the small model
+(`server/lib/inbox.js buildCompactPrompt`): same routes, the payloads that
+ARE data unchanged, but a note's body / a journal's text may be `"*"` (code
+files the capture as written: `fillStarPayload`), the reason capped at
+eight words, five rules. Measured THROUGH THE REAL LANE (`--through-lane`,
+`captureForReview` with the lane pinned local in scratch prefs) against the
+same Haiku baseline, no new Claude spend (`--baseline`).
+
+| | morning (full prompt, replay) | compact, first run | compact + empty-means-"*" | Haiku |
+|---|---|---|---|---|
+| parsed & validated | 36/40 | 34/40 | **39/40** | 39/40 |
+| route agreement with Haiku | 19/36 (53 %) | 17/34 (50 %) | 20/39 (51 %) | — |
+| matched his accepted outcome | 1/5 | 2/5 | **2/5** | 1/5 |
+| median | 5.9 s | 3.6 s | **3.57 s** | 3.52 s |
+| p90 | 7.8 s | 5.0 s | **4.75 s** | 5.68 s |
+
+The first compact run lost two parses to one new fault: five times the 4B
+chose journal and sent `""` where it meant "as written". An empty or
+missing body/text on note/journal now counts as `"*"` (filled BEFORE
+`normalizeDecision`, which refuses an empty body; a capture with no text
+is still refused). The star was used 8 times in 40. The lane is now as
+fast as Haiku on this Mac, parses as often, and agrees with it on half the
+ambiguous boundaries, with the cost named in the code: a note or journal
+the small model sorted keeps his words uncleaned.
+
 Worth trying next, in order of likely return: (1) the 9B on the quiet-Mac
 tier for agreement (slower again: 21 tok/s); (2) a shorter decision for
 the small model (payload only when the route needs one) to cut generation;
