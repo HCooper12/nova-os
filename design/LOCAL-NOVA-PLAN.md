@@ -150,6 +150,13 @@ is the mlx-lm build; the plain `-4bit` repo is mlx-vlm).
 | same, thinking on (Ollama's default for this model) | 765 chars of thinking, answer never reached in 200 tokens | 6.0 s, no answer; the first attempt without `think:false` hit a 60 s timeout |
 | resident memory | 3.1 GB, 100 % GPU; memory free fell 60 % → 34 % | unloads itself 5 min after the last call |
 
+**Qwen3.5 9B, measured later the same morning** (6.6 GB on disk, 6.1 GB
+resident; the Mac at load 11 with a test suite running): first load
+11.6 s, then classify correct, tool call 2.7 s, answer 2.7 s at 21 tok/s
+generation and 183 tok/s prompt read; memory free 62 % → 18 % with it
+loaded. It fits, and it is the quiet-Mac tier: with six Claude sessions
+and Chrome open it would not.
+
 Three facts this settles:
 
 1. **The model runs on this Mac today**, through Ollama, with headroom to
