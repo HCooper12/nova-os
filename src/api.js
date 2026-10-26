@@ -37,10 +37,24 @@ function reqSignal(ms = REQUEST_TIMEOUT_MS) {
 // App.toastMsg shows it alone rather than after a feature's "X failed:".
 // A timeout keeps its own error: the Mac may be there and merely slow.
 export const OFFLINE_MESSAGE = 'Offline. Requires Mac connection.';
+// A request that hit its own timeout (27 Oct 2026). Safari words it "Fetch is
+// aborted", which reached him raw on Home ("Your day could not be read: Fetch
+// is aborted.") the morning Tailscale on the Mac had switched off. The error
+// keeps its name (AbortError/TimeoutError: outbox.js isOfflineError and every
+// caller test the name) and only its words change, to what happened. A
+// caller's own abort (a cancelled request) is not a timeout and is left as is.
+export const TIMEOUT_MESSAGE = 'No answer from your Mac (the request timed out)';
 async function macFetch(url, opts) {
   try {
     return await fetch(url, opts);
   } catch (e) {
+    const timedOut = e?.name === 'TimeoutError' || (e?.name === 'AbortError' && opts?.signal?.reason?.name === 'TimeoutError');
+    if (timedOut) {
+      const err = new Error(TIMEOUT_MESSAGE);
+      err.name = e.name;
+      err.cause = e;
+      throw err;
+    }
     if (!(e instanceof TypeError)) throw e;
     const err = new TypeError(OFFLINE_MESSAGE);
     err.cause = e;
