@@ -157,6 +157,13 @@ generation and 183 tok/s prompt read; memory free 62 % → 18 % with it
 loaded. It fits, and it is the quiet-Mac tier: with six Claude sessions
 and Chrome open it would not.
 
+**The classifier eval, rerun on the Phase A build** (design/audits/
+2026-10-27-local-model-eval.md): Qwen3.5 4B parsed 36/40 of his real
+captures, agreed with Haiku on 19/36 routes (53 %, the same note/todo/
+journal/idea boundaries as 25 Sep), and took 5.9 s median against Haiku's
+3.5 s. The time is generation, not the prompt: the inbox decision is ~150
+tokens and this Mac writes ~30 tok/s on the 4B.
+
 Three facts this settles:
 
 1. **The model runs on this Mac today**, through Ollama, with headroom to
