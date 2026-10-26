@@ -539,20 +539,43 @@ async function main() {
   // token. Tailscale can be down when we boot (it was, the morning this
   // was written) — so keep trying until the address exists, honestly
   // logging each state.
+  //
+  // Since 27 Oct 2026 the road is WATCHED, not checked once (lib/tailnetWatch.js):
+  // Tailscale switched itself off overnight, his phone could not open Nova, and
+  // nothing here noticed. Every minute the watcher reads Tailscale's real
+  // state; when it stops, the listener is dropped, Tailscale is turned back on,
+  // he is told on Telegram, and the listener is bound again once it runs.
   const { execFile } = await import('node:child_process');
-  const tailnetBind = () => new Promise((resolve) => {
-    execFile('tailscale', ['ip', '-4'], { timeout: 5000 }, (err, stdout) => {
-      const ip = String(stdout || '').trim().split('\n')[0];
-      if (err || !/^100\./.test(ip)) return resolve(false);
-      const s = app.listen(port, ip, () => console.log(`Nova OS server also on tailnet http://${ip}:${port}`));
-      s.on('error', (e) => { console.error(`tailnet bind failed: ${e.message}`); resolve(false); });
-      s.on('listening', () => resolve(true));
-    });
+  const { createTailnetWatch } = await import('./lib/tailnetWatch.js');
+  const tailscale = (args) => new Promise((resolve) => {
+    execFile('tailscale', args, { timeout: 30_000 }, (err, stdout, stderr) => resolve({ ok: !err, stdout: String(stdout || ''), stderr: String(stderr || err?.message || '') }));
   });
-  if (!(await tailnetBind())) {
-    console.log('tailnet bind pending — tailscale not up yet, retrying every 60s');
-    const retry = setInterval(async () => { if (await tailnetBind()) clearInterval(retry); }, 60_000);
-  }
+  let tailnetServer = null;
+  let tailnetIp = null;
+  const bindTailnet = (ip) => {
+    if (!ip || (tailnetServer && tailnetIp === ip)) return;
+    if (tailnetServer) { try { tailnetServer.close(); } catch { /* already closed */ } tailnetServer = null; }
+    const s = app.listen(port, ip, () => console.log(`Nova OS server also on tailnet http://${ip}:${port}`));
+    s.on('error', (e) => { console.error(`tailnet bind failed: ${e.message}`); if (tailnetServer === s) { tailnetServer = null; tailnetIp = null; } });
+    tailnetServer = s;
+    tailnetIp = ip;
+  };
+  const dropTailnet = () => {
+    if (!tailnetServer) return;
+    try { tailnetServer.close(); } catch { /* already closed */ }
+    tailnetServer = null;
+    tailnetIp = null;
+    console.log('tailnet listener dropped: Tailscale is not running on the Mac');
+  };
+  const tellHim = async (text) => {
+    const { sendTelegramText } = await import('./lib/telegram.js');
+    await sendTelegramText(text);
+  };
+  const tailnetWatch = createTailnetWatch({ exec: tailscale, tell: tellHim, onUp: bindTailnet, onDown: dropTailnet });
+  const watchTick = () => tailnetWatch.tick().catch((e) => console.error(`tailnet watch failed: ${e.message}`));
+  await watchTick();
+  if (tailnetWatch.state !== 'Running') console.log(`tailnet bind pending: Tailscale is ${tailnetWatch.state || 'not answering'} on the Mac; watching every 60s`);
+  setInterval(watchTick, 60_000).unref?.();
 }
 
 main();
