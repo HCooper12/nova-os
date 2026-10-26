@@ -266,7 +266,9 @@ async function runModelEval(modelId, prepared, lib) {
     }
     const started = Date.now();
     try {
-      const { text } = await completeLocal(item.prompt, { maxTokens: 700, temperature: 0, timeoutMs: 60_000 });
+      // the same call shape production uses (lib/textLane.js runLocal): JSON
+      // constrained, thinking off by default, waiting out a load
+      const { text } = await completeLocal(item.prompt, { maxTokens: 700, temperature: 0, timeoutMs: 60_000, json: true, waitForBoot: true });
       const ms = Date.now() - started;
       let route = null;
       let parsedOk = false;
@@ -324,6 +326,15 @@ async function main() {
   const inboxLib = await import('../lib/inbox.js');
   const localModelLib = await import('../lib/localModel.js');
   const jsonSalvageLib = await import('../lib/jsonSalvage.js');
+
+  // Since 27 Oct 2026 the board's local-first default sends inbox-classify to
+  // the model on this Mac (lib/modelPrefs.js localFirst), and the scratch
+  // prefs above carry that default. The baseline must be Claude's, so the
+  // lane is pinned to Claude in the scratch prefs before the first capture;
+  // without this the "Haiku" column was the local model answering itself
+  // (the 27 Oct morning run: 40 × "no captured prompt").
+  const prefsLib = await import('../lib/modelPrefs.js');
+  await prefsLib.setLanePref('inbox-classify', { provider: 'claude' });
 
   console.log(`selecting up to ${limit} real records from server/data/inbox.json …`);
   const candidates = await selectCandidates(limit);
