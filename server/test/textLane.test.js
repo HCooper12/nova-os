@@ -441,3 +441,70 @@ test('local first on the Ollama backend: the lane asks for JSON and no thinking 
     await refreshOllama();
   }
 });
+
+/* ------------- escalation shown, and the compact inbox decision (27 Oct 2026) ------------- */
+
+// the CLI stub answering a classifier decision, for the Inbox record tests
+const classifierReply = path.join(root, 'classifier.json');
+await writeFile(classifierReply, JSON.stringify({
+  type: 'result', is_error: false, total_cost_usd: 0.001, duration_ms: 250,
+  result: JSON.stringify({ route: 'note', confidence: 'low', title: 'Milk thought', reason: 'a thought', payload: { title: 'Milk', body: '*' } }),
+}));
+const tempVault = async () => { const v = path.join(root, 'vault'); await mkdir(v, { recursive: true }); return v; };
+
+test('an escalated sort stamps escalated + escalationReason on the Inbox record, and the meta line says "sorted by Claude · why"', async () => {
+  _setHeadroomForTests(() => ({ ok: false, swapFreeMB: 460, reason: 'this Mac has only 460 MB of swap free' }));
+  await setLanePref('inbox-classify', { provider: 'local' });
+  process.env.STUB_REPLY = classifierReply;
+  const { captureForReview } = await import('../lib/inbox.js');
+  const record = await captureForReview(await tempVault(), { text: 'buy milk', source: 'voice' });
+  assert.equal(record.provider, 'claude');
+  assert.equal(record.escalated, true);
+  assert.match(record.escalationReason, /^the model on this Mac could not answer: .*460 MB of swap free/);
+  assert.equal('reason' in record, false, 'never the top-level reason an Inbox record already uses for "retried"');
+  // Claude was handed the compact prompt for this one call, and code filled the "*"
+  assert.match(await readFile(argvLog, 'utf8'), /code files the captured text itself/);
+  assert.equal(record.decision.payload.body, 'buy milk');
+  const { inboxProviderNote } = await import('../../src/vals/valsInbox.js');
+  assert.match(inboxProviderNote(record), /^sorted by Claude · the model on this Mac could not answer: .*460 MB of swap free$/);
+});
+
+test('an ordinary Claude sort adds no new keys to the record and says nothing in the meta line', async () => {
+  process.env.STUB_REPLY = classifierReply;
+  assert.equal(providerFor('inbox-classify'), 'claude');
+  const { captureForReview } = await import('../lib/inbox.js');
+  const record = await captureForReview(await tempVault(), { text: 'buy milk', source: 'voice' });
+  assert.equal(record.provider, 'claude');
+  assert.equal(record.fallback, false);
+  assert.equal('escalated' in record, false);
+  assert.equal('escalationReason' in record, false);
+  const { inboxProviderNote } = await import('../../src/vals/valsInbox.js');
+  assert.equal(inboxProviderNote(record), '');
+  assert.equal(inboxProviderNote({ provider: 'local', fallback: false }), 'sorted on this Mac');
+  assert.equal(inboxProviderNote({ provider: 'local', fallback: true }), 'sorted on this Mac · Claude was out of usage');
+});
+
+test('the inbox lane picks its prompt by who runs it: compact for this Mac, the full one for Claude', async () => {
+  const { classifyPromptFor } = await import('../lib/inbox.js');
+  assert.equal(providerFor('inbox-classify'), 'claude');
+  const full = classifyPromptFor('buy milk');
+  assert.match(full, /^You are the inbox classifier/);
+  assert.doesNotMatch(full, /"\*"/);
+  await setLanePref('inbox-classify', { provider: 'local' });
+  const compact = classifyPromptFor('buy milk');
+  assert.match(compact, /\{"title": "Short Title Case Name", "body": "\*"\}/);
+  assert.match(compact, /\{"text": "\*"\}/);
+  assert.match(compact, /"reason" at most 8 words/);
+  assert.match(compact, /NEVER macros for a slot/, 'the food-slot rule survives the cut');
+  assert.ok(compact.length < full.length);
+});
+
+test('a note sorted on this Mac with body "*" files the capture itself', async () => {
+  await startStub(JSON.stringify({ route: 'note', confidence: 'low', title: 'Milk thought', reason: 'kept as a note', payload: { title: 'Milk', body: '*' } }));
+  await setLanePref('inbox-classify', { provider: 'local' });
+  const { captureForReview } = await import('../lib/inbox.js');
+  const record = await captureForReview(await tempVault(), { text: '  milk is cheaper at Aldi  ', source: 'voice' });
+  assert.equal(record.provider, 'local');
+  assert.equal(record.decision.payload.body, 'milk is cheaper at Aldi');
+  assert.match(JSON.stringify(seen[0].messages), /code files the captured text itself/, 'the compact prompt went to the local model');
+});

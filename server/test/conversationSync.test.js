@@ -122,3 +122,25 @@ test('a reply answered on his Mac goes up with who answered, and comes back down
   const back = merge([], [{ ...up[0], id: 'rec-local-1' }], { dev: 'd2' });
   assert.equal(note(back[0]), 'answered on this Mac · Claude was at its usage limit', 'the label survives a reload');
 });
+
+test('a Claude answer this Mac escalated goes up and comes back with "asked Claude · why"; an ordinary Claude answer carries nothing (27 Oct 2026)', async () => {
+  const { pendingTurns: pend, mergeRecord: merge, providerNote: note, answeredBy } = await import('../../src/conversationSync.js');
+  const reason = 'the model on this Mac could not answer: Ollama is not installed on this Mac';
+  const chat = [{ at: 1000, who: 'nova', text: 'Free at 14:00.', provider: 'claude', escalated: true, reason },
+    { at: 2000, who: 'nova', text: 'A Claude answer.', provider: 'claude' }];
+  const up = pend(chat, {}, { dev: 'd1' });
+  assert.equal(up[0].provider, 'claude');
+  assert.equal(up[0].escalated, true);
+  assert.equal(up[0].reason, reason);
+  assert.equal('provider' in up[1], false, 'an ordinary Claude answer sends no provider');
+  const back = merge([], [{ ...up[0], id: 'rec-esc-1' }], { dev: 'd2' });
+  assert.equal(note(back[0]), `asked Claude · ${reason}`, 'the label survives a reload');
+  assert.equal(note({ provider: 'claude', escalated: true, reason: 'Ollama is not running.' }), 'asked Claude · Ollama is not running', 'a proper noun keeps its capital');
+  assert.equal(note({ provider: 'claude', escalated: true }), 'asked Claude');
+  assert.equal(note({ provider: 'claude' }), null);
+  assert.equal(note({ provider: 'local' }), 'answered on this Mac');
+  // App.jsx's poll takes the same fields off a job result
+  assert.deepEqual(answeredBy({ text: 'x', provider: 'claude', escalated: true, reason, sessionId: 's' }), { provider: 'claude', escalated: true, reason });
+  assert.deepEqual(answeredBy({ text: 'x', provider: 'claude', sessionId: 's' }), {});
+  assert.deepEqual(answeredBy({ provider: 'local', fallback: false }), { provider: 'local' });
+});

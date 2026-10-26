@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
 import { laneEnabled, laneOffError } from './modelPrefs.js';
-import { runTextLane } from './textLane.js';
+import { runTextLane, laneVia } from './textLane.js';
 import { parseEventLocal, EDIT_WORDS_RE } from './calendarLocal.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
@@ -41,7 +41,7 @@ async function interpret(prompt) {
   const raw = out.text || '';
   const m = raw.match(/\[[\s\S]*\]/) || firstBalancedObjectMatch(raw);
   if (!m) throw new Error('no JSON found in the response');
-  return { parsed: parseModelJson(m[0]), via: { provider: out.provider, fallback: !!out.fallback } };
+  return { parsed: parseModelJson(m[0]), via: laneVia(out) };
 }
 
 function fileProposal(record) { return createRecord(record).then(() => ({ proposed: true, record })); }
@@ -123,7 +123,9 @@ export async function runCalendarCommand(text, vaultPath = null) {
 async function proposeOne(op, clean, events, vaultPath, via = null) {
   const base = {
     id: randomUUID().slice(0, 8), kind: 'calendar', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString(),
-    ...(via ? { provider: via.provider, fallback: !!via.fallback } : {}),
+    // escalated + escalationReason only when Claude answered for this Mac
+    // (lib/textLane.js laneVia); an ordinary run stamps the same two keys
+    ...(via ? { ...via } : {}),
   };
 
   // ---- ADD ----------------------------------------------------------------

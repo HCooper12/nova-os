@@ -13,7 +13,7 @@ import { addTransactions, removeTransactions, restoreTransactions, editTransacti
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
-import { laneEnabled, laneOffError } from './modelPrefs.js';
+import { laneEnabled, laneOffError, providerFor } from './modelPrefs.js';
 import { addItemsDirect, removeItems, restoreItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
@@ -21,7 +21,7 @@ import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe, editRecipe, loadRecipes } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 import { routeIntent } from './intentRouter.js';
-import { runTextLane } from './textLane.js';
+import { runTextLane, laneVia } from './textLane.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -46,7 +46,49 @@ function todayISO(now = new Date()) {
 
 /* ------------------------------ classifier ------------------------------ */
 
-function buildPrompt(text) {
+// THE COMPACT DECISION FOR THE SMALL MODEL (27 Oct 2026). Measured that
+// morning (design/audits/2026-10-27-local-model-eval.md): Qwen3.5 4B took
+// 5.9 s median on this lane against Haiku's 3.5 s, and the time was
+// GENERATION, not reading: ~150 output tokens at ~30 tok/s on this Mac, most
+// of it the note/journal payload (the capture rewritten in full) and the
+// reason. So when the lane runs here, the model may answer "*" for a note's
+// body or a journal's text, meaning "the captured text as it is", and code
+// puts the text back (fillStarPayload, below); the reason is capped at eight
+// words. Every other payload IS the data (items, macros, amounts, links,
+// times) and keeps its contract. Fewer, sharper rules too: a small model
+// follows five better than fifteen (the prompt pack's lesson). Claude keeps
+// the full prompt exactly as it was. The cost of "*": a journal or note the
+// small model sorted keeps his words uncleaned (dictation stumbles and all),
+// which is his text, never invented text.
+function buildCompactPrompt(text) {
+  return `Sort one captured thought from Hayden's personal OS into exactly ONE route. Reply with JSON only: {"route", "confidence", "title", "reason", "payload"}.
+
+Routes and payloads:
+- "shopping": things to buy. {"items": [{"name": "short list name", "category": one of ${SHOPPING_CATEGORIES.join(', ')}}]}
+- "food": food already eaten. A planned meal named by its slot ("had my pre-workout", "ate meal 2"): {"slot": "preworkout"|"breakfast"|"lunch"|"dinner"} (Meal 1 = breakfast, Meal 2 = lunch, Meal 3 = dinner), and NEVER macros for a slot. Specific food described: {"name": "...", "macros": {"p": 0, "c": 0, "f": 0, "kcal": 0}}, whole-number estimates.
+- "todo": an action for later. {"items": [{"text": "short imperative", "category": "personal"|"work"|"fitness"|"errands"|"later"}]}
+- "reminder": an action with a stated or clearly implied time. {"text": "short imperative", "whenISO": "full local ISO datetime in the future"}
+- "expense": money spent or received. {"amount": -6.5, "merchant": "...", "category": one of ${MONEY_CATEGORIES.join(', ')}} (negative for spending)
+- "stash": ONLY when the capture holds an http(s) link to keep. {"category": "Short Group", "name": "...", "url": "copied exactly"}
+- "idea": something he might make (video, post, thread). {"title": "...", "hook": "one line", "format": "short"|"long"|"thread"}
+- "journal": a reflection or feeling about his day or life. {"text": "*"}
+- "note": knowledge or an insight to keep. {"title": "Short Title Case Name", "body": "*"}
+
+Rules:
+1. For journal and note, write "*" exactly: code files the captured text itself.
+2. "title" at most 8 words; "reason" at most 8 words.
+3. "confidence" is "high" only when route and payload are both unambiguous; otherwise "low".
+4. Mixed intents: pick the dominant one, confidence "low". Fits nothing: "note", confidence "low".
+5. Never invent a link, time or number the capture does not support. Now is ${new Date().toString()}.
+
+The captured thought:
+"""
+${text}
+"""`;
+}
+
+function buildPrompt(text, { compact = false } = {}) {
+  if (compact) return buildCompactPrompt(text);
   return `You are the inbox classifier for Nova, Hayden's personal OS backed by an Obsidian vault. A loose thought was just captured (typed or dictated). Make exactly ONE routing decision for it.
 
 Routes and their payloads:
@@ -171,31 +213,75 @@ export function normalizeDecision(parsed) {
   return { route, confidence, title, reason, payload };
 }
 
+// "*" AS THE CAPTURE ITSELF (27 Oct 2026): the compact prompt lets the
+// small model answer a note's body or a journal's text with "*", and code
+// substitutes the trimmed capture. An EMPTY or missing body/text on those two
+// routes counts as "*" too: in the 27 Oct through-lane eval the 4B chose
+// journal and sent "" five times out of 40 where it meant "as written", and
+// the capture is his own words, so filing it as written is what he asked
+// for (the record stays on the rails, reviewable and undoable). Runs BEFORE
+// normalizeDecision, which refuses an empty body, and applies to every
+// decision whoever wrote it, so a compact prompt Claude answered on an
+// escalation is handled the same way. Pure + exported for tests; a body
+// that is any other text is left as the model wrote it.
+export function fillStarPayload(decision, text) {
+  if (!decision || typeof decision !== 'object') return decision;
+  const clean = String(text || '').trim();
+  if (!clean) return decision;
+  const payload = decision.payload && typeof decision.payload === 'object' ? decision.payload : {};
+  const star = (v) => v === '*' || v == null || (typeof v === 'string' && !v.trim());
+  if (decision.route === 'note' && star(payload.body)) {
+    return { ...decision, payload: { ...payload, body: clean } };
+  }
+  if (decision.route === 'journal' && star(payload.text)) {
+    return { ...decision, payload: { ...payload, text: clean } };
+  }
+  return decision;
+}
+
+// Which prompt a classify call sends: the compact one when the lane resolves
+// to this Mac (local first, or pinned), the full one for Claude. Decided once
+// per call; exported for tests.
+export function classifyPromptFor(text) {
+  return buildPrompt(text, { compact: providerFor('inbox-classify') === 'local' });
+}
+
 // `onDone(err, decision, via)`: `via` is { provider, fallback }, who sorted it
 // (Claude, or the model on this Mac: lib/textLane.js), kept on the record so
-// the Inbox can say "sorted on this Mac".
+// the Inbox can say "sorted on this Mac"; plus `escalated` and
+// `escalationReason` when this Mac could not answer and Claude did (27 Oct),
+// so it can say "sorted by Claude · why" (textLane.js laneVia).
 function classify(text, onDone) {
   // Off: the capture still exists on the rails, it just stops here carrying
   // the reason — visible in the Inbox and retryable once it is back on.
   // Never a silent auto-file, and never a guessed route.
   if (!laneEnabled('inbox-classify')) { onDone(laneOffError('inbox-classify')); return; }
-  runTextLane('inbox-classify', buildPrompt(text), { json: true }).then((out) => {
+  // The prompt is chosen before the run: if this Mac then cannot answer and
+  // the runner escalates, Claude receives the compact prompt for that one
+  // call. That is fine: fillStarPayload below handles "*" whoever answered.
+  runTextLane('inbox-classify', classifyPromptFor(text), { json: true }).then((out) => {
     let decision;
     try {
       const body = (out.text || '').trim();
       const jsonMatch = firstBalancedObjectMatch(body);
       if (!jsonMatch) throw new Error(body.slice(0, 200) || 'no JSON in classifier response');
-      decision = normalizeDecision(parseModelJson(jsonMatch[0]));
+      decision = normalizeDecision(fillStarPayload(parseModelJson(jsonMatch[0]), text));
     } catch (e) {
       onDone(e);
       return;
     }
-    onDone(null, decision, { provider: out.provider, fallback: out.fallback });
+    onDone(null, decision, laneVia(out));
   }, (err) => onDone(err));
 }
 
 // The record fields that say who sorted a capture; none for a code sort.
-const viaFields = (via) => (via ? { provider: via.provider, fallback: !!via.fallback } : {});
+// The escalation keys ride only when set, so an ordinary Claude sort writes
+// the same two keys it always has.
+const viaFields = (via) => (via ? {
+  provider: via.provider,
+  fallback: !!via.fallback,
+  ...(via.escalated === true ? { escalated: true, ...(via.escalationReason ? { escalationReason: via.escalationReason } : {}) } : {}),
+} : {});
 
 // Voice-conversation proposals: classify NOW and land as a pending record —
 // never auto-files regardless of confidence, because a proposal spoken into

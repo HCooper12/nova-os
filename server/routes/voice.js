@@ -9,11 +9,15 @@ import { composeShow } from '../lib/morningShow.js';
 import { lintSpoken } from '../../src/spokenLint.js';
 import { normWhere, whereLine, suppressGlass, forceConfirmFor, handsFreeWhere } from '../lib/register.js';
 
-// Who answered, for the conversation record: only an answer from the model
-// on his Mac carries it (lib/askDispatch.js, lib/conversationLog.js).
-const viaOf = (result) => (result?.provider === 'local'
-  ? { provider: 'local', fallback: !!result.fallback, ...(result.reason ? { reason: result.reason } : {}) }
-  : {});
+// Who answered, for the conversation record: an answer from the model on
+// his Mac carries it, and (27 Oct, local first) so does a Claude answer this
+// Mac escalated, with why (lib/askDispatch.js, lib/conversationLog.js). An
+// ordinary Claude answer carries nothing. Exported for its test.
+export const viaOf = (result) => {
+  if (result?.provider === 'local') return { provider: 'local', fallback: !!result.fallback, ...(result.reason ? { reason: result.reason } : {}) };
+  if (result?.provider === 'claude' && result.escalated === true) return { provider: 'claude', escalated: true, ...(result.reason ? { reason: result.reason } : {}) };
+  return {};
+};
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.

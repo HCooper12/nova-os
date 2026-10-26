@@ -125,3 +125,20 @@ test('an answer from the model on his Mac keeps who answered and why; a Claude a
   assert.match(block, /You \[on his Mac, the small model\]: A local answer, read back\./);
   assert.match(block, /weigh it as such/);
 });
+
+test('a Claude answer this Mac escalated keeps provider, escalated and why; read back, Nova knows Claude answered for the Mac (27 Oct 2026)', async () => {
+  const up = normaliseTurn({ who: 'nova', text: 'Free at 14:00.', provider: 'claude', escalated: true, reason: ' the model on this Mac could not answer: Ollama is not installed on this Mac ' });
+  assert.equal(up.provider, 'claude');
+  assert.equal(up.escalated, true);
+  assert.equal(up.reason, 'the model on this Mac could not answer: Ollama is not installed on this Mac');
+  assert.equal('fallback' in up, false);
+  const plain = normaliseTurn({ who: 'nova', text: 'Done.', provider: 'claude', escalated: 'yes' });
+  assert.equal('provider' in plain, false, 'only a real escalated flag is kept');
+  const his = normaliseTurn({ who: 'you', text: 'when am I free?', provider: 'claude', escalated: true });
+  assert.equal('escalated' in his, false);
+
+  const now = new Date();
+  await appendTurns([{ who: 'nova', text: 'An escalated answer, read back.', provider: 'claude', escalated: true, reason: 'the model on this Mac could not answer: x', at: now.toISOString() }], { now });
+  const block = await recentConversationBlock({ now });
+  assert.match(block, /You \[Claude, because the model on his Mac could not answer\]: An escalated answer, read back\./);
+});

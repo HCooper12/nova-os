@@ -118,7 +118,7 @@ import { coachSuggestions } from './coachSuggestions.js';
 import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
-import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult } from './conversationSync.js';
+import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult, answeredBy } from './conversationSync.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -8097,8 +8097,10 @@ export default class App extends Component {
             const glass = glassSnapshot(s.glassBeats, s.glassVisuals) || undefined;
             // each light keeps the sentence that named it, for Replay after a reload
             bindGlassSentences(glass, spokenText);
-            // who answered: only a local answer says so (the meta line reads it)
-            const via = job.result.provider === 'local' ? { provider: 'local', fallback: !!job.result.fallback, reason: job.result.reason || undefined } : {};
+            // who answered: a local answer says so, and so does a Claude
+            // answer this Mac escalated (src/conversationSync.js answeredBy;
+            // the meta line reads it); an ordinary Claude answer carries none
+            const via = answeredBy(job.result);
             // the rest it held for "go on" rides the line (src/turnFold.js)
             const more = job.result.more || undefined;
             const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...via, ...(meta || {}) };

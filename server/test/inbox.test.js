@@ -357,3 +357,34 @@ test('approving a finished plan files its report as a note instead of re-running
   const again = await getRecord(rec.id);
   assert.equal(again.status, 'filed');
 });
+
+test('fillStarPayload: "*" is the capture, anything else is left as written (27 Oct 2026)', async () => {
+  const { fillStarPayload } = await import('../lib/inbox.js');
+  const note = normalizeDecision({ route: 'note', title: 'T', payload: { title: 'T', body: '*' } });
+  assert.equal(fillStarPayload(note, '  the whole thought  ').payload.body, 'the whole thought');
+  const journal = normalizeDecision({ route: 'journal', title: 'J', payload: { text: '*' } });
+  const filled = fillStarPayload(journal, 'a long day');
+  assert.equal(filled.payload.text, 'a long day');
+  assert.equal(filled.payload.author, 'hayden', 'the rest of the payload is kept');
+  assert.equal(journal.payload.text, '*', 'pure: the input decision is not mutated');
+  const written = normalizeDecision({ route: 'note', title: 'T', payload: { title: 'T', body: 'cleaned prose' } });
+  assert.equal(fillStarPayload(written, 'raw').payload.body, 'cleaned prose');
+  const starry = normalizeDecision({ route: 'note', title: 'T', payload: { title: 'T', body: '* a bullet' } });
+  assert.equal(fillStarPayload(starry, 'raw').payload.body, '* a bullet', 'only exactly "*" is the placeholder');
+  const todo = normalizeDecision({ route: 'todo', title: 'x', payload: { items: [{ text: '*', category: 'personal' }] } });
+  assert.equal(fillStarPayload(todo, 'raw').payload.items[0].text, '*', 'a payload that IS the data is never replaced');
+});
+
+test('fillStarPayload: an empty or missing note body / journal text means "as written", filled BEFORE validation (27 Oct 2026)', async () => {
+  const { fillStarPayload } = await import('../lib/inbox.js');
+  // the 4B chose journal and sent "" five times in the through-lane eval
+  const raw = { route: 'journal', title: 'Morning Dispatch', payload: { text: '' } };
+  const filled = normalizeDecision(fillStarPayload(raw, 'Morning Dispatch — Tuesday 27 October'));
+  assert.equal(filled.payload.text, 'Morning Dispatch — Tuesday 27 October');
+  const noPayload = normalizeDecision(fillStarPayload({ route: 'note', title: 'T' }, 'the thought'));
+  assert.equal(noPayload.payload.body, 'the thought');
+  // the old refusal still stands when there is no capture text to fall back on
+  assert.throws(() => normalizeDecision(fillStarPayload(raw, '   ')), /no journal text/);
+  // a todo with empty items is still refused: only note and journal mean "as written"
+  assert.throws(() => normalizeDecision(fillStarPayload({ route: 'todo', title: 'x', payload: { items: [] } }, 'buy milk')));
+});

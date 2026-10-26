@@ -103,7 +103,7 @@ export function pendingTurns(chat, synced, { dev, device = '' } = {}) {
       ...((m.device || device) ? { device: m.device || device } : {}),
       ...(agent ? { by: m.who } : (m.by ? { by: m.by } : {})),
       ...(Array.isArray(m.from) && m.from.length ? { from: m.from } : {}),
-      ...(m.provider === 'local' ? { provider: 'local', ...(m.fallback ? { fallback: true } : {}), ...(m.reason ? { reason: m.reason } : {}) } : {}),
+      ...answeredBy(m),
     });
   });
   return out;
@@ -123,7 +123,7 @@ export function mergeRecord(chat, turns, { dev } = {}) {
     incoming.push({
       at, who: t.who, text: t.text, via: t.via, device: t.device, cid: t.id, fromRecord: true,
       ...(t.by ? { by: t.by } : {}), ...(Array.isArray(t.from) ? { from: t.from } : {}),
-      ...(t.provider === 'local' ? { provider: 'local', fallback: !!t.fallback, ...(t.reason ? { reason: t.reason } : {}) } : {}),
+      ...answeredBy(t),
     });
   }
   if (!incoming.length) return local;
@@ -143,13 +143,40 @@ export function whereLabel(m, { device = '' } = {}) {
   return null;
 }
 
-// Which engine answered, as a small meta phrase: only a local answer says so
-// (a Claude answer carries no provider). A fallback adds the server's own
-// reason, first letter lower-cased unless it opens on a proper noun.
-export function providerNote(m) {
-  if (m?.provider !== 'local') return null;
+// WHO ANSWERED, the fields a line carries (and the record keeps): a local
+// answer says so, with the reason when it stood in for Claude; since 27 Oct
+// an answer Claude gave because this Mac could not (local first, escalated:
+// server/lib/textLane.js, askDispatch.js) says so too, with why. An ordinary
+// Claude answer carries none of these, so the line shape it always had is
+// unchanged. One function for both directions (pendingTurns up, mergeRecord
+// down) and for App.jsx's poll, so the three cannot drift apart; the
+// server's mirror is cleanVia in server/lib/conversationLog.js.
+export function answeredBy(m) {
+  if (!m || typeof m !== 'object') return {};
+  const reason = typeof m.reason === 'string' && m.reason.trim() ? m.reason.trim() : '';
+  if (m.provider === 'local') return { provider: 'local', ...(m.fallback ? { fallback: true } : {}), ...(reason ? { reason } : {}) };
+  if (m.provider === 'claude' && m.escalated === true) return { provider: 'claude', escalated: true, ...(reason ? { reason } : {}) };
+  return {};
+}
+
+// The server's reason, first letter lower-cased unless it opens on a proper noun.
+function reasonPhrase(m) {
   const r = typeof m.reason === 'string' ? m.reason.trim().replace(/[.\s]+$/, '') : '';
-  return `answered on this Mac${m.fallback && r ? ` · ${/^(Claude|Nova|Anthropic|I)\b/.test(r) ? r : r.charAt(0).toLowerCase() + r.slice(1)}` : ''}`;
+  if (!r) return '';
+  return /^(Claude|Nova|Anthropic|Ollama|I)\b/.test(r) ? r : r.charAt(0).toLowerCase() + r.slice(1);
+}
+
+// Which engine answered, as a small meta phrase: a local answer says so, and
+// so does a Claude answer this Mac handed up ("asked Claude · why"); an
+// ordinary Claude answer says nothing. A fallback adds the server's reason.
+export function providerNote(m) {
+  if (m?.provider === 'claude' && m.escalated === true) {
+    const r = reasonPhrase(m);
+    return `asked Claude${r ? ` · ${r}` : ''}`;
+  }
+  if (m?.provider !== 'local') return null;
+  const r = reasonPhrase(m);
+  return `answered on this Mac${m.fallback && r ? ` · ${r}` : ''}`;
 }
 
 // A job's consult roster (server/lib/consult.js) trimmed to what the record

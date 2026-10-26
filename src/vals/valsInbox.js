@@ -359,6 +359,20 @@ function computeProposals(app, st, items, dispatch, compost) {
   return out;
 }
 
+// Who sorted a record, as the meta line's phrase; '' when Claude sorted it
+// in the ordinary way or code did. Pure + exported for tests. The reason is
+// the server's own words (lib/textLane.js escalate), first letter lower-cased
+// unless it opens on a proper noun, as providerNote does for the chat.
+export function inboxProviderNote(r) {
+  if (r?.provider === 'claude' && r.escalated === true) {
+    const why = typeof r.escalationReason === 'string' ? r.escalationReason.trim().replace(/[.\s]+$/, '') : '';
+    const phrase = !why || /^(Claude|Nova|Anthropic|Ollama|I)\b/.test(why) ? why : why.charAt(0).toLowerCase() + why.slice(1);
+    return `sorted by Claude${phrase ? ` · ${phrase}` : ''}`;
+  }
+  if (r?.provider === 'local') return `sorted on this Mac${r.fallback ? ' · Claude was out of usage' : ''}`;
+  return '';
+}
+
 export function valsInbox(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline } = ctx;
@@ -417,7 +431,10 @@ export function valsInbox(app, ctx) {
     source: SOURCE_LABEL[r.kind] || (r.source === 'voice' ? 'VOICE' : 'TYPED'),
     // HONESTY: a record a lane ran on this Mac says so, in the meta line. The
     // server stamps provider 'local' (and fallback when Claude was out of usage).
-    localNote: r.provider === 'local' ? `sorted on this Mac${r.fallback ? ' · Claude was out of usage' : ''}` : '',
+    // Since 27 Oct (local first), a record Claude sorted because this Mac could
+    // not says that too: provider 'claude', escalated, and escalationReason
+    // (server/lib/textLane.js laneVia). An ordinary Claude sort says nothing.
+    localNote: inboxProviderNote(r),
     status: r.status,
     route: PRACTICE_KINDS.has(r.kind) ? ROUTE_META[r.kind] : r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,

@@ -51,10 +51,12 @@ function excerpt(text, n = 60) {
 /* ------------------------------- CLI args -------------------------------- */
 
 function parseArgs(argv) {
-  const out = { models: [], limit: 40 };
+  const out = { models: [], limit: 40, throughLane: false, baseline: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--model') out.models.push(argv[++i]);
+    else if (a === '--through-lane') out.throughLane = true;
+    else if (a === '--baseline') out.baseline = argv[++i];
     else if (a === '--limit') out.limit = Number(argv[++i]) || 40;
     else if (a === '--out') out.outDir = argv[++i];
   }
@@ -299,12 +301,72 @@ async function runModelEval(modelId, prepared, lib) {
   return { modelId, results, peakRssMB };
 }
 
+/* --------------------------- through the real lane --------------------------- */
+
+// --through-lane (27 Oct 2026): the LOCAL pass runs the real path instead of
+// replaying the captured Claude prompt into completeLocal. captureForReview
+// with the lane pinned to this Mac in the scratch prefs, so what is measured
+// is what production does: the prompt the lane picks for the local model (the
+// compact one, lib/inbox.js classifyPromptFor), runTextLane's call shape and
+// ledger row, normalizeDecision and the "*" fill. Timing is the whole
+// captureForReview call (prompt build + local run + parse + a scratch record
+// write), i.e. what he waits for.
+//
+// An escalation would ask the real Claude and hide a local failure inside a
+// Claude answer, so for this pass CLAUDE_BIN points at a stub that refuses at
+// once: a local miss stays a miss here, and no Claude call is spent.
+async function makeRefusingClaude() {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'nova-eval-noclaude-'));
+  const bin = path.join(dir, 'claude-refuses.sh');
+  await writeFile(bin, '#!/bin/sh\necho "eval: Claude is not asked in the through-lane pass" >&2\nexit 1\n', 'utf8');
+  await chmod(bin, 0o755);
+  return bin;
+}
+
+async function runThroughLaneEval(modelId, prepared, { captureForReview, setLanePref, refusingClaude }) {
+  process.env.NOVA_LOCAL_LLM_MODEL = modelId;
+  await setLanePref('inbox-classify', { provider: 'local' });
+  const hadClaude = process.env.CLAUDE_BIN;
+  process.env.CLAUDE_BIN = refusingClaude;
+  const results = [];
+  try {
+    for (const item of prepared) {
+      const started = Date.now();
+      try {
+        const record = await captureForReview(null, { text: item.text, source: 'text' });
+        const ms = Date.now() - started;
+        const local = record.provider === 'local';
+        const d = record.decision || {};
+        const clean = String(item.text || '').trim();
+        // did the model answer "*" (code put the capture back)? Read off the
+        // filled payload: the body/text is the capture itself, verbatim
+        const starFilled = (d.route === 'note' && d.payload?.body === clean) || (d.route === 'journal' && d.payload?.text === clean);
+        results.push({
+          ...item,
+          local: {
+            ok: true, parsedOk: local, route: local ? d.route : null, ms, error: local ? null : `answered by ${record.provider}`,
+            provider: record.provider, escalated: !!record.escalated, starFilled, reasonWords: String(d.reason || '').split(/\s+/).filter(Boolean).length,
+          },
+        });
+        console.log(`  lane: ${excerpt(item.text, 40).padEnd(42)} → ${d.route} (${ms}ms)${starFilled ? ' [*]' : ''}`);
+      } catch (e) {
+        const ms = Date.now() - started;
+        results.push({ ...item, local: { ok: false, parsedOk: false, route: null, ms, error: e.message.slice(0, 300) } });
+        console.log(`  lane: ${excerpt(item.text, 40).padEnd(42)} → FAIL (${ms}ms) [${excerpt(e.message, 120)}]`);
+      }
+    }
+  } finally {
+    process.env.CLAUDE_BIN = hadClaude;
+  }
+  return { modelId, results, peakRssMB: null };
+}
+
 /* ---------------------------------- main ------------------------------------ */
 
 async function main() {
-  const { models, limit, outDir: outDirArg } = parseArgs(process.argv.slice(2));
+  const { models, limit, outDir: outDirArg, throughLane, baseline } = parseArgs(process.argv.slice(2));
   if (!models.length) {
-    console.error('usage: evalLocalClassifier.mjs --model <mlx-model-id> [--model <another>] [--limit 40]');
+    console.error('usage: evalLocalClassifier.mjs --model <model-id> [--model <another>] [--limit 40] [--through-lane] [--baseline <prepared-haiku-baseline.json>]');
     process.exit(1);
   }
 
@@ -336,18 +398,30 @@ async function main() {
   const prefsLib = await import('../lib/modelPrefs.js');
   await prefsLib.setLanePref('inbox-classify', { provider: 'claude' });
 
-  console.log(`selecting up to ${limit} real records from server/data/inbox.json …`);
-  const candidates = await selectCandidates(limit);
-  const genuineCount = candidates.filter((c) => c.genuineRecord).length;
-  console.log(`  ${candidates.length} selected (${genuineCount} genuine inbox-classify captures with a known outcome pool, ${candidates.length - genuineCount} other real captured text used to reach the requested count)`);
+  let prepared;
+  if (baseline) {
+    // --baseline: reuse a Haiku baseline already paid for (same items, same
+    // decisions), instead of spending another 40 Claude calls on it. The
+    // file is read, never rewritten.
+    prepared = JSON.parse(await readFile(path.resolve(baseline), 'utf8')).slice(0, limit);
+    console.log(`reusing the Haiku baseline at ${baseline}: ${prepared.length} items (${prepared.filter((p) => p.haiku?.ok).length} with a Haiku decision)`);
+  } else {
+    console.log(`selecting up to ${limit} real records from server/data/inbox.json …`);
+    const candidates = await selectCandidates(limit);
+    const genuineCount = candidates.filter((c) => c.genuineRecord).length;
+    console.log(`  ${candidates.length} selected (${genuineCount} genuine inbox-classify captures with a known outcome pool, ${candidates.length - genuineCount} other real captured text used to reach the requested count)`);
 
-  console.log(`\nrunning Haiku baseline (${candidates.length} calls, budget ${MAX_HAIKU_CALLS}) …`);
-  const prepared = await prepareHaikuBaseline(candidates, inboxLib);
-  await writeFile(path.join(outDir, 'prepared-haiku-baseline.json'), JSON.stringify(prepared, null, 2), 'utf8');
+    console.log(`\nrunning Haiku baseline (${candidates.length} calls, budget ${MAX_HAIKU_CALLS}) …`);
+    prepared = await prepareHaikuBaseline(candidates, inboxLib);
+    await writeFile(path.join(outDir, 'prepared-haiku-baseline.json'), JSON.stringify(prepared, null, 2), 'utf8');
+  }
 
+  const refusingClaude = throughLane ? await makeRefusingClaude() : null;
   const allSummaries = [];
   for (const modelId of models) {
-    const { results, peakRssMB } = await runModelEval(modelId, prepared, {
+    const { results, peakRssMB } = throughLane
+      ? await runThroughLaneEval(modelId, prepared, { captureForReview: inboxLib.captureForReview, setLanePref: prefsLib.setLanePref, refusingClaude })
+      : await runModelEval(modelId, prepared, {
       ensureLocalModel: localModelLib.ensureLocalModel,
       completeLocal: localModelLib.completeLocal,
       stopLocalModel: localModelLib.stopLocalModel,
@@ -355,15 +429,15 @@ async function main() {
       normalizeDecision: inboxLib.normalizeDecision,
       jsonSalvage: jsonSalvageLib,
     });
-    const stats = summarize(results);
-    const slug = modelId.replace(/[^a-zA-Z0-9]+/g, '-');
+    const stats = { ...summarize(results), mode: throughLane ? 'through-lane' : 'replay', ...(throughLane ? { starFilled: results.filter((r) => r.local.starFilled).length } : {}) };
+    const slug = `${modelId.replace(/[^a-zA-Z0-9]+/g, '-')}${throughLane ? '-through-lane' : ''}`;
     await writeFile(path.join(outDir, `${slug}.json`), JSON.stringify({ modelId, stats, peakRssMB, results }, null, 2), 'utf8');
     allSummaries.push({ modelId, ...stats, peakRssMB });
     console.log(`\n=== ${modelId} ===`);
     console.log(JSON.stringify({ ...stats, peakRssMB }, null, 2));
   }
 
-  await writeFile(path.join(outDir, 'summary.json'), JSON.stringify(allSummaries, null, 2), 'utf8');
+  await writeFile(path.join(outDir, throughLane ? 'summary-through-lane.json' : 'summary.json'), JSON.stringify(allSummaries, null, 2), 'utf8');
   console.log(`\nraw results written to ${outDir}`);
   console.log(JSON.stringify(allSummaries, null, 2));
 }

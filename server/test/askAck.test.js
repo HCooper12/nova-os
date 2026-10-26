@@ -111,3 +111,12 @@ test('the stage line: said only while a slow agent is still being asked', () => 
 test('no test wrote into his live data', () => {
   assert.ok(existsSync(path.join(dataDir, 'voice', 'acks.json')));
 });
+
+test('viaOf: an escalated answer is recorded as Claude, escalated, with why; an ordinary Claude answer carries nothing (27 Oct 2026)', async () => {
+  const { viaOf } = await import('../routes/voice.js');
+  const reason = 'the model on this Mac could not answer: Ollama is not installed on this Mac';
+  assert.deepEqual(viaOf({ text: 'x', provider: 'claude', escalated: true, reason }), { provider: 'claude', escalated: true, reason });
+  assert.deepEqual(viaOf({ text: 'x', provider: 'claude', sessionId: 's' }), {});
+  assert.deepEqual(viaOf({ text: 'x' }), {});
+  assert.deepEqual(viaOf({ text: 'x', provider: 'local', fallback: true, reason: 'Claude was at its usage limit' }), { provider: 'local', fallback: true, reason: 'Claude was at its usage limit' });
+});

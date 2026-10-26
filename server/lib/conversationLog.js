@@ -61,11 +61,16 @@ function cleanFrom(raw) {
 // WHO ANSWERED (19 Oct 2026): a 'nova' row the model on his Mac wrote says
 // so, and why when it stood in for Claude, so the label under the reply
 // survives a reload and Nova reading the record back knows which answers
-// came from the small model. A Claude answer carries none of these.
+// came from the small model. Since 27 Oct (local first) a row Claude answered
+// because this Mac could not says that too: provider 'claude', escalated,
+// and the reason. An ordinary Claude answer carries none of these. The
+// client's mirror is answeredBy in src/conversationSync.js.
 function cleanVia(raw) {
-  if (raw.who !== 'nova' || raw.provider !== 'local') return {};
+  if (raw.who !== 'nova') return {};
   const reason = typeof raw.reason === 'string' ? raw.reason.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
-  return { provider: 'local', ...(raw.fallback === true ? { fallback: true } : {}), ...(reason ? { reason } : {}) };
+  if (raw.provider === 'local') return { provider: 'local', ...(raw.fallback === true ? { fallback: true } : {}), ...(reason ? { reason } : {}) };
+  if (raw.provider === 'claude' && raw.escalated === true) return { provider: 'claude', escalated: true, ...(reason ? { reason } : {}) };
+  return {};
 }
 const ID = /^[A-Za-z0-9_.:-]{6,96}$/;
 const WORD = /^[a-z][a-z0-9-]{0,23}$/;
@@ -194,7 +199,8 @@ export async function recentConversationBlock({ now = new Date(), days = 7, maxR
     const text = r.text.length > 500 ? `${r.text.slice(0, 500)}…` : r.text;
     const asked = Array.isArray(r.from) && r.from.length
       ? ` [consulted: ${[...new Set(r.from.map((a) => BY_LABEL[a.agent] || a.agent))].join(', ')}]` : '';
-    const local = r.provider === 'local' ? ' [on his Mac, the small model]' : '';
+    const local = r.provider === 'local' ? ' [on his Mac, the small model]'
+      : r.escalated ? ' [Claude, because the model on his Mac could not answer]' : '';
     return `- [${stamp(r.at)} · ${where}] ${who}${asked}${local}: ${text.replace(/\s+/g, ' ')}`;
   });
   // newest lines survive the character budget, oldest go first

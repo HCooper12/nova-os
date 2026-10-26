@@ -134,6 +134,23 @@ export function runLocalLane(lane, prompt, { maxTokens = 700, json = false, fall
 
 const LOCAL_PREFIX = /^the local model could not answer: /;
 
+/** WHO WROTE IT, as the fields a lane stamps on the record it files (27 Oct
+ *  2026): `provider` and `fallback` as before, and, only when this Mac could
+ *  not answer and Claude did, `escalated: true` with `escalationReason` (the
+ *  plain reason from escalate below). Not `reason`: an Inbox record already
+ *  uses a top-level `reason` ('retried', lib/inbox.js retryRecord), so the
+ *  escalation's why gets a name of its own. An ordinary Claude run, and a
+ *  local one, carry exactly the keys they always did. The Inbox meta line
+ *  reads these (src/vals/valsInbox.js inboxProviderNote). */
+export function laneVia(out) {
+  if (!out) return null;
+  return {
+    provider: out.provider,
+    fallback: !!out.fallback,
+    ...(out.escalated === true ? { escalated: true, ...(out.reason ? { escalationReason: String(out.reason) } : {}) } : {}),
+  };
+}
+
 // Claude answers what this Mac could not. Not async on purpose: the CLI is
 // spawned inside this call, so a caller that reaches it before its own first
 // await keeps the synchronous-spawn property below.
