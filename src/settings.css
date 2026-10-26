@@ -563,7 +563,7 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
   animation: nvSetRise .5s var(--nv-spring-smooth, var(--s-ease)) backwards; animation-delay: calc(var(--i, 0) * 40ms + 140ms);
   transition: transform .18s var(--s-ease), box-shadow .2s var(--s-ease);
 }
-.nv-ab-tile.confirmed { --tint: 15%; }
+.nv-ab-tile.confirmed, .nv-ab-tile.mixed { --tint: 15%; }
 .nv-ab-tile.draft { --tint: 8%; }
 .nv-ab-tile.empty { --tint: 4%; }
 .nv-ab-tile::before {
@@ -571,6 +571,7 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
   background: var(--h); opacity: .32; transition: opacity .3s var(--s-ease);
 }
 .nv-ab-tile.confirmed::before { opacity: 1; }
+.nv-ab-tile.mixed::before { opacity: .6; }
 .nv-ab-tile.draft::before { opacity: .5; }
 .nv-ab-tile:active { transform: scale(.97); }
 .nv-ab-tile.open { box-shadow: var(--s-glow), 0 1px 0 var(--s-hi) inset, 0 0 0 1.5px color-mix(in srgb, var(--h) 70%, transparent), var(--s-drop); }
@@ -579,7 +580,7 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 .draft > .nv-ab-th .nv-ab-mk, .draft > .nv-ab-oh .nv-ab-mk { background: transparent; box-shadow: inset 0 0 0 2px var(--h); }
 .empty > .nv-ab-th .nv-ab-mk, .empty > .nv-ab-oh .nv-ab-mk { background: transparent; box-shadow: none; border: 1.5px dashed color-mix(in srgb, var(--h) 55%, var(--nv-ink40)); }
 .nv-ab-tag { flex: none; padding: 4px 8px; border-radius: 999px; font: 600 11.5px/1 var(--nv-font-ui); letter-spacing: .01em; white-space: nowrap; }
-.nv-ab-tag.confirmed { color: var(--h); background: color-mix(in srgb, var(--h) 16%, transparent); }
+.nv-ab-tag.confirmed, .nv-ab-tag.mixed { color: var(--h); background: color-mix(in srgb, var(--h) 16%, transparent); }
 .nv-ab-tag.draft { color: var(--s-ink2); background: color-mix(in srgb, var(--nv-ink) 8%, transparent); }
 .nv-ab-tag.empty { color: var(--s-ink3); padding-right: 0; }
 .nv-ab-tile b { font: 600 var(--t15)/1.25 var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink); text-wrap: balance; }
@@ -610,6 +611,8 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
    its part's hue, the fill growing from the chip's centre on the snappy
    spring while the plus turns into a drawn tick (no width change, so the
    wrap never jumps); an unchosen chip is a quiet outline with a faint plus. */
+.nv-ab-pend { margin: 8px 0 0; text-align: center; font: 400 12.5px/1.35 var(--nv-font-ui); color: var(--s-ink3); text-wrap: balance; }
+.nv-ab-fresh { display: flex; justify-content: center; margin-top: 4px; }
 .nv-ab-gosub { margin: 8px 0 0; text-align: center; font: 400 12.5px/1.35 var(--nv-font-ui); color: var(--s-ink3); text-wrap: balance; }
 .nv-ab-cnt {
   margin-top: auto; align-self: flex-start; display: inline-flex; align-items: baseline; gap: 3px;

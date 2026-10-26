@@ -3,6 +3,7 @@ import { Button, TextAction } from '../Controls.jsx';
 import { NumberRoll } from '../NumberRoll.jsx';
 import { Group } from './SettingsKit.jsx';
 import { PROFILE_OPTIONS, OPTIONS_SHOWN } from '../../server/lib/profileOptions.js';
+import { profileCoverage, coverageLine, sectionState } from '../../server/lib/profileCoverage.js';
 
 // ABOUT YOU, IN TWELVE PARTS (27 Oct: "interview me just like you would...
 // options I can further expand upon... ensure Nova is undoubtedly using all
@@ -27,7 +28,9 @@ import { PROFILE_OPTIONS, OPTIONS_SHOWN } from '../../server/lib/profileOptions.
 const R = 36;
 const CIRC = 2 * Math.PI * R;
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-const excerpt = (t, n = 72) => (t.length > n ? `${t.slice(0, n).replace(/\s+\S*$/, '')}…` : t);
+// the tile reads as prose: list dashes and the "(said <date>)" stamps are page markup
+const plain = (t) => String(t).split('\n').map((l) => l.replace(/^\s*[-*]\s+/, '').replace(/\s*\(said \d{4}-\d{2}-\d{2}\)\s*$/, '').trim()).filter(Boolean).join(' ');
+const excerpt = (raw, n = 72) => { const t = plain(raw); return t.length > n ? `${t.slice(0, n).replace(/\s+\S*$/, '')}…` : t; };
 // his own words: the section text without the option lines the chips show
 const own = (s) => {
   const picked = new Set((s.chosen || []).map((c) => c.toLowerCase()));
@@ -71,21 +74,26 @@ function KnowsRing({ confirmed, filled, total }) {
   );
 }
 
-function Hero({ Y, k }) {
-  const drafts = Math.max(0, k.filled - k.confirmed);
-  const sub = k.total > 0 && k.confirmed >= k.total
-    ? 'All of it in your own words. Talk again whenever something changes.'
-    : drafts > 0
-      ? `${drafts} drafted by Claude, waiting for your word.`
-      : k.confirmed > 0
-        ? 'The rest is empty. A short talk fills it in.'
-        : 'Nothing yet. An interview fills these in as you go.';
+// THE HERO (27 Oct 2026, his "not sure how long it needs until it considers
+// there to be enough"): under the ring, an honest measure in plain words with
+// no finish line (lib/profileCoverage.js, the same rule the server uses).
+// When a question is waiting from a paused interview, Resume leads and the
+// question sits under it; Start fresh is the quiet way out.
+function Hero({ Y, interview }) {
+  // ONE COUNT on the card (27 Oct 2026): the ring, the headline and the line
+  // all use coverage's "in your words" (confirmed, or a part holding a line he
+  // said or an option he chose), so they can never disagree
+  const cov = profileCoverage({ sections: Y.sections || [] });
+  const drafts = cov.draft;
+  const sub = `${coverageLine(cov)}${drafts > 0 ? ` ${drafts === 1 ? 'One part is' : `${drafts} parts are`} Claude's draft, waiting for your word.` : ''}`;
+  const pending = interview?.pending || null;
+  const talkIcon = <svg className="nv-set-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H11l-4 3.5V16h-.5a2 2 0 0 1-2-2z" /><path d="M10.2 8.6a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.3M12 13.6v.1" /></svg>;
   return (
     <div className="nv-set-card nv-ab-hero">
-      <KnowsRing confirmed={k.confirmed} filled={k.filled} total={k.total} />
+      <KnowsRing confirmed={cov.own} filled={cov.own + cov.draft} total={cov.total} />
       <div className="nv-ab-ht">
         <span className="nv-ab-eb">How well Nova knows you</span>
-        <h3>Nova knows <NumberRoll value={k.confirmed} /> of {k.total}</h3>
+        <h3>Nova knows <NumberRoll value={cov.own} /> of {cov.total}</h3>
         <p>{sub}</p>
         <div className="nv-ab-key" aria-hidden="true">
           <span><i className="cf" />Your words</span>
@@ -94,21 +102,38 @@ function Hero({ Y, k }) {
       </div>
       {!Y.readOnly && Y.startTalk ? (
         <div className="nv-ab-go">
-          <Button onClick={() => Y.startTalk('interview')} style={{ width: '100%' }}>
-            <svg className="nv-set-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H11l-4 3.5V16h-.5a2 2 0 0 1-2-2z" /><path d="M10.2 8.6a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.3M12 13.6v.1" /></svg>
-            Interview me
-          </Button>
-          <p className="nv-ab-gosub">Nova asks, you answer. Like getting to know someone.</p>
+          {pending ? (
+            <>
+              <Button onClick={() => Y.startTalk('resume')} style={{ width: '100%' }}>
+                {talkIcon}
+                Resume interview
+              </Button>
+              <p className="nv-ab-pend">Waiting for you: &ldquo;{pending.q}&rdquo;</p>
+              <div className="nv-ab-fresh"><TextAction onClick={() => Y.startTalk('interview')}>Start fresh</TextAction></div>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => Y.startTalk('interview')} style={{ width: '100%' }}>
+                {talkIcon}
+                Interview me
+              </Button>
+              <p className="nv-ab-gosub">Nova asks, you answer. Everything is saved as you go.</p>
+            </>
+          )}
         </div>
       ) : null}
     </div>
   );
 }
 
-const TAG = { confirmed: 'Confirmed', draft: 'Draft', empty: 'Empty' };
+// 'mixed' = Claude's draft with lines he has said or options he chose: the
+// same "own" rule as the ring (profileCoverage), so a tile never says Draft
+// over words he gave in the interview
+const TAG = { confirmed: 'Confirmed', mixed: 'Partly yours', draft: 'Draft', empty: 'Empty' };
+const tileState = (s) => { const st = stateOf(s); return st === 'draft' && sectionState(s) === 'own' ? 'mixed' : st; };
 
 function Tile({ s, i, open, onTap }) {
-  const st = stateOf(s);
+  const st = tileState(s);
   return (
     <button type="button" className={`nv-set-card nv-ab-tile ${st}${open ? ' open' : ''}`} style={{ '--h': s.hue, '--i': i }}
       onClick={onTap} aria-expanded={open} aria-controls="nv-ab-open">
@@ -320,6 +345,21 @@ export function AboutFacets({ Y, staleAt }) {
   const loader = useRef(Y.loadReach);
   loader.current = Y.loadReach;
   const canReach = !!Y.loadReach;
+  // where the interview stands, asked once per visit; an unreachable Mac
+  // just means no Resume button (Interview me still shows)
+  const [interview, setInterview] = useState(null);
+  const ivLoader = useRef(Y.loadInterview);
+  ivLoader.current = Y.loadInterview;
+  const canInterview = !!Y.loadInterview;
+  useEffect(() => {
+    let live = true;
+    if (!canInterview) return undefined;
+    Promise.resolve().then(() => ivLoader.current()).then(
+      (r) => { if (live) setInterview(r && typeof r === 'object' ? r : null); },
+      () => { if (live) setInterview(null); },
+    );
+    return () => { live = false; };
+  }, [canInterview]);
   useEffect(() => {
     let live = true;
     if (!canReach) { setReach({ error: true, readers: [] }); return undefined; }
@@ -344,7 +384,7 @@ export function AboutFacets({ Y, staleAt }) {
   const foot = `Nova reads this before every answer, coaching session and brief. Tap a part to pick, add, fix, or talk it through.${Y.demo ? ' Demo words.' : ''}${Y.readOnly && staleAt ? ` Offline: as your vault said it at ${staleAt}, read only.` : ''}`;
   return (
     <Group label="About you" k="about" i={2} plain foot={foot}>
-      <Hero Y={Y} k={k} />
+      <Hero Y={Y} k={k} interview={interview} />
       <div ref={grid} className="nv-ab-grid">
         {sections.flatMap((s, i) => {
           const tile = <Tile key={s.key} s={s} i={i} open={openKey === s.key} onTap={() => tap(s, i)} />;
