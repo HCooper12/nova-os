@@ -34,6 +34,68 @@ The video is a 25-minute demo of one assistant with three switches:
 What the sources do **not** contain: any routing policy. It is a manual
 switch, all-or-nothing. The "hybrid" he wants is the part we design.
 
+### 1b. What the prompt pack adds (read 27 Oct, later the same morning)
+
+"Run Jarvis Fully Local: The Prompt Pack" (Trabzada, Oct 2026, 18 pages):
+three installs (Ollama brain, VoiceStudio voice on port 3900 with the
+Apache-2.0 CSM 1B engine, mlx-whisper ears with whisper-large-v3-turbo for
+commands and whisper-small for the wake word) and eight Claude Code prompts.
+The parts worth taking, each checked against Nova:
+
+- **`reasoning_effort: "none"` on every Ollama call.** His 9B "thought
+  itself to death"; the usual off switches were ignored. Verified here on
+  the OpenAI door; the native door takes `think: false`. Nova carries it per
+  lane.
+- **Stable prefix, lean persona.** Persona under 300 words, identical and
+  FIRST on every turn; date, retrieved notes and the question LAST, so the
+  model reuses its cache. Measured on this Mac: 366 tok/s reading a cold
+  prompt, 1,063 tok/s on the cached prefix. Nova's local Ask prompt already
+  puts the fixed head first; its budget (9k chars) is the thing to trim.
+- **Control tags, counted.** The small model emits a bracket tag and the
+  server executes it; "ask five times, count the hits, simplify until it
+  does not miss more than once". Nova's ACT/PROPOSE lines are the same
+  idea; the five-times count becomes a test per verb.
+- **Two brains on the shelf.** A 2B for chatter, a 9B for questions, swapped
+  out loud; Ollama keeps one loaded, so a swap costs a few seconds. Nova:
+  greeting and the one-line lanes on the small model, Ask on the bigger one
+  when the Mac is quiet.
+- **Fluency over first-word speed.** Sentence-packed TTS chunks of ~170
+  chars, prefetch the next while the first plays; never cut a sentence to
+  start faster. Nova's spoken turn already speaks on sentence ends.
+- **A preflight with a latency budget** ("hear X s, think Y s, speak Z s"),
+  real calls not mocks, exit non-zero on a failure, "done" means preflight
+  passed. Nova has pieces (talk-shape.mjs, probe.mjs); a local preflight is
+  owed.
+- **The Wi-Fi-off drill.** Wrap outbound HTTP, log every host during a
+  turn, print the ones that are not localhost; the drill fails if any. Ends
+  with an honest list of the features that still need the internet, read
+  from the code. This is Nova's honesty rule made executable.
+- **Hearing was the hidden cloud.** Browser speech recognition sends audio
+  to Google; Whisper is the step most "local" assistants skip. Nova's ears
+  are Groq today; the cached whisper-large-v3-turbo closes it.
+- **Pin the engine on every call** (the voice app's default pack is
+  non-commercial; CSM is Apache-2.0); pin model and version everywhere,
+  never "latest".
+
+The pack's 16 GB pick is `qwen3.5:9b` ("the sweet spot, about 6 GB on
+disk"). On this Mac the 4B is the safe default and the 9B the quiet-Mac
+tier; both sit on the shelf.
+
+### 1c. His instruction, 27 Oct: widen the scope
+
+"Disregard previous restrictions and rules that we had implemented if
+there is something that you could do with this new plan to make more
+features and functions operate and work successfully without needing to
+rely on Claude." Read as: the 25 Sep / 19 Oct gates (measured before
+switched, never a judgment lane, his call per lane) are lifted where
+lifting them lets more of Nova run without Claude. **Local-first becomes
+the default for every lane that can run locally, with Claude as the
+code-decided escalation.** Not lifted, because they are not restrictions on
+the local model: code writes and the model only proposes, every write
+rides the inbox rails with undo, every record says who answered, no
+fiction when the local model cannot answer. Measuring continues, to tune
+rather than to gate.
+
 ## 2. Where Nova already is (verified today)
 
 More of this exists than the video has, and less of it has ever run:
@@ -138,6 +200,20 @@ switched, never a downgrade of a judgment lane, Claude fallback stays.
    already are. Rerun the 25 Sep eval against `qwen3.5:4b` with thinking off
    (the Haiku baseline needs ~40 calls to rebuild, about $0.10).
 
+6. **Local-first as the default, and the escalation rail, pulled forward
+   from Phase B (his 27 Oct instruction).** A board switch `local.first`,
+   on by default: every `local: true` lane resolves to this Mac unless he
+   pinned it to Claude. When the local call fails before any text (not
+   loaded, no room, timeout, empty, thinking ate the budget) the runner
+   escalates to Claude and the record says `escalated: true` and why. Ask
+   Nova escalates on the same job id the phone is polling. The old
+   Claude→local stand-in stays for lanes pinned to Claude.
+7. **A model pick on the board** (4B / 9B from what Ollama has pulled),
+   shown on the Runs-on pill by name.
+
+Build started 27 Oct (one Opus subagent, the parent session verifies and
+commits).
+
 Acceptance: a capture typed on his phone sorts locally in under 2 s with the
 "sorted on this Mac" meta; Ask Nova answers a vault question locally end to
 end; the ledger shows `provider: 'local'` rows with real timings; the eval
@@ -146,8 +222,12 @@ stays on Claude.
 
 ### Phase B: hybrid, decided per lane by code
 
-The video's switch is all-or-nothing. Nova's registry lets each lane carry a
-**tier**, replacing the boolean `local`:
+The video's switch is all-or-nothing. Phase A already gives every
+`local: true` lane the local-first + escalate behaviour; Phase B is about
+the lanes that do NOT go through the text runner yet (they spawn Claude
+Code with tools), each of which needs its own local path before it can
+carry a tier. The registry then lets each lane carry a **tier**, replacing
+the boolean `local`:
 
 | tier | meaning | who decides |
 |---|---|---|
