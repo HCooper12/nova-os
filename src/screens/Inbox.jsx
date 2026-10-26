@@ -9,6 +9,7 @@ import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button, Select } from '../Controls.jsx';
 import { InboxSummary } from './InboxSummary.jsx';
+import { CodeShipDetail } from '../CodeShipDetail.jsx';
 import { useSpringStack } from '../motion/springStack.js';
 import { briefingGrowKey } from '../motion/growKeys.js';
 
@@ -425,6 +426,7 @@ function InboxClassic({ v }) {
                     ))}
                   </div>
                 )}
+                <CodeShipDetail ship={item.ship} />
                 {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
                 <div style={css("margin-top:12px;display:flex;gap:10px;flex-wrap:wrap")}>
                   {/* THE MODEL CHOICE GATE — this card files nothing itself,

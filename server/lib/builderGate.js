@@ -73,14 +73,14 @@ const counts = (out) => {
  * the Builder's fault (two exerciseAtlas tests have failed on main since
  * before 12 Oct). Returns the set of files that ALSO fail on HEAD.
  */
-export async function failingOnHead(repoCwd, testCwd, files, { run = runCommand } = {}) {
+export async function failingOnHead(repoCwd, testCwd, files, { run = runCommand, ref = 'HEAD' } = {}) {
   const already = new Set();
   if (!files.length) return already;
   const rel = path.relative(repoCwd, testCwd);
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'nova-gate-head-'));
   const wt = path.join(tmp, 'head');
   try {
-    const add = await run('git', ['worktree', 'add', '--detach', wt, 'HEAD'], { cwd: repoCwd, timeoutMs: 60_000 });
+    const add = await run('git', ['worktree', 'add', '--detach', wt, ref], { cwd: repoCwd, timeoutMs: 60_000 });
     if (add.code !== 0) return already;
     for (const nm of ['node_modules', path.join(rel, 'node_modules')]) {
       const from = path.join(repoCwd, nm);

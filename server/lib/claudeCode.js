@@ -370,7 +370,9 @@ After your turn Nova runs the project's checks itself and a Breaker reviews your
 
 // message: { text, sessionId?, model?, readOnly? } — sessionId absent starts a
 // new conversation; present continues it via --resume.
-export function startMessage(cwd, { text, sessionId, model, readOnly = false, verify = true }) {
+// `onDone(job)` (ship mode, lib/codeShip.js): called once when the job ends,
+// ready or error, so the ship card is filed by code from the job's result.
+export function startMessage(cwd, { text, sessionId, model, readOnly = false, verify = true, onDone = null }) {
   assertLaneOn('code');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
@@ -424,6 +426,7 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
     job.result = { text, sessionId: effectiveSessionId, files: filesOf(), startedAt: job.startedAt, endedAt: Date.now(), ...extra };
     job.stage = null;
     job.status = 'ready';
+    if (onDone) { try { onDone(job); } catch { /* the filer reports its own failure */ } }
   };
 
   (async () => {
@@ -477,6 +480,7 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
   })().catch((e) => {
     if (job.status !== 'error') { job.status = 'error'; job.error = e.message; }
     job.stage = null;
+    if (onDone) { try { onDone(job); } catch { /* the filer reports its own failure */ } }
   });
 
   return jobId;

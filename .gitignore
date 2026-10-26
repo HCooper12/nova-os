@@ -38,3 +38,6 @@ _devconn.json
 __interactive.compiled.test.mjs
 public/_devconn*.js
 server/bin/
+
+# the Builder's own worktrees for a ship (server/lib/shipWorktree.js)
+.nova-ship/

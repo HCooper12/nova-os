@@ -384,6 +384,8 @@ export const JOB_VERBS = [
     args: { card: 'the card, in his words, or "latest"' },
     async run(vaultPath, args) {
       const target = await pendingCard(args.card);
+      // a change to Nova's own code ships only on his tap (27 Oct 2026)
+      if (target.kind === 'code-ship') throw new Error('that one ships a change to Nova\'s code, so it needs your tap on Ship it in the Inbox');
       const { approveRecord } = await import('./inbox.js');
       const done = await approveRecord(vaultPath, target.id);
       const title = cardTitle(target);

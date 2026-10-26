@@ -29,6 +29,8 @@ export const KIND_AGENT = {
   'profile-fact': 'Nova',
   // his own commit on the Code screen, filed with Undo (lib/codeChanges.js)
   'code-commit': 'Code',
+  // a change the Builder made in its own worktree, shipped by code on his tap (lib/codeShip.js)
+  'code-ship': 'Builder',
   // his own answer on the Daily review card, filed with Undo (conceptReview.js)
   'concept-recall': 'Daily Review',
   // a delegated multi-step goal — Nova put several agents on one request and

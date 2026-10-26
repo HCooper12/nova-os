@@ -326,6 +326,11 @@ async function main() {
   import('./lib/codeWorkspaces.js').then(({ seedWorkspaces }) => seedWorkspaces())
     .then(({ seeded }) => { if (seeded) console.log('code workspaces: named Science Atlas and Wren in server/data/code-workspaces.json'); })
     .catch((e) => console.error('code workspaces seed failed:', e.message));
+  // NOVA SHIPS HIS OWN CHANGES (27 Oct 2026): finish a reload check the old
+  // process started, mark a ship a restart cut off, sweep 14-day worktrees
+  import('./lib/codeShip.js').then(({ expireStuckReloads }) => setInterval(() => expireStuckReloads().catch(() => {}), 5 * 60 * 1000)).catch(() => {});
+  import('./lib/codeShip.js').then(({ resumeShipWork }) => resumeShipWork())
+    .catch((e) => console.error('code ship resume failed:', e.message));
   import('./lib/codeChanges.js').then(({ migrateCommitsFile }) => migrateCommitsFile())
     .then(({ migrated }) => { if (migrated) console.log(`code commits: moved ${migrated} undo record(s) onto the inbox rails`); })
     .catch((e) => console.error('code commits migration failed:', e.message));

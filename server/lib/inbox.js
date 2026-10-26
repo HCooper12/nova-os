@@ -250,6 +250,15 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   const { route, payload } = decision;
   const date = todayISO();
 
+  // NOVA SHIPS HIS OWN CHANGE (27 Oct 2026): only ever reached from his yes
+  // on a code-ship card (approveRecord). Code commits, pushes, waits for the
+  // deploy, looks for it live and reloads; lib/codeShip.js records each step.
+  if (route === 'code-ship') {
+    const { shipRecord } = await import('./codeShip.js');
+    const shipped = await shipRecord(payload.recordId);
+    return { destination: shipped.destination, undo: shipped.undo, ok: shipped.ok };
+  }
+
   if (route === 'shopping') {
     const added = await addItemsDirect(vaultPath, payload.items.map((it) => ({ ...it, source })));
     return {
@@ -1120,6 +1129,14 @@ export async function undoFiling(vaultPath, undo) {
     const { undoNotionDelete } = await import('./notionJournal.js');
     return undoNotionDelete(vaultPath, undo);
   }
+  // A SHIP, TAKEN BACK: a git revert from origin/main, pushed; the deploy and
+  // the bundle check carry on and are recorded on the card (undoSteps).
+  if (undo.kind === 'code-ship') {
+    const { revertShip } = await import('./codeShip.js');
+    const { summary, finish } = await revertShip(undo);
+    finish.catch(() => {});
+    return summary;
+  }
   if (undo.kind === 'code-commit') {
     const { revertNovaCommit } = await import('./codeChanges.js');
     return revertNovaCommit(undo);
@@ -1923,6 +1940,20 @@ export async function approveRecord(vaultPath, id) {
     runPlan(vaultPath, id).catch(() => {});
     return updateRecord(id, { status: 'classifying', approvedAt: new Date().toISOString(), error: null });
   }
+  // A CODE SHIP (27 Oct 2026). Only a card whose checks passed can ship; the
+  // ship takes minutes, so the record carries its own progress (shipSteps)
+  // and this returns at once with status 'shipping'.
+  if (record.kind === 'code-ship') {
+    if (!record.shipApprovable) throw new Error('this change did not pass its checks, so it cannot be shipped');
+    const shipping = await updateRecord(id, { status: 'shipping', approvedAt: new Date().toISOString(), shipSteps: [], error: null });
+    fileDecision(vaultPath, record.decision)
+      .then(({ destination, undo }) => updateRecord(id, undo
+        ? { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false }
+        : { status: 'error', error: destination, shipApprovable: false }))
+      .catch((e) => updateRecord(id, { status: 'error', error: `The ship stopped: ${e.message}`, shipApprovable: false }).catch(() => {}))
+      .finally(() => import('./events.js').then(({ broadcast }) => broadcast('inbox')).catch(() => {}));
+    return shipping;
+  }
   if (record.kind === 'forge-job') {
     return updateRecord(id, {
       status: 'filed',
@@ -2030,6 +2061,8 @@ export async function discardRecord(id, reason, { vaultPath = null } = {}) {
   const declineReason = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 300) : null;
   if (record.kind === 'alert' && record.alertId) import('./alerts.js').then(({ markActed }) => markActed(record.alertId, 'dismissed')).catch(() => {});
   const updated = await updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null, ...(declineReason ? { declineReason } : {}) });
+  // a ship card's worktree goes with it (lib/shipWorktree.js)
+  if (record.kind === 'code-ship') import('./codeShip.js').then(({ discardShip }) => discardShip(record)).catch(() => {});
   // A STEP HE STOPPED WAKES ITS PLAN. A paused research card he discards is
   // a decision the plan must hear — otherwise it waits on that step forever.
   if (record.parentPlanId && vaultPath) {

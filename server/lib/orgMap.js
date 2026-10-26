@@ -99,7 +99,7 @@ export const KIND_BEING = {
 // Kinds with no being yet, said out loud rather than hidden: the Builder and
 // the Studio will stand on the Projects district when it is built.
 // A commit he made on the Code screen stands with the Builder's work.
-export const UNFILED_KINDS = ['build', 'studio', 'code-commit'];
+export const UNFILED_KINDS = ['build', 'studio', 'code-commit', 'code-ship'];
 
 const FRESH_RANK = { today: 3, recent: 2, stale: 1, never: 0 };
 

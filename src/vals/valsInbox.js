@@ -72,6 +72,7 @@ export const ROUTE_META = {
   'money-write': { label: 'LEDGER', hue: '143,123,255' },
   // a commit he made on the Code screen; its Undo is the commit taken back
   'code-commit': { label: 'COMMIT', hue: '89,230,255' },
+  'code-ship': { label: 'SHIP', hue: '89,230,255' },
   idea: { label: 'IDEA', hue: '143,123,255' },
   'idea-outline': { label: 'OUTLINE', hue: '143,123,255' },
   // an iCloud write must never wear a NOTE badge — name what approving does
@@ -434,7 +435,19 @@ export function valsInbox(app, ctx) {
     // the money, plainly, from the record's own payload — never estimated here
     spentUsd: null,        // was the spend that tripped a cap; there are no caps
     nextBudgetUsd: null,   // was the next cap offered; there are none
-    approveLabel: isContinue ? 'Continue' : 'Approve & file',
+    approveLabel: isContinue ? 'Continue' : r.kind === 'code-ship' ? 'Ship it' : 'Approve & file',
+    // a change the Builder made: files, checks, the Breaker, the diff and,
+    // once he taps Ship it, the steps code takes (lib/codeShip.js)
+    ship: r.kind === 'code-ship' ? {
+      files: r.decision?.payload?.files || [],
+      gates: r.shipGates || r.decision?.payload?.gates || {},
+      breaker: r.decision?.payload?.breaker || '',
+      diff: r.decision?.payload?.diff || '',
+      steps: r.shipSteps || [],
+      undoSteps: r.undoSteps || [],
+      shipping: r.status === 'shipping',
+      refresh: () => app.refreshInbox(),
+    } : null,
     discardLabel: isContinue ? 'Stop here' : 'Discard',
     // the disclosure's own words: "see what gets filed" is wrong for a report
     expandLabel: longForm || 'See what gets filed',

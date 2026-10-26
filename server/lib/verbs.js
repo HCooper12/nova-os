@@ -1253,6 +1253,30 @@ verb({
   async undo() { return null; },
 });
 
+// ASK THE BUILDER (27 Oct 2026, his yes to "let Nova ship his own changes"):
+// "change Nova so…", "make Nova…", "fix Nova's…", "build into Nova…" starts
+// a ship-mode Builder job in its own worktree (lib/codeShip.js). Nothing
+// ships here: the finished change comes to his Inbox as one card, and only
+// his tap on Ship it lets code commit, push and reload. No undo of its own,
+// because nothing he owns has changed yet; Discard on the card ends it.
+verb({
+  id: 'builder.ask', tier: 'act',
+  describe: 'send a change to Nova himself (his app, his screens, his server) to the Builder, when he asks you to change, make, fix or build something INTO NOVA; the change comes back to his Inbox as one card he must tap Ship it on. Never for his notes, plans or training',
+  args: { brief: 'what to change in Nova, in his own words' },
+  async run(vaultPath, args) {
+    const { startShipBuild } = await import('./codeShip.js');
+    const brief = String(args.brief || '').trim().slice(0, 2000);
+    const job = await startShipBuild(brief, { source: 'voice' });
+    return {
+      destination: `Builder — "${brief.length > 70 ? `${brief.slice(0, 69)}…` : brief}"`,
+      said: 'On it. The change will come to your Inbox to approve.',
+      undo: null,
+      extra: { builder: { jobId: job.jobId, shipId: job.shipId } },
+    };
+  },
+  async undo() { return null; },
+});
+
 for (const def of JOB_VERBS) verb(def);
 
 export const VERB_IDS = Object.keys(VERBS);
@@ -1439,6 +1463,8 @@ export function parseCommand(text, ctx = {}) {
   // spoken command, so they come before the length limit below.
   const job = ctx.deferJobs ? null : parseJobCommand(text, ctx);
   if (job) return job;
+  // a change to Nova himself goes to the Builder, his whole sentence the brief
+  if (/^(?:change nova so\b|make nova\b|fix nova'?s\b|build into nova\b)/.test(q)) return { verb: 'builder.ask', args: { brief: normCased(text) } };
   if (q.length > 140) return null;
 
   // CHECK <THING> (the E.V. study, design/EVIE-STUDY.md §4C): "check my

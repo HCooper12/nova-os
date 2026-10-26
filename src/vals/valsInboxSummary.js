@@ -69,6 +69,7 @@ function tileOf(r) {
 function kindLabelOf(r, item) {
   if (!r) return '';
   if (r.kind === 'model-choice') return 'Model choice';
+  if (r.kind === 'code-ship') return 'A change to Nova';
   if (r.kind === 'research') return 'Research brief';
   if (PRACTICE_KINDS.has(r.kind)) return sentenceCase(ROUTE_META[r.kind]?.label);
   const route = r.decision?.route;
@@ -83,6 +84,7 @@ function destinationOf(r) {
   const p = r?.decision?.payload || {};
   if (PRACTICE_KINDS.has(r?.kind)) return 'Practice';
   if (r?.kind === 'model-choice') return `This week's ${String(p.lane || 'run').replace(/-/g, ' ')}, once you pick`;
+  if (r?.kind === 'code-ship') return 'Your phone: committed, deployed, then checked live';
   switch (route) {
     case 'routine-edit': return p.routineName ? `${p.routineName}, your program` : 'Your program';
     case 'schedule-edit': return 'Your training week';
@@ -202,7 +204,7 @@ export function valsInboxSummary(app, ctx, v) {
     const kindLabel = kindLabelOf(r, item);
     const sentence = sug?.headline || item.tldr?.line || item.title || '';
     const who = sentenceCase(item.source);
-    const whoPhrase = who === 'Typed' ? 'You typed it' : who === 'Voice' ? 'You said it' : who ? `From ${who === 'Coach' || who === 'Nova' ? who : `the ${who.toLowerCase()}`}` : '';
+    const whoPhrase = r.kind === 'code-ship' ? "Nova's Builder, from your request" : who === 'Typed' ? 'You typed it' : who === 'Voice' ? 'You said it' : who ? `From ${who === 'Coach' || who === 'Nova' ? who : `the ${who.toLowerCase()}`}` : '';
     const where = sug?.routine
       ? `${sug.routine.name}${sug.routine.days?.length ? ` · ${sug.routine.days.join(', ')}` : ''}`
       : item.isModelChoice ? sentenceCase(item.modelChoiceLabel || 'Scheduled run') : whoPhrase;
@@ -272,6 +274,7 @@ export function valsInboxSummary(app, ctx, v) {
       reason: sug?.why || item.reason || sug?.source || '',
       stale,
       adjustments: item.adjustments || null,
+      ship: item.ship || null,
       error: item.error || null,
       busy: !!item.busy,
       leaving: item.leaving || null,
@@ -285,7 +288,7 @@ export function valsInboxSummary(app, ctx, v) {
       verbs: {
         yes: stale ? null : item.isModelChoice
           ? { label: `Keep ${item.keepLabel || 'the usual model'}`, aria: `Keep ${item.keepLabel || 'the usual model'} for ${sentence}`, run: keepRun }
-          : { label: sug ? yesLabel(sentence) : REPORT_KINDS.has(r.kind) ? 'Keep it' : 'File it', aria: `${item.approveLabel}: ${sentence}`, run: approveRun },
+          : { label: item.ship ? 'Ship it' : sug ? yesLabel(sentence) : REPORT_KINDS.has(r.kind) ? 'Keep it' : 'File it', aria: `${item.approveLabel}: ${sentence}`, run: approveRun },
         talk,
         no: { label: item.isModelChoice ? 'Skip this week' : stale ? 'Clear it' : 'Discard', run: discardRun },
       },
@@ -296,7 +299,8 @@ export function valsInboxSummary(app, ctx, v) {
       } : null,
       deeper,
       // right files (never a model choice: that needs his pick), left passes
-      swipe: { right: item.isModelChoice || stale ? null : approveRun, left: discardRun },
+      // a code ship goes out only on his tap of Ship it, never a swipe
+      swipe: { right: item.isModelChoice || stale || item.ship ? null : approveRun, left: discardRun },
     };
   };
 
@@ -380,6 +384,7 @@ export function valsInboxSummary(app, ctx, v) {
         fullLabel: h.status === 'filed' ? 'What was filed' : 'The filing',
         dismiss: h.canDiscard ? { run: h.discard, busy: !!h.busy } : null,
         weave: h.deepAnalyse && h.status === 'filed' ? { run: h.deepAnalyse, busy: !!h.busy } : null,
+        ship: h.ship || null,
       },
     };
   };

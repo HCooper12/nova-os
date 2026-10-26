@@ -10,6 +10,7 @@ import { DeeperReportSheet } from '../DeeperReportSheet.jsx';
 import { Verbs } from '../InboxSumVerbs.jsx';
 import { CountText } from '../CountUp.jsx';
 import { QuickCaptureCard } from '../QuickCapture.jsx';
+import { CodeShipDetail } from '../CodeShipDetail.jsx';
 
 // THE SUMMARY INBOX (27 Sep 2026) — design/mockups/60-redesign-inbox-r2.html,
 // his pick ("Option A seems best and most clean/organised"), answering the
@@ -300,6 +301,7 @@ function DeckCard({ card, ghosts, position }) {
               )}
             </div>
             {card.stale && <p className="nv-sum-ib-quiet gold">Already changed: {card.stale}. Clear it with ✕, or talk about it.</p>}
+            <CodeShipDetail ship={card.ship} />
             {card.error && <p className="nv-sum-ib-err">{card.error}</p>}
             {card.ask && <AskWhy key={card.id} a={card.ask} />}
             <Verbs verbs={card.verbs} busy={card.busy} tight />
@@ -405,6 +407,7 @@ function FiledRow({ row }) {
           {row.detail.line && <span className="dl">{row.detail.line}</span>}
           {row.detail.captured && <div><span className="k">You captured</span><span className="v">{row.detail.captured}</span></div>}
           {row.detail.full && <div><span className="k">{row.detail.fullLabel}</span><span className="v">{row.detail.full}</span></div>}
+          <CodeShipDetail ship={row.detail.ship} />
           {(row.detail.dismiss || row.detail.weave) && (
             <div className="acts">
               {row.detail.weave && <TextAction onClick={row.detail.weave.run} disabled={row.detail.weave.busy}>Deep weave</TextAction>}
