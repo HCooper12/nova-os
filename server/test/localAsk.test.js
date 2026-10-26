@@ -22,6 +22,13 @@ process.env.NOVA_VOICE_DIR = voiceDir;
 process.env.NOVA_LOCAL_LLM_PORT = '4289';
 process.env.NOVA_LOCAL_LLM_WAIT_MS = '1500';
 process.env.NOVA_LOCAL_LLM_MODEL = 'mlx-community/Qwen3-4B-Instruct-2507-4bit';
+// Pinned to the MLX backend (27 Oct 2026): this suite is about the turn
+// (prompt, tool loop, settling, session memory), and its stub speaks /v1,
+// where the tool-call text form and the 400 retry still live. The native
+// Ollama request and reply shapes are localModel.test.js's, including a
+// tool call round-tripped through readToolCalls.
+process.env.NOVA_LOCAL_LLM_BACKEND = 'mlx';
+process.env.NOVA_OLLAMA_NO_SPAWN = '1';
 const claudeBin = path.join(root, 'claude-fails.sh');
 await writeFile(claudeBin, '#!/bin/sh\necho "no Claude in this test" >&2\nexit 1\n');
 await chmod(claudeBin, 0o755);

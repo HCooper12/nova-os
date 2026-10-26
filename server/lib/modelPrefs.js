@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { resolvedModels, lastCheckedAt, modelLabel } from './modelWatch.js';
 import { spendSummary } from './modelSpend.js';
 import { effortFlag } from './spawnBoundary.js';
-import { localModelStatus, localModelConfigured, defaultModel as localDefaultModel, localModelLabel } from './localModel.js';
+import {
+  localModelStatus, localModelConfigured, defaultModel as localDefaultModel, localModelLabel,
+  localBackend, cachedLocalModels, listLocalModels, setPreferredModel, looksLikeModelId, modelFitsBackend,
+} from './localModel.js';
 
 // ---------------------------------------------------------------------------
 // THE MODEL BOARD — one place that names every lane in Nova that spawns the
@@ -143,6 +146,12 @@ export const LANE_GROUPS = [
 // that were never pinned at all; those are named here for the first time.
 // Every lane below carries a `defEffort` (except the deterministic ones, which
 // spawn nothing): the ambient `effortLevel: xhigh` must never reach a spawn.
+// `local: true` marks a lane whose only model call is pure text through
+// lib/textLane.js (or Ask Nova through lib/askDispatch.js), so it may run on
+// the model on this Mac; it does by default since 27 Oct (localFirst). The
+// audit that day (every runTextLane / runLocalLane / startAsk caller under
+// lib/ and routes/) found no lane missing the mark. `think: true` would let
+// a local lane reason before answering (laneThinks); none is marked yet.
 export const LANES = [
   // ---- conversation -------------------------------------------------------
   {
@@ -540,8 +549,8 @@ let cache = null;
 let cacheStamp = null;
 
 // The whole file: { lanes: { <id>: { model?, enabled?, effort?, provider? } },
-// fallback?: { enabled } }. loadRaw() below is the lanes half, which is what
-// almost every reader wants.
+// fallback?: { enabled }, local?: { first, model } }. loadRaw() below is the
+// lanes half, which is what almost every reader wants.
 function loadFile() {
   const file = PREFS_PATH();
   let stamp = null;
@@ -551,20 +560,24 @@ function loadFile() {
     stamp = `none:${file}`;
   }
   if (cache && cacheStamp === stamp) return cache;
-  let parsed = { lanes: {}, fallback: null };
+  let parsed = { lanes: {}, fallback: null, local: null };
   if (existsSync(file)) {
     try {
       const raw = JSON.parse(readFileSync(file, 'utf8'));
       parsed = {
         lanes: raw && typeof raw.lanes === 'object' && raw.lanes ? raw.lanes : {},
         fallback: raw && typeof raw.fallback === 'object' && raw.fallback ? raw.fallback : null,
+        local: raw && typeof raw.local === 'object' && raw.local ? raw.local : null,
       };
     } catch {
-      parsed = { lanes: {}, fallback: null }; // a corrupt file falls back to the defaults rather than to nothing
+      parsed = { lanes: {}, fallback: null, local: null }; // a corrupt file falls back to the defaults rather than to nothing
     }
   }
   cache = parsed;
   cacheStamp = stamp;
+  // his model pick reaches lib/localModel.js from here (that module cannot
+  // import this one: the import would be circular)
+  setPreferredModel(typeof parsed.local?.model === 'string' ? parsed.local.model : null);
   return cache;
 }
 
@@ -573,11 +586,14 @@ function loadRaw() {
 }
 
 // One writer for the file, so a lane write never drops the board-level
-// fallback setting and a fallback write never drops a lane.
-async function saveFile({ lanes, fallback }) {
+// fallback or local settings, and a board-level write never drops a lane.
+// Every caller passes all three blocks (what it read, with its one change).
+async function saveFile({ lanes, fallback, local }) {
   await mkdir(dataRoot(), { recursive: true });
   const tmp = PREFS_PATH() + '.tmp';
-  const body = fallback ? { lanes, fallback } : { lanes };
+  const body = { lanes };
+  if (fallback) body.fallback = fallback;
+  if (local) body.local = local;
   await writeFile(tmp, JSON.stringify(body, null, 2), 'utf8');
   await rename(tmp, PREFS_PATH());
   cache = null;
@@ -593,12 +609,61 @@ async function saveFile({ lanes, fallback }) {
 // Sep eval: design/audits/2026-09-25-local-model-eval.md).
 export const PROVIDERS = ['claude', 'local'];
 
-/** 'local' only when the lane can run locally AND he chose it; otherwise
- *  'claude', whatever is stored. */
+// LOCAL FIRST (27 Oct 2026, his instruction: "make as much of Nova as
+// possible run without Claude"). A lane that can run on this Mac does, by
+// default, and Claude is the escalation when this Mac cannot answer
+// (lib/textLane.js, lib/askDispatch.js). The board-level switch turns that
+// default off; a lane he set by hand ('claude' or 'local') keeps his choice
+// either way. A lane that cannot run locally is Claude whatever is stored.
+const defaultProviderOf = (lane) => (lane.local && localFirst() ? 'local' : 'claude');
+
+/** Who answers this lane: his explicit choice for it, else the default. */
 export function providerFor(laneId) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown model lane: ${laneId}`);
-  return lane.local && loadRaw()[laneId]?.provider === 'local' ? 'local' : 'claude';
+  if (!lane.local) return 'claude';
+  const saved = loadRaw()[laneId]?.provider;
+  return PROVIDERS.includes(saved) ? saved : defaultProviderOf(lane);
+}
+
+/** Should the lane's local call reason before answering? Off unless the lane
+ *  is marked `think: true` (none are yet): left on, Qwen3.5 spent its whole
+ *  budget thinking about "toothpaste" and never answered (27 Oct). */
+export function laneThinks(laneId) {
+  const lane = LANE_BY_ID.get(laneId);
+  if (!lane) throw new Error(`unknown model lane: ${laneId}`);
+  return !!lane.think;
+}
+
+/** Do `local: true` lanes run on this Mac first? On unless he switched it off. */
+export function localFirst() {
+  return loadFile().local?.first !== false;
+}
+
+/** The board-level local settings: { first?, model? }, either alone.
+ *  `model` is an Ollama tag or an MLX id that fits the running backend and,
+ *  when Ollama lists what it has pulled, one of those; null clears the pick
+ *  (the machine's tier chooses again). */
+export async function setLocalPrefs({ first, model } = {}) {
+  if (first === undefined && model === undefined) throw new Error('send first, model, or both');
+  if (first !== undefined && typeof first !== 'boolean') throw new Error('first must be true or false');
+  if (model !== undefined && model !== null) {
+    if (typeof model !== 'string' || !looksLikeModelId(model)) throw new Error('model must be a model name like qwen3.5:4b');
+    if (!modelFitsBackend(model)) throw new Error(`${model} is not a model the ${localBackend() === 'mlx' ? 'MLX' : 'Ollama'} backend runs`);
+    const have = await listLocalModels();
+    if (have.length && !have.some((m) => m.id === model)) {
+      throw new Error(`${model} is not on this Mac; pulled: ${have.map((m) => m.id).join(', ')}`);
+    }
+  }
+  const file = loadFile();
+  const local = { first: file.local?.first !== false, model: typeof file.local?.model === 'string' ? file.local.model : null };
+  if (first !== undefined) local.first = first;
+  if (model !== undefined) local.model = model;
+  await saveFile({ lanes: { ...file.lanes }, fallback: file.fallback, local });
+  setPreferredModel(local.model);
+  // the board's ready/headroom reading is for the model now chosen
+  if (model !== undefined) await refreshLocalStatus().catch(() => {});
+  return getModelPrefs();
 }
 
 /** May this lane run on the local model at all? */
@@ -616,8 +681,8 @@ export function fallbackEnabled() {
 
 export async function setFallback({ enabled } = {}) {
   if (typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
-  const { lanes } = loadFile();
-  await saveFile({ lanes: { ...lanes }, fallback: { enabled } });
+  const { lanes, local } = loadFile();
+  await saveFile({ lanes: { ...lanes }, fallback: { enabled }, local });
   return getModelPrefs();
 }
 
@@ -644,14 +709,20 @@ function watchLocal() {
   localTimer.unref?.();
   refreshLocalStatus().catch(() => {});
 }
-/** The board's `local` block. */
+/** The board's `local` block. `models` is what Ollama has pulled, from the
+ *  last reading (empty on MLX or before the first reading lands). */
 export function localBoard() {
   const model = localDefaultModel();
+  const file = loadFile();
   return {
     configured: localModelConfigured(),
     ready: localReading.ready,
     model,
     label: localModelLabel(model),
+    backend: localBackend(),
+    first: localFirst(),
+    models: cachedLocalModels(),
+    preferredModel: typeof file.local?.model === 'string' ? file.local.model : null,
     headroom: localReading.headroom,
     checkedAt: localReading.checkedAt,
   };
@@ -722,12 +793,14 @@ export function getModelPrefs() {
       model: modelFor(l.id),
       defaultModel: l.def,
       deterministic: !!l.deterministic,
-      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort) || providerFor(l.id) !== 'claude'),
+      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort) || providerFor(l.id) !== defaultProviderOf(l)),
       effort: l.defEffort ? effortFor(l.id) : null,
       defaultEffort: l.defEffort || null,
       enabled: laneEnabled(l.id),
+      // the RESOLVED provider: with local first on, an untouched local lane
+      // reads 'local' here, so the pill says where it really runs
       provider: providerFor(l.id),
-      defaultProvider: 'claude',
+      defaultProvider: defaultProviderOf(l),
       canRunLocal: !!l.local,
       spend: spend[l.id] || null,
     })),
@@ -771,13 +844,13 @@ export async function setLanePref(laneId, { model, enabled, effort, provider } =
   if (provider !== undefined) entry.provider = provider;
   next[laneId] = entry;
 
-  await saveFile({ lanes: next, fallback: file.fallback });
+  await saveFile({ lanes: next, fallback: file.fallback, local: file.local });
   return getModelPrefs();
 }
 
 /** Put one lane — or the whole board — back to how it shipped. */
-// The board-level fallback switch is its own setting with its own control,
-// so a reset of the lanes leaves it as he set it.
+// The board-level fallback and local switches are their own settings with
+// their own controls, so a reset of the lanes leaves them as he set them.
 export async function resetLanePref(laneId) {
   const file = loadFile();
   const next = { ...file.lanes };
@@ -787,6 +860,6 @@ export async function resetLanePref(laneId) {
   } else {
     for (const k of Object.keys(next)) delete next[k];
   }
-  await saveFile({ lanes: next, fallback: file.fallback });
+  await saveFile({ lanes: next, fallback: file.fallback, local: file.local });
   return getModelPrefs();
 }

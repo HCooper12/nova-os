@@ -265,20 +265,21 @@ test('a local-capable lane can be set to the model on this Mac, and it round-tri
   await clean();
   const { providerFor, PROVIDERS } = await import('../lib/modelPrefs.js');
   assert.deepEqual(PROVIDERS, ['claude', 'local']);
-  assert.equal(providerFor('inbox-classify'), 'claude', 'Claude until he chooses otherwise');
-  const board = await setLanePref('inbox-classify', { provider: 'local' });
-  assert.equal(providerFor('inbox-classify'), 'local');
+  // local first is the default since 27 Oct: an untouched local lane runs here
+  assert.equal(providerFor('inbox-classify'), 'local', 'this Mac first until he chooses otherwise');
+  const board = await setLanePref('inbox-classify', { provider: 'claude' });
+  assert.equal(providerFor('inbox-classify'), 'claude');
   const lane = board.lanes.find((l) => l.id === 'inbox-classify');
-  assert.equal(lane.provider, 'local');
-  assert.equal(lane.defaultProvider, 'claude');
+  assert.equal(lane.provider, 'claude');
+  assert.equal(lane.defaultProvider, 'local');
   assert.equal(lane.canRunLocal, true);
-  assert.equal(lane.customised, true);
+  assert.equal(lane.customised, true, 'pinned off its default');
   // the provider does not disturb the model, and survives a model change
   await setLanePref('inbox-classify', { model: 'sonnet' });
-  assert.equal(providerFor('inbox-classify'), 'local');
+  assert.equal(providerFor('inbox-classify'), 'claude');
   assert.equal(modelFor('inbox-classify'), 'sonnet');
   await resetLanePref('inbox-classify');
-  assert.equal(providerFor('inbox-classify'), 'claude');
+  assert.equal(providerFor('inbox-classify'), 'local');
 });
 
 test('a lane that cannot run locally refuses the local provider, plainly', async () => {
@@ -325,8 +326,97 @@ test('getModelPrefs carries the local model and the fallback on the board', asyn
   assert.deepEqual([...board.fallback.lanes].sort(),
     ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
   for (const lane of board.lanes) {
-    assert.equal(lane.provider, 'claude');
-    assert.equal(lane.defaultProvider, 'claude');
+    // the RESOLVED provider: local first puts every local lane on this Mac
+    assert.equal(lane.provider, lane.canRunLocal ? 'local' : 'claude', lane.id);
+    assert.equal(lane.defaultProvider, lane.canRunLocal ? 'local' : 'claude', lane.id);
+    assert.equal(lane.customised, false, `${lane.id} untouched is not customised`);
     assert.equal(typeof lane.canRunLocal, 'boolean');
   }
+  // the local block (27 Oct 2026)
+  assert.ok(['ollama', 'mlx'].includes(board.local.backend));
+  assert.equal(board.local.first, true);
+  assert.ok(Array.isArray(board.local.models));
+  assert.equal(board.local.preferredModel, null);
+});
+
+// ---- local first and the model pick (27 Oct 2026) -------------------------
+test('local first: on by default; off sends local lanes to Claude; an explicit lane choice wins either way', async () => {
+  await clean();
+  const { providerFor, localFirst, setLocalPrefs } = await import('../lib/modelPrefs.js');
+  assert.equal(localFirst(), true);
+  assert.equal(providerFor('note-summary'), 'local');
+  assert.equal(providerFor('coach'), 'claude', 'a lane that cannot run here is Claude whatever the switch');
+  await setLanePref('journal-prompt', { provider: 'claude' });
+  await setLanePref('calendar-command', { provider: 'local' });
+  let board = await setLocalPrefs({ first: false });
+  assert.equal(localFirst(), false);
+  assert.equal(board.local.first, false);
+  assert.equal(providerFor('note-summary'), 'claude', 'untouched lanes follow the switch');
+  assert.equal(providerFor('calendar-command'), 'local', 'his explicit local pick stands');
+  assert.equal(providerFor('journal-prompt'), 'claude');
+  assert.equal(board.lanes.find((l) => l.id === 'note-summary').defaultProvider, 'claude');
+  board = await setLocalPrefs({ first: true });
+  assert.equal(providerFor('journal-prompt'), 'claude', 'his explicit Claude pick stands too');
+  assert.equal(providerFor('note-summary'), 'local');
+});
+
+test('setLocalPrefs validates: a boolean switch, a model-shaped name for the backend, at least one field', async () => {
+  await clean();
+  const { setLocalPrefs } = await import('../lib/modelPrefs.js');
+  await assert.rejects(() => setLocalPrefs({}), /send first, model, or both/);
+  await assert.rejects(() => setLocalPrefs({ first: 'yes' }), /first must be true or false/);
+  await assert.rejects(() => setLocalPrefs({ model: 'rm -rf /' }), /model must be a model name/);
+  await assert.rejects(() => setLocalPrefs({ model: 42 }), /model must be a model name/);
+  // the Ollama backend (the default) does not run an MLX repo id
+  await assert.rejects(() => setLocalPrefs({ model: 'mlx-community/Qwen3-4B-Instruct-2507-4bit' }), /not a model the Ollama backend runs/);
+  // nothing answers in a test run (lib/localModel.js), so only the shape is checked
+  const board = await setLocalPrefs({ model: 'qwen3.5:9b' });
+  assert.equal(board.local.preferredModel, 'qwen3.5:9b');
+  assert.equal(board.local.model, 'qwen3.5:9b', 'his pick is the model that runs');
+  assert.equal(board.local.first, true, 'a model write leaves the switch as it was');
+  const cleared = await setLocalPrefs({ model: null });
+  assert.equal(cleared.local.preferredModel, null);
+  assert.notEqual(cleared.local.model, 'qwen3.5:9b', 'cleared, the machine\'s tier picks again');
+});
+
+test('setLocalPrefs refuses a model Ollama does not have, when Ollama lists what it has', async () => {
+  await clean();
+  const http = await import('node:http');
+  const stub = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    if (req.url === '/api/tags') return res.end(JSON.stringify({ models: [{ name: 'qwen3.5:4b', size: 3324173934, capabilities: ['completion', 'tools'] }, { name: 'nomic-embed-text:latest', size: 274302450, capabilities: ['embedding'] }] }));
+    if (req.url === '/api/ps') return res.end('{"models":[]}');
+    res.statusCode = 404; res.end('{}');
+  });
+  await new Promise((r) => stub.listen(0, '127.0.0.1', r));
+  const had = process.env.NOVA_OLLAMA_URL;
+  process.env.NOVA_OLLAMA_URL = `http://127.0.0.1:${stub.address().port}`;
+  try {
+    const { setLocalPrefs, refreshLocalStatus } = await import('../lib/modelPrefs.js');
+    await assert.rejects(() => setLocalPrefs({ model: 'qwen3.5:9b' }), /qwen3\.5:9b is not on this Mac; pulled: qwen3\.5:4b/);
+    await assert.rejects(() => setLocalPrefs({ model: 'nomic-embed-text:latest' }), /is not on this Mac/, 'an embedding model cannot answer');
+    const board = await setLocalPrefs({ model: 'qwen3.5:4b' });
+    assert.equal(board.local.preferredModel, 'qwen3.5:4b');
+    await refreshLocalStatus();
+    assert.deepEqual(getModelPrefs().local.models, [{ id: 'qwen3.5:4b', sizeGB: 3.3, name: 'Qwen3.5 4B' }]);
+  } finally {
+    if (had === undefined) delete process.env.NOVA_OLLAMA_URL; else process.env.NOVA_OLLAMA_URL = had;
+    stub.closeAllConnections();
+    await new Promise((r) => stub.close(r));
+    const { refreshLocalStatus, setLocalPrefs } = await import('../lib/modelPrefs.js');
+    await refreshLocalStatus();
+    await setLocalPrefs({ model: null });
+  }
+});
+
+test('the local block survives lane writes, a fallback write and a whole-board reset', async () => {
+  await clean();
+  const { setLocalPrefs, setFallback, localFirst } = await import('../lib/modelPrefs.js');
+  await setLocalPrefs({ first: false, model: 'qwen3.5:4b' });
+  await setLanePref('coach', { model: 'haiku' });
+  await setFallback({ enabled: false });
+  await resetLanePref();
+  assert.equal(localFirst(), false, 'a reset of the lanes leaves his local-first choice as he set it');
+  assert.equal(getModelPrefs().local.preferredModel, 'qwen3.5:4b');
+  await setLocalPrefs({ model: null });
 });

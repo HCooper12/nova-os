@@ -23,6 +23,10 @@ process.env.NOVA_VOICE_DIR = voiceDir;
 process.env.NOVA_LOCAL_LLM_PORT = '4288';
 process.env.NOVA_LOCAL_LLM_WAIT_MS = '1500';
 process.env.NOVA_LOCAL_LLM_MODEL = 'mlx-community/Qwen3-4B-Instruct-2507-4bit';
+// the stub below speaks the MLX server's /v1; the Ollama shape is
+// localModel.test.js's
+process.env.NOVA_LOCAL_LLM_BACKEND = 'mlx';
+process.env.NOVA_OLLAMA_NO_SPAWN = '1';
 
 const argvLog = path.join(root, 'argv.log');
 const stubBin = path.join(root, 'claude');
@@ -60,12 +64,13 @@ import assert from 'node:assert/strict';
 
 const { startAsk, plainReason } = await import('../lib/askDispatch.js');
 const { getMessageJob, startGreeting, _dropAllWarm } = await import('../lib/claudeCode.js');
-const { setLanePref, resetLanePref, setFallback, refreshLocalStatus } = await import('../lib/modelPrefs.js');
+const { setLanePref, resetLanePref, setFallback, refreshLocalStatus, setLocalPrefs } = await import('../lib/modelPrefs.js');
 const { _setHeadroomForTests } = await import('../lib/localModel.js');
 const { _reset, _flush, isLocalOnlySession, sessionTurns } = await import('../lib/localAsk.js');
 
 const seen = [];
 let localReply = 'The model on this Mac says: your top set was 92.5 kg.';
+let localStatus = 200; // a test that wants this Mac to fail sets 500
 const stub = http.createServer((req, res) => {
   if (req.url === '/health') { res.setHeader('Content-Type', 'application/json'); return res.end('{"status":"ok"}'); }
   if (req.url === '/v1/chat/completions' && req.method === 'POST') {
@@ -73,6 +78,7 @@ const stub = http.createServer((req, res) => {
     req.on('data', (d) => { body += d; });
     req.on('end', () => {
       seen.push(JSON.parse(body));
+      if (localStatus !== 200) { res.statusCode = localStatus; return res.end('the runner crashed'); }
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: localReply } }] }));
     });
@@ -85,8 +91,12 @@ await new Promise((r) => stub.listen(4288, '127.0.0.1', r));
 test.beforeEach(async () => {
   seen.length = 0;
   localReply = 'The model on this Mac says: your top set was 92.5 kg.';
+  localStatus = 200;
   await resetLanePref();
   await setFallback({ enabled: true });
+  // the 19 Oct tests were written for Claude first; the local-first tests
+  // (27 Oct, at the end) switch it on themselves
+  await setLocalPrefs({ first: false });
   _setHeadroomForTests(() => ({ ok: true, swapFreeMB: 8000, reason: null }));
 });
 test.after(async () => {
@@ -256,4 +266,65 @@ test('the greeting at Claude\'s limit, fallback on: said by the model on this Ma
   assert.equal(job.result.provider, 'local');
   assert.equal(job.result.fallback, true);
   assert.equal(job.error, null);
+});
+
+/* ------------------- local first, Claude as the escalation (27 Oct 2026) ------------------- */
+
+test('local first: a local turn that fails before any text is carried to Claude on the SAME job id, labelled escalated', async () => {
+  await _reset({ file: true });
+  await setLocalPrefs({ first: true });
+  localStatus = 500;
+  const jobId = startAsk(vault, { question: 'how is my bench?', context: 'ctx' });
+  const { job, statuses } = await watch(jobId);
+  assert.deepEqual(statuses, ['running', 'ready'], 'the poll never saw the local error');
+  assert.equal(job.id, jobId);
+  assert.equal(getMessageJob(jobId), job, 'the client polls the same job');
+  assert.equal(job.result.text, 'Claude answered.');
+  assert.equal(job.result.provider, 'claude');
+  assert.equal(job.result.escalated, true);
+  assert.match(job.result.reason, /^the model on this Mac could not answer: .*500/);
+  assert.equal(job.error, null);
+  assert.ok(seen.length >= 1, 'this Mac was asked first');
+  // the local failure and Claude's answer are both on the ledger
+  const rows = await waitRows('ask-nova', (r) => r.provider === 'local' && r.error);
+  assert.match(rows.find((r) => r.provider === 'local' && r.error).error, /500/);
+  // Claude's turn is in the session memory, so a later local turn knows it
+  for (let i = 0; i < 50 && !sessionTurns(job.result.sessionId).length; i++) await new Promise((r) => setTimeout(r, 20));
+  await _flush();
+  assert.equal(sessionTurns(job.result.sessionId).at(-1).provider, 'claude');
+  assert.equal(isLocalOnlySession(job.result.sessionId), false);
+});
+
+test('local first: when Claude cannot answer either, the error is Claude\'s with why this Mac did not answer first', async () => {
+  await setLocalPrefs({ first: true });
+  localStatus = 500;
+  const jobId = startAsk(vault, { question: 'LIMIT_NOW bench?', context: 'ctx' });
+  const { job, statuses } = await watch(jobId);
+  assert.deepEqual(statuses, ['running', 'error']);
+  assert.match(job.error, /limit/i);
+  assert.match(job.error, /The model on this Mac could not answer first: .*500/);
+  assert.equal(job.result, null);
+});
+
+test('local first: a local answer stays local, and Claude is never spawned', async () => {
+  await setLocalPrefs({ first: true });
+  const before = existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0;
+  const jobId = startAsk(vault, { question: 'what was my bench top set?', context: 'ctx' });
+  const { job } = await watch(jobId);
+  assert.equal(job.status, 'ready', job.error);
+  assert.equal(job.result.provider, 'local');
+  assert.equal(job.result.escalated, undefined);
+  assert.equal(existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0, before);
+});
+
+test('local first: the greeting this Mac cannot compose is said by Claude, labelled escalated', async () => {
+  await setLocalPrefs({ first: true });
+  localStatus = 500;
+  const jobId = startGreeting(vault, { facts: 'Local time: 07:12.' });
+  const { job, statuses } = await watch(jobId);
+  assert.deepEqual(statuses, ['running', 'ready']);
+  assert.equal(job.result.text, 'Claude answered.');
+  assert.equal(job.result.provider, 'claude');
+  assert.equal(job.result.escalated, true);
+  assert.match(job.result.reason, /could not answer: .*500/);
 });

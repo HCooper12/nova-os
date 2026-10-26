@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getModelPrefs, setLanePref, resetLanePref, setFallback, refreshLocalStatus } from '../lib/modelPrefs.js';
+import { getModelPrefs, setLanePref, resetLanePref, setFallback, setLocalPrefs, refreshLocalStatus } from '../lib/modelPrefs.js';
 import { spendSummary } from '../lib/modelSpend.js';
 
 // The model board — which Claude model every lane in Nova runs on, and
@@ -90,6 +90,21 @@ export function modelPrefsRouter() {
   router.put('/model-prefs/fallback', async (req, res) => {
     try {
       res.json(await setFallback({ enabled: req.body?.enabled }));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // The board-wide local settings: { first?, model? }, either alone. `first`
+  // on, the lanes that can run on this Mac do, and ask Claude only when it
+  // cannot answer (lib/textLane.js); `model` picks which pulled model runs
+  // (null clears the pick). Returns the whole board.
+  router.put('/model-prefs/local', async (req, res) => {
+    try {
+      const patch = {};
+      if (req.body?.first !== undefined) patch.first = req.body.first;
+      if (req.body?.model !== undefined) patch.model = req.body.model;
+      res.json(await setLocalPrefs(patch));
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

@@ -2,7 +2,7 @@
 // my day-to-day without worrying about needing my Claude connection to be
 // active, online, and without worrying about running out of tokens."
 //
-// The small model (Qwen3-4B via mlx_lm.server, lib/localModel.js) answers
+// The small model (Qwen3.5 4B on Ollama since 27 Oct, lib/localModel.js) answers
 // from his vault the way Claude's Ask Nova does, with three differences that
 // follow from it being small:
 //   - THE PROMPT IS A MAP, NOT A DUMP. Claude's prompt is tens of thousands
@@ -37,6 +37,7 @@ import { parseVisualStream } from '../../src/visualBeats.js';
 
 export const PROMPT_BUDGET = 9000;      // chars of system prompt before his question
 export const MAX_ROUNDS = 4;            // vault lookups per turn
+export const LOCAL_ASK_CTX = 8192;      // tokens of context a local turn asks for (Ollama's default is 4096)
 export const TURN_TIMEOUT_MS = () => Number(process.env.NOVA_LOCAL_ASK_TIMEOUT_MS || 120_000);
 const SEARCH_HITS = 12;
 const READ_LINES = 120;
@@ -120,6 +121,10 @@ Use vault_search, vault_read and vault_list when TODAY below does not already an
   if (him) tail.push(clip(him, 1800));
   if (talkPrefs) tail.push(clip(talkPrefs, 700));
   if (wl) tail.push(wl);
+  // the fixed head first and the changing tail last: Ollama reuses the
+  // cached prefix of a prompt it has seen, measured 27 Oct at 366 tok/s cold
+  // against 1,063 tok/s cached, so anything that changes per turn goes after
+  // everything that does not
   const fixed = `${head}\n\n${tail.join('\n\n')}`;
 
   // the last turns, newest kept: each side clipped, oldest dropped to fit
@@ -317,6 +322,8 @@ export function stripThink(text) {
   return t.trim();
 }
 
+// Arguments arrive as a JSON string (the OpenAI shape lib/localModel.js
+// returns) or, from a server that hands them over parsed, an object already.
 function parseArgs(raw) {
   if (raw && typeof raw === 'object') return raw;
   try { const v = JSON.parse(String(raw || '{}')); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
@@ -481,7 +488,11 @@ async function converse(job, { cwd, question, promptOpts, deadline }) {
     if (left <= 0) throw new Error(`it took longer than ${Math.round(TURN_TIMEOUT_MS() / 1000)} s`);
     let out;
     try {
-      out = await chatLocal(messages, { tools: useTools && !final ? TOOLS : null, timeoutMs: Math.max(1000, left), maxTokens: 700 });
+      // thinking off: left on, Qwen3.5 on Ollama spends the whole budget
+      // thinking and returns no answer (27 Oct). The context window is the
+      // chat default (8192, lib/localModel.js): the prompt alone is ~2.2k
+      // tokens before the vault pages a lookup hands back.
+      out = await chatLocal(messages, { tools: useTools && !final ? TOOLS : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false, numCtx: LOCAL_ASK_CTX });
     } catch (e) {
       // a server that does not take `tools`: once, at the start, the text form
       if (e.status === 400 && useTools && !switched && round === 0) {

@@ -23,6 +23,7 @@ const EXEMPT = [
   { file: 'mediaLane.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp/ffmpeg, not the CLI' },
   { file: 'repertoireLane.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp/ffmpeg, not the CLI' },
   { file: 'studyLane.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp, not the CLI' },
+  { file: 'localModel.js', snippet: "spawn(bin, ['serve']", why: 'starts `ollama serve`, the local model server (27 Oct 2026), not the CLI' },
 ];
 
 const libFiles = () => fs.readdirSync(LIB).filter((n) => n.endsWith('.js'));

@@ -2,11 +2,11 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import {
-  modelFor, effortArgs, laneEnabled, laneOffError, providerFor, laneCanRunLocal, fallbackEnabled, refreshLocalStatus,
+  modelFor, effortArgs, laneEnabled, laneOffError, providerFor, laneCanRunLocal, fallbackEnabled, refreshLocalStatus, laneThinks,
 } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope, recordRun } from './modelSpend.js';
-import { completeLocal, localModelConfigured } from './localModel.js';
+import { completeLocal, localModelConfigured, localBackend } from './localModel.js';
 
 // THE TEXT-LANE RUNNER (19 Oct 2026). The one-shot lanes that are pure text
 // in, text out (no tools, no vault reads: boundaryArgs('')) all had the same
@@ -25,6 +25,16 @@ import { completeLocal, localModelConfigured } from './localModel.js';
 // an empty string, and a limit that could not be covered is the limit error
 // itself (err.limited stays true, so every lane's existing honest handling
 // still applies), with the reason the local model could not stand in added.
+//
+// LOCAL FIRST, CLAUDE AS THE ESCALATION (27 Oct 2026). Since local-first is
+// the board's default (lib/modelPrefs.js localFirst), a `local: true` lane
+// runs here first, and when this Mac cannot answer for ANY reason before a
+// word exists (nothing installed, no memory to load, a load that timed out,
+// an HTTP refusal, an empty reply, thinking that ate the budget) Claude
+// answers instead, and the result says so: `escalated: true` and a plain
+// `reason`. Both runs are on the ledger: the local failure with its error,
+// Claude's as an ordinary run. The other direction (a lane pinned to Claude
+// that hits the limit, answered here) is unchanged.
 
 const CLAUDE_BIN_DEFAULT = () => process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 
@@ -94,6 +104,10 @@ async function runLocal(lane, prompt, { maxTokens, json, fallback, reason = null
       temperature: 0,
       waitForBoot: true,
       system: json ? JSON_SYSTEM : null,
+      // Ollama constrains the output to JSON as well as being told to
+      json,
+      // off unless the lane is marked to reason (lib/modelPrefs.js laneThinks)
+      think: laneThinks(lane),
     });
     recordRun(lane, {
       usd: 0, ms: out.ms, model: `local:${out.model}`, inputTokens: null, outputTokens: null, provider: 'local', fallback, reason,
@@ -118,15 +132,52 @@ export function runLocalLane(lane, prompt, { maxTokens = 700, json = false, fall
   return runLocal(lane, prompt, { maxTokens, json, fallback });
 }
 
-/** Run one pure-text lane and return { text, provider, model, ms, fallback }.
+const LOCAL_PREFIX = /^the local model could not answer: /;
+
+// Claude answers what this Mac could not. Not async on purpose: the CLI is
+// spawned inside this call, so a caller that reaches it before its own first
+// await keeps the synchronous-spawn property below.
+function escalate(lane, prompt, localWhy, spawnImpl) {
+  const why = String(localWhy || 'it returned nothing').replace(LOCAL_PREFIX, '');
+  const reason = `the model on this Mac could not answer: ${why}`;
+  console.log(`textLane: ${lane} escalated to Claude (${why})`);
+  return spawnClaude(lane, prompt, spawnImpl).then(
+    (out) => ({ ...out, escalated: true, reason }),
+    (e) => {
+      // Claude's failure, said plainly, with why this Mac did not answer first
+      e.message = `${e.message} The model on this Mac could not answer first: ${why}.`;
+      e.localError = why;
+      throw e;
+    },
+  );
+}
+
+/** Run one pure-text lane and return { text, provider, model, ms, fallback },
+ *  plus `escalated` and `reason` when the lane ran here first and Claude
+ *  answered instead.
  *  `spawnImpl` is a test seam for a lane that already has one (journalPrompt).
  *  When the lane runs on Claude at the lane's default effort, the CLI is
  *  spawned synchronously within this call (before its first await), which the
- *  journal prompt's "one call, at the tap" test depends on. */
+ *  journal prompt's "one call, at the tap" test depends on. That holds for an
+ *  escalation that needs no local call too (nothing installed here). */
 export async function runTextLane(lane, prompt, { maxTokens = 700, json = false, spawnImpl = null } = {}) {
   if (!laneEnabled(lane)) throw laneOffError(lane);
 
-  if (providerFor(lane) === 'local') return runLocal(lane, prompt, { maxTokens, json, fallback: false });
+  if (providerFor(lane) === 'local') {
+    // nothing to run here: a stat says so, so Claude is asked at once (and
+    // synchronously) rather than after a boot that cannot happen
+    if (!localModelConfigured()) {
+      const why = localBackend() === 'ollama' ? 'Ollama is not installed on this Mac' : 'the local model is not installed';
+      recordRun(lane, { usd: 0, ms: 0, model: null, provider: 'local', fallback: false, reason: null, error: why });
+      return escalate(lane, prompt, why, spawnImpl);
+    }
+    try {
+      return await runLocal(lane, prompt, { maxTokens, json, fallback: false });
+    } catch (localErr) {
+      // runLocal has already put the failed local run on the ledger
+      return escalate(lane, prompt, localErr.message, spawnImpl);
+    }
+  }
 
   const run = spawnClaude(lane, prompt, spawnImpl);
 

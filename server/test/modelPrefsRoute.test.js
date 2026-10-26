@@ -90,3 +90,38 @@ test('GET /api/model-prefs still folds the same spend numbers into each lane', a
   assert.equal(coach.spend.runs, 1);
   assert.equal(coach.spend.usd, 0.75);
 });
+
+// PUT /api/model-prefs/local (27 Oct 2026): local first and the model pick
+test('PUT /api/model-prefs/local sets local first and the model, returns the board, and refuses junk with a 400', async (t) => {
+  const { rm: rmFile } = await import('node:fs/promises');
+  const PREFS = path.join(dataDir, 'model-prefs.json');
+  await rmFile(PREFS, { force: true });
+  const { srv, port } = await startServer();
+  t.after(() => srv.close());
+  const put = (body) => fetch(`http://127.0.0.1:${port}/api/model-prefs/local`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+
+  let r = await put({ first: false });
+  assert.equal(r.status, 200);
+  let board = await r.json();
+  assert.equal(board.local.first, false);
+  assert.equal(board.lanes.find((l) => l.id === 'inbox-classify').provider, 'claude');
+
+  r = await put({ first: true, model: 'qwen3.5:4b' });
+  board = await r.json();
+  assert.equal(board.local.first, true);
+  assert.equal(board.local.preferredModel, 'qwen3.5:4b');
+  assert.equal(board.lanes.find((l) => l.id === 'inbox-classify').provider, 'local');
+
+  r = await put({});
+  assert.equal(r.status, 400);
+  assert.match((await r.json()).error, /send first, model, or both/);
+  r = await put({ first: 'sometimes' });
+  assert.equal(r.status, 400);
+  r = await put({ model: '../../etc/passwd' });
+  assert.equal(r.status, 400);
+
+  await put({ model: null });
+  await rmFile(PREFS, { force: true });
+});

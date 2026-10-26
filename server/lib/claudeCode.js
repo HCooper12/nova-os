@@ -1216,7 +1216,13 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
 // model on this Mac composes it (lib/textLane.js runLocalLane). That path is
 // one call, not a stream: the greeting is one sentence, so the job goes from
 // running to ready with no partials. The Claude path streams as before.
-function greetLocally(job, prompt, { fallback }) {
+//
+// LOCAL FIRST (27 Oct 2026): the greeting is a `local: true` lane, so it is
+// composed here by default, and when this Mac cannot (not installed, no
+// memory, the model returned nothing) Claude greets instead (`onFail`), the
+// same escalation lib/textLane.js gives every text lane. A stand-in for
+// Claude has no such second chance: Claude already failed.
+function greetLocally(job, prompt, { fallback, onFail = null }) {
   runLocalLane('greeting', prompt, { maxTokens: 200, fallback }).then((out) => {
     const text = String(out.text || '').trim();
     if (!text) throw new Error('the local model returned no greeting');
@@ -1225,6 +1231,12 @@ function greetLocally(job, prompt, { fallback }) {
     Object.defineProperty(job, 'status', { value: 'ready', writable: true, enumerable: true, configurable: true });
     import('./spokenLog.js').then(({ logSpoken }) => logSpoken('greeting', text)).catch(() => {});
   }).catch((e) => {
+    if (!fallback && onFail && laneEnabled('greeting')) {
+      const why = String(e.message || e).replace(/^the local model could not answer: /, '');
+      console.log(`greeting: the model on this Mac could not greet (${why}); Claude greets instead`);
+      onFail(why);
+      return;
+    }
     job.error = fallback ? `${job.error || 'Claude is at its usage limit.'} The model on this Mac could not stand in: ${e.message}` : e.message;
     Object.defineProperty(job, 'status', { value: 'error', writable: true, enumerable: true, configurable: true });
   });
@@ -1237,9 +1249,20 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
   if (providerFor('greeting') === 'local') {
-    greetLocally(job, buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }), { fallback: false });
+    greetLocally(job, buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }), {
+      fallback: false,
+      onFail: (why) => greetOnClaude(cwd, job, { facts, gap, effectiveSessionId, escalatedReason: `the model on this Mac could not answer: ${why}` }),
+    });
     return jobId;
   }
+  greetOnClaude(cwd, job, { facts, gap, effectiveSessionId });
+  return jobId;
+}
+
+// The Claude half of the greeting: streamed through the warm pool. When it
+// is the escalation from this Mac (`escalatedReason`), the result says so and
+// a Claude failure is final (the local model already could not answer).
+function greetOnClaude(cwd, job, { facts, gap, effectiveSessionId, escalatedReason = null }) {
   // at Claude's limit the greeting may still be said, by the model on this Mac
   let status = 'running';
   let handed = false;
@@ -1248,12 +1271,17 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
     configurable: true,
     get: () => status,
     set: (v) => {
-      if (v === 'error' && !handed && job.limited && fallbackEnabled() && laneCanRunLocal('greeting') && localModelConfigured()) {
+      if (v === 'error' && !handed && !escalatedReason && job.limited && fallbackEnabled() && laneCanRunLocal('greeting') && localModelConfigured()) {
         handed = true;
         setImmediate(() => greetLocally(job, buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }), { fallback: true }));
         return;
       }
       status = v;
+      // the escalation failed too: Claude's error, with why this Mac could
+      // not answer first (the pool writes job.error just after the status)
+      if (v === 'error' && escalatedReason) {
+        setImmediate(() => { job.error = `${job.error || 'Claude could not answer.'} The model on this Mac could not answer first: ${escalatedReason.replace(/^the model on this Mac could not answer: /, '')}.`; });
+      }
     },
   });
 
@@ -1286,14 +1314,14 @@ export function startGreeting(cwd, { facts, gap = 'new-day' }) {
     text: buildGreetingPrompt({ facts, gap, talkPrefs: talkPrefsBlock(cwd) }),
     job,
     finishTurn: (replyText, turnJob) => {
-      turnJob.result = { text: replyText.trim() };
+      turnJob.result = escalatedReason
+        ? { text: replyText.trim(), provider: 'claude', escalated: true, reason: escalatedReason }
+        : { text: replyText.trim() };
       turnJob.status = 'ready';
       // the doorman's words are Nova's words — the ask model must own them
       import('./spokenLog.js').then(({ logSpoken }) => logSpoken('greeting', replyText.trim())).catch(() => {});
     },
   });
-
-  return jobId;
 }
 
 // Ask Coach — the Train screen's chat, made real. Same read-only structural

@@ -25,6 +25,10 @@ process.env.NOVA_VOICE_DIR = voiceDir;
 process.env.NOVA_LOCAL_LLM_PORT = '4291';
 process.env.NOVA_LOCAL_LLM_WAIT_MS = '1500';
 process.env.NOVA_LOCAL_LLM_MODEL = 'mlx-community/Qwen3-4B-Instruct-2507-4bit';
+// this suite's stub speaks the MLX server's /v1 (the Ollama request shape is
+// localModel.test.js's, plus one test below on its own stub)
+process.env.NOVA_LOCAL_LLM_BACKEND = 'mlx';
+process.env.NOVA_OLLAMA_NO_SPAWN = '1';
 
 // the CLI stub: prints whatever envelope STUB_REPLY names, logs its argv
 const stubBin = path.join(root, 'claude-stub.sh');
@@ -42,7 +46,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { runTextLane } = await import('../lib/textLane.js');
-const { setLanePref, resetLanePref, setFallback } = await import('../lib/modelPrefs.js');
+const { setLanePref, resetLanePref, setFallback, setLocalPrefs, providerFor } = await import('../lib/modelPrefs.js');
 const { _setHeadroomForTests } = await import('../lib/localModel.js');
 const { _flushSpend } = await import('../lib/modelSpend.js');
 
@@ -98,6 +102,9 @@ test.beforeEach(async () => {
   await rm(SPEND, { force: true });
   await resetLanePref();
   await setFallback({ enabled: true });
+  // the 19 Oct tests below were written for Claude first; the local-first
+  // tests (27 Oct, at the end) switch it back on themselves
+  await setLocalPrefs({ first: false });
   _setHeadroomForTests(() => ({ ok: true, swapFreeMB: 8000, reason: null }));
   seen.length = 0;
 });
@@ -202,13 +209,32 @@ test('(f) at the limit with no memory to load the local model, the limit error c
   });
 });
 
-test('a lane set to local fails with a plain reason when the model cannot load, never an empty answer', async () => {
+test('a lane set to local that cannot load the model escalates to Claude, says why, and both runs are on the ledger', async () => {
   _setHeadroomForTests(() => ({ ok: false, swapFreeMB: 460, reason: 'this Mac has only 460 MB of swap free' }));
   await setLanePref('shopping-categorize', { provider: 'local' });
-  await assert.rejects(() => runTextLane('shopping-categorize', 'sort: milk'), /local model could not answer: .*460 MB of swap free/);
-  const rows = await waitRows('shopping-categorize', 1);
+  process.env.STUB_REPLY = okReply;
+  const out = await runTextLane('shopping-categorize', 'sort: milk');
+  assert.equal(out.text, '{"from":"claude"}');
+  assert.equal(out.provider, 'claude');
+  assert.equal(out.escalated, true);
+  assert.match(out.reason, /^the model on this Mac could not answer: .*460 MB of swap free/);
+  const rows = await waitRows('shopping-categorize', 2);
   assert.equal(rows[0].provider, 'local');
   assert.ok(rows[0].error, 'the failed local run is on the ledger with its reason');
+  assert.equal(rows[1].provider, 'claude');
+  assert.ok(!rows[1].error);
+});
+
+test('when the escalation fails too, Claude\'s error carries why this Mac did not answer first, never an empty answer', async () => {
+  _setHeadroomForTests(() => ({ ok: false, swapFreeMB: 460, reason: 'this Mac has only 460 MB of swap free' }));
+  await setLanePref('shopping-categorize', { provider: 'local' });
+  process.env.STUB_REPLY = limitReply;
+  await assert.rejects(() => runTextLane('shopping-categorize', 'sort: milk'), (e) => {
+    assert.equal(e.limited, true, 'still the limit, so every lane\'s honest handling applies');
+    assert.match(e.message, /usage limit is reached/);
+    assert.match(e.message, /The model on this Mac could not answer first: .*460 MB of swap free/);
+    return true;
+  });
 });
 
 test('a lane switched off is refused before anything runs', async () => {
@@ -283,5 +309,135 @@ test('a spawn failure on a lane that cannot run locally keeps its own error', as
     assert.equal(seen.length, 0);
   } finally {
     process.env.CLAUDE_BIN = had;
+  }
+});
+
+/* --------------------- local first, Claude as the escalation (27 Oct 2026) --------------------- */
+
+// A fake CLI child for the spawnImpl seam: it answers with the envelope given.
+import { EventEmitter } from 'node:events';
+function fakeSpawn(envelope, calls) {
+  return (bin, args) => {
+    calls.push(args);
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    setImmediate(() => {
+      child.stdout.emit('data', JSON.stringify(envelope));
+      child.emit('close', 0);
+    });
+    return child;
+  };
+}
+const claudeEnvelope = { type: 'result', is_error: false, result: '{"from":"claude"}', total_cost_usd: 0.001, duration_ms: 200 };
+
+test('local first by default: an untouched local lane runs on this Mac and Claude is never spawned', async () => {
+  await setLocalPrefs({ first: true });
+  await startStub();
+  assert.equal(providerFor('inbox-classify'), 'local');
+  const calls = [];
+  const out = await runTextLane('inbox-classify', 'classify: buy milk', { json: true, spawnImpl: fakeSpawn(claudeEnvelope, calls) });
+  assert.equal(out.provider, 'local');
+  assert.equal(out.text, '{"from":"local"}');
+  assert.equal(out.escalated, undefined);
+  assert.equal(calls.length, 0);
+});
+
+test('local first: this Mac fails before any text (an HTTP error) and Claude answers, escalated, with a plain reason', async () => {
+  await setLocalPrefs({ first: true });
+  stub = http.createServer((req, res) => {
+    if (req.url === '/health') { res.setHeader('Content-Type', 'application/json'); return res.end('{"status":"ok"}'); }
+    res.statusCode = 500; res.end('the runner crashed');
+  });
+  await new Promise((r) => stub.listen(4291, '127.0.0.1', r));
+  const calls = [];
+  const out = await runTextLane('note-summary', 'summarise this', { spawnImpl: fakeSpawn(claudeEnvelope, calls) });
+  assert.equal(calls.length, 1, 'Claude was asked once');
+  assert.equal(out.provider, 'claude');
+  assert.equal(out.text, '{"from":"claude"}');
+  assert.equal(out.escalated, true);
+  assert.match(out.reason, /^the model on this Mac could not answer: local model → 500: the runner crashed$/);
+  const rows = await waitRows('note-summary', 2);
+  assert.deepEqual(rows.map((r) => r.provider), ['local', 'claude']);
+  assert.match(rows[0].error, /500/);
+});
+
+test('local first: an empty local answer escalates too (never an empty string to a lane)', async () => {
+  await setLocalPrefs({ first: true });
+  await startStub('');
+  const calls = [];
+  const out = await runTextLane('rewards-offer-read', 'read this email', { json: true, spawnImpl: fakeSpawn(claudeEnvelope, calls) });
+  assert.equal(out.escalated, true);
+  assert.match(out.reason, /returned no text/);
+});
+
+test('local first with nothing installed: Claude is spawned synchronously, before the first await (the journal prompt\'s "one call, at the tap")', async () => {
+  await setLocalPrefs({ first: true });
+  const had = process.env.NOVA_VOICE_DIR;
+  process.env.NOVA_VOICE_DIR = path.join(root, 'no-venv-here');
+  try {
+    const calls = [];
+    const pending = runTextLane('journal-prompt', 'a question for tonight', { json: true, spawnImpl: fakeSpawn(claudeEnvelope, calls) });
+    assert.equal(calls.length, 1, 'spawned within the call, not after a tick');
+    const out = await pending;
+    assert.equal(out.escalated, true);
+    assert.match(out.reason, /the local model is not installed/);
+    const rows = await waitRows('journal-prompt', 2);
+    assert.equal(rows[0].provider, 'local');
+    assert.match(rows[0].error, /not installed/);
+  } finally {
+    process.env.NOVA_VOICE_DIR = had;
+  }
+});
+
+test('local first leaves a lane he pinned to Claude on Claude, and its limit still falls back to this Mac', async () => {
+  await setLocalPrefs({ first: true });
+  await setLanePref('note-summary', { provider: 'claude' });
+  await startStub();
+  process.env.STUB_REPLY = limitReply;
+  const out = await runTextLane('note-summary', 'summarise this');
+  assert.equal(out.provider, 'local');
+  assert.equal(out.fallback, true);
+  assert.equal(out.reason, 'Claude was at its usage limit');
+  assert.equal(out.escalated, undefined);
+});
+
+test('local first on the Ollama backend: the lane asks for JSON and no thinking on the native API', async () => {
+  await setLocalPrefs({ first: true });
+  const seenOllama = [];
+  const ollama = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => { body += d; });
+    req.on('end', () => {
+      res.setHeader('Content-Type', 'application/json');
+      if (req.url === '/api/tags') return res.end('{"models":[{"name":"qwen3.5:4b","size":3324173934}]}');
+      if (req.url === '/api/ps') return res.end('{"models":[{"name":"qwen3.5:4b"}]}');
+      if (req.url === '/api/chat') { seenOllama.push(JSON.parse(body)); return res.end(JSON.stringify({ message: { role: 'assistant', content: '{"aisle":"dairy"}' }, done: true, done_reason: 'stop' })); }
+      res.statusCode = 404; res.end('{}');
+    });
+  });
+  await new Promise((r) => ollama.listen(0, '127.0.0.1', r));
+  const had = { b: process.env.NOVA_LOCAL_LLM_BACKEND, u: process.env.NOVA_OLLAMA_URL, m: process.env.NOVA_LOCAL_LLM_MODEL };
+  process.env.NOVA_LOCAL_LLM_BACKEND = 'ollama';
+  process.env.NOVA_OLLAMA_URL = `http://127.0.0.1:${ollama.address().port}`;
+  process.env.NOVA_LOCAL_LLM_MODEL = 'qwen3.5:4b';
+  try {
+    const { refreshOllama } = await import('../lib/localModel.js');
+    await refreshOllama(); // configured: the server answered at the last reading
+    const out = await runTextLane('shopping-categorize', 'sort: milk', { json: true, maxTokens: 200 });
+    assert.equal(out.provider, 'local');
+    assert.equal(out.text, '{"aisle":"dairy"}');
+    assert.equal(seenOllama[0].think, false);
+    assert.equal(seenOllama[0].format, 'json');
+    assert.equal(seenOllama[0].options.num_predict, 200);
+    assert.equal(seenOllama[0].messages[0].role, 'system', 'and the JSON-only system line still rides along');
+  } finally {
+    process.env.NOVA_LOCAL_LLM_BACKEND = had.b;
+    if (had.u === undefined) delete process.env.NOVA_OLLAMA_URL; else process.env.NOVA_OLLAMA_URL = had.u;
+    process.env.NOVA_LOCAL_LLM_MODEL = had.m;
+    ollama.closeAllConnections();
+    await new Promise((r) => ollama.close(r));
+    const { refreshOllama } = await import('../lib/localModel.js');
+    await refreshOllama();
   }
 });
