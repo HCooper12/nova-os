@@ -269,10 +269,20 @@ export function valsWorkouts(app, ctx) {
     };
     const routineOpt = (r) => opt(r.id, r.name, `${r.exercises.length} lift${r.exercises.length === 1 ? '' : 's'}${r.exercises.length ? ` · ${estMin(r.exercises.length)} min` : ''}`, routineHue(r));
     const pickedRoutines = picked.map((id) => liveRoutines.find((r) => r.id === id)).filter(Boolean);
-    const others = liveRoutines.filter((r) => !picked.includes(r.id)).sort((a, b) => (b.completedCount || 0) - (a.completedCount || 0));
-    const lead = [...pickedRoutines, ...others].slice(0, Math.max(3, pickedRoutines.length));
+    // EVERY WORKOUT IN HIS PROGRAM IS ALWAYS SHOWN (27 Oct 2026, his report:
+    // Pull, Legs, Delts and Mobility were behind Show all, and the sheet then
+    // could not scroll to its button). His saved routines ARE his program:
+    // the ones the weekly schedule names first, in week order, then the rest
+    // by how often he does them. Show all holds only the make-ups (and any
+    // routine he archived). A guess at "current" from dates failed on his
+    // own data: routines rebuilt on 16 Oct carry new ids.
+    const WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const live = liveRoutines.filter((r) => !r.archived);
+    const scheduled = [...new Set(WEEK.map((d) => liveSchedule[d]).filter(Boolean))].map((id) => live.find((r) => r.id === id)).filter(Boolean);
+    const unscheduled = live.filter((r) => !scheduled.includes(r)).sort((a, b) => (b.completedCount || 0) - (a.completedCount || 0));
+    const lead = [...pickedRoutines, ...[...scheduled, ...unscheduled].filter((r) => !picked.includes(r.id))];
     const rest = liveRoutines.filter((r) => !lead.includes(r));
-    const makeups = liveRoutines.map((r) => opt(`makeup:${r.id}`, `Make-up · finish ${r.name}`, 'what is left of the last one', routineHue(r)));
+    const makeups = liveRoutines.map((r) => opt(`makeup:${r.id}`, `Finish ${r.name}`, 'make-up', routineHue(r)));
     const anyMakeupOn = makeups.some((m) => m.on);
     const more = [...rest.map(routineOpt), ...makeups];
     const minutes = pickedRoutines.reduce((n, r) => n + estMin(r.exercises.length), 0);
@@ -288,7 +298,7 @@ export function valsWorkouts(app, ctx) {
         ...(st.dayPlanSheet.showAll || anyMakeupOn ? more : []),
       ],
       showAll: more.length && !(st.dayPlanSheet.showAll || anyMakeupOn) ? {
-        label: `Show all · ${[...rest.map((r) => r.name), ...(liveRoutines.length ? ['make-ups'] : [])].join(', ')}`,
+        label: rest.length ? `Show all · ${[...rest.map((r) => r.name), 'make-ups'].join(', ')}` : 'Show make-ups',
         go: () => app.showAllDayPlan(),
       } : null,
       commitLabel: pickedRoutines.length ? `Plan ${dayName} · ${minutes} min`

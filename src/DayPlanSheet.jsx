@@ -5,11 +5,14 @@ import { useSheetDrag } from './useSheetDrag.js';
 
 // THE DAY SHEET (mockup 104, 26 Oct 2026). Tap a day on Train and this rises
 // in place of the platform's long select: tick each workout for it, each
-// tick numbered in the order he picked, about five choices up front and the
-// rest behind Show all, then one button that says what it will do
+// tick numbered in the order he picked, every workout in his program up front
+// and only the rest behind Show all, then one button that says what it will do
 // ("Plan Saturday · 65 min"). Two or more are that date only; the model
 // (src/vals/valsWorkouts.js dayPlanSheet) says which in the sub line.
 // Both idioms draw it from the same model.
+// The sheet's class was `nv-dp`, which a data-panel rule (index.css .nv-dp)
+// set to display:block: the column broke, the list could not scroll and the
+// button fell off the screen (his recording, 27 Oct 2026). Now `nv-dps`.
 const onControl = (el) => !!(el && el.closest && el.closest('button, a, input, select'));
 
 export function DayPlanSheet({ s }) {
@@ -30,7 +33,7 @@ export function DayPlanSheet({ s }) {
       style={{ position: 'fixed', inset: 0, zIndex: 112, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         background: 'color-mix(in srgb, var(--nv-void) 60%, transparent)', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }}>
       <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }}
-        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ts-sheet nv-dp" tabIndex={-1} onClick={(e) => e.stopPropagation()}
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ts-sheet nv-dps" tabIndex={-1} onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '86vh' }}>
         <div {...drag.handleProps} onPointerDown={(e) => { if (!onControl(e.target)) drag.handleProps.onPointerDown(e); }}
           className="nv-ts-grab" style={{ ...drag.handleProps.style, gridTemplateColumns: 'minmax(0,1fr) auto' }}>
@@ -53,8 +56,10 @@ export function DayPlanSheet({ s }) {
             ))}
           </ul>
           {s.showAll && <button type="button" className="nv-dp-more" onClick={s.showAll.go}>{s.showAll.label}</button>}
-          <button type="button" className="nv-ts-begin nv-dp-go" onClick={s.commit}>{s.commitLabel}</button>
         </div>
+        {/* pinned under the list, never scrolled away (27 Oct 2026: after Show
+            all the button sat below the screen and he could not save) */}
+        <button type="button" className="nv-ts-begin nv-dp-go" onClick={s.commit}>{s.commitLabel}</button>
       </div>
     </div>
   );

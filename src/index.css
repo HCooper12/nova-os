@@ -2304,7 +2304,7 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-dp-opt[data-on="true"] .nv-dp-tick { border-color: var(--nv-cy); background: var(--nv-cy); color: var(--nv-on-acc); transform: scale(1.06); }
 .nv-dp-more { display: block; min-height: 44px; margin-top: 4px; padding: 0 4px; border: 0; background: none; cursor: pointer; text-align: left;
   font: 600 15px var(--nv-font-ui); color: var(--nv-acc); }
-.nv-dp-go { width: 100%; margin-top: 14px; }
+.nv-dp-go { width: 100%; margin-top: 10px; flex: none; }
 
 /* TODAY'S WALK */
 .nv-wk { padding: 16px; }
