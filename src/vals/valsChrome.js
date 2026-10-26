@@ -741,6 +741,8 @@ export function valsChrome(app, ctx) {
         fallback: prefs?.fallback || null,
         setFallback: (on) => app.setModelFallback(on),
         warm: () => app.warmLocalModel(),
+        setLocalPrefs: (patch) => app.setLocalPrefs(patch),
+        busyLocal: st.modelPrefsBusy === 'local',
         busyWarm: st.modelPrefsBusy === 'warm',
         busyFallback: st.modelPrefsBusy === 'fallback',
         laneCount: lanes.length,

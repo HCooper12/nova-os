@@ -7716,6 +7716,16 @@ export default class App extends Component {
       .then((prefs) => { this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }); })
       .catch((e) => { this.setState({ modelPrefsBusy: null }); this.toastMsg('Could not change that: ' + e.message); this.loadModelPrefs(); });
   }
+  // LOCAL FIRST and which model on this Mac (27 Oct 2026): { first?, model? }.
+  // The server answers with the whole board, as every board write does.
+  setLocalPrefs(patch) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ modelPrefsBusy: 'local' });
+    api.setLocalPrefs(conn, patch)
+      .then((prefs) => { this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }); })
+      .catch((e) => { this.setState({ modelPrefsBusy: null }); this.toastMsg('Could not change that: ' + e.message); this.loadModelPrefs(); });
+  }
   warmLocalModel() {
     const conn = getConnection();
     if (!conn) return;

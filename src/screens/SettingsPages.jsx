@@ -445,7 +445,7 @@ export function ModelsPage({ P, open }) {
           </div>
           {M.local ? (
             <Group label="On this Mac" i={2}
-              foot={M.fallback ? `If Claude hits its usage limit, ${M.fallback.laneNames.join(' and ')} keep working on this Mac, and each result says it was sorted here.` : ''}>
+              foot={M.fallback ? `${M.fallback.laneNames.join(', ')}: ${M.local.first.on ? 'answered here first; each result says where it was answered.' : 'if Claude hits its usage limit, they keep working here, and each result says so.'}` : ''}>
               <div className="nv-set-row nx" data-set-key="local">
                 <span className="nv-set-rt">
                   <span className="nv-set-rl">Local model</span>
@@ -456,6 +456,15 @@ export function ModelsPage({ P, open }) {
                     disabled={M.locked || !M.local.canWarm || M.local.warming || !M.local.warm}>{M.local.warming ? 'Starting' : 'Warm it up'}</TextAction>
                 )}
               </div>
+              <SwitchRow k="local-first" label="Local first" sub="The lanes that can run here do, and ask Claude only when this Mac cannot answer."
+                on={M.local.first.on} onToggle={() => M.local.first.toggle()} disabled={M.locked || M.local.first.busy || M.local.first.blocked} why={M.why} aria="Run the lanes that can on this Mac first" />
+              {M.local.models ? (
+                <div className="nv-set-row nx" data-set-key="local-model">
+                  <span className="nv-set-rt"><span className="nv-set-rl">Model</span></span>
+                  <MenuPill label="Local model" title="Which model runs on this Mac" options={M.local.models.options} value={M.local.models.value} shown={M.local.models.shown}
+                    onPick={M.local.models.pick} locked={M.locked || M.local.models.busy} why={M.why} />
+                </div>
+              ) : null}
               {M.fallback ? (
                 <SwitchRow k="fallback" label="When Claude is out of usage" sub="The cheap lanes run on this Mac instead of stopping."
                   on={M.fallback.on} onToggle={() => M.fallback.toggle()} disabled={M.locked || M.fallback.busy || M.fallback.blocked} why={M.why} aria="Run cheap lanes on this Mac when Claude is out of usage" />

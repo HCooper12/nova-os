@@ -405,6 +405,8 @@ export const api = {
   setLaneProvider: (conn, lane, provider) => put(conn, '/api/model-prefs', { lane, provider }),
   setModelFallback: (conn, enabled) => put(conn, '/api/model-prefs/fallback', { enabled }),
   warmLocalModel: (conn) => post(conn, '/api/model-prefs/local/warm', {}),
+  // local first, and which model on this Mac: { first?, model? }
+  setLocalPrefs: (conn, patch) => put(conn, '/api/model-prefs/local', patch),
   resetModelLane: (conn, lane) => post(conn, '/api/model-prefs/reset', lane ? { lane } : {}),
   saveSessionDraft: (conn, body) => put(conn, '/api/workouts/session-draft', body),
   getSessionDraft: (conn) => call(conn, '/api/workouts/session-draft'),

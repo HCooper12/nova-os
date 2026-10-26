@@ -354,9 +354,25 @@ export function valsSettings(app, ctx, v) {
     { value: 'local', label: loc?.label || 'This Mac', disabled: !loc?.configured, hint: loc?.configured ? null : 'No local model is set up' },
   ];
   const noRoom = !!loc?.headroom && loc.headroom.ok === false;
+  // "Qwen3.5 4B · Ollama · ready" / "… · not loaded · 3.3 GB" / the reason
+  // there is no room to load it, in the server's own numbers
+  const backendName = loc?.backend === 'mlx' ? 'MLX' : loc?.backend === 'ollama' ? 'Ollama' : null;
+  const localModels = Array.isArray(loc?.models) ? loc.models : [];
+  const modelShown = (m) => [m.name || m.id, m.sizeGB != null ? `${m.sizeGB} GB` : ''].filter(Boolean).join(' · ');
+  const current = localModels.find((m) => m.id === loc?.model) || null;
+  const roomLine = () => {
+    const h = loc.headroom;
+    if (h.freeMB != null && h.needMB != null) return `no room to load: ${h.freeMB} MB free, needs ${h.needMB} MB`;
+    if (h.swapFreeMB != null) return `no memory headroom (${h.swapFreeMB} MB swap free)`;
+    return 'no memory headroom';
+  };
   const localLine = !loc ? null
-    : !loc.configured ? 'No local model set up on this Mac'
-      : `${loc.model || 'Local model'} · on this Mac · ${noRoom ? `no memory headroom${loc.headroom.swapFreeMB != null ? ` (${loc.headroom.swapFreeMB} MB swap free)` : ''}` : loc.ready ? 'ready' : 'not running'}`;
+    : !loc.configured ? (loc.backend === 'ollama' ? 'Ollama is not installed on this Mac' : 'No local model set up on this Mac')
+      : [
+        String(loc.label || '').replace(/ on this Mac$/, '') || loc.model || 'Local model',
+        backendName,
+        noRoom ? roomLine() : loc.ready ? 'ready' : current?.sizeGB != null ? `not loaded · ${current.sizeGB} GB` : 'not loaded',
+      ].filter(Boolean).join(' · ');
   const fb = board?.fallback || null;
   const models = {
     ...boardHeld,
@@ -368,6 +384,23 @@ export function valsSettings(app, ctx, v) {
       canWarm: !!loc.configured && !noRoom && !loc.ready,
       warm: demo ? () => app.toastMsg('Demo: the local model would start on the Mac') : board && ms ? ms.warm : null,
       warming: !demo && !!ms?.busyWarm,
+      // LOCAL FIRST (27 Oct 2026): the lanes that can run here do, and ask
+      // Claude only when this Mac cannot answer
+      first: {
+        on: loc.first !== false,
+        toggle: demo ? () => setDemo((d) => ({ ...d, localFirst: d.localFirst === false })) : () => ms?.setLocalPrefs?.({ first: loc.first === false }),
+        busy: !demo && !!ms?.busyLocal,
+        blocked: !loc.configured,
+      },
+      // which pulled model runs; no menu when the Mac lists none (MLX, or
+      // Ollama not answering), rather than a menu of nothing
+      models: localModels.length ? {
+        options: localModels.map((m) => ({ value: m.id, label: modelShown(m) })),
+        value: loc.model,
+        shown: current ? modelShown(current) : (loc.model || ''),
+        pick: demo ? (id) => setDemo((d) => ({ ...d, localModel: id })) : (id) => ms?.setLocalPrefs?.({ model: id }),
+        busy: !demo && !!ms?.busyLocal,
+      } : null,
     },
     fallback: !fb ? null : {
       on: !!fb.enabled,
@@ -430,7 +463,7 @@ export function valsSettings(app, ctx, v) {
         providerOptions: l.canRunLocal ? providerOptions : [],
         providerLabel: l.canRunLocal ? `Runs on: ${l.provider === 'local' ? (board.local?.label || 'This Mac') : 'Claude'}` : null,
         setProvider: !l.canRunLocal ? null : demo
-          ? (val) => setDemo((d) => { const lp = { ...d.laneProvider }; if (val === 'claude') delete lp[l.id]; else lp[l.id] = val; return { ...d, laneProvider: lp }; })
+          ? (val) => setDemo((d) => { const lp = { ...d.laneProvider }; if (val === (l.defaultProvider || 'claude')) delete lp[l.id]; else lp[l.id] = val; return { ...d, laneProvider: lp }; })
           : (val) => l.setProvider?.(val),
       })),
     })),

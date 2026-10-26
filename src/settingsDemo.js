@@ -49,6 +49,8 @@ export function demoSettingsSeed() {
     laneModel: {},
     laneProvider: {},
     fallbackEnabled: false,
+    localFirst: true,
+    localModel: 'qwen3.5:4b',
     files: [
       { file: 'Fitness/Program.md', stamp: '09:40' },
       { file: 'Fuel/Log 5 Oct.md', stamp: '12:31' },
@@ -131,8 +133,8 @@ export function demoBoard(demo) {
         model: laneModel[l.label] || def,
         defaultModel: def,
         canRunLocal: DEMO_LOCAL_LANES.includes(l.label),
-        provider: laneProvider[l.label] || 'claude',
-        defaultProvider: 'claude',
+        provider: laneProvider[l.label] || (DEMO_LOCAL_LANES.includes(l.label) && demo.localFirst !== false ? 'local' : 'claude'),
+        defaultProvider: DEMO_LOCAL_LANES.includes(l.label) && demo.localFirst !== false ? 'local' : 'claude',
         offEffect: OFF_TEXT[l.label] || 'Off. Where this lane would have run, Nova says it is off.',
       };
     }),
@@ -146,7 +148,13 @@ export function demoBoard(demo) {
     spendTotal: `$${GROUPS.reduce((a, g) => a + g[3], 0).toFixed(2)}`,
     watchLine: 'Newest, checked 3 Oct: Opus 5.5 · Sonnet 5.5 · Haiku 4.5 · Fable 5.1',
     models: DEMO_MODELS.map((m) => ({ value: m, label: m })),
-    local: { configured: true, ready: true, model: 'Qwen3 4B', label: 'This Mac', headroom: { ok: true, swapFreeMB: 2100 } },
+    // the one model measured on his Mac (27 Oct 2026): qwen3.5:4b, 3.3 GB on disk
+    local: {
+      configured: true, ready: true, backend: 'ollama', first: demo.localFirst !== false,
+      model: demo.localModel || 'qwen3.5:4b', label: 'Qwen3.5 4B on this Mac', preferredModel: null,
+      models: [{ id: 'qwen3.5:4b', sizeGB: 3.3, name: 'Qwen3.5 4B' }],
+      headroom: { ok: true, freeMB: 9600, needMB: 4100, swapFreeMB: null },
+    },
     fallback: { enabled: !!demo.fallbackEnabled, lanes: DEMO_LOCAL_LANES },
   };
 }
