@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDictation, reportTurnEnd, useNudge, NUDGE_LINE } from '../useDictation.js';
 import { LocalInput } from '../LocalInput.jsx';
+import { useContinuation } from '../useContinuation.js';
+import { TextAction } from '../Controls.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
@@ -71,10 +73,17 @@ export function NovaThread({ v }) {
   sendRef.current = v.sendOrb;
   // a tap on a mic that has heard nothing keeps listening and says so
   const [nudged, nudge] = useNudge();
+  // KEEP GOING (27 Oct 2026): the mic stays open after a spoken send for
+  // "...oh, and also" (src/useContinuation.js)
+  const cont = useContinuation(v);
   const dict = useDictation(
     () => v.takeVoiceSeed(),
     (text) => { inputRef.current = text; v.setOrbInputValue(text); },
-    (said) => { const t = String(said ?? inputRef.current ?? '').trim(); if (t) sendRef.current(t); else v.notifyEmptyListen(); },
+    (said) => {
+      const t = String(said ?? inputRef.current ?? '').trim();
+      if (cont.ended(t)) return;   // a continuation turn: it joined the last one, or went nowhere
+      if (t) { sendRef.current(t); cont.opened(); } else v.notifyEmptyListen();
+    },
     {
       holdMs: v.voiceHoldMs,
       leadMs: v.voiceLeadMs,
@@ -85,8 +94,13 @@ export function NovaThread({ v }) {
       // down stays in the thread as his own bubble, and Try again resends it
       keepFailed: true,
       onKept: (raw) => keepTake(raw),
+      // STILL TALKING? the question Nova just asked shapes what "unfinished" is
+      getAsked: () => v.lastNovaQuestion?.() || '',
+      // his voice in the continuation window claims the turn (Nova falls quiet)
+      onSound: cont.sound,
     },
   );
+  cont.dictRef.current = dict;
   const dictRef = useRef(dict);
   dictRef.current = dict;
   useEffect(() => { v.reportScreenMic?.(dict.on); if (dict.on) setListenSince(Date.now()); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
@@ -95,6 +109,9 @@ export function NovaThread({ v }) {
   useEffect(() => { v.reportHearing?.('screen', dict.hearing || !!retrying); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.hearing, retrying]);
   useEffect(() => () => v.reportHearing?.('screen', false), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
+    // a continuation mic still open when Nova hands the turn back simply
+    // becomes his next turn
+    if (v.voiceAutoListenTick > 0 && cont.handBack()) { v.consumeReplyListen?.(); return; }
     if (v.voiceAutoListenTick > 0 && (v.convMode || v.replyListen) && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
       v.stopSpeaking();
       dictRef.current.toggle({ trigger: v.convMode ? 'auto' : 'reply-window' });
@@ -402,7 +419,7 @@ export function NovaThread({ v }) {
         </div>
       )}
 
-      <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} nudged={nudged} />
+      <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} nudged={nudged} continuing={cont.continuing} />
 
       {fxShown && (
         <NovaFocus T={T} S={S} dict={dict} since={listenSince} leaving={!focus} onTalk={startTalking} onOpen={openSheet} />
@@ -439,6 +456,8 @@ function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
         )}
         <div className={`nv-nt-you${fresh ? ' in' : ''}`} data-line={i}>{m.text}</div>
         {meta && <span className="nv-nt-meta r">{meta}</span>}
+        {/* NOT WHAT I SAID (27 Oct 2026): his latest spoken line, for a minute */}
+        {m.fix && <TextAction compact tone="quiet" onClick={m.fix} title="Put right what Nova heard and send it again" style={{ alignSelf: 'flex-end' }}>Not what I said</TextAction>}
       </>
     );
   }
@@ -547,7 +566,7 @@ function CloseCard({ c, onTalk }) {
 
 // ------------------------------------------------------------ composer --
 
-function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false }) {
+function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false, continuing = false }) {
   const C = T.composer;
   const [text, setText] = useState(C.value);
   useEffect(() => { setText(C.value); }, [C.value]);
@@ -560,7 +579,7 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false 
         <Meter since={since} />
         <button type="button" className="nv-nt-stop" onClick={dict.toggle}>Send now</button>
         {/* a tap before he has said anything keeps the mic open; a second ends it */}
-        <span className="nv-nt-meta" role="status" aria-live="polite" style={{ gridColumn: '1 / -1', minHeight: 17 }}>{nudged ? NUDGE_LINE : ''}</span>
+        <span className="nv-nt-meta" role="status" aria-live="polite" style={{ gridColumn: '1 / -1', minHeight: 17 }}>{nudged ? NUDGE_LINE : dict.extended ? 'Still listening, go on' : continuing ? 'Add to that, or wait' : ''}</span>
       </div>
     );
   }
@@ -587,7 +606,7 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false 
             words will go, beside the words (audit finding 2) */}
         <div className="nv-nt-field">
           {route && <span className="nv-nt-route" title={route.why}>→ {route.label}</span>}
-          <LocalInput ref={fieldRef} value={C.value}
+          <LocalInput ref={fieldRef} value={C.value} data-orb-composer=""
             onChange={(t) => { setText(t); C.setTyped(t); }}
             onSubmit={(t) => onSend(t)}
             onInput={(e) => setText(e.target.value)}

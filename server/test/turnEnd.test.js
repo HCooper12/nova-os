@@ -202,3 +202,43 @@ test('a real stored setting is honoured', () => {
   assert.equal(holdTiming('patient').holdMs, 4200);
   assert.equal(holdTiming('natural').holdMs, 2000, 'he reported 2.6s as too long a pause');
 });
+
+// ---- STILL TALKING? the hold extends on unfinished words (27 Oct 2026) ----
+import { EXTEND_MS, MAX_EXTENSIONS, holdVerdict, extendHold, holdFor, peekDue, PEEK_LEAD_MS } from '../../src/turnEnd.js';
+
+test('a finished sentence ends on the normal hold, exactly as before', () => {
+  let t = sawSpeech(openTurn(0), 1000);
+  assert.equal(endReason(t, 3000, OPTS), 'hold');
+  assert.equal(holdVerdict(t, { unfinished: false }), 'end');
+});
+
+test('unfinished words extend the hold by EXTEND_MS, at most MAX_EXTENSIONS times', () => {
+  let t = sawSpeech(openTurn(0), 1000);
+  assert.equal(holdVerdict(t, { unfinished: true }), 'extend');
+  t = extendHold(t);
+  assert.equal(nextAction(t, 3000, OPTS), 'wait');                       // the old hold is up, he has more time
+  assert.equal(nextAction(t, 1000 + 2000 + EXTEND_MS, OPTS), 'end');
+  for (let i = 1; i < MAX_EXTENSIONS; i++) t = extendHold(t);
+  assert.equal(holdVerdict(t, { unfinished: true }), 'end');              // the ceiling: he cannot be held forever
+  assert.equal(holdFor(t, 2000), 2000 + MAX_EXTENSIONS * EXTEND_MS);
+});
+
+test('speaking again resets the extensions: each pause is judged on its own', () => {
+  let t = extendHold(extendHold(sawSpeech(openTurn(0), 1000)));
+  t = sawSpeech(t, 6000);
+  assert.equal(t.extensions, 0);
+  assert.equal(t.extensionsTotal, 2);                                      // the receipt keeps the whole turn
+  assert.equal(endReason(t, 8000, OPTS), 'hold');
+});
+
+test('the lead is never extended: words decide only after he has spoken', () => {
+  const t = openTurn(0);
+  assert.equal(endReason(t, 7000, OPTS), 'lead');
+});
+
+test('own ears: the clip so far is read PEEK_LEAD_MS before the hold is up, and not before he spoke', () => {
+  assert.equal(peekDue(openTurn(0), 5000, OPTS), false);
+  const t = sawSpeech(openTurn(0), 1000);
+  assert.equal(peekDue(t, 1000 + 2000 - PEEK_LEAD_MS - 1, OPTS), false);
+  assert.equal(peekDue(t, 1000 + 2000 - PEEK_LEAD_MS, OPTS), true);
+});

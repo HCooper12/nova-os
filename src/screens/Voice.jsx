@@ -9,6 +9,7 @@ import { undoLabel } from '../chatUndo.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { LocalInput } from '../LocalInput.jsx';
+import { useContinuation } from '../useContinuation.js';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { railDepth } from '../glassDepth.js';
@@ -109,6 +110,10 @@ function VoiceClassic({ v }) {
   sendRef.current = v.sendOrb;
   // a tap on a mic that has heard nothing keeps listening and says so
   const [nudged, nudge] = useNudge();
+  // KEEP GOING (27 Oct 2026): the mic stays open after a spoken send for
+  // "...oh, and also" (src/useContinuation.js)
+  const cont = useContinuation(v);
+  const { continuing } = cont;
   const dict = useDictation(
     () => v.takeVoiceSeed(), // clean, unless the wake word or a barge-in already caught his first words
     (text) => { inputRef.current = text; v.setOrbInputValue(text); },
@@ -116,7 +121,11 @@ function VoiceClassic({ v }) {
     // end of the turn: read back from the ref they were one render stale on
     // the Nova-ears path, so a transcribed turn was dropped and he was told
     // Nova heard nothing (the 25 Sep race, src/useDictation.js finishNova).
-    (said) => { const t = String(said ?? inputRef.current ?? '').trim(); if (t) sendRef.current(t); else v.notifyEmptyListen(); },
+    (said) => {
+      const t = String(said ?? inputRef.current ?? '').trim();
+      if (cont.ended(t)) return;   // a continuation turn: it joined the last one, or went nowhere
+      if (t) { sendRef.current(t); cont.opened(); } else v.notifyEmptyListen();
+    },
     {
       // NOVA, NOT THE BROWSER, ENDS HIS TURN. `continuous: false` handed that
       // to the engine's own endpointer, which cut him off mid-sentence and
@@ -134,8 +143,13 @@ function VoiceClassic({ v }) {
         reportTurnEnd('voice', v.voiceHold, info);
       },
       onNudge: nudge,
+      // STILL TALKING? the question Nova just asked shapes what "unfinished" is
+      getAsked: () => v.lastNovaQuestion?.() || '',
+      // his voice in the continuation window claims the turn (Nova falls quiet)
+      onSound: cont.sound,
     },
   );
+  cont.dictRef.current = dict;
 
   // conversation mode: Nova finished speaking → the mic reopens by itself
   const dictRef = useRef(dict);
@@ -150,6 +164,9 @@ function VoiceClassic({ v }) {
   useEffect(() => {
     // conversation mode's turn-taking, OR the one-shot reply window that
     // opens whenever Nova finishes speaking — both arrive on the same tick
+    // a continuation mic still open when Nova hands the turn back simply
+    // becomes his next turn
+    if (v.voiceAutoListenTick > 0 && cont.handBack()) { v.consumeReplyListen?.(); return; }
     if (v.voiceAutoListenTick > 0 && (v.convMode || v.replyListen) && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
       v.stopSpeaking();
       // what opened it, for the receipt: conversation mode, or the one-shot window
@@ -215,6 +232,8 @@ function VoiceClassic({ v }) {
   const reticle = coreSize + 56;
 
   const caption = dict.hearing ? 'HEARING YOU…'
+    : dict.on && dict.extended ? 'STILL LISTENING, GO ON'
+    : dict.on && continuing ? 'ADD TO THAT, OR WAIT'
     : dict.on ? (dict.blind ? 'LISTENING — TAP THE CORE TO SEND' : nudged ? 'LISTENING, GO AHEAD' : v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
     : v.voiceBusy ? 'READING THE VAULT…'
     : v.voiceSpeaking ? 'SPEAKING'
@@ -301,6 +320,9 @@ function VoiceClassic({ v }) {
                       ? <img key={k} src={a.thumb} alt="" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '10px' }} />
                       : <Tag key={k} tone="faint">{a.kind === 'file' ? 'file' : 'video'} · {a.name}</Tag>)}
                   </div>
+                )}
+                {m.fix && (
+                  <TextAction compact tone="quiet" onClick={m.fix} title="Put right what Nova heard and send it again" style={{ marginLeft: '6px' }}>Not what I said</TextAction>
                 )}
                 {m.more && (
                   <TextAction compact tone="cyan" onClick={m.more} title="The rest of this answer, or say go on" style={{ marginLeft: '6px' }}>The rest</TextAction>
@@ -471,6 +493,7 @@ function VoiceClassic({ v }) {
                   value={v.orbInput}
                   onChange={(text) => v.setTypedInputValue(text)}
                   onSubmit={(text) => v.sendOrb(text)}
+                  data-orb-composer=""
                   autoCorrect="on" autoCapitalize="sentences" spellCheck
                   placeholder={v.attach?.pending?.length ? 'Ask about what you attached…' : 'Speak or type to Nova…'}
                   style={css(`flex:1;min-width:0;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:${isAppleStyle() ? '999px' : '9px'};padding:10px 14px;color:var(--nv-ink);font:400 ${isAppleStyle() ? '15px var(--nv-font-ui)' : `12.5px ${M}`};outline:none`)}
@@ -502,7 +525,7 @@ function VoiceClassic({ v }) {
                 reached it. */}
             <div style={css("position:absolute;inset:0;pointer-events:none;border-radius:50%;border:1px dashed color-mix(in srgb, var(--nv-cy) 22%, transparent);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
             <div style={{ position: 'absolute', inset: '24px', pointerEvents: 'none', borderRadius: '50%', border: '1px solid color-mix(in srgb, var(--nv-cy) 28%, transparent)', borderTopColor: 'color-mix(in srgb, var(--nv-cy) 85%, transparent)', animation: `ringSpin ${v.voiceBusy ? 3 : 14}s linear infinite reverse var(--nv-anim)` }}></div>
-            <div aria-hidden="true" style={{ position: 'absolute', inset: '-14px', pointerEvents: 'none', borderRadius: '50%', border: `1px solid color-mix(in srgb, ${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'var(--nv-cy)'} ${dict.on || v.voiceSpeaking ? 40 : 12}%, transparent)`, transition: 'border-color .5s' }}></div>
+            <div aria-hidden="true" style={{ position: 'absolute', inset: '-14px', pointerEvents: 'none', borderRadius: '50%', border: `1px solid color-mix(in srgb, ${dict.on && dict.extended ? 'var(--nv-cy)' : dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'var(--nv-cy)'} ${dict.on && dict.extended ? 70 : dict.on || v.voiceSpeaking ? 40 : 12}%, transparent)`, transition: 'border-color .5s' }}></div>
             {[0, 90, 180, 270].map((deg) => (
               <span key={deg} aria-hidden="true" style={{ position: 'absolute', top: '50%', left: '50%', pointerEvents: 'none', width: '11px', height: '1px', background: 'color-mix(in srgb, var(--nv-cy) 55%, transparent)', transform: `rotate(${deg}deg) translateX(${reticle / 2 + 7}px)` }}></span>
             ))}

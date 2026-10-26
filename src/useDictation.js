@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { micStarted, micStopped } from './audioSession.js';
 import { attachMicStream } from './audioLevel.js';
-import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason } from './turnEnd.js';
+import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason, holdVerdict, extendHold, peekDue, PEEK_LEAD_MS } from './turnEnd.js';
+import { soundsUnfinished } from './turnSense.js';
 import { getConnection } from './api.js';
 import { recorderSupported, openRecording, transcribeRecording } from './recorder.js';
 import { hearingChoice, resolveHearing } from './hearingEngine.js';
@@ -121,7 +122,17 @@ const sessionType = () => {
 // `toggle({ trigger })` names the opener; a mark App made (listenCause.js)
 // wins when it is fresh. `toggle({ force: true })` ends a turn whatever the
 // tap rule says (a surface closing).
-export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept } = {}) {
+// STILL TALKING? (27 Oct 2026). A held turn whose hold is up is not ended
+// when his words so far sound unfinished (turnSense.js): the hold extends
+// (turnEnd.js extendHold) and `extended` is true while it does, so the core
+// can show he may keep going. `judge: false` opts a surface out; `getAsked`
+// hands over the question Nova just put to him; `onSound(at)` fires on every
+// sign of his voice (the continuation window listens to it).
+// On Nova's own ears there is no live transcript, so near the end of the
+// hold the clip so far is read (recorder.peek) and judged; when that read
+// covers everything he said, it IS the turn's words and the end does not
+// transcribe twice.
+export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept, judge = true, getAsked = null, onSound = null } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const saidRef = useRef('');      // words from earlier engines in THIS turn
@@ -138,6 +149,9 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const metaRef = useRef(null);       // this turn's receipt facts (trigger, mic open, taps…)
   const turnSeqRef = useRef(0);       // a late getUserMedia must not join a newer turn
   const mountedRef = useRef(true);
+  const extendedRef = useRef(false);  // the hold is running long on unfinished words
+  const peekRef = useRef(null);       // own ears: the clip-so-far read { heardAt, status, text, ms, at }
+  const [extended, setExtended] = useState(false);
   const [on, setOn] = useState(false);
   const [hearing, setHearing] = useState(false);  // recorded, waiting on the Mac for the words
   const [blind, setBlind] = useState(false);      // the level meter hears nothing at all: tap to send
@@ -150,6 +164,21 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     recorder: recorderSupported(), connected: !!getConnection(),
   });
   const novaEars = engine === 'nova';
+
+  const clearExtended = () => { if (extendedRef.current) { extendedRef.current = false; setExtended(false); } };
+  // The hold is up. Extend it if the words sound unfinished; true when it did.
+  const tryExtend = (text) => {
+    if (!judge || !held || !turnRef.current) return false;
+    let asked = '';
+    try { asked = String(getAsked?.() || ''); } catch { /* no question known */ }
+    const unfinished = soundsUnfinished(text, { asked });
+    if (holdVerdict(turnRef.current, { unfinished }) !== 'extend') return false;
+    turnRef.current = extendHold(turnRef.current);
+    extendedRef.current = true;
+    setExtended(true);
+    return true;
+  };
+  const heardSound = (at) => { try { onSound?.(at); } catch { /* the window is the surface's business */ } };
 
   const stopMeter = () => {
     try { meterRef.current.detach?.(); } catch { /* already gone */ }
@@ -195,6 +224,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     wantRef.current = false;
     if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
     if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = 0; }
+    clearExtended();
     const turn = turnRef.current;
     turnRef.current = null;
     recRef.current = null;
@@ -258,6 +288,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       }
       interimRef.current = interim;
       if (turnRef.current) turnRef.current = sawSpeech(turnRef.current, Date.now());
+      clearExtended();
+      heardSound(Date.now());
       emit();
     };
     rec.onend = () => {
@@ -266,7 +298,10 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       turnRef.current = sawEngineEnd(turnRef.current);
       const now = Date.now();
       if (nextAction(turnRef.current, now, { holdMs, leadMs }) !== 'restart') {
-        reasonRef.current = endReason(turnRef.current, now, { holdMs, leadMs }) || 'engine';
+        const why = endReason(turnRef.current, now, { holdMs, leadMs }) || 'engine';
+        // the engine quit on his pause, but the words say he is mid-thought
+        if (why === 'hold' && tryExtend(composed())) { restart(); return; }
+        reasonRef.current = why;
         closeOut();
         return;
       }
@@ -310,7 +345,9 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     const act = nextAction(turnRef.current, now, { holdMs, leadMs });
     if (act === 'wait') return;
     if (act === 'restart') { restart(); return; }
-    reasonRef.current = endReason(turnRef.current, now, { holdMs, leadMs }) || 'engine';
+    const why = endReason(turnRef.current, now, { holdMs, leadMs }) || 'engine';
+    if (why === 'hold' && tryExtend(composed())) return;   // still talking: keep listening
+    reasonRef.current = why;
     wantRef.current = false;               // stop() lands in onend, which closes
     const rec = recRef.current;
     if (!rec) { closeOut(); return; }
@@ -338,6 +375,12 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     liveRef.current = false;
     wantRef.current = false;
     if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
+    // the clip-so-far read, kept when it covers everything he said: no
+    // speech since it was taken, and the turn ended on his pause
+    const pk = peekRef.current;
+    peekRef.current = null;
+    const reusePeek = reason === 'hold' && pk?.status === 'done' && !!pk.text && !!turnRef.current && pk.heardAt === turnRef.current.lastHeardAt;
+    clearExtended();
     turnRef.current = null;
     micStopped();
     setOn(false);
@@ -368,11 +411,17 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       } else {
         // Sent even when the meter heard nothing: a meter that is wrong about
         // silence must not cost him his words. A silent clip costs the Mac 200ms.
-        try {
-          tx = await transcribeRecording(blob, { vad: meter });
-          text = tx.text;
-          txStatus = text ? 'ok' : 'empty';
-        } catch (e) { failure = e; txStatus = 'error'; }
+        if (reusePeek) {
+          tx = { text: pk.text, ms: pk.ms, backend: 'peek', dropped: '' };
+          text = pk.text;
+          txStatus = 'ok';
+        } else {
+          try {
+            tx = await transcribeRecording(blob, { vad: meter });
+            text = tx.text;
+            txStatus = text ? 'ok' : 'empty';
+          } catch (e) { failure = e; txStatus = 'error'; }
+        }
       }
     } else if (blob) {
       cause = 'empty-capture';
@@ -495,10 +544,38 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       if (age >= TAP_CAP_MS) { reasonRef.current = 'cap-absolute'; finishNova(); }
       return;
     }
-    const why = endReason(turnRef.current, now, { holdMs, leadMs });
+    const t = turnRef.current;
+    // STILL TALKING? read the clip so far shortly before the hold is up, so
+    // the verdict is in hand when it is (one read per pause)
+    if (judge && peekDue(t, now, { holdMs }) && peekRef.current?.heardAt !== t.lastHeardAt) startPeek(handle, t.lastHeardAt);
+    const why = endReason(t, now, { holdMs, leadMs });
     if (!why) return;
+    if (why === 'hold' && judge) {
+      const pk = peekRef.current;
+      if (pk && pk.heardAt === t.lastHeardAt) {
+        // the words are on their way: wait for them, but never long
+        if (pk.status === 'pending' && now - pk.at < PEEK_WAIT_MS) return;
+        if (pk.status === 'done' && tryExtend(pk.text)) return;
+      }
+      // no read, a failed read, or a slow one: silence alone decides, as before
+    }
     reasonRef.current = why;
     finishNova();
+  };
+
+  // The read itself. A failure of any kind leaves the verdict to silence.
+  const PEEK_WAIT_MS = PEEK_LEAD_MS + 1200;   // at most 1.2 s past his hold
+  const startPeek = (handle, heardAt) => {
+    const pk = { heardAt, status: 'pending', text: '', ms: null, at: Date.now() };
+    peekRef.current = pk;
+    Promise.resolve(handle?.peek ? handle.peek() : null).then((blob) => {
+      if (!blob || blob.size < 1024) throw new Error('nothing to read yet');
+      return transcribeRecording(blob, { vad: 'heard', timeoutMs: 6000 });
+    }).then((tx) => {
+      pk.text = String(tx.text || '').trim();
+      pk.ms = tx.ms;
+      pk.status = pk.text ? 'done' : 'failed';
+    }).catch(() => { pk.status = 'failed'; });
   };
 
   const startNova = (trigger = 'tap') => {
@@ -508,6 +585,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     interimRef.current = '';
     const now = Date.now();
     const seq = ++turnSeqRef.current;
+    peekRef.current = null;
     metaRef.current = newMeta(trigger, now);
     turnRef.current = baseRef.current ? sawSpeech(openTurn(now), now) : openTurn(now);
     if (baseRef.current) emit();
@@ -522,6 +600,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       onLevel: (vad) => {
         if (vad.speaking && turnRef.current && turnSeqRef.current === seq) {
           turnRef.current = sawSpeech(turnRef.current, Date.now());
+          clearExtended();
+          heardSound(Date.now());
           if (metaRef.current && !metaRef.current.firstSoundAt) metaRef.current.firstSoundAt = Date.now();
         }
       },
@@ -666,5 +746,32 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { supported: !!engine, on, toggle, hearing, blind, engine, resend };
+  // END WITHOUT SENDING (27 Oct 2026): the continuation window closed with
+  // nothing said in it. No words go anywhere, no "heard nothing", no receipt
+  // (the turn it was waiting to add to already wrote one).
+  const abandon = () => {
+    if (!liveRef.current) return;
+    ++turnSeqRef.current;   // a mic still opening joins nothing
+    if (novaEars) {
+      liveRef.current = false;
+      wantRef.current = false;
+      if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
+      try { recordingRef.current?.cancel(); } catch { /* already gone */ }
+      recordingRef.current = null;
+      turnRef.current = null;
+      metaRef.current = null;
+      peekRef.current = null;
+      clearExtended();
+      micStopped();
+      setOn(false);
+      setBlind(false);
+      return;
+    }
+    wantRef.current = false;
+    const rec = recRef.current;
+    closeOut(false);
+    try { rec?.stop(); } catch { /* already stopped */ }
+  };
+
+  return { supported: !!engine, on, toggle, hearing, blind, engine, resend, extended, abandon };
 }

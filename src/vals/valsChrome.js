@@ -648,6 +648,8 @@ export function valsChrome(app, ctx) {
       toggleOption: (key, phrase, on) => (isOffline ? Promise.reject(new Error('Offline, so nothing was written')) : app.toggleProfileOption(key, phrase, on)),
       appendSection: (key, text) => (isOffline ? Promise.reject(new Error('Offline, so nothing was written')) : app.appendProfileSection(key, text)),
       loadReach: () => app.loadProfileReach(),
+      // where the interview stands: the question waiting, for Resume (27 Oct)
+      loadInterview: () => app.loadProfileInterview(),
     } : null,
     learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],

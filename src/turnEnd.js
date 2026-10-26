@@ -59,14 +59,51 @@ export function holdTiming(value) {
 export const RESTART_GRACE_MS = 600;
 
 export function openTurn(now) {
-  return { startedAt: now, lastHeardAt: null, engineIdle: false, restarts: 0, restartsTotal: 0, restartedAt: null };
+  return { startedAt: now, lastHeardAt: null, engineIdle: false, restarts: 0, restartsTotal: 0, restartedAt: null, extensions: 0, extensionsTotal: 0 };
+}
+
+// ---- STILL TALKING? (27 Oct 2026) ----
+// His report: "as soon as I stop talking it registers as me finishing
+// speaking". A longer hold is not the cure (2.6 s was "a little bit too long"
+// after a finished sentence), so the hold stays his and the WORDS buy more:
+// when the hold is up and what he has said sounds unfinished (turnSense.js
+// soundsUnfinished: "...and", "...the", "I think"), the hold is extended by
+// EXTEND_MS, at most MAX_EXTENSIONS times per pause. A finished sentence ends
+// on the normal hold, exactly as before. Speaking again resets the count:
+// each pause is judged on its own.
+export const EXTEND_MS = 2200;
+export const MAX_EXTENSIONS = 2;
+// How long before the hold is up the own-ears path starts reading the clip
+// so far (the Mac needs time to transcribe it; see useDictation peek).
+export const PEEK_LEAD_MS = 1000;
+
+// The pause that ends this turn now: his hold plus any extensions it earned.
+export const holdFor = (turn, holdMs) => holdMs + ((turn?.extensions || 0) * EXTEND_MS);
+
+// The hold is up: extend, or end? `unfinished` is turnSense's verdict on the
+// words so far; null means there are no words to judge (silence-only).
+export function holdVerdict(turn, { unfinished }) {
+  if (!unfinished) return 'end';
+  return (turn?.extensions || 0) < MAX_EXTENSIONS ? 'extend' : 'end';
+}
+
+export function extendHold(turn) {
+  return { ...turn, extensions: (turn.extensions || 0) + 1, extensionsTotal: (turn.extensionsTotal || 0) + 1 };
+}
+
+// Own ears: is it time to read the clip so far, ahead of the hold? Only once
+// he has spoken, only inside the last PEEK_LEAD_MS of the current hold.
+export function peekDue(turn, now, { holdMs }) {
+  if (!turn || turn.lastHeardAt === null || holdMs <= 0) return false;
+  const since = now - turn.lastHeardAt;
+  return since >= Math.max(0, holdFor(turn, holdMs) - PEEK_LEAD_MS);
 }
 
 // The engine delivered words — final or interim, both count as "he is still
 // there". Restarts reset too: the budget below guards a FAILING engine, not
 // a long answer, and a turn that is producing speech is not failing.
 export function sawSpeech(turn, now) {
-  return { ...turn, lastHeardAt: now, engineIdle: false, restarts: 0, restartedAt: null };
+  return { ...turn, lastHeardAt: now, engineIdle: false, restarts: 0, restartedAt: null, extensions: 0 };
 }
 
 // The engine ended its own session. Not the same as the turn ending.
@@ -138,6 +175,7 @@ export function endReason(turn, now, { holdMs = 2600, leadMs = 7000, maxTurnMs =
   const age = now - turn.startedAt;
   const since = now - (turn.lastHeardAt ?? turn.startedAt);
   const spoke = turn.lastHeardAt !== null;
+  holdMs = holdFor(turn, holdMs);   // the extensions his unfinished words earned
   // 1. Never hold the microphone open forever — whatever is making the noise.
   if (age >= maxSpeakingMs) return 'cap-absolute';
   // 2. Past the old cap AND quiet: the turn is over on both counts.

@@ -1,4 +1,5 @@
 import { bubbleProse } from '../bubbleProse.js';
+import { fixOffered } from '../turnSense.js';
 import { providerNote, whereLabel, deviceName } from '../conversationSync.js';
 import { enrichBody, enrichProgram, activeBeat } from '../glassBeats.js';
 import { tabLabel } from '../tabOrder.js';
@@ -42,6 +43,7 @@ export function valsNovaThread(app, ctx, v) {
   };
 
   const inboxItems = st.liveInbox?.items || null;
+  const lastYouIdx = chat.map((m) => m.who).lastIndexOf('you');
   const lines = chat.map((m, i) => {
     const who = m.who === 'you' ? 'you' : m.who === 'system' ? 'system' : 'nova';
     const text = bubbleProse(m.text);
@@ -95,6 +97,9 @@ export function valsNovaThread(app, ctx, v) {
       // lives on the Inbox record; Play again speaks the line; Copy is local.
       remember: live && who === 'nova' && text ? () => app.rememberFromChat(m.text) : null,
       playAgain: who === 'nova' && text && !demo ? () => app.speakTtsSentence(text) : null,
+      // NOT WHAT I SAID (27 Oct 2026): his latest spoken line, for a minute,
+      // opens the composer with what Nova heard (App.fixHeard)
+      fix: live && who === 'you' && m.heard && !m.corrected && i === lastYouIdx && fixOffered({ at: m.at, now: Date.now() }) ? () => app.fixHeard(m.at) : null,
     };
   });
 

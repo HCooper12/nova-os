@@ -10,6 +10,7 @@ import { speechRecognitionSupported } from '../useDictation.js';
 import { HEARING_CHOICES, resolveHearing } from '../hearingEngine.js';
 import { recorderSupported } from '../recorder.js';
 import { holdTiming, HOLD_PRESETS } from '../turnEnd.js';
+import { fixOffered } from '../turnSense.js';
 // the bubble's prose cleaner lives in its own module since 29 Sep, so the
 // Nova thread's view model reads the same rule (src/bubbleProse.js)
 import { bubbleProse } from '../bubbleProse.js';
@@ -117,6 +118,8 @@ export function valsMisc(app, ctx) {
   // the server from live sources, so the client never computes a health
   // number; it only arranges what arrived and shows absences as absences.
   const instruments = st.liveInstruments || null;
+  // his latest line in the Voice chat: the only one that offers "Not what I said"
+  const lastYouIdx = (st.voiceChat || []).map((m) => m.who).lastIndexOf('you');
 
   const out = {
     instruments,
@@ -371,6 +374,10 @@ export function valsMisc(app, ctx) {
       tag: m.who === 'nova' ? '» NOVA' : m.who === 'coach' ? '» COACH' : m.who === 'leader' ? '» LEADER' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { color: m.who === 'nova' || m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'leader' ? 'var(--nv-gold)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 },
       remember: !demoMode && m.who === 'nova' ? () => app.rememberFromChat(m.text) : null,
+      // NOT WHAT I SAID (27 Oct 2026): his latest spoken line, for a minute,
+      // opens the composer with what Nova heard so he can put it right
+      fix: !demoMode && m.who === 'you' && m.heard && !m.corrected && i === lastYouIdx && fixOffered({ at: m.at, now: Date.now() })
+        ? () => app.fixHeard(m.at) : null,
       // THE REST it held for "go on" (src/turnFold.js)
       more: !demoMode && m.more && !m.moreSaid ? () => app.revealHeld(m.at) : null,
     })),
@@ -420,6 +427,15 @@ export function valsMisc(app, ctx) {
     // takes the live value from the LocalInput composer; without one it
     // falls back to App state (the SEND button path — a click blurs first)
     sendOrb: (text) => app.doOrb(text),
+    // KEEP GOING (27 Oct 2026, src/turnSense.js): after a spoken send the mic
+    // stays open for the continuation window; his voice in it claims the turn
+    continueOpen: () => !demoMode && app.continueWindowOpen(),
+    continueClosed: () => app.continueWindowClosedNow(),
+    claimContinuation: (at) => app.claimContinuation(at),
+    sendContinuation: (text) => app.sendContinuation(text),
+    releaseContinuation: () => app.releaseContinuation(),
+    // the question Nova just put to him, for "still talking?" (turnSense)
+    lastNovaQuestion: () => app.lastNovaQuestion(),
     primeSpeech: () => app.primeSpeech(),
     // conversation mode — the hands-free back-and-forth loop
     convMode: st.voiceConvMode,

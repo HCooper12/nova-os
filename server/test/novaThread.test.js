@@ -174,12 +174,12 @@ test('the kept recording\'s contract: audio or nothing, its clock, the red card\
 
 test('useDictation keeps a failed take only when asked; the classic path still errors and still ends the turn', () => {
   const src = read('src/useDictation.js');
-  assert.match(src, /keepFailed = false, onKept \} = \{\}\) \{/, 'off by default');
+  assert.match(src, /keepFailed = false, onKept(?: \} = \{\}\) \{|, )/, 'off by default');
   assert.match(src, /const kept = !!\(failure && keepFailed && blob && blob\.size > 0\);/);
   assert.match(src, /if \(failure && !kept\) onError\?\.\(failure\.message \|\| 'Nova could not hear that'\);/);
   // not kept → onDone fires exactly as before
   assert.match(src, /if \(kept\) \{[\s\S]*?return;\n    \}\n    onDone\?\.\(composed\(\)\);/);
-  assert.match(src, /return \{ supported: !!engine, on, toggle, hearing, blind, engine, resend \};/);
+  assert.match(src, /return \{ supported: !!engine, on, toggle, hearing, blind, engine, resend(?:, extended, abandon)? \};/);
   // Try again sends the same bytes and only ends the turn on words
   const resend = src.slice(src.indexOf('const resend = async'), src.indexOf('const tickNova'));
   assert.match(resend, /transcribeRecording\(take\.blob/);
@@ -369,7 +369,7 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
   // as the thread's own would; its rows keep the page it was said on
   assert.match(app, /this\.presenceTurn = \{ via: 'presence', on: this\.state\.screen, at: Date\.now\(\) \};/);
   assert.match(app, /this\.doOrb\(q\);\n    this\.presenceTurn = null;/);
-  assert.match(app, /who: 'you', text: question, attached: attached\.length \? attached : undefined, \.\.\.\(meta \|\| \{\}\) \}/);
+  assert.match(app, /who: 'you', text: question, attached: attached\.length \? attached : undefined, (?:\.\.\.\(heardIt \? \{ heard: true \} : \{\}\), )?\.\.\.\(meta \|\| \{\}\) \}/);
   assert.match(app, /this\.attachAskPoll\(conn, jobId, \{ agent, meta(?:, turn)? \}\);/);
   // the record never carries the glass (it sends text, who, via, device)
   assert.doesNotMatch(read('src/conversationSync.js'), /glass/);

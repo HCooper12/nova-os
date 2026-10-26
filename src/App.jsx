@@ -96,7 +96,8 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
-import { PROFILE_SECTIONS, normaliseSections, knowsOf, sectionTitle, isProfileTalkVoice } from './profileSections.js';
+import { PROFILE_SECTIONS, normaliseSections, knowsOf, sectionTitle, isProfileTalkVoice, isProfileResumeVoice, isProfileStopVoice, profilePauseLine } from './profileSections.js';
+import { profileCoverage } from '../server/lib/profileCoverage.js';
 import { fitSets, applyDrops } from './fitSets.js';
 import { readVideoLink, readLink } from './videoDrop.js';
 import { isLongForm } from './captureTag.js';
@@ -122,7 +123,9 @@ import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { reportBargeIn, reportTurnEnd } from './useDictation.js';
-import { markListen, lastListenEnd, noteNovaSpeaking } from './listenCause.js';
+import { markListen, lastListenEnd, noteNovaSpeaking, novaSpeakingNow } from './listenCause.js';
+import { isContinuation, continueWindowClosed, isCorrection, stripEcho, FIX_MS } from './turnSense.js';
+import { echoScore, contentWords } from './bargeIn.js';
 import { countsAsEmpty, afterEmpty } from './listenRules.js';
 import { runMicCheck } from './micCheck.js';
 import { applyTrainToday, todayPlanFor } from './trainToday.js';
@@ -7860,6 +7863,9 @@ export default class App extends Component {
     // `stance`: 'contest' when this sentence pushes back (4 Oct 2026); it
     // rides the queue to the captions' clock (speechClock.js)
     const say = (t, from = null, stance = null) => {
+      // he is adding to his question: this reply is held silent, and dropped
+      // if the continuation lands (App.claimContinuation / sendContinuation)
+      if (turn && this.lastSent?.claimed && this.lastSent.turn === turn) return;
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
       // the reply's first sound, stamped when its audio really starts
       const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); } : null;
@@ -9543,9 +9549,11 @@ export default class App extends Component {
   // the opener for a chosen part and the closing count; the model only
   // interprets. Every filing gets a receipt whose Undo is the Inbox undo.
   tryProfileTalkVoice(q) {
-    if (!isProfileTalkVoice(q)) return false;
+    // "resume the interview" first: it picks up the question still waiting
+    const resume = isProfileResumeVoice(q);
+    if (!resume && !isProfileTalkVoice(q)) return false;
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
-    this.startProfileTalk('interview');
+    this.startProfileTalk(resume ? 'resume' : 'interview');
     return true;
   }
   // mode 'interview': Nova asks, random or pointed, like getting to know
@@ -9559,12 +9567,15 @@ export default class App extends Component {
     const focus = mode === 'section' && key ? PROFILE_SECTIONS.find((p) => p.key === key) : null;
     const m = focus ? 'section' : 'interview';
     const focusKey = focus?.key || null;
+    // 'resume' (27 Oct): the server picks up the question still waiting, or
+    // opens fresh when there is none; either way the talk is an interview
+    const ask = mode === 'resume' && !focus ? 'resume' : m;
     // the talk owns the chat, as the Intake does: a brief queue alongside
     // would fight it for his words; its questions stay in the Inbox
     const base = { voicePendingProposal: null, briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0, intake: null };
     this.setState({ ...base, profileTalk: { history: [], learned: [], focusKey, mode: m, questionId: null } });
     this.putProfileTalkCard(this.state.liveProfile, [], focusKey, { mode: m });
-    api.profileTalkStart(conn, { mode: m, key: focusKey }).then((r) => {
+    api.profileTalkStart(conn, { mode: ask, key: focusKey }).then((r) => {
       if (!this.state.profileTalk) return; // he stopped before the opener came back
       if (r?.profile) this.setState({ liveProfile: r.profile });
       const say = String(r?.say || '').trim() || focus?.ask || 'Tell me about yourself. Anything you like, and I will keep what matters.';
@@ -9579,7 +9590,7 @@ export default class App extends Component {
   // the glass while they talk: the twelve parts, a tick on each he has
   // confirmed, the ones filed in this talk named as new
   putProfileTalkCard(profile, learnedKeys = [], focusKey = null, opts = {}) {
-    const { mode = this.state.profileTalk?.mode || 'interview', ...cardOpts } = opts;
+    const { mode = this.state.profileTalk?.mode || 'interview', retracted = [], ...cardOpts } = opts;
     const parts = normaliseSections(profile?.sections);
     const k = knowsOf(profile?.knows, profile?.sections);
     const fresh = new Set(learnedKeys);
@@ -9588,16 +9599,33 @@ export default class App extends Component {
       note: fresh.has(p.key) ? 'NEW ✓' : p.text && !p.drafted ? '✓' : p.drafted ? 'DRAFT' : focusKey === p.key ? 'NOW' : '',
       ...(fresh.has(p.key) || focusKey === p.key ? { tone: 'gold' } : {}),
     }));
+    // facts taken back after a misheard answer: struck through at the top for
+    // a moment, then gone (StageCard `gone`, index.css .nv-list-gone)
+    const gone = (retracted || []).map((x) => ({ name: x.text || x.title, note: 'TAKEN BACK', gone: true }));
+    if (gone.length) items.unshift(...gone);
     const label = mode === 'section' && focusKey ? `ABOUT YOU · ${sectionTitle(focusKey).toUpperCase()}` : 'INTERVIEW';
     this.putCard({ kind: 'list', label, tone: 'gold', items, foot: `Nova knows ${k.confirmed} of ${k.total}` }, cardOpts);
   }
-  answerProfileTalk(q) {
+  // { retract }: his correction of the answer before (a misheard one): the
+  // server undoes what it filed, then takes this as the real answer.
+  // { continued }: he kept talking after the turn was sent.
+  answerProfileTalk(q, { retract = false, continued = false } = {}) {
     const pt = this.state.profileTalk;
     if (!pt) return false;
     const text = String(q || '').trim();
     if (!text) return false;
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text }], orbInput: '' }));
-    if (/^(?:ok(?:ay)?[,\s]+)?(?:that's enough|thats enough|that's all|thats all|stop|done|finish|finished|let's stop|lets stop|enough for now|that's it for now|we're done)[.!\s]*$/i.test(text)) {
+    // HIS SPOKEN ANSWER (27 Oct 2026, src/turnSense.js): it offers "Not what
+    // I said" for a minute and opens the continuation window; a spoken "no,
+    // I said..." is a retraction of the answer before.
+    const heard = !!this.spokenInput;
+    if (!retract && !continued && heard && pt.history.some((h) => h.who === 'you') && isCorrection(text)) retract = true;
+    const youAt = Date.now();
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: youAt, who: 'you', text, ...(heard ? { heard: true } : {}) }], orbInput: '' }));
+    if (heard) this.offerFixFor(youAt);
+    this.lastSent = heard && !continued && !retract ? { kind: 'profile', text, sentAt: youAt, youAt, turn: null, replySpeakingAt: null, claimed: false } : null;
+    // a newer answer makes an older reply stale: it still files, it is not said
+    const seq = (this.profileTalkSeq = (this.profileTalkSeq || 0) + 1);
+    if (!retract && !continued && isProfileStopVoice(text)) {
       this.closeProfileTalk();
       return true;
     }
@@ -9606,10 +9634,12 @@ export default class App extends Component {
     const history = pt.history;
     this.setState({ profileTalk: { ...pt, history: [...history, { who: 'you', text }] } });
     const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
-    api.profileTalk(conn, history, text, { mode: pt.mode || 'interview', questionId: pt.questionId ?? null }).then((r) => {
+    api.profileTalk(conn, history, text, { mode: pt.mode || 'interview', questionId: pt.questionId ?? null, retract, continued }).then((r) => {
       if (!this.state.profileTalk) return; // he said stop while this was thinking
-      if (r?.error) { this.sayLine(`I couldn't take that in: ${r.error}`); return; }
+      const stale = seq !== this.profileTalkSeq;
+      if (r?.error) { if (!stale) this.sayLine(`I couldn't take that in: ${r.error}`); return; }
       const filed = [...(r.learned || []), ...(r.confirmed || [])];
+      const retracted = Array.isArray(r.retracted) ? r.retracted : [];
       for (const f of filed) {
         if (!f?.recordId) continue;
         tickReceipt({
@@ -9618,32 +9648,145 @@ export default class App extends Component {
           undo: () => api.inboxUndo(conn, f.recordId).then(refresh).catch((e) => this.toastMsg('Could not undo: ' + e.message)),
         });
       }
-      const say = String(r.say || '').trim();
-      const learned = [...this.state.profileTalk.learned, ...filed.map((f) => f.key).filter(Boolean)];
+      const say = stale ? '' : String(r.say || '').trim();
+      if (say && this.lastSent?.kind === 'profile' && this.lastSent.youAt === youAt) this.lastSent.replySpeakingAt = Date.now();
+      // a taken-back fact leaves the count: one key off per fact removed
+      const kept = [...this.state.profileTalk.learned];
+      for (const x of retracted) { const at = kept.lastIndexOf(x.key); if (at >= 0) kept.splice(at, 1); }
+      const learned = [...kept, ...filed.map((f) => f.key).filter(Boolean)];
       this.setState((s) => (s.profileTalk ? {
         profileTalk: { ...s.profileTalk, learned, questionId: r.questionId ?? s.profileTalk.questionId, history: say ? [...s.profileTalk.history, { who: 'nova', text: say }] : s.profileTalk.history },
         ...(r.profile ? { liveProfile: r.profile } : {}),
       } : null));
-      if (say) this.sayLine(say);
-      this.putProfileTalkCard(r.profile || this.state.liveProfile, learned, this.state.profileTalk?.focusKey || null, { replaceSame: true });
+      // held silent while he is adding to his answer (claimContinuation)
+      if (say && !(this.lastSent?.claimed && this.lastSent.youAt === youAt)) this.sayLine(say);
+      this.putProfileTalkCard(r.profile || this.state.liveProfile, learned, this.state.profileTalk?.focusKey || null, { replaceSame: true, retracted });
       refresh();
-      if (r.done) this.closeProfileTalk();
+      if (r.done && !stale) this.closeProfileTalk();
     }).catch((e) => {
-      if (this.state.profileTalk) this.sayLine(`I couldn't take that in: ${e?.message || e}`);
+      if (this.state.profileTalk && seq === this.profileTalkSeq) this.sayLine(`I couldn't take that in: ${e?.message || e}`);
     });
     return true;
   }
-  // the closing line is code's: how many things were filed, and the count
+
+  // ---------- KEEP GOING, AND NOT WHAT I SAID (27 Oct 2026) ----------
+  // His report: no way to add to a turn once it had gone, and no way to put
+  // right a turn the dictation misheard. `lastSent` is his latest spoken turn
+  // while its continuation window is open (src/turnSense.js says when);
+  // the Voice screen keeps the mic open through it and claims it on his voice.
+  // with speech off nothing will ever speak, so the window is the 3 s alone
+  replySpeakingOf(ls) { return !this.state.voiceSpeak ? (ls?.sentAt ?? null) : ls?.turn?.firstAudioAt ?? ls?.replySpeakingAt ?? null; }
+  continueWindowOpen() {
+    const ls = this.lastSent;
+    return !!ls && !ls.claimed && !continueWindowClosed({ sentAt: ls.sentAt, replySpeakingAt: this.replySpeakingOf(ls), now: Date.now() });
+  }
+  continueWindowClosedNow() {
+    const ls = this.lastSent;
+    if (!ls) return true;
+    if (ls.claimed) return false;
+    return continueWindowClosed({ sentAt: ls.sentAt, replySpeakingAt: this.replySpeakingOf(ls), now: Date.now() });
+  }
+  // His voice, heard in the window while Nova is silent: the turn is his
+  // again. Nova stops talking (a reply that started early) and the reply in
+  // flight is held silent until the continuation lands.
+  claimContinuation(at = Date.now()) {
+    const ls = this.lastSent;
+    if (!ls) return false;
+    if (ls.claimed) return true;
+    if (!isContinuation({ sentAt: ls.sentAt, replySpeakingAt: this.replySpeakingOf(ls), now: at, novaSpeaking: novaSpeakingNow() })) return false;
+    ls.claimed = true;
+    this.stopSpeaking();
+    return true;
+  }
+  releaseContinuation() { this.lastSent = null; }
+  // The continuation's words. False when there was nothing of his in them
+  // (silence, or the ack leaking into the mic): the first answer stands.
+  sendContinuation(text) {
+    const ls = this.lastSent;
+    this.lastSent = null;
+    if (!ls?.claimed) return false;
+    const said = ls.turn?.ackText || '';
+    const more = stripEcho(String(text || ''), said).trim();
+    if (!more || !contentWords(more).length || (said && echoScore(more, said) >= 0.5)) return false;
+    if (ls.kind === 'profile') {
+      // the server joins it to his last answer (continued: true)
+      this.spokenInput = true;
+      this.answerProfileTalk(more, { continued: true });
+      return true;
+    }
+    // Ask Nova: one question, one answer. The answer in flight is dropped
+    // (there is no server cancel for an ask job, so it is ignored here and
+    // its lines taken off the chat) and the whole thing is asked again.
+    this.dropAnswerInFlight(ls, () => {
+      this.spokenInput = true;
+      this.askNova(`${ls.text} ${more}`.replace(/\s+/g, ' ').trim());
+    });
+    return true;
+  }
+  // Stop listening for an answer and take its lines off the chat, from his
+  // question at `ls.youAt` on (when given). `then` runs once the chat is clear.
+  dropAnswerInFlight(ls = null, then = null) {
+    this.askSeq = (this.askSeq || 0) + 1;   // a reflex answer still on its way is stale
+    this.stopPoll('ask');
+    this.askPollJob = null;
+    this.replyStreaming = null;
+    try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ }
+    this.stopSpeaking();
+    if (ls?.turn) this.endAnswer(ls.turn);
+    this.setState((s) => {
+      const idx = ls?.youAt ? s.voiceChat.findIndex((m) => m.who === 'you' && m.at === ls.youAt) : -1;
+      return { voiceBusy: false, ...(idx >= 0 ? { voiceChat: s.voiceChat.slice(0, idx) } : {}) };
+    }, () => { if (then) then(); });
+  }
+  // "Not what I said" lives a minute on his latest spoken line; a render at
+  // the minute takes it away even if nothing else changes.
+  offerFixFor(at) {
+    clearTimeout(this.fixTimer);
+    this.fixTimer = setTimeout(() => this.setState({ fixTick: Date.now() }), FIX_MS + 50);
+    return at;
+  }
+  // The tap: the composer opens with what Nova heard, focused, for him to
+  // edit and resend. The resend is a correction (doOrb reads `fixing`).
+  fixHeard(at) {
+    const m = (this.state.voiceChat || []).find((x) => x.who === 'you' && x.at === at);
+    if (!m) return;
+    this.lastSent = null;   // a correction is not a continuation
+    this.spokenInput = false;
+    this.setState({ orbInput: m.text, fixing: { at, text: m.text, kind: this.state.profileTalk ? 'profile' : 'ask' } }, () => {
+      if (typeof document === 'undefined') return;
+      const el = document.querySelector('[data-orb-composer]');
+      if (!el) return;
+      try { el.focus(); const n = String(el.value || '').length; el.setSelectionRange?.(n, n); } catch { /* focus is a nicety */ }
+    });
+  }
+  // The question Nova last put to him, when his last line was one.
+  lastNovaQuestion() {
+    const m = [...(this.state.voiceChat || [])].reverse().find((x) => x.who && x.who !== 'you' && x.who !== 'system' && !x.handoff);
+    return m && /\?\s*$/.test(String(m.text || '')) ? String(m.text) : '';
+  }
+  // the closing line is code's: how many things this talk left in his
+  // profile (taken-back facts excluded), the next thinnest part, and how to
+  // pick it up again. Every fact filed the moment it was heard, so a pause
+  // loses nothing but the open question, which the server keeps.
   closeProfileTalk() {
     const pt = this.state.profileTalk;
     if (!pt) return;
     const n = pt.learned.length;
     const lp = this.state.liveProfile;
-    const k = knowsOf(lp?.knows, lp?.sections);
+    const next = profileCoverage({ sections: normaliseSections(lp?.sections) }).nextFocus;
     this.setState({ profileTalk: null });
-    this.sayLine(n === 0
-      ? 'Okay, we can stop there. Nothing new was written.'
-      : `Thanks. I wrote down ${n === 1 ? 'one thing' : `${n} things`} about you, and I now know ${k.confirmed} of ${k.total} parts in your own words. It's all in Settings › You, and each one has Undo on its receipt.`);
+    this.sayLine(profilePauseLine(n, next?.title || null));
+  }
+  // his correction of the previous answer, said or typed (the voice path
+  // calls answerProfileTalk with { retract: true } directly)
+  correctProfileTalk(text) {
+    return this.answerProfileTalk(text, { retract: true });
+  }
+  // where the interview stands, for the About you hero's Resume
+  loadProfileInterview() {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('offline'));
+    return api.profileInterview(conn);
   }
   // one part of About you, saved or confirmed from Settings › You
   saveProfileSection(key, text, confirm) {
@@ -10720,7 +10863,19 @@ export default class App extends Component {
   // — the SEND button, a programmatic send — it falls back to state, which
   // is correct there because a click blurs the field and flushes it first.
   doOrb(text) {
-    const q = (typeof text === 'string' ? text : this.state.orbInput).trim(); if (!q) return;
+    let q = (typeof text === 'string' ? text : this.state.orbInput).trim(); if (!q) return;
+    this.lastSent = null;   // a new turn: the last one's continuation window is gone
+    // NOT WHAT I SAID, RESENT (27 Oct 2026): the line he corrected stops
+    // offering the fix; the interview undoes what the misheard answer filed
+    // and files this instead; Ask Nova hears it as a correction in the same
+    // conversation, with any answer to the misheard words dropped.
+    const fix = this.state.fixing;
+    if (fix) {
+      this.setState((s) => ({ fixing: null, voiceChat: s.voiceChat.map((m) => (m.who === 'you' && m.at === fix.at ? { ...m, corrected: true } : m)) }));
+      if (fix.kind === 'profile' && this.state.profileTalk) { this.answerProfileTalk(q, { retract: true }); return; }
+      q = `Correction: ${q}`;
+      if (this.state.voiceBusy || this.replyStreaming) { const fixed = q; this.setState({ orbInput: '' }); this.dropAnswerInFlight(null, () => this.askNova(fixed)); return; }
+    }
     // THE PRE-ASK CLOCK (18 Oct 2026): 1.4 to 2.3 s passed on the phone between
     // his words coming back from the Mac and /api/ask leaving, on 3 of 4
     // measured turns. It starts when the words landed (noteTurnHeard; the
@@ -11328,6 +11483,9 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
     if (this.maybeStandDown(question)) return;
+    // which ask this is: a continuation or a correction drops the one before
+    // it, and that one's answer must not land (dropAnswerInFlight)
+    const askSeq = (this.askSeq = (this.askSeq || 0) + 1);
     // Answering the model-choice gate is not a new question for Nova to
     // reason about — intercept it here, before it ever reaches Ask Nova.
     if (this.state.modelChoicePending) { this.resolveModelChoiceFromSpeech(question); return; }
@@ -11384,10 +11542,16 @@ export default class App extends Component {
       return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where });
     };
     const asked = this.state.pendingAttach.length ? this.flushAttachments(conn).then(send) : send(null);
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined, ...(meta || {}) }], voiceBusy: true }));
+    // HIS SPOKEN LINE: it offers "Not what I said" for a minute, and opens the
+    // continuation window ("...oh, and also"), src/turnSense.js
+    const heardIt = !!this.spokenInput && !context;
+    const youAt = Date.now();
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: youAt, who: 'you', text: question, attached: attached.length ? attached : undefined, ...(heardIt ? { heard: true } : {}), ...(meta || {}) }], voiceBusy: true }));
+    if (heardIt) { this.offerFixFor(youAt); this.lastSent = { kind: 'ask', text: question, sentAt: youAt, youAt, turn, replySpeakingAt: null, claimed: false }; }
     this.stopSpeaking();
     if (spoken) { this.lastSpokenTurnAt = Date.now(); this.sayFirstThing(); }
     asked.then((resp) => {
+      if (askSeq !== this.askSeq) return;   // dropped for a continuation or a correction
       if (resp.text) {
         // THE REFLEX ANSWERED. This is now the common case — five of his six
         // commonest asks land here in single-digit milliseconds — and the
@@ -11441,7 +11605,8 @@ export default class App extends Component {
             droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
           });
         };
-        if (this.state.voiceSpeak) {
+        // held silent while he is adding to the question (claimContinuation)
+        if (this.state.voiceSpeak && !(this.lastSent?.claimed && this.lastSent.turn === turn)) {
           this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); } });
           this.queueTtsFinalize(reflexReceipt);
         } else { show(); this.endAnswer(turn); this.maybeAutoListen(); reflexReceipt(); }
@@ -11467,6 +11632,7 @@ export default class App extends Component {
       if (deepLine && this.state.voiceSpeak) this.speakTtsSentence(deepLine, null, { stance: 'ack', ack: true });
       this.attachAskPoll(conn, jobId, { agent, meta, turn });
     }).catch((e) => {
+      if (askSeq !== this.askSeq) return;
       this.endAnswer(turn);
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message, ...(meta || {}) }] }));
       // the presence says a failed turn aloud (the words are hidden there)

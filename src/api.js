@@ -180,7 +180,10 @@ export const api = {
   // the back-and-forth that fills About you: an interview (Nova picks the
   // questions) or one section; code files what he learned
   profileTalkStart: (conn, { mode = 'interview', key = null } = {}) => post(conn, '/api/profile/talk/start', { mode, key }, { timeoutMs: 60_000 }),
-  profileTalk: (conn, history, text, { mode = 'interview', questionId = null } = {}) => post(conn, '/api/profile/talk', { history, text, mode, questionId }, { timeoutMs: 120_000 }),
+  // retract: his correction of a misheard answer; continued: he kept talking (27 Oct)
+  profileTalk: (conn, history, text, { mode = 'interview', questionId = null, retract = false, continued = false } = {}) => post(conn, '/api/profile/talk', { history, text, mode, questionId, ...(retract ? { retract: true } : {}), ...(continued ? { continued: true } : {}) }, { timeoutMs: 120_000 }),
+  // where the interview stands: { pending: {q, key, askedAt} | null, learnedThisWeek, sessions }
+  profileInterview: (conn) => call(conn, '/api/profile/interview'),
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),
   noteSummaryJob: (conn, jobId) => call(conn, `/api/notes/summary/${encodeURIComponent(jobId)}`),
   activity: (conn) => call(conn, '/api/activity'),

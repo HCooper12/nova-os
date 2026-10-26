@@ -90,6 +90,32 @@ export async function openRecording({ onLevel } = {}) {
       });
       return stopped;
     },
+    // THE CLIP SO FAR, WITHOUT STOPPING (27 Oct 2026, "still talking?").
+    // requestData() flushes what the encoder holds, and every slice from the
+    // first one, joined, is a playable file in both containers this records:
+    // WebM/Opus (the header rides the first slice, clusters follow) and the
+    // fragmented MP4 Safari and WKWebView write when given a timeslice (the
+    // first slice carries ftyp+moov, later ones moof+mdat). Measured on the
+    // Mac 26 Oct: a WebM cut mid-cluster and an MP4 cut mid-fragment both
+    // transcribed (groq, ~200-300 ms). Resolves null when there is nothing
+    // to read, so the caller falls back to judging on silence alone.
+    peek() {
+      if (stopped || rec.state !== 'recording') return Promise.resolve(null);
+      return new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          rec.removeEventListener?.('dataavailable', onData);
+          resolve(chunks.length ? new Blob(chunks.slice(), { type: rec.mimeType || type || 'audio/mp4' }) : null);
+        };
+        // the property handler above pushes the slice first; read after it
+        const onData = () => setTimeout(finish, 0);
+        rec.addEventListener?.('dataavailable', onData);
+        try { rec.requestData(); } catch { finish(); }
+        setTimeout(finish, 400);   // an encoder that never answers: what we have
+      });
+    },
     // Abandon: the mic is released and nothing is kept.
     cancel() {
       if (stopped) return;

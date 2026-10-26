@@ -62,3 +62,25 @@ export function knowsOf(knows, sections) {
 // mentions him ("what do you think about me skipping legs") never does.
 const TALK_VOICE = /\b(?:interview me|ask me (?:some |a few )?questions about (?:me|myself)|get to know me(?: better)?|tell you (?:about me|about myself|more about me)|learn (?:about|more about) me|update my profile|fill (?:in|out) my profile|(?:fill (?:in|out)|update|go through|work on) (?:my )?about me|(?:let's |let us )?(?:talk|chat) about me)\b/i;
 export const isProfileTalkVoice = (q) => TALK_VOICE.test(String(q || ''));
+
+// RESUME AND PAUSE (27 Oct 2026, his "I've paused it so I hope it saves
+// everything and I can resume the interview easily").
+// "carry on the interview", "resume the interview", "keep going with the
+// interview", "continue the interview", "pick the interview back up"
+const RESUME_VOICE = /\b(?:carry on (?:with )?(?:the |my |our )?interview|resume (?:the |my |our )?interview|keep going with (?:the |my |our )?interview|continue (?:with )?(?:the |my |our )?interview|pick (?:the |my |our )?interview back up|pick up (?:the |my |our )?interview)\b/i;
+export const isProfileResumeVoice = (q) => RESUME_VOICE.test(String(q || ''));
+
+// the stop words that end the talk, plus a pause (his own word for it)
+const STOP_VOICE = /^(?:ok(?:ay)?[,\s]+)?(?:that's enough|thats enough|that's all|thats all|stop|done|finish|finished|let's stop|lets stop|enough for now|that's it for now|we're done|pause|let's pause|lets pause|pause (?:it|here|for now|the interview)|let's pause (?:it|here|for now|there)|i'll come back to this|ill come back to this|i will come back to this|let's come back to this)(?: for now| later| another time| tomorrow)?[.!\s]*$/i;
+export const isProfileStopVoice = (q) => STOP_VOICE.test(String(q || '').replace(/[\u2018\u2019]/g, "'").trim());
+
+/** Code's closing line when he stops or pauses: how many things this talk
+ *  left in his profile, the next thinnest part, and how to come back. */
+export function profilePauseLine(n, nextTitle = null) {
+  const count = n === 1 ? 'One thing' : n === 0 ? 'Nothing new' : `${n} things`;
+  const verb = n === 1 ? 'is' : 'are';
+  const next = nextTitle ? ` Next time I'd like to hear about ${nextTitle}.` : '';
+  return n === 0
+    ? `Saved. Nothing new from today went into your profile.${next} Say resume the interview any time.`
+    : `Saved. ${count} from today ${verb} in your profile.${next} Say resume the interview any time.`;
+}

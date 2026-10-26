@@ -6,7 +6,7 @@ import { getConnection } from '../api.js';
 import {
   cleanPath, pageTitle, lookName, notifValue, talkOver, bareName, dockSlots, tabsCopy, SPOKEN,
 } from '../settingsModel.js';
-import { demoSettingsSeed, demoBoard, DEMO_NUMBERS, DEMO_LADDER, DEMO_SECTIONS, DEMO_REACH } from '../settingsDemo.js';
+import { demoSettingsSeed, demoBoard, DEMO_NUMBERS, DEMO_LADDER, DEMO_SECTIONS, DEMO_REACH, DEMO_INTERVIEW } from '../settingsDemo.js';
 import { normaliseSections, knowsOf } from '../profileSections.js';
 
 // The CLI's effort levels, in his words (server/lib/modelPrefs.js EFFORT_LEVELS).
@@ -152,7 +152,8 @@ export function valsSettings(app, ctx, v) {
       seconds: hold.holdMs / 1000,
       options: v.voiceHoldOptions.map((o) => ({ value: o.value, label: o.label })),
       pick: v.setVoiceHold,
-      sub: hold.hint,
+      // every preset also waits longer on an unfinished sentence (turnSense.js, 27 Oct)
+      sub: `${hold.hint} Nova waits longer when you stop mid-sentence.`,
     } : null,
   };
 
@@ -317,6 +318,7 @@ export function valsSettings(app, ctx, v) {
     toggleOption: demo ? () => { app.toastMsg('Demo: nothing is written'); return Promise.resolve(null); } : profile?.toggleOption,
     appendSection: demo ? () => { app.toastMsg('Demo: nothing is written'); return Promise.resolve(null); } : profile?.appendSection,
     loadReach: demo ? () => Promise.resolve(DEMO_REACH) : profile?.loadReach,
+    loadInterview: demo ? () => Promise.resolve(DEMO_INTERVIEW) : profile?.loadInterview,
     ladder: demo ? DEMO_LADDER : (learning?.enoughData ? (learning.lanes || []) : []),
     noticed: demo ? [] : (learning?.enoughData && !(learning.lanes || []).length ? learning.noticed || [] : []),
     ladderLoaded: demo || !!learning?.loaded,

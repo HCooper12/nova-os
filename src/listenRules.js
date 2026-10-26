@@ -29,7 +29,9 @@ export const BLIND_DRAFT_WORDS = 4;
 // mode handing the turn back after Nova spoke; 'reply-window' the one-shot
 // mic after Nova spoke with conversation mode off; 'conv-start' the tap that
 // turned conversation mode on; 'wake' "Hey Nova"; 'barge' talking over Nova.
-export const TRIGGERS = ['tap', 'auto', 'reply-window', 'conv-start', 'wake', 'barge'];
+// 'continue' (27 Oct 2026): the mic left open after a send, for "...oh, and
+// also" (src/turnSense.js isContinuation).
+export const TRIGGERS = ['tap', 'auto', 'reply-window', 'conv-start', 'wake', 'barge', 'continue'];
 // What closed it: his tap, the turn clock (lead or hold), a cap, the screen
 // going away (lock, app switch), the mic never opening, or the engine itself.
 export const ENDED_BY = ['tap', 'clock', 'cap', 'hidden', 'mic', 'engine'];
