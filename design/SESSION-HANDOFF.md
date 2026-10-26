@@ -13,6 +13,10 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**27 OCT, later — DAY SHEET FIX (c294f138) + NOVA CAN SHIP HIS OWN CHANGES ON HIS TAP (c4c754c5). Both deployed green, served bundle grepped, server reloaded and confirmed running the commit.**
+- Day sheet: class `nv-dp` collided with the data-panel `.nv-dp {display:block}`; now `nv-dps`, button pinned outside the scroll. All saved routines show up front (schedule first); Show all = make-ups ("Finish Pull"). His schedule holds only Push/Upper/Arms/Delts with Tue/Wed active rest; Pull/Legs unscheduled (routines rebuilt ~16 Oct with new ids).
+- Ship path: `builder.ask` verb ("change Nova so…", "make Nova…") → Builder in `.nova-ship/<id>` worktree from origin/main → `code-ship` card → Ship it (tap only) → codeShip.js steps verify/commit/rebase/gates/push/deploy/live/reload; reload stops after 20 min (expireStuckReloads). NO REAL SHIP HAS RUN: first real one (his request + his tap) proves gh/git under launchd, gates in the worktree, the live string match, the detached reload.
+
 **27 OCT, later (same session) — SMARTER END OF TURN, CONTINUATION, "NOT WHAT I SAID", INTERVIEW RESUME + RETRACT, ONE COUNT ON ABOUT YOU (8f6e4c17, a8622d43, 6018946c). DEPLOY 40247360650 GREEN, BUNDLE GREPPED, SERVER RELOADED, /api/profile/interview LIVE (21 facts this week). NOT TRIED ON HIS PHONE.**
 - turnSense.js judges the words at the hold (extend 2.2 s up to 2x when unfinished); own-ears path peeks the clip mid-recording (recorder.peek; 211-284 ms on the Mac with ffmpeg-made fMP4/WebM; WKWebView's requestData partial MP4 UNPROVEN, falls back to silence-only). Bare-number wait REMOVED (his dislike of dead air). Continuation window = later of 3 s after send or reply start; Ask job has no server cancel, so the client drops it.
 - His first interview (21 facts) predates `pending`, so there is no question to resume; the next Interview me starts fresh.
