@@ -5,11 +5,20 @@ import { profileTalkTurn, talkOpener } from '../lib/profileTalk.js';
 import { plainCause } from '../lib/plainCause.js';
 import { PROFILE_OPTIONS, isOption, toggleOptionText } from '../lib/profileOptions.js';
 import {
-  pickQuestion, loadInterviewState, recordAsked, recordTurn, followUpsOn, questionById,
+  pickQuestion, loadInterviewState, recordAsked, recordTurn, followUpsOn, questionById, recordResume, resumable,
 } from '../lib/profileQuestions.js';
+import { listRecords } from '../lib/inboxStore.js';
 import { PROFILE_READERS } from '../lib/profileReach.js';
 
 const MODES = ['interview', 'section'];
+const START_MODES = [...MODES, 'resume'];
+
+// the question Nova's reply ends with: the bank question when he moved on,
+// else the follow-up he asked (its last sentence ending in "?")
+function askedIn(say) {
+  const qs = String(say || '').match(/[^.!?]*\?/g);
+  return qs ? qs[qs.length - 1].trim() : null;
+}
 // a section named the way he would say it out loud
 const SPOKEN = {
   about: 'you', story: 'your story', toward: "what you're working toward", values: 'what matters to you',
@@ -101,15 +110,29 @@ export function profileRouter(vaultPath, deps = {}) {
   // THE OPENER. No mode: the old counted line. 'interview': one short line
   // and a question code picked from the bank; 'section': a question about
   // that one section. No model either way; the question is recorded as asked.
+  // RESUME (27 Oct 2026): 'resume' picks up the question still on the table
+  // when it is under 14 days old, in code's words; otherwise it is a fresh
+  // 'interview'. Every interview or section start counts one session.
   router.post('/profile/talk/start', async (req, res) => {
-    const { mode = null, key = null } = req.body || {};
-    if (mode !== null && !MODES.includes(mode)) return res.status(400).json({ error: `mode must be one of: ${MODES.join(', ')}` });
+    let { mode = null } = req.body || {};
+    const { key = null } = req.body || {};
+    if (mode !== null && !START_MODES.includes(mode)) return res.status(400).json({ error: `mode must be one of: ${START_MODES.join(', ')}` });
     const section = mode === 'section' ? PROFILE_SECTIONS.find((s) => s.key === key) : null;
     if (mode === 'section' && !section) return res.status(400).json({ error: `there is no "${key}" section on the profile page` });
     try {
       const profile = await getProfile(vaultPath);
       if (!mode) return res.json({ say: talkOpener(profile), profile, mode: null, key: null, questionId: null });
       const state = await loadInterviewState();
+      if (mode === 'resume') {
+        const p = resumable(state);
+        if (p) {
+          await recordResume({ sessionStarted: true, lastTurnRecordIds: [] });
+          return res.json({
+            say: `Picking up where we left off. ${p.q}`, profile, mode: 'interview', key: p.key, questionId: p.questionId, resumed: true,
+          });
+        }
+        mode = 'interview';
+      }
       const q = pickQuestion({ profile, state, mode, key: section?.key || null });
       let say;
       if (mode === 'interview') {
@@ -119,7 +142,27 @@ export function profileRouter(vaultPath, deps = {}) {
         say = q ? `Let's talk about ${topic}. ${q.q}` : `Let's talk about ${topic}. What would you like me to know?`;
       }
       if (q) await recordAsked(q.id);
-      res.json({ say, profile, mode, key: section?.key || q?.key || null, questionId: q?.id || null });
+      await recordResume({
+        sessionStarted: true, lastTurnRecordIds: [],
+        pending: q ? { questionId: q.id, q: q.q, key: q.key, askedAt: new Date().toISOString() } : null,
+      });
+      res.json({ say, profile, mode, key: section?.key || q?.key || null, questionId: q?.id || null, resumed: false });
+    } catch (e) {
+      res.status(500).json({ error: plainCause(e) });
+    }
+  });
+
+  // WHERE THE INTERVIEW STANDS: the question waiting for him (when young
+  // enough to resume), what the talk filed this week, how many sessions.
+  router.get('/profile/interview', async (req, res) => {
+    try {
+      const state = await loadInterviewState();
+      const p = resumable(state);
+      const weekAgo = Date.now() - 7 * 86400000;
+      const records = await listRecords();
+      const learnedThisWeek = records.filter((r) => r?.kind === 'profile-fact' && r.source === 'profile-talk' && r.status === 'filed'
+        && !r.decision?.payload?.confirm && new Date(r.createdAt).getTime() >= weekAgo).length;
+      res.json({ pending: p ? { q: p.q, key: p.key, askedAt: p.askedAt } : null, learnedThisWeek, sessions: state.sessions });
     } catch (e) {
       res.status(500).json({ error: plainCause(e) });
     }
@@ -127,12 +170,16 @@ export function profileRouter(vaultPath, deps = {}) {
 
   router.post('/profile/talk', async (req, res) => {
     const { history, text, mode = null, questionId = null } = req.body || {};
+    const retract = req.body?.retract === true;
+    const continued = !retract && req.body?.continued === true;
     if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Say something first' });
     if (mode !== null && !MODES.includes(mode)) return res.status(400).json({ error: `mode must be one of: ${MODES.join(', ')}` });
     try {
       let nextQuestion = null;
       let followUps = 0;
-      const onTable = questionById(questionId);
+      const before = await loadInterviewState();
+      // a correction or a continuation answers the question the last answer was for
+      const onTable = questionById((retract || continued) ? (before.lastTurnQuestionId || questionId) : questionId);
       if (mode) {
         // the next question, by code: in section mode the section of the
         // question on the table (or the one named), never one asked lately
@@ -146,11 +193,28 @@ export function profileRouter(vaultPath, deps = {}) {
       const out = await profileTalkTurn(vaultPath, {
         history: Array.isArray(history) ? history : [], text,
         mode, questionId: onTable?.id || null, nextQuestion, followUps,
+        retract, continued, lastTurnRecordIds: before.lastTurnRecordIds,
       }, deps.run ? { run: deps.run } : {});
-      if (out.error) return res.status(502).json({ error: plainCause(out.cause || out.error) });
+      if (out.error) {
+        // an explicit retract already took the facts off: never twice
+        if (retract) { try { await recordResume({ lastTurnRecordIds: [] }); } catch { /* best effort */ } }
+        return res.status(502).json({ error: plainCause(out.cause || out.error) });
+      }
       if (mode && out.questionId) {
         try { await recordTurn({ questionId: out.questionId, movedOn: out.movedOn }); } catch { /* the turn still reaches him */ }
       }
+      try {
+        const filedIds = [...out.learned, ...out.confirmed].map((f) => f.recordId).filter(Boolean);
+        // a continuation adds to the last answer, so a correction takes both back
+        const keep = continued ? [...before.lastTurnRecordIds, ...filedIds] : filedIds;
+        const asked = out.done ? null : (out.movedOn ? questionById(out.questionId)?.q : askedIn(out.say));
+        const pq = questionById(out.questionId);
+        await recordResume({
+          lastTurnRecordIds: keep,
+          lastTurnQuestionId: onTable?.id || null,
+          ...(mode ? { pending: asked ? { questionId: pq?.id || null, q: asked, key: pq?.key || null, askedAt: new Date().toISOString() } : null } : {}),
+        });
+      } catch { /* the turn still reaches him */ }
       res.json({ ...out, mode });
     } catch (e) {
       // a filing failed after the model answered

@@ -3626,6 +3626,14 @@ button.nv-ts-cd[disabled] { cursor: default; }
   .nv-row-leave { animation: none !important; opacity: .45; }
   .nv-row-leave .nv-row-strike { animation: none; width: calc(100% - 34px); }
 }
+/* A FACT TAKEN BACK (27 Oct 2026): his correction of a misheard answer. The
+   line is struck at once, held long enough to read, then collapses out.
+   Reduced motion: struck and faded, no collapse. */
+@keyframes nvListGone { 0%, 70% { opacity: .55; max-height: 40px; } 100% { opacity: 0; max-height: 0; margin-top: -9px; } }
+.nv-list-gone { overflow: hidden; animation: nvListGone 2.4s var(--nv-ease) 1 forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-list-gone { animation: none; opacity: .45; }
+}
 
 /* ================================================================
    THE LIT PANEL (15 Sep 2026) — his ask: the treatment the technique

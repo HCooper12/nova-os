@@ -161,25 +161,67 @@ export const questionById = (id) => byId.get(String(id || '')) || null;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const statePath = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'profile-interview.json');
 
-/** { asked: [{ id, on }], thread: { id, followUps } | null } — `on` is an
- *  ISO stamp (UTC, operational). `thread` is the question on the table and
- *  how many follow-ups Nova has asked on it (at most two, then he moves on). */
+/** { asked: [{ id, on }], thread: { id, followUps } | null, pending, lastTurnRecordIds, sessions }
+ *  `on` is an ISO stamp (UTC, operational). `thread` is the question on the
+ *  table and how many follow-ups Nova has asked on it (at most two, then he
+ *  moves on).
+ *  RESUME (27 Oct 2026, his "I've paused it so I hope it saves everything"):
+ *  `pending` { questionId, q, key, askedAt } is the question Nova last asked
+ *  and has had no answer to; `lastTurnRecordIds` the profile-fact records the
+ *  latest turn filed, so a misheard answer can be taken back whole;
+ *  `sessions` how many times an interview was opened. */
+function cleanPending(p) {
+  if (!p || typeof p !== 'object' || typeof p.q !== 'string' || !p.q.trim()) return null;
+  const at = new Date(p.askedAt);
+  if (Number.isNaN(at.getTime())) return null;
+  return { questionId: byId.has(p.questionId) ? p.questionId : null, q: p.q.trim().slice(0, 400), key: typeof p.key === 'string' ? p.key : null, askedAt: at.toISOString() };
+}
+
 export async function loadInterviewState() {
   try {
     const s = JSON.parse(await readFile(statePath(), 'utf8'));
     const thread = s?.thread && byId.has(s.thread.id) ? { id: s.thread.id, followUps: Math.max(0, Number(s.thread.followUps) || 0) } : null;
-    return { asked: Array.isArray(s?.asked) ? s.asked.filter((a) => a && byId.has(a.id)) : [], thread };
+    return {
+      asked: Array.isArray(s?.asked) ? s.asked.filter((a) => a && byId.has(a.id)) : [],
+      thread,
+      pending: cleanPending(s?.pending),
+      lastTurnRecordIds: Array.isArray(s?.lastTurnRecordIds) ? s.lastTurnRecordIds.filter((x) => typeof x === 'string').slice(0, 10) : [],
+      lastTurnQuestionId: byId.has(s?.lastTurnQuestionId) ? s.lastTurnQuestionId : null,
+      sessions: Math.max(0, Number(s?.sessions) || 0),
+    };
   } catch {
-    return { asked: [], thread: null };
+    return { asked: [], thread: null, pending: null, lastTurnRecordIds: [], lastTurnQuestionId: null, sessions: 0 };
   }
 }
 
 async function saveState(s) {
   const file = statePath();
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(`${file}.tmp`, JSON.stringify({ asked: s.asked.slice(-500), thread: s.thread || null }, null, 2));
+  await writeFile(`${file}.tmp`, JSON.stringify({
+    asked: s.asked.slice(-500), thread: s.thread || null, pending: s.pending || null,
+    lastTurnRecordIds: s.lastTurnRecordIds || [], lastTurnQuestionId: s.lastTurnQuestionId || null, sessions: s.sessions || 0,
+  }, null, 2));
   await rename(`${file}.tmp`, file);
   return s;
+}
+
+/** Merge resume fields into the state: `pending` (null clears it),
+ *  `lastTurnRecordIds`, and `sessionStarted` to count one more session. */
+export async function recordResume({ pending, lastTurnRecordIds, lastTurnQuestionId, sessionStarted = false } = {}) {
+  const s = await loadInterviewState();
+  if (pending !== undefined) s.pending = cleanPending(pending);
+  if (lastTurnRecordIds !== undefined) s.lastTurnRecordIds = (lastTurnRecordIds || []).filter(Boolean).map(String).slice(0, 10);
+  if (lastTurnQuestionId !== undefined) s.lastTurnQuestionId = byId.has(lastTurnQuestionId) ? lastTurnQuestionId : null;
+  if (sessionStarted) s.sessions += 1;
+  return saveState(s);
+}
+
+export const RESUME_DAYS = 14;
+/** The pending question when it is young enough to pick up, else null. */
+export function resumable(state, now = new Date()) {
+  const p = state?.pending;
+  if (!p) return null;
+  return now.getTime() - new Date(p.askedAt).getTime() <= RESUME_DAYS * 86400000 ? p : null;
 }
 
 /** A bank question was asked: it joins the asked list and opens a thread.

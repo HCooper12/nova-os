@@ -4,6 +4,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { chosenOptions } from './profileOptions.js';
+import { profileCoverage as coverageOf } from './profileCoverage.js';
 
 // Hayden's operating profile — the ROOT context every model-based agent
 // reasons from (per NOVA-METHOD.md's context ledger: "who Hayden is" is the
@@ -39,6 +40,13 @@ export const PROFILE_SECTIONS = [
   { key: 'talk', title: 'How to talk to me' },
   { key: 'taste', title: 'Taste' },
 ];
+
+// How much of About you is in his own words (lib/profileCoverage.js, pure,
+// shared with the PWA): always the twelve, in order.
+export function profileCoverage(profile) {
+  return coverageOf(profile, PROFILE_SECTIONS.map((x) => x.key));
+}
+export { coverageLine } from './profileCoverage.js';
 
 const DRAFTED_RE = /^_Drafted by Claude,\s*([^.]*?)\.\s*Not yet confirmed by Hayden\._\s*$/;
 

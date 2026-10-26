@@ -94,6 +94,14 @@ export const DEMO_REACH = [
   { id: 'health', label: 'Health read', talks: false },
 ];
 
+// where the interview stands, in the shape GET /api/profile/interview sends
+// (demo only): a question waiting, so the hero shows Resume
+export const DEMO_INTERVIEW = {
+  pending: { q: 'What does a perfect Saturday look like for you?', key: 'life', askedAt: '2026-10-27T08:10:00.000Z' },
+  learnedThisWeek: 6,
+  sessions: 2,
+};
+
 export const DEMO_NUMBERS = { on: '2 Oct', plan: { targetKcal: 2450, proteinG: 170, tdee: 2780 }, facts: { weightKg: 82, activity: 'moderately active', goal: 'lean gain' } };
 export const DEMO_LADDER = [
   { kind: 'recipe', label: 'Recipe suggestions from food', kept: 2, total: 11, verdict: 'skips' },

@@ -3,7 +3,8 @@ import { NOVA_LENS } from './lens.js';
 import { TURN_TAKING, talkPrefsBlock } from './talk.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { getProfile, PROFILE_SECTIONS, localDay } from './profile.js';
-import { fileProfileFact } from './inbox.js';
+import { fileProfileFact, undoRecord } from './inbox.js';
+import { getRecord } from './inboxStore.js';
 import { questionById } from './profileQuestions.js';
 
 // THE ABOUT-YOU CONVERSATION (his ask, 26 Oct 2026): "a general conversation
@@ -90,7 +91,14 @@ function interviewBlock({ mode, nextQuestion, lastQuestion, followUps = 0 }) {
   return `\n${lines.filter(Boolean).join('\n')}\n`;
 }
 
-export function buildProfileTalkPrompt({ profile, history, text, today, mode = null, nextQuestion = null, lastQuestion = null, followUps = 0, talkPrefs = '' }) {
+// A CORRECTION (27 Oct 2026, his: "the dictation understood wrong, so I
+// wasn't able to go back and correct it like a human would"). 'retract': code
+// already took the last answer's facts off the page; 'continued': he had not
+// finished. Either way the model is told plainly.
+export const RETRACT_RULE = 'His last answer was misheard or wrong; the facts from it were removed. Treat this text as his real answer to the same question; acknowledge the correction in a few words.';
+export const CONTINUED_RULE = 'He had not finished; this continues his previous answer. Do not ask a new question until you have taken this in.';
+
+export function buildProfileTalkPrompt({ profile, history, text, today, mode = null, nextQuestion = null, lastQuestion = null, followUps = 0, talkPrefs = '', correction = null }) {
   const sections = sectionsOf(profile);
   const interview = interviewBlock({ mode, nextQuestion, lastQuestion, followUps });
   return `${NOVA_LENS}
@@ -110,16 +118,33 @@ HOW THIS CONVERSATION WORKS:
 - When he confirms a draft ("yes", "that's right"), put its key in "confirmed". When he corrects a draft, record the corrected version with mode "replace".
 - Never invent. Never record something he did not say in his new words. A guess or an inference is not a fact; ask instead.
 - If he says to stop, or he is done, say a short goodbye and set "done": true.
-${interview}
+- If his new words correct what he said in his previous answer ("no, I said...", "that's wrong", "I meant..."), set "retract_last": true and record the corrected fact in "learned". Code removes what the previous answer filed.
+${correction === 'retract' ? `\nA CORRECTION: ${RETRACT_RULE}\n` : correction === 'continued' ? `\nNOT FINISHED: ${CONTINUED_RULE}\n` : ''}${interview}
 ${talkPrefs ? `${talkPrefs}\n\n` : ''}${TURN_TAKING}
 
 Ignore the MORE rule above for this conversation: everything you say is spoken.
 
 OUTPUT ONLY JSON, nothing else:
-{"say": "...", "learned": [{"key": "<section key>", "text": "<one fact>", "mode": "append"}], "confirmed": ["<key>"], "done": false${interview ? ', "moved_on": false' : ''}}
+{"say": "...", "learned": [{"key": "<section key>", "text": "<one fact>", "mode": "append"}], "confirmed": ["<key>"], "done": false, "retract_last": false${interview ? ', "moved_on": false' : ''}}
 
 HIS NEW WORDS:
 ${String(text || '').trim()}`;
+}
+
+/** Undo the given profile-fact records, newest first, through the Inbox
+ *  undo. One already undone (from the Inbox) is skipped, not an error.
+ *  → [{ key, title, text }] of what came off the page. */
+export async function retractRecords(vaultPath, ids = []) {
+  const out = [];
+  for (const id of [...(Array.isArray(ids) ? ids : [])].reverse()) {
+    const rec = await getRecord(id);
+    if (!rec || rec.kind !== 'profile-fact' || rec.status !== 'filed') continue;
+    await undoRecord(vaultPath, id);
+    const pl = rec.decision?.payload || {};
+    const title = PROFILE_SECTIONS.find((p) => p.key === pl.key)?.title || pl.key || '';
+    out.unshift({ key: pl.key || null, title, text: pl.text ? String(pl.text) : rec.text || '' });
+  }
+  return out;
 }
 
 function authorOf(out) {
@@ -163,13 +188,20 @@ export function vetTurn(parsed, sections) {
 // many follow-ups this thread has had. The result's `questionId` is the next
 // question's id when Nova moved on to it, else the one on the table, and
 // `movedOn` says which.
-export async function profileTalkTurn(vaultPath, { history = [], text = '', now = new Date(), mode = null, questionId = null, nextQuestion = null, followUps = 0 } = {}, deps = {}) {
+//
+// Corrections (27 Oct 2026): `retract` undoes every record in
+// `lastTurnRecordIds` BEFORE the model runs (his explicit "that was wrong");
+// the model's own `retract_last` undoes them after it answers, before the new
+// facts file. Both go through the Inbox undo, so the page comes back
+// byte-exact. `continued` tells the model he had not finished.
+export async function profileTalkTurn(vaultPath, { history = [], text = '', now = new Date(), mode = null, questionId = null, nextQuestion = null, followUps = 0, retract = false, continued = false, lastTurnRecordIds = [] } = {}, deps = {}) {
   const run = deps.run || runTextLane;
   const words = String(text || '').trim();
   if (!words) return { error: 'Say something first' };
   const today = localDay(now);
+  const retracted = retract ? await retractRecords(vaultPath, lastTurnRecordIds) : [];
   const before = await getProfile(vaultPath);
-  const sections = sectionsOf(before);
+  let sections = sectionsOf(before);
 
   let out;
   let parsed;
@@ -181,6 +213,7 @@ export async function profileTalkTurn(vaultPath, { history = [], text = '', now 
     out = await run(LANE, buildProfileTalkPrompt({
       profile: before, history, text: words, today, talkPrefs,
       mode: interviewing ? mode : null, nextQuestion: interviewing ? nextQuestion : null, lastQuestion, followUps,
+      correction: retract ? 'retract' : continued ? 'continued' : null,
     }), { json: true, maxTokens: 700 });
     const m = firstBalancedObjectMatch(out?.text || '');
     if (!m) throw new Error('no JSON in the reply');
@@ -191,6 +224,12 @@ export async function profileTalkTurn(vaultPath, { history = [], text = '', now 
   const say = String(parsed?.say || '').trim();
   if (!say) return { error: 'the reply came back empty' };
 
+  // the model heard a spoken correction: code takes the last answer back
+  // before filing what replaces it
+  if (!retract && parsed?.retract_last === true && lastTurnRecordIds.length) {
+    retracted.push(...await retractRecords(vaultPath, lastTurnRecordIds));
+    sections = sectionsOf(await getProfile(vaultPath));
+  }
   const { learned, confirmed } = vetTurn(parsed, sections);
   const filedLearned = [];
   for (const l of learned) {
@@ -219,6 +258,7 @@ export async function profileTalkTurn(vaultPath, { history = [], text = '', now 
     learned: filedLearned,
     confirmed: filedConfirmed,
     done: parsed?.done === true,
+    retracted,
     profile: await getProfile(vaultPath),
     author: authorOf(out),
   };

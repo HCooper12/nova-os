@@ -322,9 +322,11 @@ export function StageCard({ card, size = 'full', face }) {
       {card.kind === 'list' && (
         <div style={css(`margin-top:${mini ? 7 : 13}px;display:flex;flex-direction:column;gap:${mini ? 5 : 9}px`)}>
           {(mini ? (card.items || []).slice(0, 3) : (card.items || [])).map((it, i) => (
-            <div key={i} style={css('display:flex;align-items:baseline;gap:9px')}>
+            // `gone` (27 Oct 2026): a fact taken back after a misheard answer,
+            // struck through for a moment, then collapsed out (index.css)
+            <div key={it.gone ? `gone-${i}-${it.name}` : i} className={it.gone ? 'nv-list-gone' : undefined} style={css('display:flex;align-items:baseline;gap:9px')}>
               <span style={{ width: '3px', height: '3px', borderRadius: '50%', flex: 'none', background: S ? accent : toneOf(it.tone) || accent, transform: 'translateY(-2px)' }}></span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: `${fz(mini ? 10.5 : 13)}px`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: `${fz(mini ? 10.5 : 13)}px`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(it.gone ? { textDecoration: 'line-through', textDecorationColor: 'var(--nv-warn)' } : {}) }}>{it.name}</span>
               {it.note && <span style={{ flex: 'none', font: `500 ${fz(mini ? 7 : 8.5)}px ${MF}`, letterSpacing: trk('.1em'), color: 'color-mix(in srgb, var(--nv-ink) 42%, transparent)' }}>{it.note.toUpperCase()}</span>}
             </div>
           ))}
