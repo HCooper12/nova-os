@@ -13,6 +13,11 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**27 OCT, later (same session) — SMARTER END OF TURN, CONTINUATION, "NOT WHAT I SAID", INTERVIEW RESUME + RETRACT, ONE COUNT ON ABOUT YOU (8f6e4c17, a8622d43, 6018946c). DEPLOY 40247360650 GREEN, BUNDLE GREPPED, SERVER RELOADED, /api/profile/interview LIVE (21 facts this week). NOT TRIED ON HIS PHONE.**
+- turnSense.js judges the words at the hold (extend 2.2 s up to 2x when unfinished); own-ears path peeks the clip mid-recording (recorder.peek; 211-284 ms on the Mac with ffmpeg-made fMP4/WebM; WKWebView's requestData partial MP4 UNPROVEN, falls back to silence-only). Bare-number wait REMOVED (his dislike of dead air). Continuation window = later of 3 s after send or reply start; Ask job has no server cancel, so the client drops it.
+- His first interview (21 facts) predates `pending`, so there is no question to resume; the next Interview me starts fresh.
+- OWED: his phone for all of it; the Builder ship-path plan (decision put to him 27 Oct).
+
 **27 OCT (same session 014Cevft) — NUMBERS NOW SAVE ON THE TAP (624de6be); NOVA INTERVIEWS HIM (105-question bank), OPTIONS ON 7 SECTIONS, 12 PROFILE SECTIONS, 22 AGENTS READ THE PROFILE (b85a8890, b1e8d7b7, 702fb7c6). DEPLOY 40242511130 GREEN, SERVED BUNDLE GREPPED, SERVER RELOADED, EVERY NEW ROUTE RUN FOR REAL AND UNDONE BYTE FOR BYTE. NOTHING SEEN ON HIS PHONE.**
 - ROOT CAUSE of "it didn't save / it reset": the editor previewed a tapped pace and waited for "Use these"; the log shows 6 editor mounts from his phone and ZERO POST /intake/apply. Fixed: saves on tap/blur, queued, inline Saving/Saved/Not saved + Try again. A refreshLiveData does NOT remount the editor (tested); resets were page exits or iOS reloading the web view.
 - profileReach.test fails any lib module with NOVA_LENS that neither reads profileContext nor sits in PROFILE_EXEMPT with a reason. talkPrefsBlock (sync) sits before TURN_TAKING in Ask Nova, Coach, Leader, profile-talk, greeting, post-session debrief, local Ask.
