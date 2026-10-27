@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import WidgetKit
+import CoreMotion
 
 /// The Home Screen widgets' door from the web app (src/widgetBridge.js).
 /// The widget extension cannot read the web view's storage, so Nova hands it
@@ -28,7 +29,17 @@ public class NovaWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         shared.set(base, forKey: "nova.baseUrl")
         shared.set(token, forKey: "nova.token")
+        Self.askForMotion()
         call.resolve()
+    }
+
+    /// The widget reads the phone's live step count (NovaLiveSteps in
+    /// NovaWidgets.swift). A widget cannot show iOS's Motion & Fitness question,
+    /// so the app asks it, once, here; every later call returns at once.
+    static func askForMotion() {
+        guard CMPedometer.isStepCountingAvailable(), CMPedometer.authorizationStatus() == .notDetermined else { return }
+        let p = CMPedometer()
+        p.queryPedometerData(from: Calendar.current.startOfDay(for: Date()), to: Date()) { _, _ in _ = p }
     }
 
     @objc func reload(_ call: CAPPluginCall) {

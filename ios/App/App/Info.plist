@@ -37,6 +37,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Nova uses the camera to scan barcodes, photograph meals and check your lifting form.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Nova reads your live step count from the phone’s motion sensor so the widget shows your steps as you walk, not an hour later.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Nova reads your steps, heart rate variability, resting heart rate, sleep, activity, weight and body fat so your goals, recovery, calorie targets and widgets use the same numbers as the Health app.</string>
 	<key>NSMicrophoneUsageDescription</key>
