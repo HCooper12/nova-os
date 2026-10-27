@@ -527,7 +527,7 @@ test('Ollama completeLocal: native /api/chat with think off, JSON format, num_ct
     assert.equal(b.format, 'json');
     assert.equal(b.keep_alive, '30m');
     // one context size for every call: a different num_ctx makes Ollama reload the runner
-    assert.deepEqual(b.options, { temperature: 0, num_predict: 300, num_ctx: 8192 });
+    assert.deepEqual(b.options, { temperature: 0, num_predict: 300, num_ctx: 16384 });
     assert.deepEqual(b.messages, [{ role: 'system', content: 'JSON only' }, { role: 'user', content: 'classify: toothpaste' }]);
     await lm.completeLocal('plain', { think: true, numCtx: 2048 });
     assert.equal(stub.seen.chat[1].think, true);
@@ -569,7 +569,7 @@ test('Ollama chatLocal: a native tool call comes back in the OpenAI shape the ca
     const b = stub.seen.chat[0];
     assert.deepEqual(b.tools, tools);
     assert.equal(b.think, false);
-    assert.equal(b.options.num_ctx, 8192, 'the chat turn asks for 8192: Ollama defaults to 4096');
+    assert.equal(b.options.num_ctx, 16384, 'the chat turn asks for 16384 (one size everywhere, 27 Oct): Ollama defaults to 4096');
     // going out, the earlier tool call's arguments are an OBJECT, and the tool result names its tool
     assert.deepEqual(b.messages[2].tool_calls[0].function, { name: 'vault_search', arguments: { query: 'gym' } });
     assert.equal(b.messages[3].role, 'tool');
@@ -617,7 +617,7 @@ test('Ollama boot: an unloaded model is preloaded (same keep_alive and num_ctx) 
     const out = await lm.completeLocal('after the load', { waitForBoot: true });
     assert.equal(out.text, 'ok');
     assert.equal(stub.seen.generate.length, 1);
-    assert.deepEqual(stub.seen.generate[0], { model: 'qwen3.5:4b', prompt: '', keep_alive: '30m', options: { num_ctx: 8192 } });
+    assert.deepEqual(stub.seen.generate[0], { model: 'qwen3.5:4b', prompt: '', keep_alive: '30m', options: { num_ctx: 16384 } });
 
     // stopping unloads it (keep_alive 0) even though we did not spawn the server
     await lm.stopLocalModel();

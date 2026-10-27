@@ -71,7 +71,7 @@ const KEEP_ALIVE = () => process.env.NOVA_LOCAL_LLM_KEEP_ALIVE || '30m';
 
 // The context window. Ollama's default is 4096 tokens and the local Ask
 // prompt alone is ~2.2k before his question and the vault pages a lookup
-// hands back, so a chat turn asks for 8192. ONE size for every call, the
+// hands back, so a chat turn asks for more (CHAT_CTX). ONE size for every call, the
 // preload included: Ollama reloads the runner whenever a request's num_ctx
 // differs from the loaded one. Measured 27 Oct with 4096 for text lanes and
 // 8192 for chat: every switch between a capture and an Ask paid a reload
@@ -593,7 +593,12 @@ export function localModelPid() {
 
 /* ------------------------------- completion ------------------------------- */
 
-const CHAT_CTX = 8192;
+// 16,384 since 27 Oct 2026 (the local Coach: its prompt plus up to twelve
+// clipped tool results outgrow 8,192). Measured that day on this Mac with
+// qwen3.5:4b, twice each way: resident 3,098 MB at 8,192 against 3,282 MB at
+// 16,384 (+184 MB, all on the GPU), and a warm classify call 496 ms median
+// at both. One value for every call still, so nothing ever reloads.
+const CHAT_CTX = 16384;
 const COMPLETE_CTX = CHAT_CTX; // the same on purpose: see NUM_CTX above
 const THOUGHT_ONLY = 'the local model spent its whole budget thinking and returned nothing';
 

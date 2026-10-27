@@ -19,7 +19,7 @@ import { localDateISO } from './localDate.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-const PRINCIPLES_REL = 'Wiki/Health/Coaching Principles.md';
+export const PRINCIPLES_REL = 'Wiki/Health/Coaching Principles.md'; // exported: the local Coach's knowledge tool reads it (lib/localCoach.js)
 export const PLAYBOOK_REL = 'Wiki/Health/What Works For Hayden.md'; // exported: the reflection dedupes against the same page
 const CONTEXT_BUDGET = 2600; // chars per page in the prompt — enough to matter, never a flood
 

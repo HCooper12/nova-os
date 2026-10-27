@@ -147,7 +147,8 @@ export const LANE_GROUPS = [
 // Every lane below carries a `defEffort` (except the deterministic ones, which
 // spawn nothing): the ambient `effortLevel: xhigh` must never reach a spawn.
 // `local: true` marks a lane whose only model call is pure text through
-// lib/textLane.js (or Ask Nova through lib/askDispatch.js), so it may run on
+// lib/textLane.js (or Ask Nova through lib/askDispatch.js, or the Coach's
+// answers through lib/coachTurn.js, 27 Oct), so it may run on
 // the model on this Mac; it does by default since 27 Oct (localFirst). The
 // audit that day (every runTextLane / runLocalLane / startAsk caller under
 // lib/ and routes/) found no lane missing the mark. `think: true` would let
@@ -182,7 +183,19 @@ export const LANES = [
 
   // ---- coach --------------------------------------------------------------
   {
-    id: 'coach', label: 'Ask Coach', group: 'coach', def: 'opus', defEffort: 'medium',
+    // local: answers only, on this Mac (lib/localCoach.js); a change to his
+    // program, a consult and any turn this Mac cannot answer go to Claude
+    // (lib/coachTurn.js). His call, 27 Oct 2026. `standIn: false`: when
+    // Claude's Coach fails, this Mac does not stand in (that rail is Ask
+    // Nova's and the text lanes'), so the board's fallback list leaves it out.
+    // `localFirst: false`: built, but NOT local by default. Benched the same
+    // day on 17 of his real questions (design/audits/2026-10-27-local-coach-
+    // bench.md) the 4B was fast (9.1 s median) and confidently wrong where
+    // it mattered: an inverted form cue on the overhead extension, an
+    // invented session count, an answer that broke off mid-thought, and 0
+    // hand-ups to Claude in 34 turns. "Never fiction" was not lifted, so the
+    // Coach stays on Claude until a bench passes; he can still pick This Mac.
+    id: 'coach', label: 'Ask Coach', group: 'coach', local: true, localFirst: false, standIn: false, def: 'opus', defEffort: 'medium',
     hint: 'the Train screen’s chat — reasoning-heavy, and the lane that proposes program changes',
     off: 'Coach chat is refused with a plain message. Your program, history and analytics are untouched.',
   },
@@ -615,7 +628,9 @@ export const PROVIDERS = ['claude', 'local'];
 // (lib/textLane.js, lib/askDispatch.js). The board-level switch turns that
 // default off; a lane he set by hand ('claude' or 'local') keeps his choice
 // either way. A lane that cannot run locally is Claude whatever is stored.
-const defaultProviderOf = (lane) => (lane.local && localFirst() ? 'local' : 'claude');
+// A lane marked `localFirst: false` can run here when he picks it, but its
+// default stays Claude until it has been benched good enough (the Coach).
+const defaultProviderOf = (lane) => (lane.local && lane.localFirst !== false && localFirst() ? 'local' : 'claude');
 
 /** Who answers this lane: his explicit choice for it, else the default. */
 export function providerFor(laneId) {
@@ -806,7 +821,7 @@ export function getModelPrefs() {
     })),
     efforts: EFFORT_LEVELS,
     local: localBoard(),
-    fallback: { enabled: fallbackEnabled(), lanes: LANES.filter((l) => l.local).map((l) => l.id) },
+    fallback: { enabled: fallbackEnabled(), lanes: LANES.filter((l) => l.local && l.standIn !== false).map((l) => l.id) },
     watch: {
       checkedAt: lastCheckedAt(),
       resolved: Object.fromEntries(ALIAS_DEFS.map((a) => [a.family, {

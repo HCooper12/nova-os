@@ -14,7 +14,7 @@ import { loadSessions } from './workoutSessions.js';
 import { computeProgressions } from './coach.js';
 import { goalsContext } from './fitnessGoals.js';
 import { profileContext } from './profile.js';
-import { startAskCoach, sessionContextTokens, claimConsultSession } from './claudeCode.js';
+import { startAskCoach, sessionContextTokens, claimConsultSession, getMessageJob } from './claudeCode.js';
 import { sessionOwnerGuard } from './askSession.js';
 import { isDeepAsk, coachDepth } from './intentRouter.js';
 import { loadRecentDays, weightTrendLine, sleepEfficiencyLine, vo2MaxLine } from './healthData.js';
@@ -23,6 +23,10 @@ import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { computeStreaks } from './streaks.js';
 import { preferencesContext } from './learning.js';
 import { localDateISO } from './localDate.js';
+import { providerFor } from './modelPrefs.js';
+import { startCoachLocal, wantsChange } from './localCoach.js';
+import { holdForEscalation, becomeViewOf, failCarrier } from './askDispatch.js';
+import { isLocalOnlySession, sessionTurns, localTurnsSinceClaude, transcriptOf, recordAskTurn } from './localAsk.js';
 
 // ------------------------------ session hygiene ------------------------------
 // 18 Oct 2026, measured: every resumed Coach turn appended 10-24k characters
@@ -118,11 +122,99 @@ export async function carryLine(vaultPath, sessionId, rolled, { tail } = {}) {
   return `CARRIED OVER (code closed your previous conversation with him at ${size} and opened this one with the full picture above; its last exchanges, in order): ${t.turns.map((x) => `${x.role === 'user' ? 'Hayden' : 'You'}: ${x.text}`).join(' | ')}`;
 }
 
-// Returns the job id of the Coach's answer. A resumed conversation gets the
-// volatile picture as a live line; a new one gets the full assembly.
+// ------------------------------ who answers ---------------------------------
+// THE LOCAL COACH (27 Oct 2026, his call: a Coach that reads his training and
+// answers on the Mac, and sends anything that would CHANGE his program to
+// Claude). With the coach lane on this Mac (modelPrefs providerFor, local
+// first by default), a question code does not read as an order to change
+// something is answered by lib/localCoach.js; if that turn fails before any
+// text, or the model hands it up (an ESCALATE line, a PROPOSE), Claude's Coach
+// answers on the SAME job id through askDispatch's bridge, labelled
+// `provider: 'claude', escalated: true, reason`. Everything else is today's
+// path, untouched: a change request (wantsChange), a consult (another agent
+// asking: its answer may file cards), and the planner's step (`claudeOnly`, a
+// full written review).
+function remember(jobId, sessionId, question) {
+  // a Claude answer on a conversation this Mac also answered in is kept in
+  // the local session memory, so the next local turn joins it in order
+  const until = Date.now() + 10 * 60_000;
+  const tick = setInterval(() => {
+    const j = getMessageJob(jobId);
+    if (!j || j.status === 'error' || Date.now() > until) { clearInterval(tick); return; }
+    if (j.status === 'ready' && j.result?.text) {
+      clearInterval(tick);
+      recordAskTurn(j.result.sessionId || sessionId, { q: question, a: j.result.text, provider: 'claude' }).catch(() => {});
+    }
+  }, 1000);
+  tick.unref?.();
+}
+
+// What Claude must be told about a conversation the model on this Mac took
+// part in: a session it OPENED is one Claude has never seen (start fresh,
+// carrying what was said); a Claude session it answered in since Claude last
+// did gets those turns as plumbing in front of the question.
+function withLocalHistory(opts) {
+  const sid = opts.sessionId || null;
+  if (!sid) return opts;
+  if (isLocalOnlySession(sid)) {
+    const said = transcriptOf(sessionTurns(sid));
+    return { ...opts, sessionId: null, carried: said ? `CARRIED OVER (this conversation was answered on the small model on his Mac until now; what was said, in order): ${said}` : '' };
+  }
+  const missed = localTurnsSinceClaude(sid);
+  if (!missed.length) return opts;
+  return { ...opts, carried: `Since your last turn the small model on his Mac answered him here: ${transcriptOf(missed, { maxChars: 1200 })}` };
+}
+
+async function escalateCoach(carrier, vaultPath, opts, localError, reason) {
+  const firstWhy = /^the model on this Mac could not answer/.test(reason)
+    ? `The model on this Mac could not answer first: ${localError}.`
+    : `The model on this Mac handed this to Claude (${reason}).`;
+  console.log(`coach: ${reason}; Claude answers on the same job`);
+  carrier.partial = 'Handing this to Claude…';
+  let claudeJob = null;
+  try {
+    claudeJob = getMessageJob(await startClaudeCoachTurn(vaultPath, withLocalHistory(opts)));
+  } catch (e) {
+    failCarrier(carrier, `${e.message} ${firstWhy}`);
+    return;
+  }
+  if (!claudeJob) { failCarrier(carrier, `Claude could not be asked. ${firstWhy}`); return; }
+  becomeViewOf(carrier, claudeJob, {
+    reason,
+    firstWhy,
+    onReady: (cj) => recordAskTurn(cj.result.sessionId, { q: opts.question, a: cj.result.text, provider: 'claude' }).catch(() => {}),
+  });
+}
+
+// Returns the job id of the Coach's answer, whoever gives it.
+export async function startCoachTurn(vaultPath, opts = {}) {
+  const { question, consulted = null, claudeOnly = false } = opts;
+  if (!consulted && !claudeOnly && providerFor('coach') === 'local' && !wantsChange(question)) {
+    // the lane guard, as Claude's path has it: another lane's id is never the Coach's
+    let sessionId = opts.sessionId || null;
+    if (sessionId) {
+      const g = sessionOwnerGuard(sessionId, 'coach');
+      if (g.reason) { console.log(`coach: fresh session — ${g.reason}`); sessionId = null; }
+    }
+    const local = { ...opts, sessionId };
+    const jobId = startCoachLocal(vaultPath, { question, sessionId, liveSession: opts.liveSession || null, where: opts.where || null, spoken: opts.spoken === true });
+    const job = getMessageJob(jobId);
+    if (job) holdForEscalation(job, { lane: 'coach', escalate: (carrier, localError, reason) => escalateCoach(carrier, vaultPath, local, localError, reason) });
+    return jobId;
+  }
+  const claudeOpts = consulted ? opts : withLocalHistory(opts);
+  const jobId = await startClaudeCoachTurn(vaultPath, claudeOpts);
+  if (!consulted && opts.sessionId && sessionTurns(opts.sessionId).length) remember(jobId, opts.sessionId, question);
+  return jobId;
+}
+
+// Claude's Coach. A resumed conversation gets the volatile picture as a live
+// line; a new one gets the full assembly.
 // `consulted` (lib/consult.js): another agent is asking — a fresh session with
 // the same full picture, answering that agent, stamping nothing on his behalf.
-export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null, where = null, spoken = false } = {}) {
+// `carried`: what the model on this Mac said in this conversation
+// (withLocalHistory above), so Claude never answers blind to it.
+async function startClaudeCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null, where = null, spoken = false, carried = '' } = {}) {
   const { liveSessionContext, coachLiveLine } = await import('./coach.js');
   const live = liveSessionContext(liveSession);
   // WHERE HE IS (lib/register.js): the gym's one-sentence register, or the
@@ -155,7 +247,7 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
   }
   if (sessionId) {
     const fresh = await coachLiveLine(vaultPath).catch(() => '');
-    const preamble = [liveDelta(sessionId, fresh), live ? `[${live}]` : '', placeLine, speakFirst].filter(Boolean).join('\n');
+    const preamble = [liveDelta(sessionId, fresh), live ? `[${live}]` : '', carried ? `[${carried}]` : '', placeLine, speakFirst].filter(Boolean).join('\n');
     const q = preamble ? `${preamble}\n\n${question}` : question;
     // `asked` is his question alone — the text his cards carry, never the preamble
     return startAskCoach(vaultPath, { question: q, asked: question, sessionId, deep });
@@ -506,6 +598,7 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), consulted: { ...consulted, claim } });
       }
       if (carry) parts.push(carry);
+      if (carried) parts.push(carried);
       if (placeLine) parts.push(placeLine);
       if (speakFirst) parts.push(speakFirst);
       return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined, deep, rolled });

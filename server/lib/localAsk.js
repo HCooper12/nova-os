@@ -37,7 +37,9 @@ import { parseVisualStream } from '../../src/visualBeats.js';
 
 export const PROMPT_BUDGET = 9000;      // chars of system prompt before his question
 export const MAX_ROUNDS = 4;            // vault lookups per turn
-export const LOCAL_ASK_CTX = 8192;      // tokens of context a local turn asks for (Ollama's default is 4096)
+// The context window is lib/localModel.js's one size for every call (16,384
+// since 27 Oct): a turn that asked for its own (8,192 here until then) would
+// make Ollama reload the runner whenever it differed from the loaded one.
 export const TURN_TIMEOUT_MS = () => Number(process.env.NOVA_LOCAL_ASK_TIMEOUT_MS || 120_000);
 const SEARCH_HITS = 12;
 const READ_LINES = 120;
@@ -490,9 +492,9 @@ async function converse(job, { cwd, question, promptOpts, deadline }) {
     try {
       // thinking off: left on, Qwen3.5 on Ollama spends the whole budget
       // thinking and returns no answer (27 Oct). The context window is the
-      // chat default (8192, lib/localModel.js): the prompt alone is ~2.2k
+      // one default (lib/localModel.js CHAT_CTX): the prompt alone is ~2.2k
       // tokens before the vault pages a lookup hands back.
-      out = await chatLocal(messages, { tools: useTools && !final ? TOOLS : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false, numCtx: LOCAL_ASK_CTX });
+      out = await chatLocal(messages, { tools: useTools && !final ? TOOLS : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false });
     } catch (e) {
       // a server that does not take `tools`: once, at the start, the text form
       if (e.status === 400 && useTools && !switched && round === 0) {

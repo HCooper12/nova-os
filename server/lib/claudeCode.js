@@ -1427,6 +1427,27 @@ function sideJob(forward, onError) {
   return j;
 }
 
+// EVIDENCE BY DEFAULT, here too. Coach is where he asks about training data
+// most ("how has push been going", "how is my bench"), and it was the one
+// answer path that could never put a figure on screen — its result carried
+// text and a proposal and nothing to look at. Code picks the panel from the
+// QUESTION and draws it from the vault. Exported (27 Oct 2026) so the local
+// Coach (lib/localCoach.js) settles with the same panel Claude's answer gets.
+export async function coachPanelFor(cwd, question) {
+  try {
+    const { inferPanelDirective, buildPanel } = await import('./panels.js');
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { loadRoutines } = await import('./workouts.js');
+    const { exercises } = await loadExerciseLibrary(cwd);
+    const { routines } = await loadRoutines(cwd, exercises);
+    const guess = inferPanelDirective(question, {
+      routines: routines.map((r) => r.name),
+      exercises: exercises.map((e) => e.name),
+    });
+    return guess ? await buildPanel(cwd, guess) : null;
+  } catch { return null; /* no panel rather than a wrong one */ }
+}
+
 // `consulted`: another agent is asking the Coach (lib/consult.js) — a fresh
 // session with the Coach's full picture that answers that agent. It files no
 // document and stamps no cooldown; its program changes become cards for his
@@ -1567,23 +1588,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
       const proposalsOut = settled.filed.map((f) => ({ recordId: f.recordId, title: f.title, ...(f.status ? { status: f.status } : {}), destination: f.destination || null }));
       const withdrawn = settled.withdrawn.filter((w) => w.ok).map((w) => w.id);
       const proposalOut = proposalsOut[0] || null;
-      // EVIDENCE BY DEFAULT, here too. Coach is where he asks about training
-      // data most ("how has push been going", "how is my bench"), and it was
-      // the one answer path that could never put a figure on screen — its
-      // result carried text and a proposal and nothing to look at.
-      let coachPanel = null;
-      try {
-        const { inferPanelDirective, buildPanel } = await import('./panels.js');
-        const { loadExerciseLibrary } = await import('./exercises.js');
-        const { loadRoutines } = await import('./workouts.js');
-        const { exercises } = await loadExerciseLibrary(cwd);
-        const { routines } = await loadRoutines(cwd, exercises);
-        const guess = inferPanelDirective(question, {
-          routines: routines.map((r) => r.name),
-          exercises: exercises.map((e) => e.name),
-        });
-        if (guess) coachPanel = await buildPanel(cwd, guess);
-      } catch { /* no panel rather than a wrong one */ }
+      const coachPanel = await coachPanelFor(cwd, question);
       turnJob.result = { text, more: coachHeld, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a

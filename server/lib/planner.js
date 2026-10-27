@@ -309,7 +309,8 @@ async function dispatchStep(vaultPath, step, priorOutputs, record = null) {
       createdAt: new Date().toISOString(),
       parentPlanId,
     });
-    const jobId = await startCoachTurn(vaultPath, { question, sessionId: null });
+    // claudeOnly: a full written review stays on Claude (the local Coach answers chat, 27 Oct 2026)
+    const jobId = await startCoachTurn(vaultPath, { question, sessionId: null, claudeOnly: true });
     // the Coach answers as a job; this turns it into the record the plan waits on
     (async () => {
       for (;;) {

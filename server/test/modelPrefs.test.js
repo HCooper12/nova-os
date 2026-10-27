@@ -285,17 +285,18 @@ test('a local-capable lane can be set to the model on this Mac, and it round-tri
 test('a lane that cannot run locally refuses the local provider, plainly', async () => {
   await clean();
   const { providerFor } = await import('../lib/modelPrefs.js');
-  await assert.rejects(() => setLanePref('coach', { provider: 'local' }), /Ask Coach cannot run on the model on this Mac/);
+  await assert.rejects(() => setLanePref('paper', { provider: 'local' }), /Study → program cannot run on the model on this Mac/);
   await assert.rejects(() => setLanePref('inbox-classify', { provider: 'gpt' }), /provider must be one of: claude, local/);
   // a stored 'local' on a lane without local: true is ignored, never obeyed
-  await writeFile(PREFS, JSON.stringify({ lanes: { coach: { provider: 'local' } } }), 'utf8');
-  assert.equal(providerFor('coach'), 'claude');
-  assert.equal(getModelPrefs().lanes.find((l) => l.id === 'coach').canRunLocal, false);
+  await writeFile(PREFS, JSON.stringify({ lanes: { paper: { provider: 'local' } } }), 'utf8');
+  assert.equal(providerFor('paper'), 'claude');
+  assert.equal(getModelPrefs().lanes.find((l) => l.id === 'paper').canRunLocal, false);
 });
 
+// the Coach joined 27 Oct 2026: its answers run here, its changes on Claude (lib/localCoach.js)
 test('exactly the six measured pure-text lanes may run locally', () => {
   assert.deepEqual(LANES.filter((l) => l.local).map((l) => l.id).sort(),
-    ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
+    ['ask-nova', 'calendar-command', 'coach', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
 });
 
 test('the limit fallback is on by default, switchable, and survives lane writes and resets', async () => {
@@ -326,9 +327,11 @@ test('getModelPrefs carries the local model and the fallback on the board', asyn
   assert.deepEqual([...board.fallback.lanes].sort(),
     ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
   for (const lane of board.lanes) {
-    // the RESOLVED provider: local first puts every local lane on this Mac
-    assert.equal(lane.provider, lane.canRunLocal ? 'local' : 'claude', lane.id);
-    assert.equal(lane.defaultProvider, lane.canRunLocal ? 'local' : 'claude', lane.id);
+    // the RESOLVED provider: local first puts every local lane on this Mac,
+    // except one benched not good enough yet (the Coach, 27 Oct: localFirst false)
+    const expected = lane.canRunLocal && lane.id !== 'coach' ? 'local' : 'claude';
+    assert.equal(lane.provider, expected, lane.id);
+    assert.equal(lane.defaultProvider, expected, lane.id);
     assert.equal(lane.customised, false, `${lane.id} untouched is not customised`);
     assert.equal(typeof lane.canRunLocal, 'boolean');
   }
@@ -345,7 +348,7 @@ test('local first: on by default; off sends local lanes to Claude; an explicit l
   const { providerFor, localFirst, setLocalPrefs } = await import('../lib/modelPrefs.js');
   assert.equal(localFirst(), true);
   assert.equal(providerFor('note-summary'), 'local');
-  assert.equal(providerFor('coach'), 'claude', 'a lane that cannot run here is Claude whatever the switch');
+  assert.equal(providerFor('paper'), 'claude', 'a lane that cannot run here is Claude whatever the switch');
   await setLanePref('journal-prompt', { provider: 'claude' });
   await setLanePref('calendar-command', { provider: 'local' });
   let board = await setLocalPrefs({ first: false });

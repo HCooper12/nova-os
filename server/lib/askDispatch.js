@@ -89,7 +89,18 @@ const VIEW_FIELDS = ['partial', 'stage', 'visuals', 'consult', 'noGlass', 'sessi
 // copy that can fall behind. Only the result is dressed: it carries
 // provider 'claude', escalated and the reason. A Claude failure keeps
 // Claude's words and adds why this Mac did not answer first.
-function holdForEscalation(job, cwd, opts) {
+//
+// ONE BRIDGE, TWO LANES (27 Oct 2026, the local Coach): the hold and the
+// view are lane-agnostic, so lib/coachTurn.js escalates a local Coach turn
+// through these same two functions instead of a second copy. A lane hands
+// `escalate(carrier, localError, reason)`; the local turn may name its own
+// reason (`job.escalateReason`, e.g. "a change to your program goes to
+// Claude") when it is handing up on purpose rather than failing.
+export const LOCAL_FAILURE_PREFIX = /^The model on this Mac could not answer: /;
+
+/** Hold a local job's status so a failure before any text hands the SAME job
+ *  to Claude. `escalate(job, localError, reason)` runs on the next tick. */
+export function holdForEscalation(job, { lane, escalate }) {
   let status = job.status;
   let handed = false;
   Object.defineProperty(job, 'status', {
@@ -98,50 +109,42 @@ function holdForEscalation(job, cwd, opts) {
     get: () => status,
     set: (v) => {
       if (v === 'error' && !handed && status === 'running' && !String(job.result?.text || '').trim()) {
-        if (laneEnabled('ask-nova')) {
+        if (laneEnabled(lane)) {
           handed = true;
-          // startAskLocal writes job.error just before the status: read it
+          // the local turn writes job.error just before the status: read it
           // now, and keep the poll from seeing it while Claude is asked
-          const localError = String(job.error || 'it returned no answer').replace(/^The model on this Mac could not answer: /, '');
+          const localError = String(job.error || 'it returned no answer').replace(LOCAL_FAILURE_PREFIX, '');
+          const reason = job.escalateReason || `the model on this Mac could not answer: ${localError}`;
           job.error = null;
-          setImmediate(() => escalateAsk(job, cwd, opts, localError));
+          setImmediate(() => escalate(job, localError, reason));
           return; // stays 'running'
         }
-        console.log('ask: the model on this Mac could not answer and the Ask Nova lane is off');
+        console.log(`${lane}: the model on this Mac could not answer and the lane is off`);
       }
       status = v;
     },
   });
 }
 
-function escalateAsk(carrier, cwd, opts, localError) {
-  const reason = `the model on this Mac could not answer: ${localError}`;
-  console.log(`ask: ${reason}; Claude answers on the same job`);
-  let claudeJob = null;
-  try {
-    const claudeOpts = claudeOptsFor(opts);
-    const jobId = startAskNova(cwd, claudeOpts);
-    claudeJob = getMessageJob(jobId);
-  } catch (e) {
-    Object.defineProperty(carrier, 'error', { value: `${e.message} The model on this Mac could not answer first: ${localError}.`, writable: true, enumerable: true, configurable: true });
-    Object.defineProperty(carrier, 'status', { value: 'error', writable: true, enumerable: true, configurable: true });
-    return;
-  }
-  if (!claudeJob) {
-    Object.defineProperty(carrier, 'error', { value: `Claude could not be asked. The model on this Mac could not answer first: ${localError}.`, writable: true, enumerable: true, configurable: true });
-    Object.defineProperty(carrier, 'status', { value: 'error', writable: true, enumerable: true, configurable: true });
-    return;
-  }
+/** A carrier that could not reach Claude at all: a plain error, said once. */
+export function failCarrier(carrier, message) {
+  Object.defineProperty(carrier, 'error', { value: message, writable: true, enumerable: true, configurable: true });
+  Object.defineProperty(carrier, 'status', { value: 'error', writable: true, enumerable: true, configurable: true });
+}
+
+/** Make `carrier` a live view of `claudeJob`, its result dressed with
+ *  provider 'claude', escalated and the reason. `onReady(claudeJob)` runs
+ *  once when Claude's answer is ready (polled or not), for session memory.
+ *  `firstWhy` is the sentence a Claude failure ends with. */
+export function becomeViewOf(carrier, claudeJob, { reason, firstWhy, onReady = null }) {
   carrier.provider = 'claude';
   carrier.escalated = true;
   carrier.reason = reason;
-  // Claude's answer is kept in the session memory too, so a later local
-  // turn knows the conversation it is joining (the stand-in's rule, below)
   let recorded = false;
   const record = () => {
-    if (recorded || claudeJob.status !== 'ready' || !claudeJob.result?.text || !claudeJob.result.sessionId) return;
+    if (recorded || claudeJob.status !== 'ready' || !claudeJob.result?.text) return;
     recorded = true;
-    recordAskTurn(claudeJob.result.sessionId, { q: opts.question, a: claudeJob.result.text, provider: 'claude' }).catch(() => {});
+    try { onReady?.(claudeJob); } catch { /* memory is best-effort */ }
   };
   Object.defineProperty(carrier, 'status', {
     enumerable: true,
@@ -158,9 +161,12 @@ function escalateAsk(carrier, cwd, opts, localError) {
   Object.defineProperty(carrier, 'error', {
     enumerable: true,
     configurable: true,
-    get: () => (claudeJob.error ? `${claudeJob.error} The model on this Mac could not answer first: ${localError}.` : claudeJob.error),
+    get: () => (claudeJob.error ? `${claudeJob.error} ${firstWhy}` : claudeJob.error),
     set: () => {},
   });
+  // a mark the door set on the carrier before the hand-over (routes/voice.js
+  // markNoGlass: he is driving) must survive it: Claude's job inherits it
+  if (carrier.noGlass && claudeJob.noGlass === undefined) claudeJob.noGlass = carrier.noGlass;
   for (const k of VIEW_FIELDS) {
     Object.defineProperty(carrier, k, {
       enumerable: true,
@@ -176,6 +182,33 @@ function escalateAsk(carrier, cwd, opts, localError) {
     if (recorded || claudeJob.status === 'error' || Date.now() > until) clearInterval(tick);
   }, 1000);
   tick.unref?.();
+}
+
+function escalateAsk(carrier, cwd, opts, localError, reason) {
+  console.log(`ask: ${reason}; Claude answers on the same job`);
+  const firstWhy = `The model on this Mac could not answer first: ${localError}.`;
+  let claudeJob = null;
+  try {
+    const claudeOpts = claudeOptsFor(opts);
+    const jobId = startAskNova(cwd, claudeOpts);
+    claudeJob = getMessageJob(jobId);
+  } catch (e) {
+    failCarrier(carrier, `${e.message} ${firstWhy}`);
+    return;
+  }
+  if (!claudeJob) {
+    failCarrier(carrier, `Claude could not be asked. ${firstWhy}`);
+    return;
+  }
+  // Claude's answer is kept in the session memory too, so a later local
+  // turn knows the conversation it is joining (the stand-in's rule, below)
+  becomeViewOf(carrier, claudeJob, {
+    reason,
+    firstWhy,
+    onReady: (cj) => {
+      if (cj.result.sessionId) recordAskTurn(cj.result.sessionId, { q: opts.question, a: cj.result.text, provider: 'claude' }).catch(() => {});
+    },
+  });
 }
 
 function holdForStandIn(job, cwd, opts, { newSession }) {
@@ -228,7 +261,7 @@ export function startAsk(cwd, opts = {}) {
       spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null,
     });
     const job = getMessageJob(jobId);
-    if (job) holdForEscalation(job, cwd, opts);
+    if (job) holdForEscalation(job, { lane: 'ask-nova', escalate: (carrier, localError, reason) => escalateAsk(carrier, cwd, opts, localError, reason) });
     return jobId;
   }
   const sid = opts.sessionId || null;

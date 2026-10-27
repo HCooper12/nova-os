@@ -19,6 +19,7 @@ export const PROFILE_READERS = [
   { id: 'ask-nova', label: 'Ask Nova', module: 'lib/askContext.js', also: ['lib/claudeCode.js'], talks: true },
   { id: 'ask-nova-local', label: 'Ask Nova on this Mac', module: 'lib/localAsk.js', talks: true },
   { id: 'coach', label: 'Coach', module: 'lib/coachTurn.js', also: ['lib/claudeCode.js'], talks: true },
+  { id: 'coach-local', label: 'Coach on this Mac', module: 'lib/localCoach.js', talks: true },
   { id: 'leader', label: 'Leader', module: 'lib/leader.js', also: ['lib/claudeCode.js'], talks: true },
   { id: 'quick-session', label: 'Quick session', module: 'routes/workouts.js', talks: false },
   { id: 'coach-reflection', label: "Coach's nightly review", module: 'lib/coachReflection.js', talks: false },
