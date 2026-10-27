@@ -172,9 +172,11 @@ const { cleanTurnText, projectSlug } = await import('../lib/agentSessions.js');
 const { startCoachTurn } = await import('../lib/coachTurn.js');
 const { getMessageJob, _dropAllWarm } = await import('../lib/claudeCode.js');
 const { traceOf, wantsChange } = await import('../lib/localCoach.js');
-const { setLocalPrefs, resetLanePref, providerFor } = await import('../lib/modelPrefs.js');
-await resetLanePref('coach').catch(() => {});
+const { setLocalPrefs, setLanePref, providerFor } = await import('../lib/modelPrefs.js');
 await setLocalPrefs({ first: true });
+// the Coach is Claude by default since the first bench (lane localFirst:
+// false), so the bench picks This Mac on its scratch board, as he would
+await setLanePref('coach', { provider: 'local' });
 if (providerFor('coach') !== 'local') { console.error('the coach lane did not resolve to this Mac'); process.exit(1); }
 
 /* ------------------------- 2. his turns, read-only ------------------------- */
