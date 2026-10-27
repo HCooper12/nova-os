@@ -330,6 +330,20 @@ workout), not this one.
    · why"), a shared-format change made across every reader and writer.
 4. Push after he has seen it on his phone.
 
+## 4c. Next lanes toward "the Mac answers most things"
+
+5. **The local Coach, answers only (his yes, 27 Oct).** Coach's fresh
+   briefing is ~88k chars, far past a 4B's window, so the local Coach looks
+   things up the way local Ask does: a short persona, today's date by code,
+   a compact always-on block, and read-only tools over the SAME deterministic
+   builders (training log, lift trend, program, recovery + deload signal,
+   nutrition, standing, goals/block, his coaching knowledge, anatomy, vault).
+   Two code gates send a turn to Claude on the same job id: a question that
+   asks for a change (`wantsChange`), and a reply that says ESCALATE, carries
+   a PROPOSE block, or fails before text. Consults and the planner stay on
+   Claude. Measured against Claude's real past answers with a code grounding
+   check (every number traced to a tool result). Build started 27 Oct.
+
 ## 5. Order of work
 
 1. Ollama backend + Qwen3.5 4B default + thinking policy + memory guard
