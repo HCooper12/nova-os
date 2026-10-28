@@ -53,7 +53,7 @@ import assert from 'node:assert/strict';
 
 const {
   startAskLocal, buildLocalAskPrompt, vaultRead, vaultSearch, vaultList, readToolCalls, stripThink,
-  recordAskTurn, sessionTurns, _reset, _flush, PROMPT_BUDGET, MAX_ROUNDS, progressLine, askAgent,
+  recordAskTurn, sessionTurns, _reset, _flush, PROMPT_BUDGET, MAX_ROUNDS, progressLine, askAgent, wantsAct,
 } = await import('../lib/localAsk.js');
 const { getMessageJob } = await import('../lib/claudeCode.js');
 const { setLanePref, resetLanePref } = await import('../lib/modelPrefs.js');
@@ -388,4 +388,15 @@ test('a lookup or a follow-up about his own past asks no agent', async () => {
     assert.equal(job.status, 'ready', job.error);
   }
   assert.equal(agentAsks.length, 0);
+});
+
+test('after the agents answer, an ACT he did not ask for is dropped, whatever its case; one he asked for still runs', async () => {
+  reply = () => ({ message: { role: 'assistant', content: 'It barely matters, sir.\nAct {"verb":"todo.add","args":{"text":"Log Machine Chest Press sets as usual"}}' } });
+  const job = await settled(startAskLocal(vault, { question: 'Does it really matter if I did a barbell bench press or a machine chest press, and why?' }));
+  assert.equal(job.status, 'ready', job.error);
+  assert.doesNotMatch(job.result.text, /todo\.add|Act \{/);
+  assert.ok(!job.result.acted, "nothing ran");
+  assert.equal(wantsAct('Does it really matter if I log it?'), false);
+  assert.equal(wantsAct('add oat milk to my list'), true);
+  assert.equal(wantsAct('Log my weight at 84.2'), true);
 });

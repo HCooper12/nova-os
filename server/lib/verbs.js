@@ -1405,9 +1405,11 @@ async function broadcastFor(id) {
 // -------------------------------------------------------------- the ACT line
 
 export function parseActDirective(text) {
-  const m = (text || '').match(/^\s*ACT\s+(\{.*\})\s*$/m);
+  // case-insensitive: the small model on his Mac wrote "Act {…}" (29 Oct
+  // 2026) and the line was spoken to him as text
+  const m = (text || '').match(/^\s*ACT\s+(\{.*\})\s*$/mi);
   if (!m) {
-    const prose = (text || '').match(/^\s*ACT\b.*$/m);
+    const prose = (text || '').match(/^\s*ACT\b.*$/mi);
     if (prose) return { cleanText: text.replace(prose[0], '').replace(/\n{3,}/g, '\n\n').trim(), act: null, parseError: 'the ACT line was prose, not the typed JSON form' };
     return { cleanText: text, act: null };
   }

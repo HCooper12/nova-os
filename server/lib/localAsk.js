@@ -513,6 +513,14 @@ export function agentAnswersBlock(results, { sourceTitlesLine = () => '' } = {})
   return `[Your agents have answered. Give him your answer built on what they said, in your own voice, not a relay of each. Name whose view shaped it ("the Coach's view is…", "the Researcher found…") and name sources by their titles. Where they disagree, say which you would act on.${researched ? ' Tell him the Researcher\'s cited brief is in his Inbox.' : ''} Never say you cannot answer: they have given you what you need.]\n\n${blocks.join('\n\n')}`;
 }
 
+// did he ask Nova to DO something, or only to answer? The words that open
+// an order; a question that merely mentions logging ("should I log…") is
+// not one
+const ACT_WORDS = /^(?:please |can you |could you |nova,? )?(?:add|log|record|note|remind|put|set|mark|tick|done|finish|complete|save|capture|remember|schedule|book|move|delete|remove|clear|start|begin|weigh|weight)\b/;
+export function wantsAct(question) {
+  return String(question || '').toLowerCase().replace(/[’‘]/g, "'").split(/[.?!]\s+/).some((s) => ACT_WORDS.test(s.trim()));
+}
+
 /** One ask_agent call, run by code on the shared consult rail. Returns what
  *  the model reads back: the answer, or why there is none. */
 export async function askAgent(ctl, args = {}, titles = () => '') {
@@ -687,7 +695,18 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     }
     const ms = Date.now() - started;
     // a stray VIS line is never spoken (the Claude path strips it in the pool)
-    const reply = parseVisualStream(turn.text).text;
+    let reply = parseVisualStream(turn.text).text;
+    // an ACT he did not ask for is dropped, not run: after the agents have
+    // answered a question, the 4B model invents a chore for him (29 Oct
+    // 2026: "Log Machine Chest Press sets as usual" under a why question)
+    if (asks.length && !wantsAct(question)) {
+      const { parseActDirective } = await import('./verbs.js');
+      const parsed = parseActDirective(reply);
+      if (parsed.act || parsed.parseError) {
+        console.log(`local ask: dropped an ACT he did not ask for (${JSON.stringify(parsed.act || parsed.parseError).slice(0, 100)})`);
+        reply = parsed.cleanText;
+      }
+    }
     // a reply that says it cannot answer is never spoken: code hands the same
     // job to Claude (lib/askDispatch.js holdForEscalation), whose Nova can ask
     // Coach and the Researcher. A stand-in has no one to hand up to (Claude
