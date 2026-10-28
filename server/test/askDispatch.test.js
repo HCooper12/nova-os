@@ -328,3 +328,36 @@ test('local first: the greeting this Mac cannot compose is said by Claude, label
   assert.equal(job.result.escalated, true);
   assert.match(job.result.reason, /could not answer: .*500/);
 });
+
+// 29 Oct 2026: the 4B model answered his bench-vs-machine question with "I
+// cannot answer" twice; a give-up was spoken as if it were an answer
+test('local first: a local reply that gives up is never spoken; Claude answers on the SAME job', async () => {
+  await _reset({ file: true });
+  await setLocalPrefs({ first: true });
+  const kept = localReply;
+  localReply = 'Your vault does not contain data comparing the Bench Press to the Machine Chest Press. I cannot answer which is better.';
+  try {
+    const jobId = startAsk(vault, { question: 'what was my bench top set?', context: 'ctx' });
+    const { job, statuses } = await watch(jobId);
+    assert.deepEqual(statuses, ['running', 'ready'], 'the poll never saw the give-up or an error');
+    assert.equal(getMessageJob(jobId), job);
+    assert.equal(job.result.text, 'Claude answered.');
+    assert.equal(job.result.provider, 'claude');
+    assert.equal(job.result.escalated, true);
+    assert.equal(job.result.reason, 'the model on this Mac could not answer it');
+    assert.ok(seen.length >= 1, 'this Mac was asked first');
+  } finally { localReply = kept; }
+});
+
+test('local first: a question the evidence settles goes straight to Claude, labelled, and this Mac is never asked', async () => {
+  await setLocalPrefs({ first: true });
+  const asked = seen.length;
+  const jobId = startAsk(vault, { question: 'Does it really matter if I did a standard barbell bench press or a machine chest press?', context: 'ctx' });
+  const { job } = await watch(jobId);
+  assert.equal(job.status, 'ready', job.error);
+  assert.equal(job.result.text, 'Claude answered.');
+  assert.equal(job.result.provider, 'claude');
+  assert.equal(job.result.escalated, true);
+  assert.ok(job.result.reason);
+  assert.equal(seen.length, asked, 'the model on this Mac was not asked');
+});

@@ -27,6 +27,7 @@ import { startAskNova, getMessageJob } from './claudeCode.js';
 import { startAskLocal, isLocalOnlySession, localTurnsSinceClaude, transcriptOf, sessionTurns, recordAskTurn } from './localAsk.js';
 import { providerFor, laneCanRunLocal, fallbackEnabled, localBoard, laneEnabled } from './modelPrefs.js';
 import { localModelConfigured, memoryHeadroom } from './localModel.js';
+import { needsClaude } from './askRoute.js';
 
 /** Can the model on this Mac stand in right now? A cheap, synchronous
  *  reading: configured, and either already running or with memory to load. */
@@ -211,7 +212,7 @@ function escalateAsk(carrier, cwd, opts, localError, reason) {
   });
 }
 
-function holdForStandIn(job, cwd, opts, { newSession }) {
+function holdForStandIn(job, cwd, opts, { newSession, routed = null }) {
   let status = job.status;
   let handed = false;
   Object.defineProperty(job, 'status', {
@@ -242,6 +243,9 @@ function holdForStandIn(job, cwd, opts, { newSession }) {
         }
         console.log(`ask: Claude failed and the model on this Mac cannot stand in (${can.why})`);
       }
+      // a question code sent past the model on this Mac says why, the
+      // same "asked Claude · why" line a hand-up shows
+      if (v === 'ready' && !handed && routed && job.result?.text) job.result = { ...job.result, provider: 'claude', escalated: true, reason: routed };
       status = v;
       // a Claude answer is kept in the session memory too, so a later
       // stand-in knows the conversation it is joining
@@ -255,7 +259,13 @@ function holdForStandIn(job, cwd, opts, { newSession }) {
 /** Start one Ask Nova turn on whichever model should answer it; returns the
  *  job id (synchronously, like startAskNova). Same options as startAskNova. */
 export function startAsk(cwd, opts = {}) {
-  if (providerFor('ask-nova') === 'local' && !opts.consulted) {
+  // code decides which questions the small model may take (lib/askRoute.js):
+  // one that needs the evidence, a judgement or another agent goes to Claude,
+  // whose Nova can ask Coach and the Researcher
+  const local = providerFor('ask-nova') === 'local' && !opts.consulted;
+  const routed = local ? needsClaude(opts.question) : null;
+  if (routed) console.log(`ask: ${routed}; Claude answers (the model on this Mac is not asked)`);
+  if (local && !routed) {
     const jobId = startAskLocal(cwd, {
       question: opts.question, sessionId: opts.sessionId || null, liveLine: opts.liveLine || '',
       spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null,
@@ -271,6 +281,6 @@ export function startAsk(cwd, opts = {}) {
   // a turn that opened a Claude session: if the stand-in answers it, the
   // session is the local model's (Claude may never have written it down)
   const newSession = claudeOpts.resume === undefined ? !sid : !claudeOpts.resume;
-  if (job && !opts.consulted) holdForStandIn(job, cwd, opts, { newSession });
+  if (job && !opts.consulted) holdForStandIn(job, cwd, opts, { newSession, routed });
   return jobId;
 }

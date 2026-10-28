@@ -34,6 +34,7 @@ import { registerAskJob, settleAskReply } from './claudeCode.js';
 import { whereLine, suppressGlass } from './register.js';
 import { describeForModel } from './verbs.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
+import { gaveUp } from './askRoute.js';
 
 export const PROMPT_BUDGET = 9000;      // chars of system prompt before his question
 export const MAX_ROUNDS = 4;            // vault lookups per turn
@@ -588,6 +589,18 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     const ms = Date.now() - started;
     // a stray VIS line is never spoken (the Claude path strips it in the pool)
     const reply = parseVisualStream(turn.text).text;
+    // a reply that says it cannot answer is never spoken: code hands the same
+    // job to Claude (lib/askDispatch.js holdForEscalation), whose Nova can ask
+    // Coach and the Researcher. A stand-in has no one to hand up to (Claude
+    // already failed), and the bench reads the words as written.
+    if (!fallback && !dryRun && gaveUp(reply)) {
+      recordRun('ask-nova', { provider: 'local', usd: 0, ms, model: `local:${turn.model}`, inputTokens: turn.inputTokens, outputTokens: turn.outputTokens, error: 'gave up: handed to Claude' });
+      console.log(`local ask: gave up after ${turn.used.length} lookup(s) ("${reply.slice(0, 80)}"); handed to Claude`);
+      job.escalateReason = 'the model on this Mac could not answer it';
+      job.error = failure('it said it could not answer');
+      job.status = 'error';
+      return;
+    }
     const extra = { provider: 'local', fallback: !!fallback, reason: fallback ? (reason || 'Claude could not answer') : null, model: `local:${turn.model}`, lookups: turn.used.map((u) => ({ name: u.name, args: u.args })) };
     // the bench (server/scripts/benchLocalAsk.mjs): the words as written,
     // nothing settled, filed or acted on, nothing remembered
