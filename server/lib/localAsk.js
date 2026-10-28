@@ -27,14 +27,14 @@ import { fileURLToPath } from 'node:url'; // never URL.pathname: the repo path h
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { talkPrefsBlock } from './talk.js';
-import { chatLocal, defaultModel } from './localModel.js';
+import { chatLocal, defaultModel, localModelConfigured, localBackend, memoryHeadroom } from './localModel.js';
 import { recordRun } from './modelSpend.js';
-import { assertLaneOn, refreshLocalStatus } from './modelPrefs.js';
+import { assertLaneOn, refreshLocalStatus, localBoard } from './modelPrefs.js';
 import { registerAskJob, settleAskReply } from './claudeCode.js';
 import { whereLine, suppressGlass } from './register.js';
 import { describeForModel } from './verbs.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
-import { gaveUp } from './askRoute.js';
+import { gaveUp, agentsFor } from './askRoute.js';
 
 export const PROMPT_BUDGET = 9000;      // chars of system prompt before his question
 export const MAX_ROUNDS = 4;            // vault lookups per turn
@@ -75,7 +75,13 @@ function verbLines() {
 
 const TOOL_TEXT_FORM = `To use a tool, reply with ONLY this, then wait for the result:
 <tool_call>{"name":"vault_search","arguments":{"query":"bench press"}}</tool_call>
-Tools: vault_search {"query"} finds matching lines in his notes; vault_read {"path","from","lines"} reads one page (path as search showed it); vault_list {"folder"} lists a folder.`;
+Tools: vault_search {"query"} finds matching lines in his notes; vault_read {"path","from","lines"} reads one page (path as search showed it); vault_list {"folder"} lists a folder; ask_agent {"agent","question"} asks one of his agents (coach, researcher, leader, librarian, cfo, stash, calendar).`;
+
+// THE AGENTS NOVA ON THIS MAC MAY ASK (29 Oct 2026, his rule: Nova talks with
+// every agent and uses his whole vault without needing Claude to help it, no
+// exceptions). Each runs through its own lane on the shared consult rail
+// (lib/consult.js), exactly as when Claude's Nova asks it.
+export const LOCAL_AGENTS = ['coach', 'researcher', 'leader', 'librarian', 'cfo', 'stash', 'calendar'];
 
 const clip = (s, n) => {
   const t = String(s || '').replace(/\s+\n/g, '\n').trim();
@@ -84,9 +90,11 @@ const clip = (s, n) => {
 
 /** The system prompt for one local turn. Pure: every input is handed in. The
  *  history is dropped oldest-first until the whole prompt fits the budget. */
-export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '' } = {}) {
+export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '', withAgents = false } = {}) {
   const wl = whereLine(place, { oneShot: direct });
-  const lengthRule = direct
+  const lengthRule = withAgents && !direct && !spoken
+    ? '- Up to six sentences. Plain text, no markdown, no lists. Lead with the answer, then why, then the one thing to do.'
+    : direct
     ? '- This is a hands-free one-shot (Siri): answer exactly what he asked in one or two spoken sentences. No greeting, no follow-up question.'
     : spoken
       ? '- He is listening, not reading: two short spoken sentences, no symbols, no lists.'
@@ -114,7 +122,10 @@ PROPOSE {"kind":"calendar","command":"<the change in plain words, e.g. move gym 
 One ACT or PROPOSE line at most, last, and only when he asked. Say what you are doing in a few words. Never say it is done: code confirms it.
 
 VAULT TOOLS
-Use vault_search, vault_read and vault_list when TODAY below does not already answer. At most ${MAX_ROUNDS} lookups, then answer.${toolsInText ? `\n${TOOL_TEXT_FORM}` : ''}`;
+Use vault_search, vault_read and vault_list when TODAY below does not already answer. At most ${MAX_ROUNDS} lookups, then answer.
+
+YOUR AGENTS
+You lead his agents and may ask any of them with ask_agent: the Coach, the Researcher, the Leader, the Librarian, the CFO, the Stash, his calendar. When a question needs the evidence, a judgement about his training, food, work or money, or something his vault does not hold, ask the agent whose ground it is, then answer from what it says. Never tell him you cannot answer before you have asked.${toolsInText ? `\n${TOOL_TEXT_FORM}` : ''}`;
 
   const tail = [];
   tail.push(`TODAY (computed by code just now; trust it over older pages):\n${clip(today, 1600) || '(not available right now)'}`);
@@ -176,6 +187,21 @@ export const TOOLS = [
       name: 'vault_list',
       description: 'List the pages and folders in one vault folder ("" for the top).',
       parameters: { type: 'object', properties: { folder: { type: 'string' } }, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'ask_agent',
+      description: 'Ask one of his agents and wait for its answer: coach (training, recovery, food, his program and log), researcher (the published evidence; takes a few minutes, its cited brief lands in his Inbox), leader (work and leading people), librarian (his books, podcasts and articles), cfo (his money), stash (what he owns and restocks), calendar (his next 14 days).',
+      parameters: {
+        type: 'object',
+        properties: {
+          agent: { type: 'string', enum: LOCAL_AGENTS },
+          question: { type: 'string', description: 'what you want it to answer, in full' },
+        },
+        required: ['agent', 'question'],
+      },
     },
   },
 ];
@@ -361,6 +387,7 @@ export function progressLine(call) {
   if (call?.name === 'vault_search') return `Looking in your vault for “${quiet(a.query)}”…`;
   if (call?.name === 'vault_read') return `Reading ${quiet(path.basename(String(a.path || ''), '.md')) || 'a page'} in your vault…`;
   if (call?.name === 'vault_list') return `Looking through ${quiet(a.folder) || 'your vault'}…`;
+  if (call?.name === 'ask_agent') return 'Asking another agent…';
   return 'Looking in your vault…';
 }
 
@@ -471,14 +498,44 @@ async function todayBlock() {
   } catch { return ''; }
 }
 
+const ANSWER_CHARS = 3000; // any one agent's answer, as the small model reads it
+
+/** What the agents said, as the small model reads it beside his question:
+ *  each answer under its agent's name, with the titles code holds for it. */
+export function agentAnswersBlock(results, { sourceTitlesLine = () => '' } = {}) {
+  const blocks = (results || []).map((r) => {
+    if (!r.ok) return `${String(r.label).toUpperCase()} COULD NOT ANSWER: ${r.error}`;
+    const titles = sourceTitlesLine(r);
+    return `FROM ${String(r.label).toUpperCase()}:\n${clip(r.answer, ANSWER_CHARS)}${titles ? `\n${titles}` : ''}`;
+  });
+  if (!blocks.length) return '';
+  const researched = (results || []).some((r) => r.ok && r.agent === 'researcher');
+  return `[Your agents have answered. Give him your answer built on what they said, in your own voice, not a relay of each. Name whose view shaped it ("the Coach's view is…", "the Researcher found…") and name sources by their titles. Where they disagree, say which you would act on.${researched ? ' Tell him the Researcher\'s cited brief is in his Inbox.' : ''} Never say you cannot answer: they have given you what you need.]\n\n${blocks.join('\n\n')}`;
+}
+
+/** One ask_agent call, run by code on the shared consult rail. Returns what
+ *  the model reads back: the answer, or why there is none. */
+export async function askAgent(ctl, args = {}, titles = () => '') {
+  const agent = String(args?.agent || '').toLowerCase().trim();
+  const q = String(args?.question || '').trim();
+  if (!ctl) return 'No agent can be asked on this turn.';
+  if (!LOCAL_AGENTS.includes(agent)) return `There is no agent "${agent}". Ask one of: ${LOCAL_AGENTS.join(', ')}.`;
+  if (!q) return 'ask_agent needs a question.';
+  if (ctl.exhausted) return 'You have asked the agents as many times as one turn allows. Answer now from what they said.';
+  const { results } = await ctl.run({ asks: [{ agent, question: q }] });
+  return agentAnswersBlock(results, { sourceTitlesLine: titles });
+}
+
 /** One local turn: the chat loop with code-run lookups. Returns the reply
  *  text, the lookups used, and the token usage. Throws a plain reason. */
-async function converse(job, { cwd, question, promptOpts, deadline }) {
+async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, agentAnswers = '', titles }) {
   let useTools = true;
   let switched = false;
+  // his question first, then what the agents already said (a Qwen chat
+  // template takes one system message, and the system prompt is clipped)
   const messages = [
     { role: 'system', content: buildLocalAskPrompt(promptOpts) },
-    { role: 'user', content: question },
+    { role: 'user', content: agentAnswers ? `${question}\n\n${agentAnswers}` : question },
   ];
   const used = [];
   let outputTokens = 0;
@@ -529,8 +586,17 @@ async function converse(job, { cwd, question, promptOpts, deadline }) {
     }
     const responses = [];
     for (const c of batch) {
-      job.partial = progressLine(c);
-      const result = await runTool(cwd, c);
+      let result;
+      if (c.name === 'ask_agent') {
+        // an agent's time is not the small model's: no caps on an ask (his
+        // standing rule), so the deadline moves by however long it took
+        const t0 = Date.now();
+        result = await askAgent(ctl, c.args, titles);
+        deadline += Date.now() - t0;
+      } else {
+        job.partial = progressLine(c);
+        result = await runTool(cwd, c);
+      }
       used.push({ name: c.name, args: c.args, chars: result.length });
       if (useTools) messages.push({ role: 'tool', tool_call_id: c.id, name: c.name, content: result });
       else responses.push(`<tool_response>\n${result}\n</tool_response>`);
@@ -574,10 +640,43 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
     let talkPrefs = '';
     try { talkPrefs = talkPrefsBlock(cwd); } catch { talkPrefs = ''; }
-    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs };
+    // THE AGENTS FIRST (29 Oct 2026): code, not the small model, decides who
+    // a question needs (lib/askRoute.js agentsFor) and asks them on the
+    // shared rail, so the answer is built on what they said. The model may
+    // still ask anyone itself (ask_agent). A stand-in skips them: Claude has
+    // already failed, and the Coach and the Researcher run on Claude. The
+    // bench reads the model alone.
+    const { openConsult, sourceTitlesLine } = await import('./consult.js');
+    const ctl = fallback || dryRun ? null : openConsult({ from: 'nova', question, vaultPath: cwd, job });
+    const asks = ctl ? agentsFor(question, { handsFree: direct }) : [];
+    let agentAnswers = '';
+    if (asks.length) {
+      // the model must be able to answer before anyone is asked: otherwise
+      // the agents would be asked twice, here and again by Claude's Nova
+      const cannot = !localModelConfigured() ? (localBackend() === 'ollama' ? 'Ollama is not installed on this Mac' : 'the local model is not installed')
+        : (!localBoard().ready && !memoryHeadroom().ok) ? memoryHeadroom().reason : null;
+      if (cannot) {
+        recordRun('ask-nova', { provider: 'local', usd: 0, ms: Date.now() - started, model: `local:${defaultModel()}`, error: String(cannot).slice(0, 200) });
+        job.error = failure(cannot);
+        job.status = 'error';
+        return;
+      }
+      console.log(`local ask: asking ${asks.map((a) => a.agent).join(', ')} first`);
+      try {
+        const { results } = await ctl.run({ asks });
+        agentAnswers = agentAnswersBlock(results, { sourceTitlesLine });
+      } catch (e) {
+        agentAnswers = `[Your agents could not be asked: ${e.message}. Say so plainly.]`;
+      }
+      // a give-up after this hands Claude what the agents already said
+      job.agentAnswers = agentAnswers;
+    }
+    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs, withAgents: !!asks.length };
     let turn;
     try {
-      turn = await converse(job, { cwd, question, promptOpts, deadline: started + TURN_TIMEOUT_MS() });
+      // the small model's clock starts once the agents have answered: no
+      // caps on an ask (his standing rule)
+      turn = await converse(job, { cwd, question, promptOpts, deadline: Date.now() + TURN_TIMEOUT_MS(), ctl, agentAnswers, titles: sourceTitlesLine });
     } catch (e) {
       const ms = Date.now() - started;
       recordRun('ask-nova', { provider: 'local', fallback: !!fallback, usd: 0, ms, model: `local:${defaultModel()}`, error: String(e.message || e).slice(0, 200) });
@@ -596,7 +695,8 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     if (!fallback && !dryRun && gaveUp(reply)) {
       recordRun('ask-nova', { provider: 'local', usd: 0, ms, model: `local:${turn.model}`, inputTokens: turn.inputTokens, outputTokens: turn.outputTokens, error: 'gave up: handed to Claude' });
       console.log(`local ask: gave up after ${turn.used.length} lookup(s) ("${reply.slice(0, 80)}"); handed to Claude`);
-      job.escalateReason = 'the model on this Mac could not answer it';
+      job.escalateReason = ctl?.roster.length ? 'the model on this Mac could not answer it from what the agents said' : 'the model on this Mac could not answer it';
+      if (ctl?.roster.length && !job.agentAnswers) job.agentAnswers = agentAnswersBlock(ctl.roster.map((a) => ({ ...a, error: a.error || 'no answer' })), { sourceTitlesLine });
       job.error = failure('it said it could not answer');
       job.status = 'error';
       return;
@@ -613,7 +713,9 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     // settleAskReply sets the status; hold it until the lead line and the
     // session memory are in place, so a poll never sees a half-labelled answer
     const shadow = { id: job.id, status: 'running', result: null, error: null };
-    await settleAskReply(cwd, reply, shadow, { question, noGlass, direct, place, sessionId: effectiveSessionId, extra });
+    // the reply opens with the code-written line of who was asked, and the
+    // roster rides on the result, as on Claude's Nova
+    await settleAskReply(cwd, reply, shadow, { question, noGlass, direct, place, sessionId: effectiveSessionId, extra, ctl });
     recordRun('ask-nova', {
       provider: 'local', fallback: !!fallback, usd: 0, ms, model: `local:${turn.model}`,
       inputTokens: turn.inputTokens, outputTokens: turn.outputTokens,

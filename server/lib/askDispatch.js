@@ -190,7 +190,12 @@ function escalateAsk(carrier, cwd, opts, localError, reason) {
   const firstWhy = `The model on this Mac could not answer first: ${localError}.`;
   let claudeJob = null;
   try {
-    const claudeOpts = claudeOptsFor(opts);
+    let claudeOpts = claudeOptsFor(opts);
+    // what the agents already told Nova on this Mac: Claude builds on it and
+    // does not ask them the same thing again (the Researcher takes minutes)
+    if (carrier.agentAnswers) {
+      claudeOpts = { ...claudeOpts, context: [claudeOpts.context || '', `Nova on his Mac already asked the agents about this question. What they said (ask again only for something genuinely new):\n${carrier.agentAnswers}`].filter(Boolean).join('\n\n') };
+    }
     const jobId = startAskNova(cwd, claudeOpts);
     claudeJob = getMessageJob(jobId);
   } catch (e) {

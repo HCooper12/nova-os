@@ -29,6 +29,7 @@ process.env.NOVA_LOCAL_LLM_BACKEND = 'mlx';
 process.env.NOVA_OLLAMA_NO_SPAWN = '1';
 
 const argvLog = path.join(root, 'argv.log');
+const stdinLog = path.join(root, 'stdin.log');
 const stubBin = path.join(root, 'claude');
 await writeFile(stubBin, `#!/usr/bin/env node
 require('node:fs').appendFileSync(${JSON.stringify(argvLog)}, process.argv.slice(2).join(' ') + '\\n');
@@ -38,6 +39,7 @@ rl.on('line', (line) => {
   if (!line.trim()) return;
   let text = '';
   try { text = JSON.parse(line).message.content.map((c) => c.text).join(''); } catch {}
+  require('node:fs').appendFileSync(${JSON.stringify(stdinLog)}, text + '\\n');
   if (/LIMIT_NOW/.test(text)) {
     say({ type: 'result', is_error: true, result: "You've hit your session limit · resets 11am (Australia/Melbourne)", total_cost_usd: 0 });
     return;
@@ -349,15 +351,41 @@ test('local first: a local reply that gives up is never spoken; Claude answers o
   } finally { localReply = kept; }
 });
 
-test('local first: a question the evidence settles goes straight to Claude, labelled, and this Mac is never asked', async () => {
+test('local first: his correction of the last answer goes straight to Claude, labelled, and this Mac is never asked', async () => {
   await setLocalPrefs({ first: true });
   const asked = seen.length;
-  const jobId = startAsk(vault, { question: 'Does it really matter if I did a standard barbell bench press or a machine chest press?', context: 'ctx' });
+  const jobId = startAsk(vault, { question: "You seem to be getting confused. I'm literally just asking you a simple question.", context: 'ctx' });
   const { job } = await watch(jobId);
   assert.equal(job.status, 'ready', job.error);
   assert.equal(job.result.text, 'Claude answered.');
   assert.equal(job.result.provider, 'claude');
   assert.equal(job.result.escalated, true);
-  assert.ok(job.result.reason);
+  assert.equal(job.result.reason, 'you corrected the last answer');
   assert.equal(seen.length, asked, 'the model on this Mac was not asked');
+});
+
+test('local first: a give-up after the agents answered hands Claude what they said, on the SAME job', async () => {
+  await _reset({ file: true });
+  await setLocalPrefs({ first: true });
+  const { _setConsultDepsForTest } = await import('../lib/consult.js');
+  const asked = [];
+  const stand = (id) => async () => { asked.push(id); return { text: `${id}: both grow the chest about the same.` }; };
+  _setConsultDepsForTest({ coach: stand('coach'), researcher: stand('researcher') });
+  localReply = 'I cannot answer which is better.';
+  try {
+    const jobId = startAsk(vault, { question: 'Does it really matter if I did a standard barbell bench press or a machine chest press?', context: 'ctx' });
+    const before = getMessageJob(jobId);
+    const { job, statuses } = await watch(jobId);
+    assert.deepEqual(statuses, ['running', 'ready'], 'the give-up was never shown');
+    assert.deepEqual(asked.sort(), ['coach', 'researcher'], 'this Mac asked the agents itself');
+    assert.equal(job, before);
+    assert.equal(job.result.text, 'Claude answered.');
+    assert.equal(job.result.escalated, true);
+    assert.equal(job.result.reason, 'the model on this Mac could not answer it from what the agents said');
+    assert.match(job.agentAnswers, /FROM THE COACH:\ncoach: both grow/);
+    // Claude was handed the answers: they ride in its prompt
+    const sent = (await readFile(argvLog, 'utf8')) + (await readFile(stdinLog, 'utf8'));
+    assert.match(sent, /already asked the agents/);
+    assert.match(sent, /researcher: both grow the chest/);
+  } finally { _setConsultDepsForTest(null); }
 });

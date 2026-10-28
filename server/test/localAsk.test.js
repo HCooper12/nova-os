@@ -53,12 +53,19 @@ import assert from 'node:assert/strict';
 
 const {
   startAskLocal, buildLocalAskPrompt, vaultRead, vaultSearch, vaultList, readToolCalls, stripThink,
-  recordAskTurn, sessionTurns, _reset, _flush, PROMPT_BUDGET, MAX_ROUNDS, progressLine,
+  recordAskTurn, sessionTurns, _reset, _flush, PROMPT_BUDGET, MAX_ROUNDS, progressLine, askAgent,
 } = await import('../lib/localAsk.js');
 const { getMessageJob } = await import('../lib/claudeCode.js');
 const { setLanePref, resetLanePref } = await import('../lib/modelPrefs.js');
 const { _setHeadroomForTests } = await import('../lib/localModel.js');
 const { listRecords } = await import('../lib/inboxStore.js');
+// the agents are stand-ins: a test never spawns the Coach or the Researcher
+const { _setConsultDepsForTest } = await import('../lib/consult.js');
+const agentAsks = [];
+_setConsultDepsForTest(Object.fromEntries(['coach', 'researcher', 'leader', 'librarian', 'cfo', 'stash', 'calendar'].map((id) => [id, async (q) => {
+  agentAsks.push({ agent: id, question: q });
+  return { text: `${id} answer: machines and barbells grow the chest about the same.` };
+}])));
 
 // the stub local model: `reply(body, n)` decides each answer
 const seen = [];
@@ -89,12 +96,14 @@ await new Promise((r) => stub.listen(4289, '127.0.0.1', r));
 
 test.beforeEach(async () => {
   seen.length = 0;
+  agentAsks.length = 0;
   await resetLanePref();
   await setLanePref('inbox-classify', { provider: 'local' });
   _setHeadroomForTests(() => ({ ok: true, swapFreeMB: 8000, reason: null }));
 });
 test.after(async () => {
   _setHeadroomForTests(null);
+  _setConsultDepsForTest(null);
   // closeAllConnections first: a keep-alive socket holds close() open forever
   stub.closeAllConnections?.();
   await new Promise((r) => stub.close(r));
@@ -143,7 +152,8 @@ test('(a) a turn with no tool call answers and settles: a PROPOSE capture become
   // the request: system prompt then his question, the tools offered
   assert.equal(seen[0].messages[0].role, 'system');
   assert.equal(seen[0].messages.at(-1).content, 'remind me to call the physio');
-  assert.deepEqual(seen[0].tools.map((t) => t.function.name), ['vault_search', 'vault_read', 'vault_list']);
+  assert.deepEqual(seen[0].tools.map((t) => t.function.name), ['vault_search', 'vault_read', 'vault_list', 'ask_agent']);
+  assert.equal(agentAsks.length, 0, 'a quick act asks no agent');
   // the ledger: a free local row
   const row = (await waitRows('ask-nova', 1)).at(-1);
   assert.equal(row.provider, 'local');
@@ -329,4 +339,53 @@ test('a lane that cannot load the model fails with a plain reason, never an empt
   } finally {
     await new Promise((r) => stub.listen(4289, '127.0.0.1', r));
   }
+});
+
+// 29 Oct 2026, his rule: Nova on this Mac talks with every agent itself
+test('a question the evidence settles: code asks the Coach and the Researcher first, and the model answers from what they said', async () => {
+  reply = () => ({ message: { role: 'assistant', content: 'It barely matters, sir: the Researcher found both grow the chest about the same.' } });
+  const q = 'Does it really matter if I did a standard barbell bench press or a machine chest press?';
+  const job = await settled(startAskLocal(vault, { question: q }));
+  assert.equal(job.status, 'ready', job.error);
+  assert.deepEqual(agentAsks.map((a) => a.agent).sort(), ['coach', 'researcher']);
+  assert.ok(agentAsks.every((a) => a.question === q), 'each agent hears his own words');
+  // the answers reach the model beside his question, never in the clipped system prompt
+  const user = seen[0].messages.find((m) => m.role === 'user').content;
+  assert.match(user, /^Does it really matter/);
+  assert.match(user, /FROM THE COACH:\ncoach answer/);
+  assert.match(user, /FROM THE RESEARCHER:\nresearcher answer/);
+  assert.match(user, /brief is in his Inbox/);
+  assert.doesNotMatch(seen[0].messages[0].content, /researcher answer/);
+  // the reply opens with who was asked (code-written) and carries the roster
+  assert.match(job.result.text, /^Asking the (Coach and the Researcher|Researcher and the Coach)\./);
+  assert.match(job.result.text, /It barely matters/);
+  assert.equal(job.result.provider, 'local');
+  assert.deepEqual(job.result.consult.map((a) => a.agent).sort(), ['coach', 'researcher']);
+});
+
+test('the model may ask an agent itself (ask_agent), and the answer comes back to it', async () => {
+  reply = (b, n) => {
+    if (n === 1) return { message: { role: 'assistant', content: '', tool_calls: [toolCall('ask_agent', { agent: 'coach', question: 'what is his next session?' }, 'a1')] } };
+    return { message: { role: 'assistant', content: 'The Coach says Upper is next, sir.' } };
+  };
+  const job = await settled(startAskLocal(vault, { question: 'whats next for me' }));
+  assert.equal(job.status, 'ready', job.error);
+  assert.deepEqual(agentAsks, [{ agent: 'coach', question: 'what is his next session?' }]);
+  const back = seen[1].messages.find((m) => m.role === 'tool');
+  assert.match(back.content, /FROM THE COACH:\ncoach answer/);
+  assert.match(job.result.text, /The Coach says Upper is next/);
+});
+
+test('ask_agent refuses an agent that does not exist, and nothing runs', async () => {
+  assert.match(await askAgent({ exhausted: false, run: () => { throw new Error('ran'); } }, { agent: 'claude', question: 'x' }), /There is no agent "claude"/);
+  assert.match(await askAgent(null, { agent: 'coach', question: 'x' }), /No agent can be asked/);
+});
+
+test('a lookup or a follow-up about his own past asks no agent', async () => {
+  reply = () => ({ message: { role: 'assistant', content: 'Up 2.5 kg on last week.' } });
+  for (const q of ['what did I bench last week?', 'and compared to last week?', 'how many steps today?']) {
+    const job = await settled(startAskLocal(vault, { question: q }));
+    assert.equal(job.status, 'ready', job.error);
+  }
+  assert.equal(agentAsks.length, 0);
 });
