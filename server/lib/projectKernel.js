@@ -121,7 +121,11 @@ export function validateBrief(obj) {
   const limit = { discussAbove: num(obj.limit?.discussAbove), agreed: num(obj.limit?.agreed) };
   if (Number.isNaN(limit.discussAbove) || Number.isNaN(limit.agreed)) errors.push('limit (numbers or null)');
   const firstMoves = (Array.isArray(obj.firstMoves) ? obj.firstMoves : []).map((m) => str(m, 300)).filter(Boolean).slice(0, 10);
-  const parent = typeof obj.parent === 'string' && ID_RE.test(obj.parent) ? obj.parent : null;
+  let parent = null;
+  if (obj.parent != null && obj.parent !== '') {
+    if (typeof obj.parent === 'string' && ID_RE.test(obj.parent)) parent = obj.parent;
+    else errors.push('parent (not a project Nova made; a linked project cannot hold sub-projects)');
+  }
   if (errors.length) return { ok: false, brief: null, errors };
   return { ok: true, errors: [], brief: { name: rawName, kind, goal, done, deadline, phases, reads, allowances, limit, firstMoves, parent } };
 }
