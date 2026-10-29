@@ -1,7 +1,7 @@
 // /api/projects and the project cards (no model, no real vault, no real data):
 // intake reply → BRIEF parsed → validated → pending card → his yes → folder,
 // first commit, vault page → undo takes both back. Plus the HTTP routes.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -89,3 +89,22 @@ test('HTTP: list incl. linked, read, stage files a card, settings validated, lin
   assert.equal((await post(`/projects/${project.id}/log`, { line: 'x' })).status, 404, 'no route writes the log');
   rmSync(path.join(base, 'atlas'), { recursive: true, force: true });
 });
+
+test('the settings route proposes lifting dry run after the third clean action', async (t) => {
+  const app = express();
+  app.use(express.json());
+  app.use('/api', projectsRouter({ vaultPath: vault, repoRoot: path.join(base, 'repo'), sessions: async () => ({ groups: [] }) }));
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  t.after(() => srv.close());
+  const k = novaKernel(vault);
+  const { project } = k.createProject({ ...BRIEF, name: 'Route lift' });
+  const post = (body) => fetch(`http://127.0.0.1:${srv.address().port}/api/projects/${project.id}/settings`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  await post({ quiet: { from: '21:00', to: '06:00' } });
+  const { listRecords } = await import('../lib/inboxStore.js');
+  const lifts = async () => (await listRecords()).filter((r) => r.projectId === project.id && r.kind === 'project-settings');
+  assert.equal((await lifts()).length, 0, 'two actions: nothing yet');
+  await post({ quiet: { from: '22:00', to: '07:00' } });
+  assert.equal((await lifts()).length, 1);
+  assert.match(readFileSync(path.join(project.folder, 'LOG.md'), 'utf8'), /DRY RUN · settings · /);
+});
+

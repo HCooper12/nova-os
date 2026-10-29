@@ -87,7 +87,11 @@ export function projectsRouter({ vaultPath, repoRoot, sessions } = {}) {
     try {
       const p = await find(req.params.id);
       if (!p) return res.status(404).json({ error: 'no such project' });
-      res.json(kernel().applySettings(p, req.body || {}));
+      const out = kernel().applySettings(p, req.body || {});
+      // three clean create/stage/settings actions in LOG.md: Nova proposes lifting dry run (a card, never a change)
+      const { proposeDryRunLift } = await import('../lib/novaProjects.js');
+      await proposeDryRunLift(p.id, { vaultPath }).catch(() => null);
+      res.json(out);
     } catch (e) { fail(res, e); }
   });
 

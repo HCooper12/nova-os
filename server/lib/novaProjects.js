@@ -53,6 +53,7 @@ async function fileStage(vaultPath, payload) {
 async function fileSettings(vaultPath, payload) {
   const k = novaKernel(vaultPath);
   const { project, before } = k.applySettings(payload.id, payload.settings);
+  proposeDryRunLift(project.id, { vaultPath }).catch(() => {});
   return { destination: `${project.name} — settings: ${Object.keys(payload.settings || {}).join(', ')}`, undo: { route: 'project-settings', id: project.id, before }, projectId: project.id };
 }
 
