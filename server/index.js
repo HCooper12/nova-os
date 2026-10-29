@@ -34,6 +34,7 @@ import { projectsRouter } from './routes/projects.js';
 import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
 import { stashRouter } from './routes/stash.js';
+import { wishlistRouter } from './routes/wishlist.js';
 import { repertoireRouter } from './routes/repertoire.js';
 import { opsRouter } from './routes/ops.js';
 import { modelPrefsRouter } from './routes/modelPrefs.js';
@@ -232,6 +233,7 @@ async function main() {
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingRouter(process.env.VAULT_PATH)); // prices read politely from the chains, rewards offers from his saved emails, logos (mockup 92)
   app.use('/api', stashRouter(process.env.VAULT_PATH));
+  app.use('/api', wishlistRouter(process.env.VAULT_PATH)); // his Notion Wishlist: add by link, read back for Nova's page
   app.use('/api', repertoireRouter(process.env.VAULT_PATH)); // THE REPERTOIRE — one technique a day, and the tap that says he practised it
   app.use('/api', opsRouter(process.env.VAULT_PATH));
   app.use('/api', modelPrefsRouter());
@@ -413,6 +415,8 @@ async function main() {
   startDailyReviewScheduler(process.env.VAULT_PATH);
   // his Journal backed up to Notion, both ways (mockup 95)
   import('./lib/notionJournal.js').then(({ startNotionJournalScheduler }) => startNotionJournalScheduler(process.env.VAULT_PATH)).catch(() => {});
+  // his Wishlist read back from Notion every 15 minutes (and after each write)
+  import('./lib/wishlist.js').then(({ startWishlistScheduler }) => startWishlistScheduler()).catch(() => {});
   import('./lib/planToday.js').then(({ startPlanTodayScheduler }) => startPlanTodayScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('plan-today scheduler failed to start:', e.message));
   // seen, not ticked: the day's plan learns what the log already knows
