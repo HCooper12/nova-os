@@ -175,6 +175,7 @@ const SCREEN_LOADERS = {
   shopping: () => import('./screens/Shopping.jsx'),
   ambient: () => import('./screens/Ambient.jsx'),
   code: () => import('./screens/ClaudeCode.jsx'),
+  projects: () => import('./screens/Projects.jsx'),
   todos: () => import('./screens/Todos.jsx'),
   notes: () => import('./screens/Notes.jsx'),
   library: () => import('./screens/Library.jsx'),
@@ -193,6 +194,7 @@ const Stash = lazyScreen(SCREEN_LOADERS.stash, 'Stash');
 const Shopping = lazyScreen(SCREEN_LOADERS.shopping, 'Shopping');
 const Ambient = lazyScreen(SCREEN_LOADERS.ambient, 'Ambient');
 const ClaudeCode = lazyScreen(SCREEN_LOADERS.code, 'ClaudeCode');
+const Projects = lazyScreen(SCREEN_LOADERS.projects, 'Projects');
 const Todos = lazyScreen(SCREEN_LOADERS.todos, 'Todos');
 const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
 const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
@@ -376,7 +378,8 @@ function restoreDrafts() {
 }
 
 function screenFromHash() {
-  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '').split('?')[0];
+  // #/projects/<id> is the Projects screen with a project open: the screen is the first segment
+  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '').split('?')[0].split('/')[0];
   return SCREEN_KEYS.includes(h) ? h : 'mission';
 }
 
@@ -438,7 +441,7 @@ export function restoreFoodScanPhotos() {
 
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveLibrary', 'liveLeader', 'livePractice', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveProjects', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutArchived', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -653,6 +656,8 @@ export default class App extends Component {
     // retro tracking: null = today; a past YYYY-MM-DD flips the log view and
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
+    liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
+    projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     foodEntryUndo: null, // the last whole meal removed with its ×, held 30s for Undo
@@ -2141,6 +2146,7 @@ export default class App extends Component {
     apply('trainToday', (r) => this.setState({ liveTrainToday: r?.today || null }));
     apply('fuelCross', (r) => this.setState({ liveFuelCross: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories, liveStashFull: r }));
+    apply('projects', (r) => this.setState({ liveProjects: r.projects || [] }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
     apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutArchived: r.archived || [], liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
@@ -6736,6 +6742,78 @@ export default class App extends Component {
       .then((data) => this.setState({ liveInbox: data, inboxShowAll: true, inboxOlderBusy: false }))
       .catch((e) => { this.setState({ inboxOlderBusy: false }); this.toastMsg('Could not load older history: ' + e.message); });
   }
+  // ---- PROJECTS (phase 1, 29 Oct 2026; design/PROJECTS-PLAN.md §4) --------
+  // The list rides the snapshot ('projects' slice); a project's page is read
+  // when it opens. Every write is a server call whose answer is re-read, so the
+  // screen never shows a state the kernel did not reach.
+  openProject(id) {
+    this.setState({ projectOpen: id, projectDetail: null, projectDetailError: null });
+    if (this.state.screen !== 'projects') this.navigate('projects', { projectOpen: id });
+    try { window.history.replaceState({ ...(window.history.state || {}) }, '', `#/projects/${encodeURIComponent(id)}`); } catch { /* no window */ }
+    this.loadProject(id);
+  }
+  closeProject() {
+    this.setState({ projectOpen: null, projectDetail: null });
+    try { window.history.replaceState({ ...(window.history.state || {}) }, '', '#/projects'); } catch { /* no window */ }
+  }
+  loadProject(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    api.project(conn, id)
+      .then((d) => { if (this.state.projectOpen === id) this.setState({ projectDetail: d, projectDetailError: null }); })
+      .catch((e) => { if (this.state.projectOpen === id) this.setState({ projectDetailError: e.message || 'Could not read the project' }); });
+  }
+  refreshProjects() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.projects(conn).then((r) => this.setState({ liveProjects: r.projects || [] })).catch(() => {});
+  }
+  projectWrite(call, done) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect to your Mac first'); return; }
+    call(conn)
+      .then((r) => { if (done) this.toastMsg(done); this.refreshProjects(); this.refreshInbox(); if (this.state.projectOpen) this.loadProject(this.state.projectOpen); return r; })
+      .catch((e) => this.toastMsg(e.message || 'That did not go through'));
+  }
+  setProjectSetting(id, patch) { this.projectWrite((c) => api.projectSettings(c, id, patch), 'Saved'); }
+  proposeProjectStage(id, to) { this.projectWrite((c) => api.projectStage(c, id, to), 'A card is waiting for your yes'); }
+  archiveProject(id) { this.projectWrite((c) => api.projectArchive(c, id), 'Archived'); }
+  decideProjectCard(recordId, answer) {
+    this.projectWrite((c) => (answer === 'approve' ? api.inboxApprove(c, recordId) : api.inboxDiscard(c, recordId)), answer === 'approve' ? 'Done' : 'Discarded');
+  }
+  openProjectCode(p) {
+    const ws = p.linked ? p.workspace : p.workspace;
+    if (!ws) return;
+    this.navigate('code');
+    this.setCodeWorkspace(ws);
+  }
+  // THE INTAKE: his words to Nova, a turn polled like a code job. The brief
+  // lands in the Inbox as a card; nothing exists until he approves it.
+  sendProjectIntake() {
+    const conn = getConnection();
+    const text = String(this.state.projectIntakeText || '').trim();
+    if (!conn || !text || this.state.projectIntakeBusy) return;
+    const turns = [...(this.state.projectIntakeTurns || []), { who: 'him', text }];
+    this.setState({ projectIntakeBusy: true, projectIntakeText: '', projectIntakeTurns: turns, projectIntakeError: null });
+    api.projectIntake(conn, text, this.state.projectIntakeSession)
+      .then(({ jobId, sessionId }) => {
+        this.setState({ projectIntakeSession: sessionId });
+        this.startPoll('project-intake', () => api.projectIntakeJob(conn, jobId), {
+          onReady: (job) => {
+            const r = job.result || {};
+            this.setState({
+              projectIntakeBusy: false,
+              projectIntakeTurns: [...(this.state.projectIntakeTurns || []), { who: 'nova', text: r.text || '' }],
+              projectIntakeFiled: r.stage === 'filed' ? { recordId: r.recordId, name: r.brief?.name || 'the project' } : null,
+            });
+            if (r.recordId) this.refreshInbox();
+          },
+          onError: (msg) => this.setState({ projectIntakeBusy: false, projectIntakeError: typeof msg === 'string' ? msg : 'Nova could not answer' }),
+        });
+      })
+      .catch((e) => this.setState({ projectIntakeBusy: false, projectIntakeError: e.message || 'Could not reach Nova', projectIntakeText: text }));
+  }
+
   refreshInbox() {
     const conn = getConnection();
     if (!conn) return Promise.resolve();
@@ -13820,6 +13898,7 @@ export default class App extends Component {
               {v.isVoice && <Voice v={v} />}
               {v.isGalaxy && <Galaxy v={v} />}
               {v.isCode && <ClaudeCode v={v} />}
+              {v.isProjects && <Projects v={v} />}
               {v.isRecipes && <Recipes v={v} />}
               {v.isShopping && <Shopping v={v} />}
               {v.isStash && <Stash v={v} />}

@@ -44,10 +44,10 @@ const S = 'var(--nv-font-serif)';
 // One place for the three orders, so a new section is added to all three or
 // the dev assert below names the one it was left out of (audit [63]).
 const ORDERS = {
-  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'stuck', 'lead', 'practice', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents'],
-  day: ['working', 'wrap', 'focus', 'lead', 'practice', 'plan', 'stuck', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
+  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'stuck', 'lead', 'practice', 'focus', 'today', 'deck', 'projects', 'review', 'noticed', 'shortcuts', 'agents'],
+  day: ['working', 'wrap', 'focus', 'lead', 'practice', 'plan', 'stuck', 'today', 'deck', 'projects', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
   // by evening the wrap IS the news — it leads, under anything still running
-  evening: ['working', 'wrap', 'focus', 'plan', 'stuck', 'lead', 'practice', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
+  evening: ['working', 'wrap', 'focus', 'plan', 'stuck', 'lead', 'practice', 'today', 'deck', 'projects', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
 };
 let ordersChecked = false;
 export function assertOrdersCover(sectionKeys, orders = ORDERS) {
@@ -448,6 +448,23 @@ export function MissionStructured({ v }) {
             leading={<Tag>{item.kindLabel}</Tag>}
             title={<span style={{ fontWeight: 500 }}>{item.title}</span>}
             trailing={<span style={{ color: 'var(--nv-ink40)' }}>›</span>} />
+        ))}
+      </Group>
+    ) : null,
+
+    // PROJECTS (phase 1): a project waiting on him, styled as content; absent otherwise
+    projects: v.projectsWaiting ? (
+      <Group key="projects" label="Projects" accent="--nv-gold" trailing={
+        <Interactive as="span" onClick={v.projectsWaiting.open} base={{ cursor: 'pointer', font: `600 12px ${UI}`, color: 'var(--nv-acc)' }} hoverStyle={{ filter: 'brightness(1.15)' }}>
+          {v.projectsWaiting.count} waiting ›
+        </Interactive>
+      }>
+        {v.projectsWaiting.items.map((item, i) => (
+          <GRow key={item.id} first={i === 0} onClick={v.projectsWaiting.open}
+            leading={<Tag tone="gold">{item.kind === 'project-brief' ? 'BRIEF' : item.kind === 'project-stage' ? 'STAGE' : 'SETTING'}</Tag>}
+            title={<span style={{ fontWeight: 500, minWidth: 0 }}>{item.name}</span>}
+            sub={item.title}
+            trailing={item.dryRun ? <Tag>DRY RUN</Tag> : <span style={{ color: 'var(--nv-ink40)' }}>›</span>} />
         ))}
       </Group>
     ) : null,

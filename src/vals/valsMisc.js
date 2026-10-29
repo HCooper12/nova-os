@@ -1,3 +1,4 @@
+import { valsProjects } from './valsProjects.js';
 import { getConnection } from '../api.js';
 import { valsCode } from './valsCode.js';
 import { valsStash } from './valsStash.js';
@@ -601,6 +602,8 @@ export function valsMisc(app, ctx) {
   };
   // the Code screen (round 3): one model, built only while it is on screen
   out.code = st.screen === 'code' ? valsCode(app, ctx, { modelOptions: out.codeModelOptions }) : null;
+  // Projects (phase 1): one model, built only while it is on screen
+  out.projects = st.screen === 'projects' ? valsProjects(app) : null;
   // the summary Stash (10 Oct 2026): one model, built only while it is on screen
   out.stashSum = st.screen === 'stash' ? valsStash(app, ctx) : null;
   return out;

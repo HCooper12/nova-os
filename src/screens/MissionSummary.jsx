@@ -435,7 +435,7 @@ function layoutCards(cards) {
 // headers — their rings and strip carry the colour — and are lit in Nova's
 // own cyan.
 // Mockup 101: Training takes the gold its medal and routine tile wear.
-const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', training: 'var(--nv-gold)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
+const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', projects: 'var(--nv-gold)', training: 'var(--nv-gold)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
 const CARD_LIGHT = { ...CARD_HUE, body: 'var(--nv-cy)', today: 'var(--nv-cy)', day: 'var(--nv-cy)' };
 // its own colours, per card (the dyn glow): Body its three rings, Today the
 // moments on its rail, the rest their tile's two hues
@@ -705,6 +705,19 @@ function WaitingCard({ card, cls, style }) {
   );
 }
 
+// PROJECTS — a project waiting on his call (phase 1, 29 Oct 2026). Gold, the
+// house colour of something waiting on him; the count is the hero.
+function ProjectsCard({ card, cls, style }) {
+  return (
+    <Interactive as="section" className={`${cls} nv-sum-tile`} style={style} onClick={card.open}
+      aria-label={`Projects: ${card.count} waiting on you. Open`} base={{ cursor: 'pointer' }}>
+      <CardHead icon="waiting" label="Projects" tile={[CARD_HUE.projects]} />
+      <div className="nv-sum-big" style={{ color: CARD_HUE.projects }}><CountText text={card.count} fromZero /></div>
+      <div className="nv-sum-sub" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.sub}</div>
+    </Interactive>
+  );
+}
+
 // TRAINING — today's session, or the record with its medal; the card is Train's door.
 function TrainingCard({ card, cls, style }) {
   const rec = card.record;
@@ -813,6 +826,7 @@ function PinnedCard({ card, i }) {
     case 'today': return <TodayCard card={card} cls={cls} style={style} />;
     case 'plan': return <PlanCard card={card} cls={cls} style={style} />;
     case 'waiting': return <WaitingCard card={card} cls={cls} style={style} />;
+    case 'projects': return <ProjectsCard card={card} cls={cls} style={style} />;
     case 'training': return <TrainingCard card={card} cls={cls} style={style} />;
     case 'practice': return <PracticeTile card={card.card} cls={cls} style={style} />;
     case 'trends': return <TrendsCard card={card} cls={cls} style={style} />;

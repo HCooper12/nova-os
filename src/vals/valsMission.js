@@ -1,3 +1,4 @@
+import { projectsWaiting as projectsWaitingFor } from './valsProjects.js';
 import { agentsWorkingLabels } from './agentsWorking.js';
 import { nextWorkBlock, currentWorkBlock, leadLeadsNow, untilWords, leftWords } from '../workBlock.js';
 import { KIND_LABEL, situationFace, situationReply } from './valsLeader.js';
@@ -822,6 +823,9 @@ const bodyMetrics = demoMode
       })),
     onOpen: go('inbox'),
   };
+  // PROJECTS (phase 1): a project that needs him is a card in the feed, in
+  // both idioms; null when nothing waits, so Home is unchanged
+  const projectsWaiting = projectsWaitingFor(st, go);
 
   return {
     // connection truth
@@ -1092,6 +1096,7 @@ const bodyMetrics = demoMode
     // which ring leads today, or null when nothing is behind (missionFocus.js)
     focalVital: pickFocalVital(ringVitals),
     commandDeck,
+    projectsWaiting,
     noteCard,
     // WRAP THE DAY (server/lib/wrapDay.js): the evening card. It waits for
     // his last logged meal or 6pm, says the day in one counted sentence, and

@@ -236,6 +236,14 @@ export const api = {
     return URL.createObjectURL(await res.blob());
   },
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
+  // PROJECTS (phase 1, 29 Oct 2026): the kernel's records + the linked three
+  projects: (conn) => call(conn, '/api/projects'),
+  project: (conn, id) => call(conn, `/api/projects/${encodeURIComponent(id)}`),
+  projectIntake: (conn, text, sessionId) => post(conn, '/api/projects/intake', { text, sessionId: sessionId || null }),
+  projectIntakeJob: (conn, jobId) => call(conn, `/api/projects/intake/${encodeURIComponent(jobId)}`),
+  projectStage: (conn, id, to, reason) => post(conn, `/api/projects/${encodeURIComponent(id)}/stage`, { to, reason: reason || '' }),
+  projectArchive: (conn, id) => post(conn, `/api/projects/${encodeURIComponent(id)}/archive`, {}),
+  projectSettings: (conn, id, patch) => post(conn, `/api/projects/${encodeURIComponent(id)}/settings`, patch),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
   stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),

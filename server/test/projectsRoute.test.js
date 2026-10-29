@@ -1,7 +1,7 @@
 // /api/projects and the project cards (no model, no real vault, no real data):
 // intake reply → BRIEF parsed → validated → pending card → his yes → folder,
 // first commit, vault page → undo takes both back. Plus the HTTP routes.
-import { mkdtempSync, mkdirSync, existsSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -18,7 +18,6 @@ process.env.TELEGRAM_BOT_TOKEN = '';
 const test = (await import('node:test')).default;
 const assert = (await import('node:assert/strict')).default;
 const express = (await import('express')).default;
-const { listRecords, getRecord } = await import('../lib/inboxStore.js');
 const { approveRecord, undoRecord } = await import('../lib/inbox.js');
 const { novaKernel, proposeDryRunLift } = await import('../lib/novaProjects.js');
 const { projectsRouter } = await import('../routes/projects.js');

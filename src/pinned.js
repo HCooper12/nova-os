@@ -11,6 +11,8 @@
 export const PINNED_CARDS = [
   ['highlight', 'Right now'], ['body', 'Body'], ['today', 'Today'], ['plan', 'The plan'], ['waiting', 'Waiting'],
   ['training', 'Training'], ['practice', 'Practice'], ['trends', 'Trends'], ['day', 'Your day'],
+  // Projects phase 1 (29 Oct 2026): shown only when a project waits on him
+  ['projects', 'Projects'],
 ];
 // Cards that arrive OFF: "Your day, drawn" is a morning card by default
 // (mockup 86) and stays all day only when he pins it here.

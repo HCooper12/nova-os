@@ -56,6 +56,8 @@ export function valsSummary(app, ctx, m) {
     today: todayCard(m),
     plan: planCard(m, ctx),
     waiting: waitingCard(m),
+    // a project waiting on him (valsProjects.projectsWaiting); null otherwise
+    projects: m.projectsWaiting || null,
     training: trainingCard(m, ctx),
     practice: m.practiceCard ? { card: m.practiceCard } : null,
     trends: trendsCard(st, ctx, m, demoMode),
