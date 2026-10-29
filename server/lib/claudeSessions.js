@@ -58,7 +58,8 @@ export function lastMessageAt(file, { tailBytes = 2_000_000, readTail } = {}) {
 /** Which project a working directory belongs to, as a person would name it. */
 export function projectOf(cwd) {
   const s = String(cwd || "");
-  const m = s.match(/\/Claude Projects\/([^/]+)/);
+  // Science Atlas and Wren moved from "Desktop/Files/Claude Projects" to "~/Projects" on 21 Oct 2026; Nova still lives in the old folder.
+  const m = s.match(/\/(?:Claude Projects|Projects)\/([^/]+)/);
   const folder = m ? m[1] : (s.split("/").filter(Boolean).pop() || "somewhere");
   const known = { Atomic_Hub: "Science Atlas", "atlas-partner": "Wren", "nova-os": "Nova" };
   return { key: folder, label: known[folder] || folder.replace(/[-_]+/g, " ") };
