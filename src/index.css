@@ -5365,7 +5365,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
   box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-float-drop);
 }
 .nv-nt:not(.mob) .nv-nt-composer { bottom: 16px; }
-.nv-nt-composer.listening { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.nv-nt-composer.listening { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; }
 .nv-nt-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; align-items: end; }
 .nv-nt-plus { position: relative; width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; cursor: pointer; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 10%, transparent); }
 .nv-nt-plus input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -5393,6 +5393,8 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-meter .lv { flex: 1; display: flex; align-items: center; gap: 3px; height: 24px; overflow: hidden; }
 .nv-nt-meter .lv i { flex: none; width: 3px; height: 24px; border-radius: 2px; background: var(--nv-ink); transform: scaleY(.12); transition: transform .07s linear; }
 .nv-nt-meter .tm { font: 600 15px var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink60); }
+.nv-nt-type { display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 12px 0 10px; border: 0; border-radius: 22px; cursor: pointer; font: 600 15px var(--nv-font-ui); color: var(--nv-ink60); background: transparent; }
+.nv-nt-type svg { width: 16px; height: 16px; }
 .nv-nt-stop { height: 44px; padding: 0 14px; border: 0; border-radius: 22px; cursor: pointer; white-space: nowrap; font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 12%, transparent); }
 
 /* Tap to hear: a glass strip with its own way out */

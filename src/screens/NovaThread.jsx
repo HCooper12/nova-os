@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useDictation, reportTurnEnd, useNudge, NUDGE_LINE } from '../useDictation.js';
 import { LocalInput } from '../LocalInput.jsx';
 import { useContinuation } from '../useContinuation.js';
@@ -579,6 +580,15 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false,
   if (dict.on) {
     return (
       <div className="nv-nt-composer listening">
+        {/* TYPE INSTEAD (29 Oct 2026, his words: "there doesn't seem to be a
+            way to cancel the automatic listening without waiting for it to
+            fail"). The hold opens the mic; this closes it with nothing sent
+            and puts the keyboard up inside the same tap (iOS raises it only
+            from a gesture, so the field is rendered before focus). */}
+        <button type="button" className="nv-nt-type" aria-label="Stop listening and type instead"
+          onClick={() => { flushSync(() => dict.abandon()); fieldRef.current?.focus(); }}>
+          <Ico name="x" />Type
+        </button>
         <Meter since={since} />
         <button type="button" className="nv-nt-stop" onClick={dict.toggle}>Send now</button>
         {/* a tap before he has said anything keeps the mic open; a second ends it */}
