@@ -56,6 +56,8 @@ export function VoicePresence({ v }) {
       // can be told apart in the log when they misbehave around each other
       onTurnEnd: (info) => reportTurnEnd('presence', v.voiceHold, info),
       onNudge: nudge,
+      // the stream stays warm between turns while the conversation runs (src/warmMic.js)
+      keepMic: () => s.micConversation?.(),
     },
   );
   const dictRef = useRef(dict);

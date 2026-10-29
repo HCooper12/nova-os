@@ -454,6 +454,11 @@ export function valsMisc(app, ctx) {
     // conversation mode — the hands-free back-and-forth loop
     convMode: st.voiceConvMode,
     convPaused: st.voiceConvPaused,
+    // THE WARM MICROPHONE (src/warmMic.js): is the spoken conversation still
+    // going right now? Read live at the end of each turn, never from a render.
+    // Conversation mode on and not paused or stood by, or the continuation
+    // window open after his spoken send.
+    micConversation: () => !demoMode && ((!!app.state.voiceConvMode && !app.state.voiceConvPaused && !app.standbyOn()) || app.continueWindowOpen()),
     // the no-button reply window after Nova speaks (see App.endSpeech)
     replyListen: !demoMode && !!st.voiceReplyWindow,
     consumeReplyListen: () => app.setState({ voiceReplyWindow: false }),

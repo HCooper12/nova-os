@@ -98,6 +98,8 @@ export function NovaThread({ v }) {
       getAsked: () => v.lastNovaQuestion?.() || '',
       // his voice in the continuation window claims the turn (Nova falls quiet)
       onSound: cont.sound,
+      // the stream stays warm between turns while the conversation runs (src/warmMic.js)
+      keepMic: () => v.micConversation?.(),
     },
   );
   cont.dictRef.current = dict;

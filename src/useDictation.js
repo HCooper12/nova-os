@@ -9,6 +9,7 @@ import { hearingChoice, resolveHearing } from './hearingEngine.js';
 import { tapOnOpenMic, isEmptyCapture, openedTurn, micWait, stallOf, holdAsDraft, endedByFor, blindReadDue, blindVerdict, wordCount, BLIND_CAP_MS } from './listenRules.js';
 import { takeListen, noteListenEnd, novaSpeakingNow } from './listenCause.js';
 import { haptic } from './haptics.js';
+import { giveBackMic, warmHeld, dropWarm, micRoute } from './warmMic.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -132,7 +133,11 @@ const sessionType = () => {
 // hold the clip so far is read (recorder.peek) and judged; when that read
 // covers everything he said, it IS the turn's words and the end does not
 // transcribe twice.
-export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept, judge = true, getAsked = null, onSound = null } = {}) {
+// THE WARM MICROPHONE (29 Oct 2026, src/warmMic.js): `keepMic()` says the
+// spoken conversation is still going. While it does, and he opened the mic
+// himself, the stream outlives the turn and the next one records on it at
+// once; the moment it does not, the stream is let go.
+export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept, judge = true, getAsked = null, onSound = null, keepMic = null } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const saidRef = useRef('');      // words from earlier engines in THIS turn
@@ -151,6 +156,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const mountedRef = useRef(true);
   const extendedRef = useRef(false);  // the hold is running long on unfinished words
   const peekRef = useRef(null);       // own ears: the clip-so-far read { heardAt, status, text, ms, at }
+  const ownerRef = useRef({});        // this hook, as the warm microphone's owner
+  const giveRef = useRef(null);       // the last end-of-turn hold decision { keep, why }
+  const keepMicRef = useRef(keepMic);
+  keepMicRef.current = keepMic;       // read at the END of a turn, so always this render's
+  const keepMicNow = () => { try { return !!keepMicRef.current?.(); } catch { return false; } };
   const blindRef = useRef(null);      // own ears, meter deaf: the reads that decide { reads, pending, lastReadAt, useText, useMs }
   const [extended, setExtended] = useState(false);
   const [on, setOn] = useState(false);
@@ -393,6 +403,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     setBlind(false);
     setHearing(true);
     const blindMs = handle?.blindMs?.() ?? 0;
+    const micFacts = handle ? { micReused: !!handle.reused, micRoute: micRoute(handle.trackLabel?.()) } : null;
     const diagnosis = handle?.diagnosis?.() || null;
     const vad = handle?.vad();
     const wasBlind = !!handle?.blind();
@@ -476,6 +487,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
           ...(br?.reads?.length ? { blindReads: br.reads.length } : {}),
           ...(meta.stallMs ? { stallMs: meta.stallMs } : {}),
           ...(diagnosis || {}),
+          ...(micFacts || {}),
+          ...(giveRef.current?.why ? { micKept: giveRef.current.why } : {}),
           firstSoundMs: meta.firstSoundAt && meta.micOpenAt ? Math.max(0, meta.firstSoundAt - meta.micOpenAt) : null,
           peak: vad?.peak ?? 0,
           txStatus,
@@ -660,7 +673,13 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     setOn(true);
     setBlind(false);
     clockRef.current = setInterval(tickNova, TICK_MS);
+    giveRef.current = null;
     openRecording({
+      warm: {
+        owner: ownerRef.current,
+        trigger,
+        release: (stream) => { giveRef.current = giveBackMic(stream, { owner: ownerRef.current, conversing: keepMicNow() }); },
+      },
       onLevel: (vad) => {
         if (vad.speaking && turnRef.current && turnSeqRef.current === seq) {
           turnRef.current = sawSpeech(turnRef.current, Date.now());
@@ -793,6 +812,14 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
+
+  // THE CONVERSATION ENDED BETWEEN TURNS (he stopped it, it paused, standby,
+  // the continuation closed): a held stream goes now, not at the idle timeout
+  useEffect(() => {
+    if (!liveRef.current && warmHeld(ownerRef.current) && !keepMicNow()) dropWarm('conversation-ended', ownerRef.current);
+  });
+  // leaving the surface lets it go too
+  useEffect(() => () => { dropWarm('left', ownerRef.current); }, []);
 
   // Leaving the screen mid-turn used to leave the recogniser running; with a
   // clock behind it that would also leave an interval ticking forever.

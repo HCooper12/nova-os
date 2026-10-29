@@ -92,8 +92,16 @@ export function listenFields(body = {}) {
   if (METERS.has(body.meter)) out.meter = body.meter;
   if (GRAPH_STATES.has(body.graphAtBlind)) out.graphAtBlind = body.graphAtBlind;
   if (body.muted === true) out.muted = true;
+  // THE WARM MICROPHONE (src/warmMic.js): did this turn record on the stream
+  // the last turn kept, which microphone it was, and what the end of the turn
+  // decided about keeping it (warmDecision's closed set of reasons)
+  if (typeof body.micReused === 'boolean') out.micReused = body.micReused;
+  if (MIC_ROUTES.has(body.micRoute)) out.micRoute = body.micRoute;
+  if (MIC_KEPT.has(body.micKept)) out.micKept = body.micKept;
   return out;
 }
+const MIC_ROUTES = new Set(['builtin', 'bluetooth', 'unknown']);
+const MIC_KEPT = new Set(['conversation', 'off', 'ended', 'hidden', 'not-conversing', 'not-his', 'bluetooth', 'none']);
 const METERS = new Set(['shared', 'own', 'none']);
 const GRAPH_STATES = new Set(['running', 'suspended', 'interrupted', 'closed', 'none']);
 

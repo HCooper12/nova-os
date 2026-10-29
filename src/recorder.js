@@ -16,6 +16,7 @@
 import { openVad, vadStep, vadBlind } from './vad.js';
 import { attachMicStream, openMicLevel, openOwnMeter, sharedGraphState } from './audioLevel.js';
 import { getConnection } from './api.js';
+import { takeMic, markInUse, CAPTURE } from './warmMic.js';
 
 const SAMPLE_MS = 100;
 
@@ -34,16 +35,22 @@ export function pickRecordingType(isSupported) {
 // Open the mic and start recording. Resolves to a live handle, or rejects with
 // the browser's own error (NotAllowedError when he said no).
 //   onLevel(vadState) — every 100ms, what the meter thinks
-export async function openRecording({ onLevel } = {}) {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-  });
+//   warm              — { owner, trigger, release(stream) }: take the stream
+//                       from src/warmMic.js (a held one when the conversation
+//                       kept it) and hand it back through `release` instead of
+//                       stopping it. Absent: a fresh capture, stopped at the end.
+export async function openRecording({ onLevel, warm = null } = {}) {
+  const got = warm
+    ? await takeMic({ owner: warm.owner, trigger: warm.trigger })
+    : { stream: await navigator.mediaDevices.getUserMedia({ audio: CAPTURE }), reused: false, warmMs: null };
+  const stream = got.stream;
+  if (warm) markInUse(stream, true);
   const type = pickRecordingType((t) => window.MediaRecorder.isTypeSupported?.(t));
   let rec;
   try {
     rec = type ? new window.MediaRecorder(stream, { mimeType: type }) : new window.MediaRecorder(stream);
   } catch (e) {
-    stream.getTracks().forEach((tr) => tr.stop());
+    if (warm?.release) { markInUse(stream, false); warm.release(stream); } else stream.getTracks().forEach((tr) => tr.stop());
     throw e;
   }
   const chunks = [];
@@ -95,11 +102,17 @@ export async function openRecording({ onLevel } = {}) {
     try { level?.detach(); } catch { /* gone */ }
     try { own?.close(); } catch { /* gone */ }
     own = null;
-    stream.getTracks().forEach((tr) => tr.stop());
+    // the conversation may keep the stream for his next turn (warmMic.js)
+    if (warm?.release) { markInUse(stream, false); try { warm.release(stream); } catch { stream.getTracks().forEach((tr) => tr.stop()); } }
+    else stream.getTracks().forEach((tr) => tr.stop());
   };
 
   return {
     type: rec.mimeType || type || 'audio/mp4',
+    // for the receipt: did this turn record on a stream the last turn kept,
+    // and which microphone (warmMic.micRoute reads the label)
+    reused: !!got.reused,
+    trackLabel: () => stream.getAudioTracks?.()[0]?.label || '',
     vad: () => vad,
     blind: () => vadBlind(vad),
     blindMs: () => blindMs,

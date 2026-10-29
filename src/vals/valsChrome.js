@@ -436,6 +436,8 @@ export function valsChrome(app, ctx) {
       busy: !!st.voiceBusy,
       speaking: !!st.voiceSpeaking,
       conversing: !!st.voiceConvMode,
+      // the warm microphone's question, read live (src/warmMic.js)
+      micConversation: () => !!app.state.voiceConvMode && !app.state.voiceConvPaused && !app.standbyOn(),
       coreStyle: st.coreStyle,
       autoListenTick: st.voiceAutoListenTick,
       ask: st.liveAsk || '',
