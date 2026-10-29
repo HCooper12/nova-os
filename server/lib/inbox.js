@@ -345,6 +345,14 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     return { destination: shipped.destination, undo: shipped.undo, ok: shipped.ok };
   }
 
+  // PROJECTS (29 Oct 2026, PROJECTS-PLAN §1, §4): a brief he approved, a stage
+  // move or a settings change he ticked. The kernel does the work; every
+  // writer refuses a linked project (Science Atlas, Wren, Nova).
+  if (route === 'project-create' || route === 'project-stage' || route === 'project-settings') {
+    const { fileProjectDecision } = await import('./novaProjects.js');
+    return fileProjectDecision(vaultPath, route, payload);
+  }
+
   if (route === 'shopping') {
     const added = await addItemsDirect(vaultPath, payload.items.map((it) => ({ ...it, source })));
     return {
@@ -1321,6 +1329,10 @@ export async function undoFiling(vaultPath, undo) {
     const { restored } = await undoDistillJob(vaultPath, undo.jobId);
     return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-distillation state`;
   }
+  if (undo.route === 'project-create' || undo.route === 'project-stage' || undo.route === 'project-settings') {
+    const { undoProjectDecision } = await import('./novaProjects.js');
+    return undoProjectDecision(vaultPath, undo);
+  }
   if (undo.route === 'build') {
     const { undoBuild } = await import('./builder.js');
     return undoBuild(undo.slug);
@@ -2126,8 +2138,8 @@ export async function approveRecord(vaultPath, id) {
   if (record.kind === 'coach-audit') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
-  const { destination, undo } = await fileDecision(vaultPath, record.decision);
-  return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
+  const { destination, undo, projectId } = await fileDecision(vaultPath, record.decision);
+  return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null, ...(projectId ? { projectId } : {}) });
 }
 
 export async function discardRecord(id, reason, { vaultPath = null } = {}) {

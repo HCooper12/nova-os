@@ -16,7 +16,10 @@ const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8')
 const ROWS = INDEX_GROUPS.flatMap((g) => g.rows);
 
 test('every screen but the Index itself has exactly one row', () => {
-  for (const key of SCREEN_KEYS.filter((k) => k !== 'index')) {
+  // 'code' has no row since 29 Oct 2026: Projects absorbed it (PROJECTS-PLAN
+  // §4 option a), and the Code screen opens from a build project's page
+  const REACHED_THROUGH = { code: 'projects' };
+  for (const key of SCREEN_KEYS.filter((k) => k !== 'index' && !REACHED_THROUGH[k])) {
     const groups = INDEX_GROUPS.filter((g) => g.rows.includes(key)).map((g) => g.key);
     assert.equal(groups.length, 1, `${key} is in ${groups.length ? groups.join(' and ') : 'no group'}`);
   }

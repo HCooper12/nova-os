@@ -349,14 +349,15 @@ test('buildTrends always returns exactly the four rows, in order', () => {
 test('reconcilePinned drops a retired key and appends a new one in meta order', () => {
   const meta = [...PINNED_CARDS, ['newcard', 'New card']];
   const list = reconcilePinned({ order: ['trends', 'retired', 'body'], off: [] }, meta);
-  assert.deepEqual(list.map((x) => x.key), ['trends', 'body', 'highlight', 'today', 'plan', 'waiting', 'training', 'practice', 'day', 'newcard']);
+  assert.deepEqual(list.map((x) => x.key), ['trends', 'body', 'highlight', 'today', 'plan', 'waiting', 'training', 'practice', 'day', 'projects', 'newcard']);
 });
 
 test("'Right now' joins a saved order at the top, on, and then moves like any card", () => {
   const before = reconcilePinned({ order: ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day'], off: ['day'] });
   assert.equal(before[0].key, 'highlight');
   assert.equal(before[0].on, true);
-  assert.deepEqual(before.slice(1).map((x) => x.key), ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day']);
+  // a card added since (Projects, 29 Oct 2026) joins at the end
+  assert.deepEqual(before.slice(1).map((x) => x.key), ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day', 'projects']);
   // saved with Body first: his order stands
   const moved = reconcilePinned({ order: ['body', 'highlight', 'today'], off: [] });
   assert.deepEqual(moved.slice(0, 2).map((x) => x.key), ['body', 'highlight']);

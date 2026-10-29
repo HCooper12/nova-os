@@ -19,4 +19,4 @@
 // falls back to Home, where the card is.
 export const SCREEN_KEYS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
   'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'practice', 'journal', 'money', 'settings', 'briefing',
-  'index', 'documents'];
+  'index', 'documents', 'projects'];

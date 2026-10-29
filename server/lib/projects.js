@@ -27,7 +27,11 @@ import { existsSync, mkdirSync, readdirSync, statSync, realpathSync, renameSync 
 import path from 'node:path';
 import os from 'node:os';
 
-export const PROJECTS_ROOT = () => process.env.NOVA_PROJECTS_DIR || path.join(os.homedir(), 'Nova Projects');
+// ~/Projects since 29 Oct 2026 (PROJECTS-PLAN §0, Q11): the folder he already
+// keeps his work in. Things there that Nova did not make (nova-os, Science
+// Atlas) are never written: a build refuses an existing folder, and the
+// project kernel refuses every write to a linked project.
+export const PROJECTS_ROOT = () => process.env.NOVA_PROJECTS_DIR || path.join(os.homedir(), 'Projects');
 
 // Where an undone build goes. Never deleted — a build is work, and the undo
 // for "you made me something I did not want" is "put it out of my way", not

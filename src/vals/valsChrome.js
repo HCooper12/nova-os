@@ -193,7 +193,7 @@ export function valsChrome(app, ctx) {
     recipeOvVtName: st.openRecipeId ? `recipe-${st.openRecipeId}` : null,
     supportsViewTransitions: typeof document !== 'undefined' && !!document.startViewTransition,
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
-    isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
+    isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isProjects: st.screen === 'projects', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     // THE INDEX (P3): the More tab under `summary` — every screen, grouped
     isIndex: st.screen === 'index',
     dateLabel: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date()).toUpperCase().replace(/,/g, ''),
@@ -207,7 +207,9 @@ export function valsChrome(app, ctx) {
       mkNav('Mission Control', 'I.', 'mission'),
       mkNav('Nova', 'II.', 'voice'),
       mkNav('Memory Galaxy', 'III.', 'galaxy'),
-      mkNav('Claude Code', 'IV.', 'code'),
+      // PROJECTS ABSORBS CODE (29 Oct 2026, PROJECTS-PLAN §4 option a): the
+      // entry is where Code was; Code opens from a build project's page
+      mkNav('Projects', 'IV.', 'projects'),
       Object.assign(mkNav('Inbox', 'V.', 'inbox'), inboxPendingCount > 0 ? { count: String(inboxPendingCount), countHot: true } : {}),
     ]),
     navVault: sortByOrder([

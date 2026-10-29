@@ -236,6 +236,14 @@ export const api = {
     return URL.createObjectURL(await res.blob());
   },
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
+  // PROJECTS (phase 1, 29 Oct 2026): the kernel's records + the linked three
+  projects: (conn) => call(conn, '/api/projects'),
+  project: (conn, id) => call(conn, `/api/projects/${encodeURIComponent(id)}`),
+  projectIntake: (conn, text, sessionId) => post(conn, '/api/projects/intake', { text, sessionId: sessionId || null }),
+  projectIntakeJob: (conn, jobId) => call(conn, `/api/projects/intake/${encodeURIComponent(jobId)}`),
+  projectStage: (conn, id, to, reason) => post(conn, `/api/projects/${encodeURIComponent(id)}/stage`, { to, reason: reason || '' }),
+  projectArchive: (conn, id) => post(conn, `/api/projects/${encodeURIComponent(id)}/archive`, {}),
+  projectSettings: (conn, id, patch) => post(conn, `/api/projects/${encodeURIComponent(id)}/settings`, patch),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
   stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),
@@ -589,6 +597,8 @@ export const api = {
   // voice-chat line goes up; the Voice screen reads the whole record back
   conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),
   saveConversation: (conn, turns) => post(conn, '/api/conversation', { turns }),
+  // one project's thread (Projects T7): the same record, filtered by projectId
+  projectThread: (conn, projectId) => call(conn, `/api/conversation?limit=200&projectId=${encodeURIComponent(projectId)}`),
   // photos/videos with a question — stored first, named by id on the ask
   attach: (conn, files) => post(conn, '/api/attachments', { files }, { timeoutMs: 180_000 }),
   // fired the moment the mic opens, before a question exists — boots the

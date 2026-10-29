@@ -21,6 +21,8 @@ export const COACH_DECLINE_REASONS = ['Not now', 'Too aggressive', 'No equipment
 // though he'd written them himself. A map can be read at a glance and
 // audited by a test; a ternary chain cannot.
 const SOURCE_LABEL = {
+  // Projects phase 1 (29 Oct 2026)
+  'project-brief': 'PROJECTS', 'project-stage': 'PROJECTS', 'project-settings': 'PROJECTS',
   review: 'DAILY REVIEW', dispatch: 'DISPATCH', compost: 'COMPOST', guardian: 'GUARDIAN',
   cfo: 'CFO', 'money-import': 'CFO', money: 'CFO', 'money-write': 'MONEY', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
   calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
@@ -60,6 +62,10 @@ function practiceSlugOf(r, shelf = []) {
 // exported for the summary Inbox (valsInboxSummary.js), which must tell a
 // route this table names from one it does not (the audit's finding 3)
 export const ROUTE_META = {
+  // Projects phase 1: a new project's brief, a stage move, a settings change
+  'project-create': { label: 'NEW PROJECT', hue: '224,178,106' },
+  'project-stage': { label: 'PROJECT STAGE', hue: '224,178,106' },
+  'project-settings': { label: 'PROJECT SETTING', hue: '224,178,106' },
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
   journal: { label: 'JOURNAL', hue: '143,123,255' },
   todo: { label: 'TO-DO', hue: '89,230,255' },
@@ -132,8 +138,23 @@ const MODE_LADDER = [
   { value: 'auto-all', label: 'Auto-file everything', hint: 'full autonomy — history and undo keep the receipts' },
 ];
 
+// A project's brief, as he needs it to say yes: name, kind, goal, the phases
+// and what it may read. Code writes this from the validated brief.
+function briefLines(b) {
+  if (!b) return '';
+  return [
+    `${b.name} · ${b.kind}`,
+    b.goal,
+    b.done ? `Done looks like: ${b.done}` : '',
+    (b.phases || []).length ? `Phases: ${(b.phases || []).map((ph, i) => `${i + 1}. ${ph.name}`).join('  ')}` : '',
+    `Reads: ${(b.reads || []).length ? b.reads.join(', ') : 'nothing beyond who you are'}`,
+  ].filter(Boolean).join('\n');
+}
+
 function payloadPreview(decision) {
   if (!decision) return '';
+  if (decision.route === 'project-create') return briefLines(decision.payload?.brief);
+  if (decision.route === 'project-stage') return `${decision.payload?.from} → ${decision.payload?.to}`;
   // the gate question already renders as item.reason — a preview line would
   // just repeat it (or, without this branch, print an empty " — ")
   if (decision.route === 'model-choice') return '';
@@ -182,6 +203,7 @@ function payloadPreview(decision) {
 // back to it; the text-bearing routes get their whole payload.
 function fullPayload(decision) {
   if (!decision) return '';
+  if (decision.route === 'project-create') return briefLines(decision.payload?.brief);
   const p = decision.payload || {};
   const route = decision.route;
   if (route === 'journal') return [p.text, p.label && `— filed under ${p.category || 'personal'} · ${p.label}`].filter(Boolean).join('\n');
@@ -436,7 +458,7 @@ export function valsInbox(app, ctx) {
     // (server/lib/textLane.js laneVia). An ordinary Claude sort says nothing.
     localNote: inboxProviderNote(r),
     status: r.status,
-    route: PRACTICE_KINDS.has(r.kind) ? ROUTE_META[r.kind] : r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
+    route: PRACTICE_KINDS.has(r.kind) ? ROUTE_META[r.kind] : r.decision ? (r.dryRun && ROUTE_META[r.decision.route] && /^project-/.test(r.decision.route) ? { ...ROUTE_META[r.decision.route], label: `${ROUTE_META[r.decision.route].label} · DRY RUN` } : (ROUTE_META[r.decision.route] || ROUTE_META.note)) : null,
     confidence: r.decision?.confidence || null,
     // the two halves of what used to be one `reason` line: the promise about
     // approving leads the card, anything else stays where it was
@@ -452,7 +474,7 @@ export function valsInbox(app, ctx) {
     // the money, plainly, from the record's own payload — never estimated here
     spentUsd: null,        // was the spend that tripped a cap; there are no caps
     nextBudgetUsd: null,   // was the next cap offered; there are none
-    approveLabel: isContinue ? 'Continue' : r.kind === 'code-ship' ? 'Ship it' : 'Approve & file',
+    approveLabel: isContinue ? 'Continue' : r.kind === 'code-ship' ? 'Ship it' : r.kind === 'project-brief' ? (r.dryRun ? 'Create it · dry run' : 'Create it') : 'Approve & file',
     // a change the Builder made: files, checks, the Breaker, the diff and,
     // once he taps Ship it, the steps code takes (lib/codeShip.js)
     ship: r.kind === 'code-ship' ? {

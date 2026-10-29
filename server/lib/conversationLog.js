@@ -73,6 +73,7 @@ function cleanVia(raw) {
   return {};
 }
 const ID = /^[A-Za-z0-9_.:-]{6,96}$/;
+const PROJECT_ID = /^([0-9a-f]{8}|repo|atlas|wren)$/;
 const WORD = /^[a-z][a-z0-9-]{0,23}$/;
 const MAX_TEXT = 20_000;          // a long spoken turn, never a payload
 const FUTURE_SLACK_MS = 5 * 60_000; // a phone clock a little ahead is fine; a year ahead is not
@@ -97,6 +98,8 @@ export function normaliseTurn(raw, now = new Date()) {
     ...(device ? { device } : {}),
     ...(by ? { by } : {}),
     ...(from ? { from } : {}),
+    // a turn on a project's page (Projects T7): the page reads its own thread back by this
+    ...(typeof raw.projectId === 'string' && PROJECT_ID.test(raw.projectId) ? { projectId: raw.projectId } : {}),
     ...cleanVia(raw),
   };
 }
@@ -140,7 +143,7 @@ async function monthFiles() {
 // The record, collapsed by id (the last version wins, kept at the first
 // version's time), oldest first. `since` / `before` bound it; `limit` keeps
 // the newest N. Reads newest month first and stops once it has enough.
-export async function readTurns({ limit = 150, since = null, before = null } = {}) {
+export async function readTurns({ limit = 150, since = null, before = null, projectId = null } = {}) {
   const sinceMs = since ? new Date(since).getTime() : null;
   const beforeMs = before ? new Date(before).getTime() : null;
   const files = (await monthFiles()).reverse();
@@ -159,9 +162,10 @@ export async function readTurns({ limit = 150, since = null, before = null } = {
     // a month older than `since` holds nothing we want; a month's worth of
     // rows beyond the limit means older months cannot change the answer
     if (sinceMs != null && new Date(`${f.slice(0, 7)}-01T00:00:00Z`).getTime() < sinceMs) break;
-    if (!sinceMs && !beforeMs && byId.size >= limit * 2) break;
+    if (!sinceMs && !beforeMs && !projectId && byId.size >= limit * 2) break;
   }
   let rows = [...byId.values()];
+  if (projectId) rows = rows.filter((r) => r.projectId === projectId);
   if (sinceMs != null && !Number.isNaN(sinceMs)) rows = rows.filter((r) => new Date(r.at).getTime() >= sinceMs);
   if (beforeMs != null && !Number.isNaN(beforeMs)) rows = rows.filter((r) => new Date(r.at).getTime() < beforeMs);
   rows.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
