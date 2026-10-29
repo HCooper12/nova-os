@@ -367,3 +367,24 @@ test('the doors: Quick Capture and his voice both reach the same add; nothing wi
   const out = await runVerb('/vault', 'technology', { verb: 'wishlist.answer', args: { value: 'technology' } });
   assert.equal(out.acted.said, 'Under Technology.');
 });
+
+test('Quick Capture\'s receipt: the tag names the list, a failed add shows its cause, the one open question is taps', async () => {
+  const { captureTag } = await import('../../src/captureTag.js');
+  const { quickCaptureModel } = await import('../../src/vals/quickCapture.js');
+  const filed = { id: 'w1', kind: 'wishlist', status: 'filed', text: 'wishlist https://x', undoData: { kind: 'wishlist-add' },
+    decision: { route: 'wishlist', payload: { draft: { name: 'Oxford Overshirt', category: 'Clothing' }, questions: [{ field: 'colour', ask: 'Which colour?', options: ['Navy', 'Khaki'], upFront: 6 }] } } };
+  const failed = { id: 'w2', kind: 'wishlist', status: 'error', text: 'wishlist https://y', error: `Nova cannot see your Wishlist yet. ${W.SHARE_HINT}` };
+  assert.deepEqual(captureTag(filed), { label: 'Wishlist · Clothing', tone: 'wishlist', movable: false });
+  assert.equal(captureTag({ ...filed, status: 'classifying' }).label, 'Wishlist · reading the page…');
+  assert.equal(captureTag(failed).label, 'Wishlist · not added');
+  const picked = [];
+  const app = { answerWishlist: (...a) => picked.push(a), inboxAction: () => {}, openCaptureTag: () => {} };
+  const m = quickCaptureModel({ liveInbox: { items: [filed, failed] }, qcRecent: ['w1', 'w2'] }, app);
+  assert.equal(m.rows[0].text, 'Oxford Overshirt');
+  assert.ok(m.rows[0].onUndo);
+  assert.equal(m.rows[0].ask.text, 'Which colour?');
+  m.rows[0].ask.options[1].pick();
+  assert.deepEqual(picked, [['w1', 'colour', 'Khaki']]);
+  assert.match(m.rows[1].why, /Share My Shopping Wishlist with the Nova connection/);
+  assert.equal(m.rows[1].onUndo, null);
+});

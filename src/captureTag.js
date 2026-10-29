@@ -29,6 +29,7 @@ function whenLabel(iso, now = new Date()) {
 
 // { label, tone, movable } for an inbox record, or null when it is not a capture
 export function captureTag(record, now = new Date()) {
+  if (record?.kind === 'wishlist') return wishlistTag(record);
   if (!record || record.kind) return null;
   if (record.status === 'classifying') return { label: 'Sorting…', tone: 'quiet', movable: false };
   if (record.status === 'undone') return { label: 'Undone', tone: 'quiet', movable: false };
@@ -55,7 +56,20 @@ export function captureTag(record, now = new Date()) {
   }
 }
 
+// A link he sent to his Notion Wishlist (server/lib/wishlist.js): the tag
+// names the list it went under; an add that failed says so (the row carries
+// the real cause, e.g. the list is not shared with the Nova connection).
+function wishlistTag(record) {
+  if (record.status === 'classifying') return { label: 'Wishlist · reading the page…', tone: 'quiet', movable: false };
+  if (record.status === 'undone') return { label: 'Undone', tone: 'quiet', movable: false };
+  if (record.status === 'error') return { label: 'Wishlist · not added', tone: 'unsorted', movable: false };
+  if (record.status !== 'filed') return null;
+  const cat = record.decision?.payload?.draft?.category;
+  return { label: `Wishlist${cat ? ` · ${cat}` : ''}`, tone: 'wishlist', movable: false };
+}
+
 export const TAG_HUE = {
+  wishlist: 'var(--nv-mg)', // the one place no other tag uses: things he wants
   shopping: 'var(--nv-good)', todo: 'var(--nv-cy)', note: 'var(--nv-vi)', journal: 'var(--nv-gold)',
   reminder: 'var(--nv-or, var(--nv-gold))', food: 'var(--nv-good)', unsorted: 'var(--nv-gold)', quiet: 'var(--nv-ink60)',
 };

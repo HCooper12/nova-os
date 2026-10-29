@@ -722,6 +722,8 @@ export const api = {
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
   // the tag on a capture: move it, or re-read it with a detail (mockup 103)
   inboxReroute: (conn, id, route, detail) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reroute`, { route: route || null, detail: detail || '' }),
+  // his Notion Wishlist: the tap that answers an add's open question (id = the add's inbox record)
+  wishlistAnswer: (conn, id, field, value) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/answer`, { field, value }),
   // THE SKILL SETS (mockup 97): read, and his tick / cross / undo on a suggestion
   skillSets: (conn) => call(conn, '/api/skillsets'),
   skillSuggestion: (conn, id, verb) => post(conn, `/api/skillsets/suggestions/${encodeURIComponent(id)}/${verb}`),

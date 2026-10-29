@@ -610,15 +610,22 @@ export async function addFromLink(vaultPath, { url, said = '', source = 'text', 
     });
     // the photo, kept on this Mac so Nova's page never waits on the shop
     if (draft.image) deps.cacheImage(draft.image).catch?.(() => {});
+    tellScreens();
     return { record: filed, draft, pageId: page.pageId, pageUrl: page.url, questions: draft.questions, said: saidFor(draft) };
   } catch (e) {
     const failed = await updateRecord(rec.id, { status: 'error', error: e.message, errorCode: e.code || null, failedAt: deps.now().toISOString() }).catch(() => rec);
+    tellScreens();
     const err = new Error(e.message);
     err.code = e.code;
     err.status = e.code === 'not-shared' || e.code === 'not-connected' ? 409 : e.code === 'duplicate' ? 409 : e.code === 'bad-link' ? 400 : 502;
     err.record = failed;
     throw err;
   }
+}
+
+// an add finished behind Quick Capture's row: the open screens refresh their Inbox
+function tellScreens() {
+  import('./events.js').then(({ broadcast }) => broadcast('inbox')).catch(() => {});
 }
 
 // Quick Capture's door: the row goes on the board now, the work runs behind
