@@ -527,6 +527,8 @@ export function parseJobCommand(text, ctx = {}) {
   if (urls.length === 1) {
     const url = urls[0];
     const lane = routeIntent(raw).lane;
+    // "add this to my wishlist <link>": his Notion Wishlist (lib/wishlist.js)
+    if (/\bwish\s?list\b/i.test(prose)) return { verb: 'wishlist.add', args: { url, said: prose } };
     const link = classifyLink(url, prose);
     if (link.kind === 'recipe-reel' || (lane === 'recipe' && p)) return { verb: 'recipe.import', args: { url, ...(prose ? { words: prose } : {}) } };
     if (lane === 'repertoire') return { verb: 'repertoire.start', args: { url, words: prose } };
