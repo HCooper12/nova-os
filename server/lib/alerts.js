@@ -560,10 +560,15 @@ export function eventsStartingSoon(events = [], now = Date.now(), withinMin = CA
 
 // "3:40": his clock, no am/pm (standby.clockLine's rule: he knows which half he is in)
 const clock12 = (d) => `${((d.getHours() + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, '0')}`;
+// HIS CALL, 29 Oct 2026: "Yes, since my phone should remind me anyway." 64
+// of these a week, every one repeating what iOS Calendar already says. A
+// recurring event (Morning routine, Workout) raises nothing; a one-off event
+// shows on screen and in his next turn, never as a push. The day's events
+// still reach him through the Morning Dispatch, the day plan and the show.
 export function calendarAlert(e, now = Date.now()) {
   const mins = Math.max(1, Math.round((Date.parse(e.startISO) - now) / 60_000));
   return {
-    tier: 'now', label: 'CALENDAR', kind: 'calendar-soon',
+    tier: 'next', label: 'CALENDAR', kind: 'calendar-soon',
     what: `${clip(e.label || 'Your next event', 60)} starts soon`,
     where: `in ${mins} minute${mins === 1 ? '' : 's'}, at ${clock12(new Date(Date.parse(e.startISO)))}`,
     source: 'from your calendar',
@@ -576,6 +581,7 @@ export function calendarAlert(e, now = Date.now()) {
 export async function calendarSoonCheck(events, { now = Date.now() } = {}) {
   const out = [];
   for (const e of eventsStartingSoon(events, now)) {
+    if (e.recurring) continue;
     const a = calendarAlert(e, now);
     if (hasDedupe(a.dedupeKey)) continue;
     out.push(await raiseAlert(a));

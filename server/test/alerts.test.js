@@ -347,10 +347,21 @@ test('source: calendar — only a timed event inside 10 minutes, once per start'
   assert.deepEqual(soon.map((e) => e.id), ['e5']);
   await A.calendarSoonCheck([ev(5)], { now });
   await A.calendarSoonCheck([ev(5)], { now: now + 25_000 });
-  assert.equal(sent.length, 1);
+  // his call, 29 Oct: his phone's Calendar already reminds him, so no push
+  assert.equal(sent.length, 0);
+  assert.equal(A.pendingAlerts().length, 1, 'a one-off event still shows, once');
   const p = A.pendingAlerts()[0];
   assert.equal(p.label, 'CALENDAR');
   assert.match(p.where, /^in 5 minutes, at \d{1,2}:\d{2}$/);
+});
+
+test('source: calendar — a recurring event raises nothing at all', async () => {
+  await reset();
+  const now = Date.now();
+  const routine = { id: 'r1', label: 'Morning routine', time: '5:30', recurring: true, startISO: new Date(now + 5 * 60_000).toISOString() };
+  assert.deepEqual(await A.calendarSoonCheck([routine], { now }), []);
+  assert.equal(sent.length, 0);
+  assert.equal(A.pendingAlerts().length, 0);
 });
 
 test('source: the pocket keeps its own lock-screen words and its one-per-workout key', async () => {
