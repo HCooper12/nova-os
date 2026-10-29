@@ -1967,3 +1967,41 @@ Report format: a short verdict line, then a numbered list of findings — each w
 
   return jobId;
 }
+
+// PROJECT INTAKE (29 Oct 2026, PROJECTS-PLAN §1). One conversational turn of
+// the questions that start a project, on the same warm pool as Ask Nova
+// (warmTurn: turn one opens the session, later turns resume it). No vault
+// tools at all: what a project may read is named in its brief and handed in
+// by code later, never discovered. `finish(reply, job, again)` is
+// lib/projectIntake.js's: it parses the BRIEF line, files the card, or sends
+// the validator's errors back into this same session with `again(text)`.
+function intakeArgs(sessionId, isNew) {
+  return [
+    '-p', '--input-format', 'stream-json',
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', '',
+    '--disallowedTools', `${BREAKER_DISALLOWED},Read,Grep,Glob`,
+    '--strict-mcp-config',
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
+    '--model', modelFor('project-intake'),
+    ...effortArgs('project-intake'),
+    isNew ? '--session-id' : '--resume', sessionId,
+  ];
+}
+
+export function startProjectIntakeTurn(cwd, { text, sessionId = null, finish }) {
+  assertLaneOn('project-intake');
+  const jobId = randomUUID().slice(0, 8);
+  const isNew = !sessionId;
+  const sid = sessionId || randomUUID();
+  const job = { id: jobId, status: 'running', result: null, error: null, sessionId: sid, lane: 'project-intake' };
+  jobs.set(jobId, job);
+  const finishTurn = async (reply, turnJob) => {
+    const again = (next) => warmTurn({ kind: 'project-intake', sessionId: sid, cwd, args: intakeArgs(sid, false), text: next, job: turnJob, finishTurn });
+    await finish(reply, turnJob, again, sid);
+  };
+  warmTurn({ kind: 'project-intake', sessionId: sid, cwd, args: intakeArgs(sid, isNew), text, job, finishTurn });
+  return { jobId, sessionId: sid };
+}

@@ -163,6 +163,14 @@ export const LANES = [
     off: 'The voice screen and the Siri shortcut stop answering and say so; everything deterministic (the glass, the brief’s numbers) still works.',
   },
   {
+    // PROJECTS (29 Oct 2026, PROJECTS-PLAN §1): the short questions in turns
+    // that end in one BRIEF line, which code validates and files as a card.
+    // No vault tools: what the project may read is handed in, never found.
+    id: 'project-intake', label: 'Project intake', group: 'conversation', def: 'sonnet', defEffort: 'high',
+    hint: 'asks the few questions a new project needs, then writes the brief you approve in the Inbox',
+    off: 'Starting a project by talking to Nova is refused with a plain message; nothing is created.',
+  },
+  {
     id: 'greeting', label: 'Doorman greeting', group: 'conversation', local: true, def: 'haiku', defEffort: 'low',
     hint: 'the unscripted hello when you arrive — composition only, no vault reads',
     off: 'Nova opens without a spoken greeting. Nothing is faked in its place.',

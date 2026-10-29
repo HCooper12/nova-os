@@ -52,6 +52,20 @@ export function projectsRouter({ vaultPath, repoRoot, sessions } = {}) {
     } catch (e) { fail(res, e); }
   });
 
+  router.post('/projects/intake', async (req, res) => {
+    try {
+      const { startIntake } = await import('../lib/projectIntake.js');
+      res.json(await startIntake(vaultPath, { text: req.body?.text, sessionId: req.body?.sessionId || null }));
+    } catch (e) { fail(res, e); }
+  });
+
+  router.get('/projects/intake/:jobId', async (req, res) => {
+    const { getMessageJob } = await import('../lib/claudeCode.js');
+    const job = getMessageJob(req.params.jobId);
+    if (!job || job.lane !== 'project-intake') return res.status(404).json({ error: 'that intake turn is not running here' });
+    res.json({ id: job.id, status: job.status, stage: job.stage || null, partial: job.partial || '', result: job.result, error: job.error, sessionId: job.sessionId });
+  });
+
   router.post('/projects/:id/stage', async (req, res) => {
     try {
       const p = await find(req.params.id);

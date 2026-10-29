@@ -39,6 +39,7 @@ export const PROFILE_READERS = [
   { id: 'pattern-scout', label: 'Pattern scout', module: 'lib/patternScout.js', talks: false },
   { id: 'repertoire', label: 'Repertoire', module: 'lib/repertoireLane.js', talks: false },
   { id: 'watcher', label: 'Video watch', module: 'lib/watcher.js', talks: false },
+  { id: 'project-intake', label: 'Project intake', module: 'lib/projectIntake.js', talks: true },
 ];
 
 // Modules that carry NOVA_LENS but deliberately do not read profileContext.
