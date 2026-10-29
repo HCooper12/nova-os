@@ -364,7 +364,7 @@ export function makeKernel(host) {
 
   function updateProject(p, patch) {
     const rec = resolve(p);
-    const allowed = ['dryRun', 'allowances', 'quiet', 'modelOverride', 'limit', 'phases', 'stage'];
+    const allowed = ['dryRun', 'allowances', 'quiet', 'modelOverride', 'limit', 'phases', 'stage', 'workspace'];
     const next = { ...rec };
     for (const k of allowed) if (k in (patch || {})) next[k] = patch[k];
     next.updatedAt = now().toISOString();
@@ -479,6 +479,23 @@ export function makeKernel(host) {
     return { project: next, from };
   }
 
+  // the undo of a stage card: put the stage (and an archived folder) back
+  function revertStage(p, from) {
+    const rec = resolve(p);
+    if (!STAGES.includes(from)) throw refuse(`unknown stage "${from}"`, 'stage');
+    let next = { ...rec };
+    if (rec.stage === 'archived' && rec.archivedFrom) {
+      if (existsSync(rec.archivedFrom)) throw refuse('a folder exists where the archived project came from — move it by hand', 'exists');
+      if (existsSync(rec.folder)) renameSync(rec.folder, rec.archivedFrom);
+      next = { ...next, folder: rec.archivedFrom, archivedFrom: null };
+    }
+    next = { ...next, stage: from, updatedAt: now().toISOString() };
+    next = touchPage(next, { stage: from });
+    save(next);
+    appendLog(next, `stage put back to ${from} (undo)`, { action: 'undo' });
+    return next;
+  }
+
   /**
    * Undo a create. The folder goes to .undone (never deleted); the vault page
    * goes only if its hash is the one we wrote, and its empty Sources/Raw with
@@ -554,7 +571,7 @@ export function makeKernel(host) {
   return {
     host: hostName,
     getProject, listProjects, createProject, updateProject, applySettings, cleanSettings,
-    proposeStage, applyStage, archiveProject, undoCreate, appendLog, cleanActions,
+    proposeStage, applyStage, archiveProject, revertStage, undoCreate, appendLog, cleanActions,
     writeVaultPage, defaultDryRun, folderListing, readPage, readLog,
   };
 }

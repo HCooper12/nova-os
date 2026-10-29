@@ -91,6 +91,39 @@ export async function seedWorkspaces(defaults = DEFAULT_WORKSPACES()) {
   return { seeded: true };
 }
 
+// A PROJECT'S BUILD FOLDER as a workspace (Projects phase 1, 29 Oct 2026):
+// key `p-<slug>`, only ever added by the project kernel's Nova filer for a
+// build project it just created, and removed by that project's undo. The
+// atlas/wren entries are never touched: the file is read raw and every other
+// entry written back exactly as it was. No file yet: seed first, so adding a
+// project never stops his two folders from being seeded.
+export const projectWorkspaceKey = (slug) => `p-${String(slug || '').slice(0, 29).replace(/-+$/, '')}`;
+async function rawWorkspaces() {
+  await seedWorkspaces();
+  const j = JSON.parse(await readFile(WORKSPACES_FILE(), 'utf8'));
+  return Array.isArray(j) ? j : Array.isArray(j?.workspaces) ? j.workspaces : [];
+}
+async function writeRaw(list) {
+  const tmp = WORKSPACES_FILE() + '.tmp';
+  await writeFile(tmp, JSON.stringify({ workspaces: list }, null, 2) + '\n');
+  await rename(tmp, WORKSPACES_FILE());
+}
+export async function addProjectWorkspace({ slug, title, path: dir }) {
+  const key = projectWorkspaceKey(slug);
+  if (!KEY_RE.test(key)) throw refuse('that project has no usable workspace key');
+  const list = await rawWorkspaces();
+  if (list.some((w) => w?.key === key)) return { key, added: false };
+  await writeRaw([...list, { key, title: String(title || slug).slice(0, 60), path: dir }]);
+  return { key, added: true };
+}
+export async function removeProjectWorkspace(key) {
+  if (!/^p-/.test(String(key || ''))) throw refuse('only a project workspace can be removed here');
+  const list = await rawWorkspaces();
+  const next = list.filter((w) => w?.key !== key);
+  if (next.length !== list.length) await writeRaw(next);
+  return { removed: next.length !== list.length };
+}
+
 /**
  * A workspace key to the folder git and the Builder run in. `repo` is Nova
  * OS (the caller's repoRoot, so a test can point it at a temporary repo),

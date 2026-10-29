@@ -57,6 +57,8 @@ export const KIND_AGENT = {
   'index-repair': 'Librarian',
   // something Nova MADE, in the projects directory, while he was elsewhere
   build: 'Builder',
+  // Projects phase 1 (lib/novaProjects.js, lib/projectIntake.js)
+  'project-brief': 'Projects', 'project-stage': 'Projects', 'project-settings': 'Projects',
   // the Repertoire (15 Sep): a clip read for its technique, researched
   // outward, and taught back one a day — the other agents can say so
   repertoire: 'Repertoire',

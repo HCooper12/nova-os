@@ -30,6 +30,7 @@ import { foodLogRouter } from './routes/foodLog.js';
 import { artifactsRouter } from './routes/artifacts.js';
 import { eatOutRouter } from './routes/eatOut.js';
 import { inboxRouter } from './routes/inbox.js';
+import { projectsRouter } from './routes/projects.js';
 import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
 import { stashRouter } from './routes/stash.js';
@@ -245,6 +246,7 @@ async function main() {
   app.use('/api', artifactsRouter(process.env.VAULT_PATH)); // THE DOCUMENTS — what Nova, Coach and the Leader file to Outputs/Nova
   app.use('/api', eatOutRouter(process.env.VAULT_PATH)); // PICK IT UP — the takeaway/ready-meal catalogue and search
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
+  app.use('/api', projectsRouter({ vaultPath: process.env.VAULT_PATH, repoRoot: path.resolve(__dirname, '..') })); // PROJECTS — the kernel's records, the linked three read-only (lib/novaProjects.js)
   app.use('/api', loopsRouter(process.env.VAULT_PATH));
   app.use('/api', todosRouter(process.env.VAULT_PATH));
   app.use('/api', voiceRouter(process.env.VAULT_PATH));

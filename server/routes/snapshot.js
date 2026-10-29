@@ -33,6 +33,7 @@ export const SLICES = {
   fuelCross: '/api/train/fuel-cross',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
+  projects: '/api/projects', // Projects phase 1: his projects and the linked three
   workoutExercises: '/api/workouts/exercises',
   workoutRoutines: '/api/workouts/routines',
   workoutGoals: '/api/workouts/goals',
