@@ -11,6 +11,14 @@ the session log at the foot is append-only.
 
 ---
 
+
+## 29 Oct late: calendar quiet, × Type, one Nova page, Notion wishlist (2003e4bc)
+- Calendar "starts soon": recurring events raise nothing; one-off events show on screen only, never push (3ec8939f, his call).
+- × Type on the listening bar: closes the mic, nothing sent, keyboard up (0926f4cf). LIVE in bundle; not seen on his phone.
+- One Nova page (mockup 106 Option A, his approval with the REAL core): src/NovaStage.jsx + novaStageFacts.js; NovaFocus full-screen hop retired for the thread (Briefing still uses NovaFocus mode="briefing"). Verified by demo-data shots only; not seen on his phone, at 120 Hz, or listening (headless has no mic). Open: guard-cupertino voice/summary baselines drifted BEFORE this change, need re-recording.
+- Notion wishlist (lib/wishlist.js, routes/wishlist.js, wishlist.add/answer verbs, Quick Capture lane "link + wishlist"): built and live on the server, but his page is NOT shared with the Nova integration (GET /api/wishlist says so, checked 29 Oct 12:13Z). Nothing has ever been written to his real Notion. Mockup 107 (Wishlist page) awaits his approval. Stars: ⭐️ most wanted, ⭐️⭐️ higher within those, from his words only; priority defaults Medium, never asked. Open: ⭐️⭐️⭐️ meaning; clean vs raw links; chat-card question chips (NovaThread) not built.
+- notifyPolicy test turns quiet hours off (it failed a deploy after 22:00 Melbourne).
+
 ## CURRENT HANDOFF
 
 **29 OCT (claude.ai session 01MSoYRWCy) — PROJECTS PHASE 1: THE KERNEL, THE INTAKE AND BRIEF CARD, THE SCREEN IN BOTH IDIOMS, THE HOME CARD, DRY-RUN, ATLAS/WREN/NOVA LINKED READ-ONLY, AND THE PROJECT THREAD. MERGED a1207f42, PUSHED, SERVER RELOADED (health 200; /api/projects 200 local + tailnet); DEPLOY a1207f42 IN PROGRESS AT CLOSE. NOTHING SEEN BY HIM.**
