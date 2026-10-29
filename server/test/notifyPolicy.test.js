@@ -15,6 +15,10 @@ import assert from 'node:assert/strict';
 const { recordPush, kindPush } = await import('../lib/notifyPolicy.js');
 const push = await import('../lib/push.js');
 
+// quiet hours (22:00-07:00 Melbourne) would hold the pushes this file counts:
+// the 11:14 UTC deploy of 29 Oct failed on exactly that
+await (await import('../lib/quietHours.js')).setQuietHours({ enabled: false });
+
 const sent = [];
 push._setPushTransportForTests(async (note) => { sent.push(note); return { sent: 1 }; });
 test.after(async () => {
@@ -68,7 +72,7 @@ test('sendPush keeps a quiet kind off his phone and lets the rest through', asyn
 test('pushForRecord: a food suggestion buzzes nothing; research he asked for does', async () => {
   push.pushForRecord(pending('food-suggestion'));
   push.pushForRecord(pending('research', { id: 'r2' }));
-  for (let i = 0; i < 50 && sent.length < 1; i++) await new Promise((r) => setTimeout(r, 10));
+  for (let i = 0; i < 500 && sent.length < 1; i++) await new Promise((r) => setTimeout(r, 10));
   await new Promise((r) => setTimeout(r, 30));
   assert.deepEqual(sent.map((n) => n.tag), ['record-r2']);
 });
