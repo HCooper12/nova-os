@@ -11578,7 +11578,10 @@ export default class App extends Component {
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: youAt, who: 'you', text: question, attached: attached.length ? attached : undefined, ...(heardIt ? { heard: true } : {}), ...(meta || {}) }], voiceBusy: true }));
     if (heardIt) { this.offerFixFor(youAt); this.lastSent = { kind: 'ask', text: question, sentAt: youAt, youAt, turn, replySpeakingAt: null, claimed: false }; }
     this.stopSpeaking();
-    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.sayFirstThing(); }
+    // THE ACK COMES FIRST (his call, 29 Oct 2026): a "one thing first" line is
+    // said after Nova has acknowledged him (speakAckLine), or after the fast
+    // reply when there is no ack, never ahead of either
+    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; }
     asked.then((resp) => {
       if (askSeq !== this.askSeq) return;   // dropped for a continuation or a correction
       if (resp.text) {
@@ -11637,6 +11640,7 @@ export default class App extends Component {
         // held silent while he is adding to the question (claimContinuation)
         if (this.state.voiceSpeak && !(this.lastSent?.claimed && this.lastSent.turn === turn)) {
           this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); } });
+          this.sayFirstThingAfter(askSeq);
           this.queueTtsFinalize(reflexReceipt);
         } else { show(); this.endAnswer(turn); this.maybeAutoListen(); reflexReceipt(); }
         return;
@@ -11654,6 +11658,7 @@ export default class App extends Component {
       // put it in the voice. Spoken now, before the poll, as the head of
       // this reply's queue.
       if (ack?.text) this.speakAckLine(ack, agent, turn);
+      this.sayFirstThingAfter(askSeq);
       // A DEEP ASK SAYS SO (18 Oct 2026): 're-evaluate my program' runs the
       // Coach at high effort; server/lib/intentRouter.js marks it and the
       // route sends one code-written line to speak after the ack, so the
@@ -12927,6 +12932,12 @@ export default class App extends Component {
   }
   // "One thing first: …" — at most one tier-next alert, said at the start of
   // his spoken turn, before the ack. Code-written on the Mac; never repeated.
+  // the queued "one thing first" for this turn, once, after its first line
+  sayFirstThingAfter(seq) {
+    if (this.firstThingDue !== seq) return;
+    this.firstThingDue = null;
+    this.sayFirstThing();
+  }
   sayFirstThing() {
     const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false);
     if (!a || !this.state.voiceSpeak || this.standbyOn()) return;
