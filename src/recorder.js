@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 
 import { openVad, vadStep, vadBlind } from './vad.js';
-import { attachMicStream, openMicLevel } from './audioLevel.js';
+import { attachMicStream, openMicLevel, openOwnMeter, sharedGraphState } from './audioLevel.js';
 import { getConnection } from './api.js';
 
 const SAMPLE_MS = 100;
@@ -56,10 +56,32 @@ export async function openRecording({ onLevel } = {}) {
   let vad = openVad();
   const level = openMicLevel(stream);
   let blindMs = 0;   // how long the meter read blind this turn, for the receipt
+  // the receipt's diagnosis of a deaf turn (29 Oct 2026): which meter heard
+  // him, what the shared graph was doing when it went blind, and whether the
+  // phone handed over a muted microphone (another app or a call holding it)
+  let own = null;
+  let ownTried = false;
+  let meter = 'none';
+  let graphAtBlind = '';
+  const track = stream.getAudioTracks?.()[0] || null;
+  let muted = !!track?.muted;
+  try { track?.addEventListener?.('mute', () => { muted = true; }); } catch { /* old engine */ }
   const timer = setInterval(() => {
     // a sleeping graph is asked to wake on every sample, not once at open
     if (level && !level.running()) { try { level.resume(); } catch { /* refused */ } }
-    vad = vadStep(vad, level ? level.rms() : 0);   // no meter reads zero → blind → tap to send
+    let r = level ? level.rms() : 0;
+    if (r > 0 && meter === 'none') meter = 'shared';
+    // DEAF FOR 1.5 S: one try at a meter of its own (audioLevel.openOwnMeter)
+    if (r === 0 && !ownTried && vadBlind(vad)) {
+      ownTried = true;
+      graphAtBlind = sharedGraphState();
+      own = openOwnMeter(stream);
+    }
+    if (own && r === 0) {
+      const o = own.rms();
+      if (o > 0) { r = o; meter = 'own'; }
+    }
+    vad = vadStep(vad, r);   // no meter reads zero → blind → the words decide (useDictation)
     if (vadBlind(vad)) blindMs += SAMPLE_MS;
     onLevel?.(vad);
   }, SAMPLE_MS);
@@ -71,6 +93,8 @@ export async function openRecording({ onLevel } = {}) {
     clearInterval(timer);
     try { detachMeter(); } catch { /* gone */ }
     try { level?.detach(); } catch { /* gone */ }
+    try { own?.close(); } catch { /* gone */ }
+    own = null;
     stream.getTracks().forEach((tr) => tr.stop());
   };
 
@@ -79,6 +103,9 @@ export async function openRecording({ onLevel } = {}) {
     vad: () => vad,
     blind: () => vadBlind(vad),
     blindMs: () => blindMs,
+    // for the receipt: 'shared' | 'own' | 'none', the graph's state when the
+    // shared meter went blind, and whether the track ever arrived muted
+    diagnosis: () => ({ meter, ...(graphAtBlind ? { graphAtBlind } : {}), ...(muted ? { muted: true } : {}) }),
     // Stop and hand back the whole recording. Idempotent.
     stop() {
       if (stopped) return stopped;

@@ -73,17 +73,83 @@ export function openedTurn(turn, openAt) {
   };
 }
 
-/** Before the mic opens: keep waiting, or give up on it. */
-export function micWait({ startedAt, now, opened = false, timeoutMs = MIC_OPEN_TIMEOUT_MS } = {}) {
+/**
+ * Before the mic opens: keep waiting, or give up on it. `stalledMs` is time
+ * the turn clock itself was frozen (THE CLOCK THAT STOPPED, 29 Oct 2026): on
+ * his phone a 5 s timeout fired at 8.6 s and at 44 s, and a mic opened at
+ * 8.7 s, so the page's own timers were not running while getUserMedia set
+ * the audio session up. A frozen page is not a mic that refused; only the
+ * time the clock actually ran counts against it.
+ */
+export function micWait({ startedAt, now, opened = false, timeoutMs = MIC_OPEN_TIMEOUT_MS, stalledMs = 0 } = {}) {
   if (opened) return 'open';
-  return now - startedAt >= timeoutMs ? 'timeout' : 'wait';
+  const stall = Number.isFinite(stalledMs) && stalledMs > 0 ? stalledMs : 0;
+  return now - startedAt - stall >= timeoutMs ? 'timeout' : 'wait';
+}
+
+// A tick that arrives this late means the page was frozen, not idle: the turn
+// clock runs every 200 ms (useDictation TICK_MS).
+export const CLOCK_STALL_MS = 600;
+/** How much of the gap since the last tick was the page frozen. Pure. */
+export function stallOf({ lastTickAt = null, now, tickMs = 200 } = {}) {
+  if (!Number.isFinite(lastTickAt) || !Number.isFinite(now)) return 0;
+  const gap = now - lastTickAt;
+  return gap > CLOCK_STALL_MS ? gap - tickMs : 0;
+}
+
+// A DEAF METER CAN STILL BE ASKED WHAT HE SAID (29 Oct 2026). On his iPhone
+// 7 of 28 turns on 26-28 Oct ran with a blind meter (the shared audio graph
+// delivered nothing while the recorder captured fine). A blind turn could only
+// end by his tap or a 20 s cap: he waited 20 s, or was cut off at 20 s mid-
+// sentence (01:30 and 01:31 on 26 Oct, 249 and 264 characters, the rest
+// arriving as a second turn). So while the meter is blind the clip so far is
+// read (recorder.peek → the Mac) every 2.5 s, and the words decide:
+//   words that stopped growing for his hold → 'hold' (the turn is over)
+//   no words by the end of his lead        → 'lead' (he has not started)
+//   reads that keep failing                → the old 20 s backstop
+//   words still growing                    → keep listening (no cap on him)
+export const BLIND_READ_EVERY_MS = 2500;
+export const BLIND_CAP_MS = 20_000;
+export const BLIND_READ_CAP_MS = 300_000;   // the absolute ceiling, as tap-to-end surfaces have
+/** Is a read of the clip so far due? One at a time. Pure. */
+export function blindReadDue({ openAt, now, lastReadAt = null, pending = false } = {}) {
+  if (pending) return false;
+  return now - (Number.isFinite(lastReadAt) ? lastReadAt : openAt) >= BLIND_READ_EVERY_MS;
+}
+/**
+ * The verdict on a blind turn from its reads. `reads`: oldest first,
+ * { at (when the clip was cut), ok, text }. Returns 'wait', 'hold', 'lead'
+ * or 'cap-idle'; with 'hold', `text` is the words the turn ended on. Pure.
+ */
+export function blindVerdict({ reads = [], openAt, now, holdMs = 2000, leadMs = 7000, capMs = BLIND_CAP_MS, maxMs = BLIND_READ_CAP_MS } = {}) {
+  const ok = (reads || []).filter((r) => r && r.ok && Number.isFinite(r.at));
+  if (!ok.length) return { verdict: now - openAt >= capMs ? 'cap-idle' : 'wait' };
+  if (now - openAt >= maxMs) return { verdict: 'cap-idle' };
+  // a read that came back empty after words is Whisper's variance, not him
+  // taking his words back: only reads with words say how far he has got
+  const said = ok.filter((r) => wordCount(r.text) > 0);
+  if (!said.length) {
+    const last = ok[ok.length - 1];
+    return { verdict: last.at - openAt >= leadMs ? 'lead' : 'wait' };
+  }
+  const latest = said[said.length - 1];
+  // the newest read at least a hold before the latest one: no more words
+  // since then means he has been quiet for his whole hold
+  const earlier = [...said].reverse().find((r) => r.at <= latest.at - holdMs);
+  if (earlier && wordCount(latest.text) <= wordCount(earlier.text)) return { verdict: 'hold', text: latest.text };
+  return { verdict: 'wait' };
 }
 
 export const wordCount = (s) => String(s || '').split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).length;
 
-/** A blind-cap transcript too short to be a question: held as a draft. */
-export function holdAsDraft({ blind = false, endedBy = '', text = '' } = {}) {
-  return !!blind && endedBy === 'cap' && !!String(text).trim() && wordCount(text) < BLIND_DRAFT_WORDS;
+/**
+ * A blind-cap transcript too short to be a question: held as a draft. The
+ * same for a blind turn the reads ended (`byReads`): room noise read as
+ * "All right." must not reach Nova as a question, so a short one waits for
+ * his send, and four words or more go on their own.
+ */
+export function holdAsDraft({ blind = false, endedBy = '', text = '', byReads = false } = {}) {
+  return !!blind && (endedBy === 'cap' || !!byReads) && !!String(text).trim() && wordCount(text) < BLIND_DRAFT_WORDS;
 }
 
 /** How a turn ended, from its reason and whether he tapped. */

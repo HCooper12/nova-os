@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { micStarted, micStopped } from './audioSession.js';
 import { attachMicStream } from './audioLevel.js';
-import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason, holdVerdict, extendHold, peekDue, PEEK_LEAD_MS } from './turnEnd.js';
+import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason, holdVerdict, extendHold, peekDue, holdFor, PEEK_LEAD_MS } from './turnEnd.js';
 import { soundsUnfinished } from './turnSense.js';
 import { getConnection } from './api.js';
 import { recorderSupported, openRecording, transcribeRecording } from './recorder.js';
 import { hearingChoice, resolveHearing } from './hearingEngine.js';
-import { tapOnOpenMic, isEmptyCapture, openedTurn, micWait, holdAsDraft, endedByFor } from './listenRules.js';
+import { tapOnOpenMic, isEmptyCapture, openedTurn, micWait, stallOf, holdAsDraft, endedByFor, blindReadDue, blindVerdict, wordCount, BLIND_CAP_MS } from './listenRules.js';
 import { takeListen, noteListenEnd, novaSpeakingNow } from './listenCause.js';
 import { haptic } from './haptics.js';
 
@@ -151,6 +151,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const mountedRef = useRef(true);
   const extendedRef = useRef(false);  // the hold is running long on unfinished words
   const peekRef = useRef(null);       // own ears: the clip-so-far read { heardAt, status, text, ms, at }
+  const blindRef = useRef(null);      // own ears, meter deaf: the reads that decide { reads, pending, lastReadAt, useText, useMs }
   const [extended, setExtended] = useState(false);
   const [on, setOn] = useState(false);
   const [hearing, setHearing] = useState(false);  // recorded, waiting on the Mac for the words
@@ -358,10 +359,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   // The same turn, the same clock, the same receipt — only the source of
   // "he is still talking" (vad.js loudness instead of engine results) and of
   // the words (the Mac, once, at the end) differ.
-  // A deaf meter cannot end his turn, so a tap does, or this. It was 90 s
-  // until 18 Oct 2026: a meter blind that long posted "All right. . Okay." to
-  // the Coach. 20 s, and a short transcript from it is a draft (holdAsDraft).
-  const BLIND_CAP_MS = 20_000;
+  // A deaf meter cannot end his turn by loudness. It was 90 s until 18 Oct
+  // 2026 (a meter blind that long posted "All right. . Okay." to the Coach),
+  // then 20 s; since 29 Oct the clip so far is read and the WORDS end it
+  // (listenRules.blindVerdict), with BLIND_CAP_MS (20 s) only for reads that
+  // keep failing, and a short transcript from either is a draft (holdAsDraft).
   const TAP_CAP_MS = 300_000;      // tap-to-end surfaces (the Inbox composer) still stop eventually
 
   const finishNova = async () => {
@@ -380,6 +382,10 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     const pk = peekRef.current;
     peekRef.current = null;
     const reusePeek = reason === 'hold' && pk?.status === 'done' && !!pk.text && !!turnRef.current && pk.heardAt === turnRef.current.lastHeardAt;
+    // a blind turn the reads ended: their last read IS the words (no second upload)
+    const br = blindRef.current;
+    blindRef.current = null;
+    const reuseBlind = reason === 'hold' && !!br?.useText;
     clearExtended();
     turnRef.current = null;
     micStopped();
@@ -387,6 +393,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     setBlind(false);
     setHearing(true);
     const blindMs = handle?.blindMs?.() ?? 0;
+    const diagnosis = handle?.diagnosis?.() || null;
     const vad = handle?.vad();
     const wasBlind = !!handle?.blind();
     const blob = handle ? await handle.stop() : null;
@@ -415,6 +422,10 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
           tx = { text: pk.text, ms: pk.ms, backend: 'peek', dropped: '' };
           text = pk.text;
           txStatus = 'ok';
+        } else if (reuseBlind) {
+          tx = { text: br.useText, ms: br.useMs ?? null, backend: 'read', dropped: '' };
+          text = br.useText;
+          txStatus = 'ok';
         } else {
           try {
             tx = await transcribeRecording(blob, { vad: meter });
@@ -439,7 +450,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     }
     // A BLIND METER'S SHORT TRANSCRIPT IS A DRAFT. It stays in the composer
     // (emit above put it there) and is never sent: he sends it, or does not.
-    const draft = holdAsDraft({ blind: wasBlind, endedBy, text });
+    const draft = holdAsDraft({ blind: wasBlind, endedBy, text, byReads: !!br?.reads?.length && (reason === 'hold' || reason === 'lead') });
     if (draft) cause = 'blind-draft';
     const kept = !!(failure && keepFailed && blob && blob.size > 0);
     if (failure && !kept) onError?.(failure.message || 'Nova could not hear that');
@@ -462,6 +473,9 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
           micOpenMs: meta.micOpenAt ? meta.micOpenAt - meta.startAt : null,
           ...(recMs !== null ? { recMs } : {}),
           blindMs,
+          ...(br?.reads?.length ? { blindReads: br.reads.length } : {}),
+          ...(meta.stallMs ? { stallMs: meta.stallMs } : {}),
+          ...(diagnosis || {}),
           firstSoundMs: meta.firstSoundAt && meta.micOpenAt ? Math.max(0, meta.firstSoundAt - meta.micOpenAt) : null,
           peak: vad?.peak ?? 0,
           txStatus,
@@ -522,11 +536,18 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     if (!liveRef.current || !wantRef.current || !turnRef.current) return;
     const now = Date.now();
     const handle = recordingRef.current;
+    // the page froze between ticks (29 Oct 2026): that time is not the mic's
+    const meta = metaRef.current;
+    if (meta) {
+      const stall = stallOf({ lastTickAt: meta.lastTickAt ?? null, now, tickMs: TICK_MS });
+      if (stall) meta.stallMs = (meta.stallMs || 0) + stall;
+      meta.lastTickAt = now;
+    }
     // THE LEAD STARTS WHEN THE MIC OPENS (18 Oct 2026). Until the recorder is
     // open nothing can hear him, so no clock runs against him; if it has not
-    // opened in 5 s it is not going to, and the turn says so.
+    // opened in 5 s of running clock it is not going to, and the turn says so.
     if (!handle) {
-      if (micWait({ startedAt: metaRef.current?.startAt ?? turnRef.current.startedAt, now }) === 'timeout') {
+      if (micWait({ startedAt: meta?.startAt ?? turnRef.current.startedAt, now, stalledMs: meta?.stallMs || 0 }) === 'timeout') {
         reasonRef.current = 'mic-timeout';
         finishNova();
       }
@@ -537,7 +558,33 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     const deaf = !!handle.blind();
     setBlind(deaf);
     if (deaf) {
-      if (age >= BLIND_CAP_MS) { reasonRef.current = 'cap-idle'; finishNova(); }
+      if (!held) {
+        if (age >= BLIND_CAP_MS) { reasonRef.current = 'cap-idle'; finishNova(); }
+        return;
+      }
+      // THE WORDS DECIDE (listenRules.blindVerdict): read the clip so far
+      // every 2.5 s; words that stop growing end the turn on his hold
+      const b = blindRef.current || (blindRef.current = { reads: [], pending: false, lastReadAt: null, useText: '', useMs: null });
+      const openAt = turnRef.current.startedAt;
+      if (blindReadDue({ openAt, now, lastReadAt: b.lastReadAt, pending: b.pending })) startBlindRead(handle, b);
+      // more words than any read before: he is talking, as surely as a meter
+      // would have said (and a meter that wakes later knows he spoke)
+      const top = [...b.reads].reverse().find((r) => r.ok && wordCount(r.text) > 0);
+      if (top && wordCount(top.text) > (b.words || 0)) {
+        b.words = wordCount(top.text);
+        turnRef.current = sawSpeech(turnRef.current, top.at);
+        heardSound(top.at);
+        if (metaRef.current && !metaRef.current.firstSoundAt) metaRef.current.firstSoundAt = top.at;
+      }
+      const v = blindVerdict({ reads: b.reads, openAt, now, holdMs: holdFor(turnRef.current, holdMs), leadMs, capMs: BLIND_CAP_MS });
+      if (v.verdict === 'wait') return;
+      if (v.verdict === 'hold') {
+        if (tryExtend(v.text)) return;   // the words sound unfinished: his hold grows, as with a live meter
+        b.useText = v.text;
+        b.useMs = b.reads[b.reads.length - 1]?.ms ?? null;
+      }
+      reasonRef.current = v.verdict;
+      finishNova();
       return;
     }
     if (!held) {
@@ -563,6 +610,22 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     finishNova();
   };
 
+  // A blind turn's read: the clip so far, sent as 'blind' so the Mac drops
+  // Whisper's silence lines. A failure is a read that says nothing.
+  const startBlindRead = (handle, b) => {
+    const at = Date.now();
+    b.pending = true;
+    b.lastReadAt = at;
+    Promise.resolve(handle?.peek ? handle.peek() : null).then((blob) => {
+      if (!blob || blob.size < 1024) throw new Error('nothing to read yet');
+      return transcribeRecording(blob, { vad: 'blind', timeoutMs: 6000 });
+    }).then((tx) => {
+      b.reads.push({ at, ok: true, text: String(tx.text || '').trim(), ms: tx.ms });
+    }).catch(() => {
+      b.reads.push({ at, ok: false, text: '' });
+    }).finally(() => { b.pending = false; });
+  };
+
   // The read itself. A failure of any kind leaves the verdict to silence.
   const PEEK_WAIT_MS = PEEK_LEAD_MS + 1200;   // at most 1.2 s past his hold
   const startPeek = (handle, heardAt) => {
@@ -586,6 +649,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     const now = Date.now();
     const seq = ++turnSeqRef.current;
     peekRef.current = null;
+    blindRef.current = null;
     metaRef.current = newMeta(trigger, now);
     turnRef.current = baseRef.current ? sawSpeech(openTurn(now), now) : openTurn(now);
     if (baseRef.current) emit();
@@ -761,6 +825,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       turnRef.current = null;
       metaRef.current = null;
       peekRef.current = null;
+      blindRef.current = null;
       clearExtended();
       micStopped();
       setOn(false);

@@ -55,6 +55,8 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     noteAnswerPoll(req.params.jobId);
     const job = getMessageJob(req.params.jobId) || await loadCodeJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
+    // this poll hands over the finished answer: nothing is waiting unseen
+    if (job.status === 'ready') noteAnswerPoll(req.params.jobId, { delivered: true });
     // `consult`: the agents this turn asked, as structured state (lib/consult.js)
     // — who, what, when asked and settled, and each answer — so a screen can
     // show the roster while they work and open each answer after.

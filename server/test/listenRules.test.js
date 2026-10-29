@@ -188,7 +188,9 @@ test('the hook wires the rules where they belong', () => {
   assert.match(tick, /if \(!handle\) \{[\s\S]*?micWait\([\s\S]*?'mic-timeout'[\s\S]*?return;\n    \}/, 'no clock runs before the mic opens');
   assert.match(src, /turnRef\.current = openedTurn\(turnRef\.current, at\);/, 'the lead restarts at the open');
   assert.match(src, /isEmptyCapture\(\{ bytes: blob\.size, ms: recMs \}\)/, 'an empty capture is never uploaded');
-  assert.match(src, /const BLIND_CAP_MS = 20_000;/);
+  assert.match(read('src/listenRules.js'), /export const BLIND_CAP_MS = 20_000;/);
+  assert.match(tick, /blindVerdict\(\{/, 'a blind turn is decided by its words');
+  assert.match(tick, /stalledMs: meta\?\.stallMs/, 'a frozen page is not a refused mic');
   assert.match(src, /tapOnOpenMic\(\{/);
   assert.match(src, /addEventListener\('visibilitychange'/);
   // the recorder keeps asking a sleeping graph to wake
@@ -197,4 +199,74 @@ test('the hook wires the rules where they belong', () => {
   const app = read('src/App.jsx');
   const mal = app.slice(app.indexOf('  maybeAutoListen() {'), app.indexOf('  beginAnswer(turn) {'));
   assert.match(mal, /if \(this\.answerPendingNow\(\)\) return;/);
+});
+
+
+/* ------------------------------------------------ 29 Oct 2026 round -- */
+
+// THE CLOCK THAT STOPPED: a 5 s mic timeout fired at 8.6 s and 44 s on his
+// phone, and a mic opened at 8.7 s. Frozen time is not the mic's.
+test('only time the clock actually ran counts against a slow microphone', () => {
+  assert.equal(R.micWait({ startedAt: 0, now: 8600, stalledMs: 4000 }), 'wait');
+  assert.equal(R.micWait({ startedAt: 0, now: 9100, stalledMs: 4000 }), 'timeout');
+  assert.equal(R.micWait({ startedAt: 0, now: 5000, stalledMs: NaN }), 'timeout');
+  assert.equal(R.stallOf({ lastTickAt: 1000, now: 1200 }), 0, 'a normal tick');
+  assert.equal(R.stallOf({ lastTickAt: 1000, now: 1500 }), 0, 'a little late is not frozen');
+  assert.equal(R.stallOf({ lastTickAt: 1000, now: 9000 }), 7800);
+  assert.equal(R.stallOf({ lastTickAt: null, now: 9000 }), 0);
+});
+
+// A DEAF METER: 7 of 28 iPhone turns on 26-28 Oct. He waited 20 s, or was
+// cut off at 20 s mid-sentence (01:30 and 01:31 on 26 Oct).
+const reads = (...rs) => rs.map(([at, text, ok = true]) => ({ at, text, ok }));
+test('a blind turn reads the clip every 2.5 s, one read at a time', () => {
+  assert.equal(R.blindReadDue({ openAt: 0, now: 2400 }), false);
+  assert.equal(R.blindReadDue({ openAt: 0, now: 2500 }), true);
+  assert.equal(R.blindReadDue({ openAt: 0, now: 9000, pending: true }), false);
+  assert.equal(R.blindReadDue({ openAt: 0, now: 4900, lastReadAt: 2500 }), false);
+  assert.equal(R.blindReadDue({ openAt: 0, now: 5000, lastReadAt: 2500 }), true);
+});
+
+test('words that stop growing for his hold end a blind turn, on those words', () => {
+  const opts = { openAt: 0, holdMs: 2000, leadMs: 7000 };
+  const growing = reads([2500, 'What I was trying'], [5000, 'What I was trying to say is that I like that']);
+  assert.equal(R.blindVerdict({ ...opts, reads: growing, now: 5600 }).verdict, 'wait');
+  const stopped = reads([2500, 'How many steps'], [5000, 'How many steps today?'], [7500, 'How many steps today?']);
+  const v = R.blindVerdict({ ...opts, reads: stopped, now: 8000 });
+  assert.equal(v.verdict, 'hold');
+  assert.equal(v.text, 'How many steps today?');
+  // a patient hold needs the quiet to last longer than one read apart
+  assert.equal(R.blindVerdict({ ...opts, holdMs: 4200, reads: stopped, now: 8000 }).verdict, 'wait');
+  // an empty read after words is Whisper's variance, not the end of his words
+  const wobble = reads([2500, 'Swap my bench'], [5000, ''], [7500, 'Swap my bench press for the machine']);
+  assert.equal(R.blindVerdict({ ...opts, reads: wobble, now: 8000 }).verdict, 'wait');
+});
+
+test('no words by the end of his lead ends a blind turn early, not at 20 s', () => {
+  const opts = { openAt: 0, holdMs: 2000, leadMs: 7000 };
+  assert.equal(R.blindVerdict({ ...opts, reads: reads([2500, ''], [5000, '']), now: 6000 }).verdict, 'wait');
+  assert.equal(R.blindVerdict({ ...opts, reads: reads([2500, ''], [5000, ''], [7500, '']), now: 8000 }).verdict, 'lead');
+});
+
+test('reads that keep failing fall back to the 20 s cap; growing words have no 20 s cap', () => {
+  const opts = { openAt: 0, holdMs: 2000, leadMs: 7000 };
+  const failing = reads([2500, '', false], [5000, '', false]);
+  assert.equal(R.blindVerdict({ ...opts, reads: failing, now: 19_000 }).verdict, 'wait');
+  assert.equal(R.blindVerdict({ ...opts, reads: failing, now: R.BLIND_CAP_MS }).verdict, 'cap-idle');
+  const talking = reads([17_500, 'one two three four five six'], [20_000, 'one two three four five six seven eight']);
+  assert.equal(R.blindVerdict({ ...opts, reads: talking, now: 21_000 }).verdict, 'wait', 'he is mid-sentence at 21 s');
+  assert.equal(R.blindVerdict({ ...opts, reads: talking, now: R.BLIND_READ_CAP_MS }).verdict, 'cap-idle');
+});
+
+test('a short blind transcript the reads ended waits for his send', () => {
+  assert.equal(R.holdAsDraft({ blind: true, endedBy: 'clock', text: 'All right.', byReads: true }), true);
+  assert.equal(R.holdAsDraft({ blind: true, endedBy: 'clock', text: 'how many steps today', byReads: true }), false);
+  assert.equal(R.holdAsDraft({ blind: true, endedBy: 'clock', text: 'All right.' }), false);
+});
+
+test('the receipt keeps the deaf-turn diagnosis, closed sets only', () => {
+  const f = listenFields({ blindReads: 4, stallMs: 7800, meter: 'own', graphAtBlind: 'interrupted', muted: true });
+  assert.deepEqual({ blindReads: f.blindReads, stallMs: f.stallMs, meter: f.meter, graphAtBlind: f.graphAtBlind, muted: f.muted }, { blindReads: 4, stallMs: 7800, meter: 'own', graphAtBlind: 'interrupted', muted: true });
+  const bad = listenFields({ blindReads: -1, stallMs: 0, meter: 'ears', graphAtBlind: 'asleep', muted: 'yes' });
+  for (const k of ['blindReads', 'stallMs', 'meter', 'graphAtBlind', 'muted']) assert.equal(k in bad, false, k);
 });

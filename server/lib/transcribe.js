@@ -73,6 +73,17 @@ export function cleanTranscript(text) {
   return sentences.every((x) => SILENCE_LINES.has(x)) ? '' : t;
 }
 
+// What Whisper returned → his words. With `spoke` (the meter heard speech) a
+// bare "Thank you." is kept as his; otherwise the silence lines go. Either
+// way a transcript with no letter or digit is never words: Whisper answers a
+// quiet clip with "." (measured live, 29 Oct 2026, with X-Vad: heard), and the
+// mid-turn read always says heard, so "." could reach Nova as a question. Pure.
+export function heardText(raw, { spoke = false } = {}) {
+  const t = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!/[\p{L}\p{N}]/u.test(t)) return '';
+  return spoke ? t : cleanTranscript(t);
+}
+
 // Words Whisper would otherwise hear as something else. A prompt biases
 // spelling, it does not add content: "Nova" instead of "Noah", his own
 // vocabulary instead of the nearest common word.
@@ -97,5 +108,5 @@ export async function transcribeBuffer(buf, { mime = 'audio/mp4', language = 'en
   if (!r.ok) throw new Error(`${be.backend} transcription failed (${r.status}): ${(await r.text().catch(() => '')).slice(0, 160)}`);
   const j = await r.json();
   const raw = String(j.text || '').replace(/\s+/g, ' ').trim();
-  return { text: spoke ? raw : cleanTranscript(raw), raw, backend: be.backend, ms: Date.now() - started };
+  return { text: heardText(raw, { spoke }), raw, backend: be.backend, ms: Date.now() - started };
 }

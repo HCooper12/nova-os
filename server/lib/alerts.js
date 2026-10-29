@@ -141,7 +141,29 @@ export function normalizeAlert(input = {}, { verbIds = null } = {}) {
     action: normAction(input.action, verbIds),
     kind,
     dedupeKey: input.dedupeKey ? String(input.dedupeKey).slice(0, 120) : null,
+    // the moment the sentence stops being true ("starts soon" once it has
+    // started); absent means only the tier's TTL bounds it
+    ...(Number.isFinite(Date.parse(input.trueUntil)) ? { trueUntil: new Date(Date.parse(input.trueUntil)).toISOString() } : {}),
   };
+}
+
+/**
+ * Is what this alert says still true at `now`? A TIER-NEXT LINE OUTLIVES ITS
+ * FACT (29 Oct 2026): calendar-soon is demoted to next by his own override,
+ * next lives 24 h, and "One thing first: Morning routine starts soon" opened
+ * his spoken turn at 09:51 for a 05:30 event, then "Workout starts soon" for
+ * 06:45, each ahead of the ack, 5-7 s before Nova acknowledged his question.
+ * A calendar alert is true until its event starts; rows raised before
+ * `trueUntil` existed carry the start at the end of their dedupe key. Pure.
+ */
+export function alertStillTrue(alert, now = Date.now()) {
+  const t = typeof now === 'number' ? now : new Date(now).getTime();
+  let until = Date.parse(alert?.trueUntil);
+  if (!Number.isFinite(until) && alert?.kind === 'calendar-soon') {
+    const m = /:(\d{4}-\d{2}-\d{2}T[^:]+:\d{2}:\d{2}(?:\.\d+)?Z)$/.exec(String(alert.dedupeKey || ''));
+    until = m ? Date.parse(m[1]) : NaN;
+  }
+  return !Number.isFinite(until) || until > t;
 }
 
 /* ---------------------------------------------------------------- spoken -- */
@@ -245,7 +267,7 @@ const writePending = (alerts) => atomicWrite(PENDING_PATH(), JSON.stringify({ al
 /** The island's list: unexpired, newest last, at most 10. */
 export function pendingAlerts(now = Date.now()) {
   const t = typeof now === 'number' ? now : new Date(now).getTime();
-  return readPendingRaw().filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > t).slice(-PENDING_MAX);
+  return readPendingRaw().filter((a) => (!a.expiresAt || Date.parse(a.expiresAt) > t) && alertStillTrue(a, t)).slice(-PENDING_MAX);
 }
 
 /** His standing demotions: { kind: tier }. */
@@ -373,7 +395,8 @@ export async function raiseAlert(input = {}) {
     }
   } else {
     const ttl = PENDING_TTL_MS[tier];
-    const entry = { ...alert, expiresAt: new Date(atMs + ttl).toISOString(), spokenAt: null };
+    const until = Date.parse(a.trueUntil);
+    const entry = { ...alert, expiresAt: new Date(Number.isFinite(until) ? Math.min(atMs + ttl, until) : atMs + ttl).toISOString(), spokenAt: null };
     await locked(async () => {
       const list = readPendingRaw().filter((x) => !x.expiresAt || Date.parse(x.expiresAt) > atMs);
       list.push(entry);
@@ -546,6 +569,7 @@ export function calendarAlert(e, now = Date.now()) {
     source: 'from your calendar',
     action: { label: 'See today', open: '#/mission' },
     dedupeKey: `cal:${e.id || e.label}:${e.startISO}`,
+    trueUntil: e.startISO,
   };
 }
 
@@ -613,11 +637,20 @@ export function answerReadyAlert({ jobId, agent }) {
 
 const answerWatch = new Map(); // jobId → { agent, lastPollAt, completedAt, alertId }
 
-/** The client looked at this job (routes/claudeCode.js poll handler). */
-export function noteAnswerPoll(jobId, { now = Date.now() } = {}) {
+/**
+ * The client looked at this job (routes/claudeCode.js poll handler).
+ * `delivered`: this poll handed over the finished answer. THE ANSWER IN HIS
+ * HANDS IS NOT A MISSED ANSWER (29 Oct 2026): the watcher only notices "ready"
+ * on its own one-second tick, so a phone that picked the answer up inside that
+ * second (it polls every 150 ms) had its last look stamped BEFORE completedAt
+ * and was judged absent. 8 of 12 spoken asks on 26-28 Oct pushed "Nova's
+ * answer is ready" 6-7 s later, mid-conversation, and he dismissed 6 of them.
+ */
+export function noteAnswerPoll(jobId, { now = Date.now(), delivered = false } = {}) {
   const w = answerWatch.get(jobId);
   if (!w) return;
   w.lastPollAt = now;
+  if (delivered && !w.alertId) { answerWatch.delete(jobId); return; }
   // he is back and the answer is in his hands: the alert did its job, so it
   // closes and is never said again as "one thing first"
   if (w.alertId) {

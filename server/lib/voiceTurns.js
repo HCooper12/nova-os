@@ -83,8 +83,19 @@ export function listenFields(body = {}) {
   if (typeof body.novaSpeaking === 'boolean') out.novaSpeaking = body.novaSpeaking;
   if (typeof body.hidden === 'boolean') out.hidden = body.hidden;
   if (CAUSES.has(body.cause)) out.cause = body.cause;
+  // A DEAF TURN, DIAGNOSED (29 Oct 2026): how many reads of the clip decided a
+  // blind turn, how long the page's own clock was frozen, which meter heard
+  // him, what the shared audio graph was doing when it went deaf, and whether
+  // the phone handed over a muted microphone
+  if (Number.isInteger(body.blindReads) && body.blindReads >= 0 && body.blindReads <= 1000) out.blindReads = body.blindReads;
+  if (boundedMs(body.stallMs) !== undefined && body.stallMs > 0) out.stallMs = boundedMs(body.stallMs);
+  if (METERS.has(body.meter)) out.meter = body.meter;
+  if (GRAPH_STATES.has(body.graphAtBlind)) out.graphAtBlind = body.graphAtBlind;
+  if (body.muted === true) out.muted = true;
   return out;
 }
+const METERS = new Set(['shared', 'own', 'none']);
+const GRAPH_STATES = new Set(['running', 'suspended', 'interrupted', 'closed', 'none']);
 
 // THE LISTENING TABLE (scripts/voice-latency.mjs): per trigger, how often the
 // mic heard him, how the turns ended, and how long the mic took to open.

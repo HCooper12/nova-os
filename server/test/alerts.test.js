@@ -523,3 +523,27 @@ test('nothing here wrote outside the temp data dir', () => {
   const log = readFileSync(path.join(dataDir, 'alerts', 'log.jsonl'), 'utf8');
   assert.ok(log.length > 0);
 });
+
+/* ------------------------------------------- true until (29 Oct 2026) -- */
+
+// "One thing first: Morning routine starts soon" opened his spoken turn at
+// 09:51 for a 05:30 event (calendar-soon is demoted to next, next lives 24 h).
+test('a calendar alert stops being pending the moment its event starts', async () => {
+  await reset();
+  const start = new Date(Date.now() + 8 * 60_000).toISOString();
+  const a = A.calendarAlert({ id: 'ev1', label: 'Morning routine', time: '5:30', startISO: start });
+  assert.equal(a.trueUntil, start);
+  await A.raiseAlert({ ...a, tier: 'next' });
+  assert.equal(A.pendingAlerts().length, 1);
+  assert.equal(A.pendingAlerts(Date.parse(start) + 1000).length, 0, 'after it starts, "starts soon" is false');
+  assert.ok(Date.parse(A.pendingAlerts()[0].expiresAt) <= Date.parse(start), 'expiry is the start, not 24 h');
+});
+
+test('a calendar row raised before trueUntil existed is judged by the start in its key', () => {
+  const row = { kind: 'calendar-soon', dedupeKey: 'cal:jPK7Iv_80XrW:2026-10-28T18:30:00.000Z' };
+  assert.equal(A.alertStillTrue(row, Date.parse('2026-10-28T18:21:00Z')), true);
+  assert.equal(A.alertStillTrue(row, Date.parse('2026-10-28T22:51:45Z')), false);
+  // anything else, or a key it cannot read, is bounded by its TTL alone
+  assert.equal(A.alertStillTrue({ kind: 'health-hrv', dedupeKey: 'hrv:2026-10-28' }, Date.now()), true);
+  assert.equal(A.alertStillTrue({ kind: 'calendar-soon', dedupeKey: 'cal:x' }, Date.now()), true);
+});

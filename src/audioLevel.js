@@ -215,6 +215,53 @@ export function openMicLevel(stream) {
   }
 }
 
+// A METER OF ITS OWN, ONLY WHEN THE SHARED ONE IS DEAF (29 Oct 2026). 7 of
+// his 28 iPhone turns on 26-28 Oct read exact zero from the shared graph for
+// the whole turn while the recording held his words. That graph was made
+// long before, for Nova's voice; capture switches the phone's audio session
+// under it (and an earpiece or AirPods mic can run at another sample rate).
+// A context made NOW, while the page is capturing, belongs to the session as
+// it is; WebKit lets a capturing page start audio without a tap. Tried once
+// per turn, by the recorder, after the shared meter has read 1.5 s of zero;
+// closed with the turn. rms() is 0 while it is not running. Unverified on his
+// phone: the receipt's `meter` field says which one heard him.
+export function openOwnMeter(stream) {
+  if (!stream) return null;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    const own = new AC();
+    own.resume().catch(() => {});
+    const src = own.createMediaStreamSource(stream);
+    const an = own.createAnalyser();
+    an.fftSize = 1024;
+    src.connect(an);   // an analyser only: never to the speakers
+    const frame = new Float32Array(an.fftSize);
+    return {
+      rms() {
+        if (own.state !== 'running') { own.resume().catch(() => {}); return 0; }
+        an.getFloatTimeDomainData(frame);
+        let sum = 0;
+        for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i];
+        return Math.sqrt(sum / frame.length);
+      },
+      state: () => own.state,
+      close() {
+        try { src.disconnect(); } catch { /* already gone */ }
+        own.close().catch(() => {});
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+// What the shared graph is doing, for a receipt ('running', 'suspended',
+// 'interrupted', 'closed', or 'none' before it exists).
+export function sharedGraphState() {
+  return ctx ? String(ctx.state) : 'none';
+}
+
 // His voice: a mic tap while dictation runs. Mic audio connects to the
 // analyser ONLY — never to the speakers (feedback). The caller owns the
 // stream's lifetime and stops its tracks when dictation ends.

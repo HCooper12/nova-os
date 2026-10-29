@@ -20,3 +20,19 @@ test('Groq is preferred, OpenAI is the fallback, and no key is an honest null', 
   assert.equal(pickBackend({}), null);
   assert.equal(pickBackend(null), null);
 });
+
+// 29 Oct 2026: a live clip of room noise sent with X-Vad: heard came back as
+// "." and was kept as his words; the mid-turn read always sends heard.
+test('a transcript with no letter or digit is never his words, heard or not', async () => {
+  const { heardText } = await import('../lib/transcribe.js');
+  assert.equal(heardText('.', { spoke: true }), '');
+  assert.equal(heardText(' … ', { spoke: true }), '');
+  assert.equal(heardText('', { spoke: true }), '');
+  assert.equal(heardText('.', { spoke: false }), '');
+  // the meter heard him: a bare thanks is his
+  assert.equal(heardText('Thank you.', { spoke: true }), 'Thank you.');
+  // the meter heard nothing: the silence line goes
+  assert.equal(heardText('Thank you.', { spoke: false }), '');
+  assert.equal(heardText('How many steps today?', { spoke: false }), 'How many steps today?');
+  assert.equal(heardText('5.', { spoke: true }), '5.');
+});

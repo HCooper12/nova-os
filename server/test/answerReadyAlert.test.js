@@ -100,3 +100,33 @@ test('no cap: a seven-minute answer is still watched and still announced', async
   await r.advance(7000);
   assert.equal(raised.length, 1);
 });
+
+// 29 Oct 2026: the watcher notices "ready" on its own 1 s tick; a phone polling
+// every 150 ms picked the answer up INSIDE that second, its last look was
+// stamped before completedAt, and 8 of 12 spoken asks on 26-28 Oct pushed
+// "Nova's answer is ready" mid-conversation. The poll that hands the answer
+// over settles it, whichever side noticed first.
+test('the poll that hands over the finished answer is never a missed answer', async () => {
+  const r = rig();
+  const raised = [];
+  const job = { status: 'running' };
+  watchAnswer('j5', { getJob: () => job, now: r.now, setT: r.setT, raise: async (a) => { raised.push(a); return { id: 'x' }; } });
+  await r.advance(1500);          // the watcher looked at 1 s (running)
+  job.status = 'ready';
+  noteAnswerPoll('j5', { now: r.now(), delivered: true });   // the phone got it at 1.5 s, then stopped polling
+  await r.advance(30_000);
+  assert.equal(raised.length, 0, 'no push for an answer already in his hands');
+  assert.equal(_answerWatchForTests().has('j5'), false);
+});
+
+test('without the delivered mark the same timing still pushes (the bug, pinned)', async () => {
+  const r = rig();
+  const raised = [];
+  const job = { status: 'running' };
+  watchAnswer('j6', { getJob: () => job, now: r.now, setT: r.setT, raise: async (a) => { raised.push(a); return { id: 'x' }; } });
+  await r.advance(1500);
+  job.status = 'ready';
+  noteAnswerPoll('j6', { now: r.now() });
+  await r.advance(30_000);
+  assert.equal(raised.length, 1);
+});
