@@ -3,6 +3,12 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # every deploy is a new build id and a new "newer Nova is ready" banner
+    # on his phone; a docs-only commit changes nothing he runs (his call,
+    # 29 Oct 2026)
+    paths-ignore:
+      - 'design/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
