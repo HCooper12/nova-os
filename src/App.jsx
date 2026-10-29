@@ -584,9 +584,6 @@ export default class App extends Component {
     // far, and `glassSpokenTo` how far the VOICE has got — which is what
     // decides which panel is the hero. See src/glassBeats.js.
     glassBeats: [], glassVisuals: {}, glassSpokenTo: 0,
-    // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx): open exactly
-    // while its own history entry is current (openNovaFocus)
-    novaFocus: false,
     // what "New chat" cleared, so the tap that ends a days-long conversation
     // is undoable like everything else here (his 9 Sep report)
     voiceChatUndo: (() => {
@@ -4175,39 +4172,12 @@ export default class App extends Component {
   // One helper, because server/test/edgeBack.test.js reads popH through a
   // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.captureTagFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory(), ...this.reviewSheetFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.captureTagFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.reviewSheetFromHistory() };
   }
-  // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) is its own history
-  // entry, for the recipe's reason: the back swipe and the browser's Back
-  // return to the thread rather than leaving the Nova tab. The name, the
-  // dock's hold (holdNovaCore → the thread's registered focus) and nothing
-  // else open it. UI state only; nothing here writes.
-  openNovaFocus() {
-    if (typeof window !== 'undefined') {
-      const st = window.history.state;
-      if (st?.novaOverlay !== 'novafocus') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'novafocus' }, '');
-    }
-    if (!this.state.novaFocus) this.setState({ novaFocus: true });
-  }
-  // On its own entry, closing IS going back; popH does the closing.
-  closeNovaFocus() {
-    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'novafocus') { window.history.back(); return; }
-    if (this.state.novaFocus) this.setState({ novaFocus: false });
-  }
-  // popstate's half: leaving the entry closes it, returning reopens it. The
-  // thread also asks once when it mounts, so a focus left open on a page he
-  // has since tapped away from is not waiting for him on the next visit.
-  novaFocusFromHistory() {
-    const st = typeof window === 'undefined' ? null : window.history.state;
-    const onEntry = st?.novaOverlay === 'novafocus';
-    if (!onEntry && this.state.novaFocus) return { novaFocus: false };
-    if (onEntry && !this.state.novaFocus) return { novaFocus: true };
-    return {};
-  }
-  syncNovaFocus() {
-    const next = this.novaFocusFromHistory();
-    if ('novaFocus' in next) this.setState(next);
-  }
+  // (THE FULL-SCREEN NOVA's own history entry, 3 Oct 2026, is retired since
+  // 29 Oct: the stage is the foot of the Nova page itself, src/NovaStage.jsx,
+  // design/mockups/106-one-nova.html option A. An old 'novafocus' entry left
+  // in his history is now just a step back on the same page.)
   // ---------- DOCUMENTS (28 Sep 2026) ----------
   // What Coach, Nova and the Leader wrote as a thing he can open. The list is
   // read when the Documents screen opens (never at boot); the viewer is a page
@@ -9088,7 +9058,8 @@ export default class App extends Component {
   // matter how I speak with it"). Under `summary` the hold on the tab bar's
   // Nova used to raise the capture composer; capture is now something he
   // SAYS to Nova (the capture.add verb, and every other one), so the hold
-  // opens the Nova page with its core full screen and the microphone open.
+  // opens the Nova page on its stage (since 29 Oct the foot of the page
+  // itself, src/NovaStage.jsx) with the microphone open.
   // The composer is still one tap away, on the Inbox's hint line.
   //
   // The thread registers its focus and its talk when it mounts; a hold from

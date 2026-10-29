@@ -199,20 +199,16 @@ export function valsNovaThread(app, ctx, v) {
       // tap, so iOS still sees a gesture.
       registerTalk: (fn) => { app.novaThreadTalk = fn; },
       dockTalk: () => { if (typeof app.novaThreadTalk === 'function') app.novaThreadTalk(); else app.startLiveTalk(); },
-      // THE FOCUS DOOR (30 Sep): the core is hidden at rest, and a tap on the
-      // name brings it up. The screen registers its own setter here so the
+      // THE FOCUS DOOR (30 Sep; since 29 Oct it brings him to the stage at
+      // the foot of the page, src/NovaStage.jsx): first a tap on the name. The screen registers its own setter here so the
       // dock can bring it up too (his "or if I hold the bottom corner nova
       // icon"). Since 1 Oct the dock's hold does (App.holdNovaCore): a hold
       // from another page waits for this registration, then the core comes
       // up with the microphone open. A no-op when the thread is not mounted.
       registerFocus: (fn) => { app.novaThreadFocus = fn; if (fn) app.consumeNovaHold?.(); },
       enterFocus: () => { if (typeof app.novaThreadFocus === 'function') app.novaThreadFocus(); },
-      // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx): open while its
-      // own history entry is current, so the back swipe returns to the thread
-      focus: !!st.novaFocus,
-      openFocus: () => app.openNovaFocus(),
-      closeFocus: () => app.closeNovaFocus(),
-      syncFocus: () => app.syncNovaFocus(),
+      // (the full-screen Nova's own history entry, 3 Oct, retired 29 Oct: the
+      // stage is the foot of this page now, src/NovaStage.jsx)
       micOpen: !!st.voiceScreenMic,
       openCapture: v.openCaptureSheet || null,
     },

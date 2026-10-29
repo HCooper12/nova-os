@@ -218,32 +218,25 @@ test('subtitles On/Off persist per device, on unless he turned them off', () => 
 
 // ------------------------------------------------------- the history entry --
 
-test('focus is its own history entry, folded into pagesFromHistory; the thread asks for it, never holds it', () => {
+test('the focus hop is retired (29 Oct, one canvas): no history entry of its own, the dock keeps its bar, the door brings him to the stage', () => {
   const app = read('src/App.jsx');
-  assert.match(app, /pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaOverlay: 'novafocus' \}, ''\)/);
-  assert.match(app, /closeNovaFocus\(\) \{\n\s*if \(typeof window !== 'undefined' && window\.history\.state\?\.novaOverlay === 'novafocus'\) \{ window\.history\.back\(\); return; \}/);
-  assert.match(app, /\.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
-  assert.match(app, /novaFocusFromHistory\(\) \{[\s\S]{0,300}if \(!onEntry && this\.state\.novaFocus\) return \{ novaFocus: false \};\n\s*if \(onEntry && !this\.state\.novaFocus\) return \{ novaFocus: true \};/);
-  assert.match(app, /novaFocus: false,/, 'closed at boot');
+  assert.doesNotMatch(app, /novaOverlay: 'novafocus'|openNovaFocus\(|closeNovaFocus\(|novaFocusFromHistory\(|novaFocus: false/);
+  assert.match(app, /\.\.\.this\.recordFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
   const thread = read('src/screens/NovaThread.jsx');
-  assert.match(thread, /const focus = !!T\.focus && \(typeof window === 'undefined' \|\| window\.history\.state\?\.novaOverlay === 'novafocus'\);/, 'only on its own entry: a stale flag never draws');
-  assert.doesNotMatch(thread, /setFocus\(/, 'no local copy of the focus');
-  assert.match(thread, /T\.syncFocus\(\);/, 'a focus left open on an old entry closes on arrival');
+  assert.doesNotMatch(thread, /novafocus|T\.syncFocus|<NovaFocus /);
+  // the tab bar steps away only for the Briefing's full screen now
+  assert.match(read('src/SummaryDock.jsx'), /const away = !!v\.briefingStage;/);
+  // the hold still opens the page listening: focus (to the stage), then the mic
+  assert.match(app, /this\.novaThreadFocus\(\);\n\s*\/\/ already listening[^\n]*\n\s*if \(!this\.state\.voiceScreenMic && typeof this\.novaThreadTalk === 'function'\) this\.novaThreadTalk\(\);/);
 });
 
-test('the view model offers the door and walks it only when asked', () => {
-  const calls = [];
-  const app = {
-    state: { novaStyle: 'summary', screen: 'voice', voiceChat: [], orbChat: [], glassBeats: [], novaFocus: true },
-    openNovaFocus: () => calls.push('open'), closeNovaFocus: () => calls.push('close'), syncNovaFocus: () => calls.push('sync'),
-  };
+test('the view model offers no focus door any more, only the stage door the hold uses', () => {
+  const app = { state: { novaStyle: 'summary', screen: 'voice', voiceChat: [], orbChat: [], glassBeats: [] } };
   const v = { glass: null, briefQueue: null, attach: { pending: [] }, routePreview: () => ({ lane: 'ask' }) };
   const T = valsNovaThread(app, {}, v).novaThread;
-  assert.equal(T.focus, true);
-  assert.deepEqual(calls, [], 'building it walks nothing');
-  T.openFocus(); T.closeFocus(); T.syncFocus();
-  assert.deepEqual(calls, ['open', 'close', 'sync']);
-  assert.equal(valsNovaThread({ ...app, state: { ...app.state, novaFocus: false } }, {}, v).novaThread.focus, false);
+  for (const k of ['focus', 'openFocus', 'closeFocus', 'syncFocus']) assert.equal(k in T, false, k);
+  assert.equal(typeof T.registerFocus, 'function');
+  assert.equal(typeof T.enterFocus, 'function');
 });
 
 // ------------------------------------------------------ source contracts --
@@ -262,9 +255,8 @@ test('the full screen: an aria-modal page the edge swipe can take, the ⌄ its c
   assert.match(fx, /<StageCard card=\{dock\.hero\} face="summary" \/>/, 'panels dock as the house StageCard');
   // a panel settles away rather than cutting (approved 4 Oct): the last one is kept a moment as it leaves
   assert.match(fx, /const dock = stage \|\| \(dockLeaving \? lastStage\.current : null\);/);
-  // the thread: the newest line at the foot when he returns
-  const thread = read('src/screens/NovaThread.jsx');
-  assert.match(thread, /if \(m\) m\.scrollTop = m\.scrollHeight;/);
+  // the one-canvas page opens at the foot of its scroll, on the stage
+  assert.match(read('src/NovaStage.jsx'), /main\.scrollTop = main\.scrollHeight;/);
 });
 
 test('the field canvas: one canvas, a capped count, stopped while the page is hidden, still under reduced motion', () => {
@@ -334,8 +326,10 @@ test('the CSS: namespaced .nv-fx-*, after the thread\'s block at the end, never 
 test('the classic Voice screen is untouched: the full screen lives on the summary thread only', () => {
   const voice = read('src/screens/Voice.jsx');
   assert.doesNotMatch(voice, /NovaFocus|nv-fx/);
-  assert.match(read('src/screens/NovaThread.jsx'), /import \{ NovaFocus \} from '\.\.\/NovaFocus\.jsx';/);
-  for (const f of ['src/NovaFocus.jsx', 'src/novaFocusFacts.js', 'src/subtitlePace.js', 'src/speechClock.js']) {
+  // the thread's stage reuses the full screen's pieces, never copies of them
+  assert.match(read('src/screens/NovaThread.jsx'), /import \{ NovaStage \} from '\.\.\/NovaStage\.jsx';/);
+  assert.match(read('src/NovaStage.jsx'), /import \{ useHeldPhase, useEmberField, Listening, Thinking, Captions \} from '\.\/NovaFocus\.jsx';/);
+  for (const f of ['src/NovaFocus.jsx', 'src/NovaStage.jsx', 'src/novaStageFacts.js', 'src/novaFocusFacts.js', 'src/subtitlePace.js', 'src/speechClock.js']) {
     const src = read(f).replace(/\/\/[^\n]*/g, '');
     assert.doesNotMatch(src, /\bfetch\(|\bapi\.|from '\.\.?\/api\.js'/, `${f} reaches no network`);
   }

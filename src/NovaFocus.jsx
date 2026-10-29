@@ -60,7 +60,7 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // the phase, with its hold: a move to the stage is at once, a move home
 // waits PHASE_HOLD_MS so the gaps inside one exchange never send it back
-function useHeldPhase(want) {
+export function useHeldPhase(want) {
   const [phase, setPhase] = useState(want);
   useEffect(() => {
     if (want === phase) return undefined;
@@ -342,7 +342,8 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen, mode = '
 
 // ------------------------------------------------------------ listening --
 
-function Listening({ dict, since }) {
+// `send`: the plate's own Send now (the one-canvas page leaves it to the composer's)
+export function Listening({ dict, since, send = true }) {
   const [secs, setSecs] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setSecs(Math.max(0, Math.floor((Date.now() - since) / 1000))), 500);
@@ -355,14 +356,14 @@ function Listening({ dict, since }) {
       {/* NO LIVE TRANSCRIPT EXISTS: his iPhone records and his Mac writes it
           down, so his words appear once they arrive, and the plate says so */}
       <p className="nv-fx-wait">Your words appear here once your Mac has them.</p>
-      {dict.on && <button type="button" className="nv-fx-send" onClick={dict.toggle}>Send now</button>}
+      {send && dict.on && <button type="button" className="nv-fx-send" onClick={dict.toggle}>Send now</button>}
     </>
   );
 }
 
 // ------------------------------------------------------------- thinking --
 
-function Thinking({ S, T, heard, streaming }) {
+export function Thinking({ S, T, heard, streaming }) {
   const yours = lastYours(T.lines);
   const hearing = S.word === 'Writing it down';
   const steps = focusSteps({ hearing, heard, busy: T.busy, answering: streaming || T.speaking });
@@ -457,7 +458,7 @@ function wholeLook(s, sp, t) {
   if (Number.isFinite(s.cut) && sp.st >= s.cut) return { e: 0, lit: 0, p: 0 };
   return { e: clamp01((t - s.at) / 250), lit: 0, p: 0 };
 }
-function Captions({ said, on, speaker, markHue = null, pour = null, look = WORD_LOOK.thread }) {
+export function Captions({ said, on, speaker, markHue = null, pour = null, look = WORD_LOOK.thread, offNote = 'Subtitles are off. Turn them on at the top right.' }) {
   const paced = useMemo(() => said.map((s) => ({ ...s, ...paceSentence(s) })), [said]);
   const colRef = useRef(null);
   const bodyRef = useRef(null);
@@ -600,7 +601,7 @@ function Captions({ said, on, speaker, markHue = null, pour = null, look = WORD_
           </div>
         </div>
       ) : (
-        <p className="nv-fx-note">Subtitles are off. Turn them on at the top right.</p>
+        <p className="nv-fx-note">{offNote}</p>
       )}
     </>
   );
@@ -705,7 +706,7 @@ function CcIcon() {
 // they take the core's tint, gentler. One canvas, FIELD_EMBERS motes; the
 // loop stops while the page is hidden, and under reduced motion one still
 // frame is drawn and nothing moves.
-function useEmberField(canvasRef, coreRef, live) {
+export function useEmberField(canvasRef, coreRef, live) {
   useEffect(() => {
     const cv = canvasRef.current;
     const ctx = cv?.getContext('2d');
@@ -814,7 +815,17 @@ function useEmberField(canvasRef, coreRef, live) {
     }
     let raf = 0;
     let last = 0;
+    let idle = false;
     const loop = (now) => {
+      // THE ONE-CANVAS PAGE (29 Oct 2026) pauses the field while he reads the
+      // history over it: cleared once, nothing stepped or drawn until he is back
+      if (live.current.paused) {
+        if (!idle) { ctx.clearRect(0, 0, W, H); idle = true; }
+        last = 0;
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      idle = false;
       // a slow frame is caught up in small steps, so the field keeps real time
       let dt = last ? Math.min(0.12, (now - last) / 1000) : 1 / 60;
       last = now;

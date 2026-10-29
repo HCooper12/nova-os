@@ -923,7 +923,6 @@ span.nv-count > span { display: inline !important; margin: 0 !important; }
    sky and the thread's glass are covered: they stop drifting and painting
    until it leaves (the 4 Oct lag survey: 24% of the screen re-blurred, unseen) */
 body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky,
-body:has(.nv-fx[data-settled]:not(.leaving)) .nv-nt-head,
 body:has(.nv-fx[data-settled]:not(.leaving)) .nv-nt-composer,
 body:has(.nv-fx[data-settled]:not(.leaving)) .nv-nt-you { visibility: hidden; }
 body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::before,
@@ -4398,7 +4397,9 @@ button.nv-ts-cd[disabled] { cursor: default; }
   /* the recipe page's floating rounds and its foot (the .nv-rp block at the end) go solid */
   .nv-rp-fab, .nv-rp-foot { background: var(--nv-void); }
   /* the Nova thread's floating glass (the .nv-nt block at the end) goes solid */
-  .nv-nt-head, .nv-nt-stage, .nv-nt-composer, .nv-nt-strip, .nv-nt-sheet, .nv-nt-cmenu { background: var(--nv-void); }
+  .nv-nt-stage, .nv-nt-composer, .nv-nt-strip, .nv-nt-sheet, .nv-nt-cmenu { background: var(--nv-void); }
+  /* the one canvas's glass on the Nova page (29 Oct, the .nv-nt block's end) */
+  .nv-nt .nv-fx-plate, .nv-nt .nv-fx-panel, .nv-nt .nv-fx-ask, .nv-nt .nv-nt-oback, .nv-nt .nv-nt-omore { background: var(--fx-g1); }
   /* and the dim behind the Nova thread's stage is a solid dim, not a blur
      (two classes: the .nv-nt block comes later in the file, and one class
      there would outrank one class here) */
@@ -5082,22 +5083,8 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt button:focus-visible, .nv-nt-sheet button:focus-visible, .nv-nt-cmenu button:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; }
 .nv-nt-ico { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-/* THE HEAD: Nova's face over the thread, as a contact's face heads Messages */
-.nv-nt-head {
-  position: sticky; top: var(--nt-top); z-index: 12; margin: 0 -16px; padding: 4px 16px 8px;
-  display: flex; flex-direction: column; align-items: center;
-  transition: min-height .34s var(--nv-ease);
-}
-.nv-nt-head {
-  background: color-mix(in srgb, var(--nv-void) 86%, transparent);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
-}
-/* the scroll edge: a fade under the head, not a line (no blur on it, so no
-   backdrop layer sits under the head's own text) */
-.nv-nt-head::after {
-  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 18px; pointer-events: none;
-  background: linear-gradient(color-mix(in srgb, var(--nv-void) 70%, transparent), transparent);
-}
+/* (THE HEAD, his name and state over the thread, gave way on 29 Oct 2026 to
+   the presenter's spot of the one canvas: .nv-nt-ohead below) */
 .nv-nt-core {
   position: relative; display: block; width: var(--nt-core); height: var(--nt-core);
   transition: width .34s var(--nv-ease), height .34s var(--nv-ease), transform .16s var(--nv-ease);
@@ -5113,16 +5100,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-chase circle { fill: none; stroke: var(--nv-ink); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 14 86; opacity: .8; }
 .nv-nt-chase circle.b { stroke-dashoffset: -50; opacity: .5; }
 @keyframes nvNtSpin { to { transform: rotate(360deg); } }
-.nv-nt-who { display: flex; align-items: center; gap: 0; margin-top: -2px; }
-.nv-nt-name {
-  min-height: 44px; min-width: 44px; padding: 0 6px 0 12px; border: 0; border-radius: 22px; background: none; cursor: pointer;
-  font: 600 17px/1.2 var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink);
-}
-.nv-nt-more { width: 44px; height: 44px; margin-left: -10px; display: grid; place-items: center; border: 0; border-radius: 22px; background: none; cursor: pointer; color: var(--nv-sum-ink3); }
 .nv-nt-more .nv-nt-ico { width: 15px; height: 15px; stroke-width: 2.4; }
-.nv-nt-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 22px; margin: -4px 0 0; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); text-align: center; }
-.nv-nt-state b { font-weight: 600; color: var(--nv-ink); }
-.nv-nt-state span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-nt-ico.g { width: 16px; height: 16px; }
 .nv-nt-glyph { display: inline-flex; align-items: center; gap: 2px; height: 16px; flex: none; }
 .nv-nt-glyph.bars i { width: 3px; height: 14px; border-radius: 2px; background: var(--nv-ink); animation: nvNtBar 1s ease-in-out infinite alternate; transform-origin: 50% 50%; }
@@ -5132,9 +5110,8 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 @keyframes nvNtBar { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
 @keyframes nvNtDot { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 
-/* HIS AMENDMENT, FOCUS: since 3 Oct the full-screen Nova (the .nv-fx-*
-   block after this one, src/NovaFocus.jsx), which draws the core itself;
-   the head stays his name and state. */
+/* HIS AMENDMENT, FOCUS (3 Oct, the full-screen Nova) became the stage at
+   the foot of this page on 29 Oct (the one canvas, at this block's end). */
 
 /* THE THREAD STEPS BACK while the stage is up (30 Sep, his "the background
    should be blurred so the amount of visible information on screen is
@@ -5476,12 +5453,112 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
   .nv-nt-chase circle.b { display: none; }
   .nv-nt-you.in, .nv-nt-nova.in, .nv-nt-spanel, .nv-nt-held, .nv-nt-cmenu, .nv-nt-send { animation: none; }
   .nv-nt-sheet { animation: fadeIn .2s ease both; }
-  .nv-nt-core, .nv-nt-canvas, .nv-nt-head { transition: none; }
+  .nv-nt-core, .nv-nt-canvas { transition: none; }
 }
 :root[data-nv-calm="1"] .nv-nt-stage, :root[data-nv-calm="1"] .nv-nt-you.in, :root[data-nv-calm="1"] .nv-nt-nova.in { animation: none; }
 /* Reduce transparency: the app-wide guard (REDUCE TRANSPARENCY, EVERYWHERE,
    above) drops every blur and turns these surfaces solid; it must stay the
    file's last prefers-reduced-transparency block (mobileNative.test.js). */
+/* ONE NOVA, ONE CANVAS (29 Oct 2026) — design/mockups/106-one-nova.html,
+   option A, his approval ("make sure that nova still has the 3-D dynamic
+   animations for each of the stages"). src/NovaStage.jsx. The page is one
+   scroll: the history above, the stage at its foot where it opens. The
+   ground is the full screen's sky and embers in the theme's own colours;
+   the core, the presenter's band and its words are fixed layers moved by
+   transform and opacity from the scroll (written onto those elements, never
+   an inherited variable per frame). The stage's plate, steps, subtitles and
+   docked panels are the full screen's own .nv-fx-* pieces, unchanged; the
+   --fx-* tokens they read are set here from the theme. */
+.nv-nt {
+  --fx-ink: var(--nv-ink);
+  --fx-ink2: color-mix(in srgb, var(--nv-ink) 76%, transparent);
+  --fx-ink3: color-mix(in srgb, var(--nv-ink) 56%, transparent);
+  --fx-g0: var(--nv-void); --fx-g1: var(--nv-bg1); --fx-g2: var(--nv-bg2);
+  --fx-ring: color-mix(in srgb, var(--nv-ink) 16%, transparent);
+  --fx-hi: color-mix(in srgb, var(--nv-ink) 22%, transparent);
+  --fx-quiet: color-mix(in srgb, var(--nv-ink) 8%, transparent);
+  --fx-glass: color-mix(in srgb, var(--fx-g1) 62%, transparent);
+  --fx-slow: 1;
+  --nt-headh: 110px;
+}
+/* the ground under the whole page; the app's own sky under it stops painting */
+.nv-nt-ground { position: fixed; z-index: 0; left: 0; top: 0; width: 100vw; height: 100dvh; overflow: hidden; pointer-events: none; background: var(--fx-g0); }
+body:has(.nv-nt.mob .nv-nt-ground) .nv-sky { visibility: hidden; }
+.nv-nt .nv-nt-thread { position: relative; z-index: 1; padding-top: 116px; }
+/* the presenter's spot: the band keeps the history legible under it */
+.nv-nt-ohead { position: fixed; z-index: 14; left: 0; top: var(--nt-top); width: 100%; height: 106px; pointer-events: none; }
+.nv-nt-oband {
+  position: absolute; left: 0; right: 0; top: calc(-1 * var(--nt-top)); bottom: -22px; opacity: 0; will-change: opacity;
+  background: linear-gradient(color-mix(in srgb, var(--fx-g0) 94%, transparent) 72%, transparent);
+}
+.nv-nt-opn {
+  position: absolute; top: 53px; left: calc(max(16px, (100% - 560px) / 2 + 16px) + 102px); right: 160px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+  opacity: 0; transform: translateY(-50%); will-change: opacity, transform; pointer-events: none;
+}
+.nv-nt-opn[data-on] { pointer-events: auto; }
+.nv-nt-opn b { font: 700 24px/1.1 var(--nv-font-ui); letter-spacing: -.02em; color: var(--fx-ink); }
+.nv-nt-opn span { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; font: 400 15px/1.3 var(--nv-font-ui); color: var(--fx-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-nt-opn span[data-contest] { color: var(--nv-contest); }
+.nv-nt-oact { position: absolute; top: 53px; right: max(12px, (100% - 560px) / 2 + 12px); display: flex; align-items: center; gap: 8px; transform: translateY(-50%); pointer-events: auto; }
+.nv-nt-oback, .nv-nt-omore {
+  height: 44px; border: 0; border-radius: 22px; cursor: pointer; color: var(--fx-ink);
+  background: var(--fx-quiet); box-shadow: 0 0 0 .5px var(--fx-ring), 0 1px 0 var(--fx-hi) inset;
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  transition: transform var(--nv-dur-fast) var(--nv-ease);
+}
+.nv-nt-oback { display: inline-flex; align-items: center; gap: 4px; padding: 0 14px 0 10px; font: 600 15px/1 var(--nv-font-ui); opacity: 0; pointer-events: none; will-change: opacity; }
+.nv-nt-oback[data-on] { pointer-events: auto; }
+.nv-nt-omore { width: 44px; display: grid; place-items: center; padding: 0; color: var(--fx-ink2); }
+.nv-nt-oback:active, .nv-nt-omore:active { transform: scale(.97); }
+/* the core: one fixed element, placed by transform alone */
+.nv-nt-ocore { position: fixed; z-index: 15; left: 0; top: 0; width: 300px; height: 300px; transform-origin: 50% 50%; will-change: transform; --nt-core: 300px; --nt-k: 1; }
+.nv-nt-ocore .nv-nt-canvas { width: 300px; height: 300px; }
+.nv-nt-opour { position: fixed; z-index: 16; left: 0; top: 0; width: 100vw; height: 100dvh; display: block; pointer-events: none; }
+/* the stage: the foot of the scroll, exactly the room between the head and the composer */
+.nv-nt-osec {
+  position: relative; z-index: 1; flex: none; box-sizing: border-box; margin: 0 -16px; min-height: 360px;
+  height: calc(var(--oc-vh, 100dvh) - var(--oc-top, 0px) - var(--oc-foot, 150px));
+}
+.nv-nt-ofield {
+  position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 16px 40px;
+  transition: opacity var(--nv-dur-base) var(--nv-ease) 120ms, transform var(--nv-dur-slow) var(--nv-ease) 120ms;
+}
+.nv-nt-osec[data-phase="stage"] .nv-nt-ofield { opacity: 0; transform: translateY(10px); pointer-events: none; transition-delay: 0s; }
+.nv-nt-oslot { flex: none; width: calc(300px * var(--oc-k, .84)); height: calc(300px * var(--oc-k, .84)); }
+.nv-nt-ofield > * { flex-shrink: 0; }
+.nv-nt-ostate { display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; margin: 4px 0 0; font: 400 15px/1.3 var(--nv-font-ui); color: var(--fx-ink2); text-align: center; }
+.nv-nt-ostate b { font: 600 19px/1.2 var(--nv-font-ui); letter-spacing: -.01em; color: var(--fx-ink); }
+.nv-nt-ostate span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-nt-oasks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.nv-nt-oex { display: grid; gap: 6px; width: 100%; max-width: 440px; margin-top: 14px; min-height: 0; }
+.nv-nt-oex button {
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; padding: 2px 8px; border: 0; border-radius: 14px;
+  background: none; cursor: pointer; text-align: center; text-wrap: balance; color: inherit;
+}
+.nv-nt-oex .q { -webkit-line-clamp: 3; font: 400 15px/1.35 var(--nv-font-ui); color: var(--fx-ink3); }
+.nv-nt-oex .a { -webkit-line-clamp: 4; font: 400 20px/1.3 var(--nv-font-serif); color: var(--fx-ink2); }
+.nv-nt-oex span { display: block; margin-bottom: 2px; font: 600 13px/1.3 var(--nv-font-ui); letter-spacing: .02em; color: var(--fx-ink3); }
+.nv-nt-oex button:active { transform: scale(.985); transition: transform .12s var(--nv-ease); }
+.nv-nt-ofield .nv-nt-decide { width: 100%; max-width: 440px; box-sizing: border-box; margin-top: 14px; }
+.nv-nt-ohint { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; font: 500 13px var(--nv-font-ui); color: var(--fx-ink3); }
+.nv-nt-ohint .nv-nt-ico { width: 15px; height: 15px; }
+/* his turn: the plate (and a docked panel) under the presenter's core */
+.nv-nt-obox {
+  position: absolute; left: 12px; right: 12px; top: 112px; bottom: 12px; max-width: 416px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  opacity: 0; transform: translateY(18px) scale(.98); transform-origin: 50% 0;
+  transition: opacity var(--nv-dur-fast) var(--nv-ease), transform var(--nv-dur-slow) var(--nv-ease);
+}
+.nv-nt-osec[data-phase="stage"] .nv-nt-obox { opacity: 1; transform: none; pointer-events: auto; transition-delay: 120ms; transition-duration: var(--nv-dur-base), var(--nv-dur-slow); }
+@media (hover: hover) and (pointer: fine) {
+  .nv-nt-oback:hover, .nv-nt-omore:hover, .nv-nt-oex button:hover { background: color-mix(in srgb, var(--fx-ink) 12%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-nt-ofield, .nv-nt-obox { transition: opacity .2s ease; }
+  .nv-nt-ofield, .nv-nt-obox, .nv-nt-osec[data-phase="stage"] .nv-nt-ofield, .nv-nt-osec[data-phase="stage"] .nv-nt-obox { transform: none; }
+  .nv-nt-oback, .nv-nt-omore, .nv-nt-oex button:active { transition: none; transform: none; }
+}
 /* end of the Nova thread */
 
 /* ================================================================

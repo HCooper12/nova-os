@@ -11,9 +11,10 @@ import { GlassSheet } from '../GlassSheet.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { useLongPress } from '../longPress.js';
 import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
-import { stateOf, threadRows, openingIndex, clock, failedLast } from '../novaThreadFacts.js';
+import { stateOf, threadRows, clock, failedLast } from '../novaThreadFacts.js';
 import { Ico, Glyph, Stage, Settled, KeptTake, Meter, Proposal } from '../NovaThreadParts.jsx';
-import { NovaFocus } from '../NovaFocus.jsx';
+import { NovaStage } from '../NovaStage.jsx';
+import { CAPTIONS_KEY, captionsOn } from '../novaFocusFacts.js';
 import { FiledRows } from '../motion/FiledRows.jsx';
 
 // THE NOVA THREAD (29 Sep 2026) — design/mockups/63-redesign-nova-r2.html,
@@ -38,8 +39,17 @@ import { FiledRows } from '../motion/FiledRows.jsx';
 // The tab bar's Nova button is the one talk control, and on this page it opens
 // this page's microphone. Everything drawn comes from valsNovaThread.js;
 // nothing here computes a fact or writes a thing except through it.
+//
+// ONE NOVA (29 Oct 2026, mockup 106 option A, his approval): the thread and
+// the full screen are one page now. The stage (src/NovaStage.jsx) is the foot
+// of this one scroll and where the page opens: the real core, sky, plate and
+// subtitles. The history is above it; scrolling up carries the core to the
+// presenter's spot at the top left, which replaced the head. The full screen
+// is no longer a history entry of its own (it stays the Briefing's stage).
 
 const SEEN_KEY = 'novaos.threadSeenAt';
+const readCaptions = () => { try { return captionsOn(localStorage.getItem(CAPTIONS_KEY)); } catch { return true; } };
+const writeCaptions = (on) => { try { localStorage.setItem(CAPTIONS_KEY, on ? 'on' : 'off'); } catch { /* private mode: this visit only */ } };
 const readSeen = () => { try { const n = Number(localStorage.getItem(SEEN_KEY)); return Number.isFinite(n) && n > 0 ? n : null; } catch { return null; } };
 const writeSeen = (t) => { if (!Number.isFinite(t)) return; try { if ((readSeen() || 0) < t) localStorage.setItem(SEEN_KEY, String(t)); } catch { /* private mode */ } };
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -48,17 +58,14 @@ export function NovaThread({ v }) {
   const T = v.novaThread;
   const takes = useKeptTakes();
   const rootRef = useRef(null);
-  const headRef = useRef(null);
   const fieldRef = useRef(null);
   const mainRef = useRef(null);
   const firstPaint = useRef(true);
-  // THE FULL-SCREEN NOVA (3 Oct): open while its history entry is current
-  // (a focus left open on an entry he has since navigated away from never
-  // draws, not even for the frame before syncFocus closes it)
-  const focus = !!T.focus && (typeof window === 'undefined' || window.history.state?.novaOverlay === 'novafocus');
+  // the stage's subtitles, on unless he turned them off (per device)
+  const [captions, setCaptions] = useState(readCaptions);
+  const toggleCaptions = () => setCaptions((on) => { writeCaptions(!on); return !on; });
   const [statusOpen, setStatusOpen] = useState(false);
   const [held, setHeld] = useState(null);            // { kind: 'line'|'take', i|id, rect }
-  const [tuckedKey, setTuckedKey] = useState(null);  // the stage he tucked early (this reply only)
   const [openBriefs, setOpenBriefs] = useState(() => new Set()); // brief drop-downs he opened
   const [replay, setReplay] = useState(null);        // { panels, idx } — a settled stage shown again
   const [sheet, setSheet] = useState(null);          // { card, originEl }
@@ -140,32 +147,16 @@ export function NovaThread({ v }) {
     return () => T.registerTalk(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // FOCUS FROM OUTSIDE (30 Sep): novaThread.enterFocus lets the dock (a hold
-  // on its Nova) bring the full screen up, the same as the name. A focus left
-  // open on an entry he has since navigated away from closes on arrival.
+  // THE DOOR TO THE STAGE (30 Sep, the focus door; since 29 Oct the stage at
+  // the foot of this page): the dock's hold (App.holdNovaCore →
+  // consumeNovaHold) brings him to the stage, then opens the microphone
+  // through the talk registered just above, so the order matters.
+  const stageApi = useRef(null);
   useEffect(() => {
-    T.syncFocus();
-    T.registerFocus(() => T.openFocus());
+    T.registerFocus(() => stageApi.current?.toStage(true));
     return () => T.registerFocus(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // BACK TO THE THREAD: the sentence he watched is his newest line, at the
-  // foot; the full screen is held one beat longer while the core folds back
-  // into the name and the field fades (cut under reduced motion)
-  // (held in the same render the focus closes, so the full screen is never
-  // unmounted and remounted on the way out)
-  const [fxShown, setFxShown] = useState(focus);
-  if (focus && !fxShown) setFxShown(true);
-  useEffect(() => {
-    if (focus || !fxShown) return undefined;
-    const m = mainRef.current;
-    if (m) m.scrollTop = m.scrollHeight;
-    wasAtFoot.current = true;
-    // (a dev build's recorder can stretch it, as the island's __islandSlow does)
-    const slow = (import.meta.env?.DEV && typeof window !== 'undefined' && Number(window.__fxSlow)) || 1;
-    const id = setTimeout(() => setFxShown(false), reduced() ? 0 : 460 * slow);
-    return () => clearTimeout(id);
-  }, [focus, fxShown]);
 
   // ---- the state, once, in words and a shape ----
   const failed = failedLast(T.lines, takes);
@@ -174,9 +165,8 @@ export function NovaThread({ v }) {
     busy: T.busy, speaking: T.speaking, offline: T.offline, demo: T.demo, failed, lastReplyAt: T.lastReplyAt,
   });
 
-  // ---- the stage: live while he speaks, or a replay of a settled one ----
-  const live = T.stage && T.stage.key !== tuckedKey ? T.stage : null;
-  useEffect(() => { if (!T.stage) setTuckedKey(null); }, [T.stage]);
+  // ---- the replay of a settled stage (the live one docks on the stage's
+  // plate now, src/NovaStage.jsx); it rises under the presenter's spot
   useEffect(() => {
     if (!replay) return undefined;
     const iv = setTimeout(() => {
@@ -195,7 +185,7 @@ export function NovaThread({ v }) {
     mark: replayHero?.lit ? { name: replayHero.lit.name, hue: replayHero.lit.hue } : null,
     finder: replayHero?.finder ? { words: replayHero.finder, hue: replayHero.hue } : null,
   } : null;
-  const shown = live || replayStage;
+  const shown = replayStage;
   // leaving: the stage that just ended is held one beat longer, fading up
   // into the head, so the card that settles into the thread reads as it
   const [leaving, setLeaving] = useState(null);
@@ -215,61 +205,16 @@ export function NovaThread({ v }) {
   // it opens; read once, so a line he reads now does not fold under him
   const seenAtOpen = useMemo(() => readSeen(), []);
   const rows = useMemo(() => threadRows(T.lines, { takes: tk, nameOf: T.nameOf, seenAt: seenAtOpen }), [T.lines, tk, T.nameOf, seenAtOpen]);
-  const opening = useMemo(() => openingIndex(T.lines, seenAtOpen), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- opening (12 Oct, his rule): at the first answer he has not read,
-  // his question above it; else at the foot. The brief and Nova's unprompted
-  // check-ins are folded and never count as unread. At the foot, it holds
-  // there while late cards (the stage, images) finish drawing, until he
-  // scrolls himself.
-  const atFoot = () => { const m = mainRef.current; return !m || m.scrollHeight - m.scrollTop - m.clientHeight < 96; };
+  // ---- opening: on the stage, the foot of the one scroll (NovaStage puts
+  // it there and keeps it there while the history grows above it)
   useLayoutEffect(() => {
-    const m = rootRef.current?.closest('main');
-    mainRef.current = m;
+    mainRef.current = rootRef.current?.closest('main') || null;
     firstPaint.current = false;
-    if (!m) return undefined;
-    let target = opening != null ? rootRef.current.querySelector(`[data-line="${opening}"]`) : null;
-    while (target?.previousElementSibling?.classList.contains('nv-nt-day')) target = target.previousElementSibling;
-    if (target) {
-      const headBottom = headRef.current?.getBoundingClientRect().bottom || 0;
-      m.scrollTop = Math.max(0, m.scrollTop + target.getBoundingClientRect().top - headBottom - 16);
-      wasAtFoot.current = false;
-      return undefined;
-    }
-    m.scrollTop = m.scrollHeight;
     wasAtFoot.current = true;
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    let held = true;
-    const release = () => { held = false; };
-    const ro = new ResizeObserver(() => { if (held) m.scrollTop = m.scrollHeight; });
-    ro.observe(rootRef.current);
-    m.addEventListener('touchstart', release, { passive: true });
-    m.addEventListener('wheel', release, { passive: true });
-    const id = setTimeout(release, 2500);
-    return () => { ro.disconnect(); clearTimeout(id); m.removeEventListener('touchstart', release); m.removeEventListener('wheel', release); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  // the stage rail sits at the head's foot, whatever height the head is
-  useLayoutEffect(() => {
-    const h = headRef.current;
-    const root = rootRef.current;
-    if (!h || !root || typeof ResizeObserver === 'undefined') return undefined;
-    const put = () => root.style.setProperty('--nt-headh', `${Math.round(h.getBoundingClientRect().height)}px`);
-    put();
-    const ro = new ResizeObserver(put);
-    ro.observe(h);
-    return () => ro.disconnect();
   }, []);
   // a new line lands at the foot while he is there: stay with it (never on
   // the first paint, which the opening above has already placed)
-  const count = rows.length;
-  const lastCount = useRef(count);
-  useLayoutEffect(() => {
-    const m = mainRef.current;
-    if (count === lastCount.current) return;
-    lastCount.current = count;
-    if (m && wasAtFoot.current) m.scrollTo({ top: m.scrollHeight, behavior: reduced() ? 'auto' : 'smooth' });
-  }, [count]);
   useEffect(() => {
     const m = mainRef.current;
     if (!m) return undefined;
@@ -283,8 +228,6 @@ export function NovaThread({ v }) {
       if (wasAtFoot.current && written !== T.newestAt) { writeSeen(T.newestAt); written = T.newestAt; }
     };
     const onScroll = () => { if (!pending) pending = requestAnimationFrame(check); };
-    // (the full screen covers the page and has its own ways back: the ⌄, a
-    // tap outside the plate, a swipe up on the peek, the edge swipe)
     m.addEventListener('scroll', onScroll, { passive: true });
     return () => { m.removeEventListener('scroll', onScroll); cancelAnimationFrame(pending); };
   }, [T.newestAt]);
@@ -319,44 +262,19 @@ export function NovaThread({ v }) {
   };
   const holdTake = (id) => ({ target }) => setHeld({ kind: 'take', id, rect: target.getBoundingClientRect() });
 
-  const stateLine = (
-    <p className="nv-nt-state" role="status" data-state={S.key}>
-      <Glyph k={S.key} /><b>{S.word}</b>{S.hint ? <span>· {S.hint}</span> : null}
-    </p>
-  );
-
   return (
-    <div ref={rootRef} className={`nv-nt${focus ? ' focus' : ''}${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice">
-      <header ref={headRef} className="nv-nt-head">
-        {/* the head is his name and state, no core: at rest the tab bar's
-            Nova is the one orb on screen, and in focus the full screen has it */}
-        <div className="nv-nt-who">
-          {/* HIS AMENDMENT: the name opens the focus, now the full screen */}
-          <button type="button" className="nv-nt-name" onClick={() => (focus ? T.closeFocus() : T.openFocus())} aria-pressed={focus}
-            aria-label={focus ? 'Nova. Back to the conversation' : 'Nova. Full screen'}>Nova</button>
-          <button type="button" className="nv-nt-more" onClick={() => setStatusOpen(true)} aria-label="Nova’s status and settings"><Ico name="right" /></button>
-        </div>
-        {stateLine}
-      </header>
-      {/* THE STAGE RISES FROM UNDER THE HEAD, but is not inside it: the head
-          is glass (a backdrop root), and glass nested in glass can only blur
-          the head, never the thread it floats over. A zero-height sticky rail
-          pins it to the head's foot without taking room in the thread. */}
-      {/* THE THREAD STEPS BACK while the stage is up (30 Sep, his: "the
-          background should be blurred so the amount of visible information
-          on screen is focused and not overwhelming"): a blur and a light
-          dim over the thread, under the head, the stage and the composer,
-          which stay usable. A tap on it tucks the stage, as ⌃ does. */}
-      {(shown || leaving) && !focus && (
-        <div className={`nv-nt-stagedim${!shown ? ' leaving' : ''}`} aria-hidden="true"
-          onClick={() => { if (live) setTuckedKey(live.key); else setReplay(null); }} />
+    <div ref={rootRef} className={`nv-nt${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice">
+      {/* A REPLAYED STAGE rises under the presenter's spot over the history,
+          which steps back behind it (30 Sep, his: "the background should be
+          blurred so the amount of visible information on screen is
+          focused"); a tap on the dim tucks it, as ⌃ does. A zero-height
+          sticky rail pins it without taking room in the thread. */}
+      {(shown || leaving) && (
+        <div className={`nv-nt-stagedim${!shown ? ' leaving' : ''}`} aria-hidden="true" onClick={() => setReplay(null)} />
       )}
       <div className="nv-nt-stagerail">
-        {shown && !focus && (
-          <Stage s={shown} replay={!live} onOpen={openSheet}
-            onTuck={() => { if (live) setTuckedKey(live.key); else setReplay(null); }} />
-        )}
-        {!shown && leaving && !focus && <Stage s={leaving} leaving onOpen={() => {}} onTuck={() => {}} />}
+        {shown && <Stage s={shown} replay onOpen={openSheet} onTuck={() => setReplay(null)} />}
+        {!shown && leaving && <Stage s={leaving} leaving onOpen={() => {}} onTuck={() => {}} />}
       </div>
 
       <div className="nv-nt-thread">
@@ -402,7 +320,6 @@ export function NovaThread({ v }) {
             <span className="nv-nt-skel" style={{ width: '92%' }} /><span className="nv-nt-skel" style={{ width: '64%' }} />
           </div>
         )}
-        {T.close && <CloseCard c={T.close} onTalk={startTalking} />}
         {T.offline && (
           <div className="nv-nt-offl" role="status">
             <Ico name="cloudoff" />
@@ -422,13 +339,16 @@ export function NovaThread({ v }) {
         </div>
       )}
 
+      {/* THE STAGE: the foot of this same scroll, where the page opens. The
+          brief's question (gold, it waits on his call) sits on it in place of
+          the last exchange, where he is, not up in the history. */}
+      <NovaStage T={T} S={S} dict={dict} since={listenSince} onTalk={startTalking} onOpen={openSheet}
+        onStatus={() => setStatusOpen(true)} captions={captions} apiRef={stageApi}
+        close={T.close ? <CloseCard c={T.close} onTalk={startTalking} /> : null} />
+
       <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} nudged={nudged} continuing={cont.continuing} />
 
-      {fxShown && (
-        <NovaFocus T={T} S={S} dict={dict} since={listenSince} leaving={!focus} onTalk={startTalking} onOpen={openSheet} />
-      )}
-
-      {statusOpen && <StatusSheet T={T} dict={dict} S={S} onClose={() => setStatusOpen(false)} />}
+      {statusOpen && <StatusSheet T={T} dict={dict} S={S} captions={captions} onCaptions={toggleCaptions} onClose={() => setStatusOpen(false)} />}
       {held && <HoldMenu held={held} T={T} takes={tk} onClose={() => setHeld(null)}
         onReplay={(panels) => { setHeld(null); setReplay({ panels, idx: 0 }); }} />}
       {sheet && (
@@ -641,7 +561,7 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false,
 // What the classic Station, ⋯ and chips held: status first (answers, voice,
 // microphone), then the switches and the doors. An aria-modal root that
 // closes on its own backdrop, so the back swipe can take it.
-function StatusSheet({ T, dict, S, onClose }) {
+function StatusSheet({ T, dict, S, captions, onCaptions, onClose }) {
   const s = T.status;
   const mic = !dict.supported ? 'Not available here' : dict.on ? 'Listening' : dict.hearing ? 'Writing it down' : 'Ready';
   const go = (fn) => () => { onClose(); fn?.(); };
@@ -667,6 +587,10 @@ function StatusSheet({ T, dict, S, onClose }) {
               <Ico name="mic" /><span>“Hey Nova”</span><span className={`nv-nt-sw${s.heyNova.on ? ' on' : ''}`} aria-hidden="true" />
             </button>
           )}
+          {/* the stage's subtitles: the switch the full screen's top right held */}
+          <button type="button" className="nv-nt-mi" role="switch" aria-checked={captions} onClick={onCaptions}>
+            <Ico name="stage" /><span>Subtitles on the stage</span><span className={`nv-nt-sw${captions ? ' on' : ''}`} aria-hidden="true" />
+          </button>
           <button type="button" className="nv-nt-mi" onClick={go(s.briefMe)}><Ico name="brief" /><span>Brief me</span><span className="v" /></button>
           {s.ritual && <button type="button" className="nv-nt-mi" onClick={go(s.ritual.start)}><Ico name="sun" /><span>{s.ritual.label}</span><span className="v" /></button>}
           {s.ambient && <button type="button" className="nv-nt-mi" onClick={go(s.ambient)}><Ico name="moon" /><span>Ambient</span><span className="v">full screen</span></button>}

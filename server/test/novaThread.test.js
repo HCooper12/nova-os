@@ -287,9 +287,11 @@ test('the focus door (30 Sep): enterFocus brings the core up through the page\'s
   valsNovaThread(app, {}, vOf()).novaThread.enterFocus();
   assert.equal(focused, 1, 'unregistered on unmount');
   const src = read('src/screens/NovaThread.jsx');
-  // since 3 Oct the focus is the full-screen Nova, its own history entry
-  // (App.openNovaFocus); the registration opens it the same way the name does
-  assert.match(src, /T\.syncFocus\(\);\n    T\.registerFocus\(\(\) => T\.openFocus\(\)\);\n    return \(\) => T\.registerFocus\(null\);/);
+  // since 29 Oct (one canvas, mockup 106 A) the door brings him to the stage
+  // at the foot of the page; it is registered AFTER the talk, so a hold from
+  // another page finds both when consumeNovaHold runs (focus, then the mic)
+  assert.match(src, /T\.registerFocus\(\(\) => stageApi\.current\?\.toStage\(true\)\);\n    return \(\) => T\.registerFocus\(null\);/);
+  assert.ok(src.indexOf('T.registerTalk(') < src.indexOf('T.registerFocus('), 'talk registers before the stage door');
   // 1 Oct (every door): the hold on the tab bar's Nova opens this page with
   // its core full screen and listening (App.holdNovaCore), no longer the
   // capture composer; a hold from another page waits for this registration
@@ -302,27 +304,28 @@ test('the focus door (30 Sep): enterFocus brings the core up through the page\'s
   assert.equal(consumed, 1, 'unregistering does not');
 });
 
-test('the head is the name and the state, no core; the core is drawn by the full-screen Nova only (30 Sep, 3 Oct)', () => {
+test('one canvas (29 Oct, mockup 106 A): the head became the presenter\'s spot; one core, on the stage, and no full-screen hop', () => {
   const src = read('src/screens/NovaThread.jsx');
-  assert.equal((src.match(/<CoreFace /g) || []).length, 0, 'the thread\'s head draws no core');
-  assert.match(src, /\{fxShown && \(\n\s*<NovaFocus /, 'the full screen draws it, in focus (and while it folds away)');
-  assert.match(src, /if \(focus && !fxShown\) setFxShown\(true\);/, 'held in the same render the focus closes: never remounted on the way out');
-  const fx = read('src/NovaFocus.jsx');
-  assert.equal((fx.match(/<CoreFace /g) || []).length, 1, 'one core on the full screen');
-  assert.match(src, /className="nv-nt-name" onClick=\{\(\) => \(focus \? T\.closeFocus\(\) : T\.openFocus\(\)\)\}/, 'the name still toggles the focus');
-  assert.match(src, /className="nv-nt-more" onClick=\{\(\) => setStatusOpen\(true\)\}/, 'the › still opens status at rest');
+  assert.equal((src.match(/<CoreFace /g) || []).length, 0, 'the thread draws no core itself');
+  assert.doesNotMatch(src, /<NovaFocus |nv-nt-head|T\.openFocus|T\.closeFocus/, 'no focus hop, no old head');
+  assert.match(src, /<NovaStage T=\{T\} S=\{S\} dict=\{dict\}/, 'the stage is drawn by the page itself');
+  const stage = read('src/NovaStage.jsx');
+  assert.equal((stage.match(/<CoreFace /g) || []).length, 1, 'one core on the page');
+  assert.match(stage, /<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus tinted size=\{300\} contest=\{contest\} \/>/, 'the full screen\'s tinted core');
+  assert.match(stage, /className="nv-nt-omore" onClick=\{onStatus\}/, 'the › still opens status, always on screen');
+  assert.match(src, /onStatus=\{\(\) => setStatusOpen\(true\)\}/);
 });
 
 test('the stage steps the thread back: a blur and a light dim under the head, stage and composer, solid under reduced transparency (30 Sep)', () => {
   const src = read('src/screens/NovaThread.jsx');
-  assert.match(src, /\{\(shown \|\| leaving\) && !focus && \(\n\s*<div className=\{`nv-nt-stagedim\$\{!shown \? ' leaving' : ''\}`\} aria-hidden="true"/);
+  assert.match(src, /\{\(shown \|\| leaving\) && \(\n\s*<div className=\{`nv-nt-stagedim\$\{!shown \? ' leaving' : ''\}`\} aria-hidden="true"/);
   const css = read('src/index.css');
   const rule = /\.nv-nt-stagedim \{([^}]*)\}/.exec(css.slice(css.indexOf('THE NOVA THREAD (29 Sep 2026)')));
   assert.ok(rule, 'the dim rule');
   assert.match(rule[1], /position: fixed; inset: 0; z-index: 11;/);
   assert.match(rule[1], /backdrop-filter: blur\(10px\)/);
   const z = (sel) => Number(new RegExp(`${sel} \\{[^}]*z-index: (\\d+)`).exec(css)[1]);
-  assert.ok(z('\\.nv-nt-head') > 11 && z('\\.nv-nt-stagerail') > 11 && z('\\.nv-nt-composer') > 11, 'the head, the stage and the composer stay sharp and usable');
+  assert.ok(z('\\.nv-nt-ohead') > 11 && z('\\.nv-nt-stagerail') > 11 && z('\\.nv-nt-composer') > 11, 'the presenter, the stage and the composer stay sharp and usable');
   const rt = css.slice(css.lastIndexOf('@media (prefers-reduced-transparency: reduce)'));
   assert.match(rt.slice(0, rt.indexOf('\n}\n') + 3), /\.nv-nt \.nv-nt-stagedim \{ background: color-mix\(in srgb, var\(--nv-void\) 86%, transparent\); \}/);
 });
@@ -438,7 +441,7 @@ test('no type in the thread is below 13px, and every selector wears .nv-nt', () 
   // reduce transparency: the app-wide guard, which must stay the file's last
   // such block, turns this page's floating glass solid
   const rt = css.slice(css.lastIndexOf('@media (prefers-reduced-transparency: reduce)'));
-  assert.match(rt.slice(0, rt.indexOf('\n}\n') + 3), /\.nv-nt-head, \.nv-nt-stage, \.nv-nt-composer/);
+  assert.match(rt.slice(0, rt.indexOf('\n}\n') + 3), /\.nv-nt-stage, \.nv-nt-composer[\s\S]*\.nv-nt \.nv-fx-plate, \.nv-nt \.nv-fx-panel/);
   assert.ok(css.lastIndexOf('@media (prefers-reduced-transparency: reduce)') < start, 'the guard stays last');
 });
 

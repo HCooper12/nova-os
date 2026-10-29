@@ -93,8 +93,9 @@ function useAway(away) {
 }
 
 export function SummaryDock({ v }) {
-  // the Briefing plays on the same full-screen stage (round 2, 9 Oct 2026)
-  const away = !!v.novaThread?.focus || !!v.briefingStage;
+  // the Briefing plays on the full-screen stage (round 2, 9 Oct 2026); the
+  // Nova page's own stage (29 Oct) keeps the bar
+  const away = !!v.briefingStage;
   const gone = useAway(away);
   // the same press ring and core bounce as the cupertino dock (holdToTalk.js);
   // this hold still opens the Nova page, so there is no panel to grow here
