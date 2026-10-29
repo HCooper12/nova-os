@@ -148,7 +148,7 @@ const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAA
 
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
 import { noteSpokenSentence, cutSpeech, beginReply, onSpeech, stanceNow } from './speechClock.js';
-import { watchForUpdate } from './buildCheck.js';
+import { watchForUpdate, applyUpdate, attemptsFor } from './buildCheck.js';
 import { kcalFromMacros } from './fuelRead.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
@@ -518,6 +518,7 @@ export default class App extends Component {
     voiceStance: null,
     briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0,
     updateReady: null, // a newer Nova is deployed than the one running
+    updateTries: 0, updateStage: null, // the tap's progress (buildCheck.applyUpdate)
     voiceConvMode: false, voiceConvPaused: false, voiceAutoListenTick: 0,
     voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
     speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
@@ -1492,6 +1493,22 @@ export default class App extends Component {
         : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
     };
   }
+  // A newer build is deployed (buildCheck.watchForUpdate). If a tap already
+  // reached for this same build and the reload still came up old, finish the
+  // job without asking again: being asked twice for one update is what made
+  // the button feel fake (his report, 29 Oct). One automatic retry only, so a
+  // build that will not take can never loop the app through reloads.
+  onNewerBuild(deployed) {
+    if (this.state.updateApplying) return;
+    const tries = attemptsFor(deployed);
+    this.setState({ updateReady: deployed, updateTries: tries });
+    if (tries === 1) this.takeUpdate(deployed);
+  }
+  takeUpdate(target) {
+    if (this.state.updateApplying) return;
+    this.setState({ updateApplying: true, updateStage: null });
+    applyUpdate({ target, onStage: (stage) => this.setState({ updateStage: stage }) });
+  }
   // keep the phone's copy of his bests current for every lift in his routines,
   // so a session started with no signal still has its record banner (14 Oct)
   warmBests() {
@@ -2355,7 +2372,7 @@ export default class App extends Component {
           // Watch for a newer deploy than the bundle we are executing.
           // Started here because this is the point the app is genuinely live.
           if (!this.updateWatch) {
-            this.updateWatch = watchForUpdate((deployed) => this.setState({ updateReady: deployed }));
+            this.updateWatch = watchForUpdate((deployed) => this.onNewerBuild(deployed));
           }
           // standing by: the brief waits for a sync after he is back
           if (!this.briefChecked && !this.standbyOn()) {
@@ -13841,9 +13858,9 @@ export default class App extends Component {
             an old build, or force-quit the app to find out. */}
         {v.updateReady && (
           <div style={css(`position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 14px 10px;background:color-mix(in srgb, var(--nv-gold) 16%, var(--nv-void));border-bottom:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);box-shadow:0 10px 30px rgba(0,0,0,.5)`)}>
-            <span style={css('flex:1;min-width:0;font-size:12.5px;line-height:1.4;color:var(--nv-ink)')}>A newer Nova is ready — you’re running an older build.</span>
+            <span style={css('flex:1;min-width:0;font-size:12.5px;line-height:1.4;color:var(--nv-ink)')}>{v.updateReady.message}</span>
             <Button compact haptic="commit" onClick={v.updateReady.apply} disabled={v.updateReady.applying}
-              style={{ flex: 'none' }}>{v.updateReady.applying ? 'UPDATING…' : 'UPDATE'}</Button>
+              style={{ flex: 'none' }}>{v.updateReady.applying ? 'UPDATING…' : v.updateReady.action}</Button>
             {!v.updateReady.applying && <Interactive as="span" onClick={v.updateReady.dismiss}
               base={css('cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 10px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)')}
               hoverStyle="color:var(--nv-ink)">LATER</Interactive>}

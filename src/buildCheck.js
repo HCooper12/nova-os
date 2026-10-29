@@ -16,7 +16,7 @@
 // injected by vite (define) — the id of the bundle actually executing
 export const RUNNING_BUILD = typeof __NOVA_BUILD__ === 'string' ? __NOVA_BUILD__ : 'dev';
 
-const VERSION_URL = `${import.meta.env.BASE_URL || '/'}version.json`;
+const VERSION_URL = `${import.meta.env?.BASE_URL || '/'}version.json`;
 
 // The deployed build id, read past every cache. A failure here is silence —
 // being offline is not the same as being out of date, and claiming an update
@@ -56,10 +56,47 @@ export function isStale(running, deployed) {
 // side: the service worker's own flow was working the whole time; only the
 // tap was stuck behind it.
 //
-// THE RELOAD IS THE PROMISE. Everything else is best-effort and is now
-// time-boxed and raced against it. A tap reloads within RELOAD_BY_MS no
-// matter what any of the storage APIs decide to do.
-export const RELOAD_BY_MS = 1200;
+// The fix that followed (reload within 1.2 s whatever the cleanup was doing)
+// made the tap move. It did not make it work, which is the next report.
+//
+// 29 OCT, HIS REPORT: "I will press it about three different times and reload
+// the app but it keeps wanting me to press the button until it eventually
+// seems to restart and update itself."
+//
+// The 1.2 s race was the cause this time. The banner nearly always appears
+// while the new service worker is installing: bringing Nova to the front
+// fires main.jsx's reg.update() and the version.json poll together.
+// Service-worker jobs run one at a time, so the unregister() in the cleanup
+// queued behind that install (85 files, ~6.8 MB) and took far longer
+// than 1.2 s on a phone. The guard reloaded while the OLD worker still
+// controlled the page, navigateFallback served the OLD precached index.html,
+// and he was back on the same build looking at the same banner. Every tap
+// repeated that until the install finished by itself, the new worker took
+// the page (skipWaiting + clientsClaim) and main.jsx's controllerchange
+// reload brought the new build: the "eventually restarts itself".
+//
+// So the tap now rides the service worker's own path instead of racing it:
+// ask for the update, wait for the new worker to take control, then reload,
+// which can only boot the new build. Only when there is no worker, nothing
+// new to install, or it never takes over, does it clear everything and
+// reload from the network. The banner says which step it is on, and an
+// attempt is remembered per build so a reload that still lands on the old
+// one finishes the job by itself instead of asking him again.
+// How long to wait for the new worker. While one is visibly installing the
+// wait goes on, up to INSTALL_CAP_MS: measured in a two-build run in Chrome,
+// a reload sent while the install was still going came up on the OLD build
+// again (the very bug), so giving up early only repeats it.
+export const SWITCH_BY_MS = 15_000;
+export const INSTALL_CAP_MS = 120_000;
+export const CLEAR_BY_MS = 5000;    // the fallback's cleanup is still time-boxed
+
+const TIMEOUT = Symbol('timeout');
+// a promise, or TIMEOUT after ms (never a stray timer left behind)
+function within(promise, ms) {
+  let t;
+  const late = new Promise((resolve) => { t = setTimeout(() => resolve(TIMEOUT), ms); });
+  return Promise.race([Promise.resolve(promise), late]).finally(() => clearTimeout(t));
+}
 
 function hardReload() {
   // cache-busted so even a stubborn HTTP cache cannot hand back the old shell
@@ -79,16 +116,96 @@ async function dropCaches() {
   }
 }
 
-export async function applyUpdate({ reload = hardReload, timeoutMs = RELOAD_BY_MS } = {}) {
-  let done = false;
-  const go = () => { if (done) return; done = true; reload(); };
-  // the guarantee: this fires whatever the cleanup is doing
-  const guard = setTimeout(go, timeoutMs);
+// Ask the service worker for the new build and wait until it controls the
+// page. true = the new worker is in charge, so a reload boots the new build.
+// false = there was nothing to wait for, or it did not arrive in time.
+export async function switchWorker(sw, timeoutMs = SWITCH_BY_MS, installCapMs = INSTALL_CAP_MS) {
+  if (!sw || !sw.controller) return false; // no worker: a plain reload is already fresh
+  const reg = await within(sw.getRegistration().catch(() => null), 3000);
+  if (!reg || reg === TIMEOUT) return false;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      sw.removeEventListener('controllerchange', onChange);
+      resolve(ok);
+    };
+    const onChange = () => finish(true);
+    // at the deadline, a worker still installing earns more time (to the cap)
+    const giveUpAt = Date.now() + installCapMs;
+    const deadline = () => {
+      if (reg.installing && Date.now() < giveUpAt) timer = setTimeout(deadline, 1000);
+      else finish(false);
+    };
+    let timer = setTimeout(deadline, timeoutMs);
+    sw.addEventListener('controllerchange', onChange);
+    // a worker already installed and waiting only needs the word
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    // update() settles once any install already running has finished; if by
+    // then no new worker is installing or waiting, the server's worker is the
+    // one already running and waiting longer would only waste his time
+    const nothingNew = () => { if (!reg.installing && !reg.waiting) finish(false); };
+    Promise.resolve().then(() => reg.update()).then(nothingNew, nothingNew);
+  });
+}
+
+// One record: the build he last tried to move to, how many times, and when.
+// Kept in localStorage because the whole point is to survive the reload.
+const ATTEMPT_KEY = 'nova.updateAttempt';
+const ATTEMPT_FRESH_MS = 30 * 60_000;
+
+function defaultStorage() {
+  try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
+}
+
+// How many times this session of tries has already reached for `target`.
+// A stale record (another build, or older than half an hour) counts as none.
+export function attemptsFor(target, { storage = defaultStorage(), now = Date.now() } = {}) {
+  if (!target || !storage) return 0;
   try {
-    await dropCaches();
-  } catch { /* best-effort — the reload is the part that matters */ }
-  clearTimeout(guard);
-  go();
+    const rec = JSON.parse(storage.getItem(ATTEMPT_KEY) || 'null');
+    if (!rec || rec.target !== target || now - rec.at > ATTEMPT_FRESH_MS) return 0;
+    return Number(rec.tries) || 0;
+  } catch { return 0; }
+}
+
+function noteAttempt(target, storage, now) {
+  if (!target || !storage) return;
+  try {
+    const tries = attemptsFor(target, { storage, now }) + 1;
+    storage.setItem(ATTEMPT_KEY, JSON.stringify({ target, tries, at: now }));
+  } catch { /* storage refused: the update still runs, it just cannot count */ }
+}
+
+export function clearAttempt(storage = defaultStorage()) {
+  try { storage?.removeItem(ATTEMPT_KEY); } catch { /* nothing to clear */ }
+}
+
+// The tap. `onStage` hears 'downloading' (waiting on the new worker) and
+// 'clearing' (the network fallback) so the banner can say which is happening.
+export async function applyUpdate({
+  target = null,
+  sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined,
+  reload = hardReload,
+  clear = dropCaches,
+  storage = defaultStorage(),
+  onStage = () => {},
+  switchByMs = SWITCH_BY_MS,
+  installCapMs = INSTALL_CAP_MS,
+  clearByMs = CLEAR_BY_MS,
+  now = Date.now(),
+} = {}) {
+  noteAttempt(target, storage, now);
+  if (sw && sw.controller) {
+    onStage('downloading');
+    if (await switchWorker(sw, switchByMs, installCapMs)) { reload(); return 'worker'; }
+  }
+  onStage('clearing');
+  await within(Promise.resolve().then(clear).catch(() => {}), clearByMs);
+  reload();
+  return 'network';
 }
 
 // Poll for a new deploy. Deliberately unhurried — this is a safety net, not
@@ -99,6 +216,8 @@ export function watchForUpdate(onStale, { intervalMs = 10 * 60_000 } = {}) {
     if (stopped) return;
     const deployed = await fetchDeployedBuild();
     if (isStale(RUNNING_BUILD, deployed)) onStale(deployed);
+    // the build he reached for is the one running: the attempt is done
+    else if (deployed && deployed === RUNNING_BUILD) clearAttempt();
   };
   check();
   const timer = setInterval(check, intervalMs);

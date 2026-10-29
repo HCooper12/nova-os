@@ -19,7 +19,18 @@ import { providerNote, whereLabel, deviceName } from '../conversationSync.js';
 
 // this device, named once: a record line from another one says where it was said
 const THIS_DEVICE = deviceName(typeof navigator === 'undefined' ? '' : navigator.userAgent);
-import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
+import { RUNNING_BUILD } from '../buildCheck.js';
+
+// The update banner's one line, by where the update has got to.
+function updateLine(st) {
+  if (st.updateApplying) {
+    if (st.updateStage === 'downloading') return 'Downloading the newer Nova. It reloads by itself once it is in.';
+    if (st.updateStage === 'clearing') return 'Clearing the old copy and reloading from the network.';
+    return 'Updating Nova.';
+  }
+  if ((st.updateTries || 0) >= 2) return 'The newer Nova has not taken yet. Try once more, or close Nova from the app switcher and reopen it.';
+  return 'A newer Nova is ready — you’re running an older build.';
+}
 import { buildShopView } from '../shopModel.js';
 import { demoShopState, shopDemoVariant, demoShopRotation, demoShopRecipes } from '../shopDemo.js';
 import { filedFor } from '../filedFlight.js';
@@ -273,12 +284,15 @@ export function valsMisc(app, ctx) {
     novaBuild: RUNNING_BUILD,
     updateReady: st.updateReady ? {
       deployed: st.updateReady,
-      // THE TAP MUST LOOK TAKEN. His report: he pressed UPDATE and the screen
-      // sat there. The reload is guaranteed now (buildCheck.RELOAD_BY_MS), but
-      // up to a second of nothing still reads as a dead button — so the label
-      // changes the instant he touches it.
+      // THE TAP MUST LOOK TAKEN, AND SAY WHAT IT IS DOING. The tap now waits
+      // for the new service worker (buildCheck.applyUpdate), which can take a
+      // while on a phone, so the line names the step instead of sitting there.
+      // And a build already reached for is never offered as if it were new
+      // (his report, 29 Oct: three taps for one update).
       applying: !!st.updateApplying,
-      apply: () => { app.setState({ updateApplying: true }); applyUpdate(); },
+      message: updateLine(st),
+      action: (st.updateTries || 0) >= 2 ? 'TRY AGAIN' : 'UPDATE',
+      apply: () => app.takeUpdate(st.updateReady),
       dismiss: () => app.setState({ updateReady: null }),
     } : null,
     stageCard: st.stageCard || null,
