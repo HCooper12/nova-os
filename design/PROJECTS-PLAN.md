@@ -1,6 +1,6 @@
 # Nova OS — Projects Plan
 
-**Status: for his approval before any code (his answer to Q48, 29 Oct 2026).**
+**Status: decisions settled 29 Oct (§10); phase 1 waits on his read of this doc.**
 Written from his 48 answers on the decision checklist (26–29 Oct) and from a
 survey of the code as it stands on 29 Oct. Nothing here is built. Where the
 code already has a seam, this doc names the file; where it does not, it says
@@ -458,27 +458,32 @@ what was not.
 
 ---
 
-## 10 · Open points for him (plainly)
+## 10 · Settled with him (29 Oct 2026)
 
-1. **Deploy without push (Q25).** He allowed deploy and withheld push.
-   For anything on GitHub Pages, deploy *is* a push. Pick: (a) push is
-   allowed only as part of an allowed deploy, for that project, and
-   recorded; or (b) deploy also asks. My pick: (a), since he already
-   allowed deploy.
-2. **Science Atlas and Wren (Q4).** My pick: phase 1 *links* them (their
-   folders, sessions and cost appear as projects, read-only; nothing
-   moves, no brief, no vault page) and full adoption waits until the room
-   redesign has run through phase 3.
-3. **Where it lives (Q36).** My pick: (a) in §4, Projects absorbs Code.
-4. **Several at once (Q30).** My pick: a cap of two until the receipts
-   justify more. He can say "no cap" and I will build it without one and
-   watch the load.
-5. **Usage percentage (Q23).** If the CLI does not expose it, the limit is
-   shown in the CLI's cost figure with the page saying so. His call
-   whether that is acceptable or whether he would rather wait for a real
-   source.
-
----
+1. **Deploy and push.** Push is allowed only as part of an allowed deploy,
+   for that project, and recorded in `LOG.md` and on the deploy card. A
+   push on its own still asks.
+2. **Science Atlas and Wren are linked, never touched.** His condition:
+   "only if it can not be damaged or interfered with." A linked project is
+   a record with `linked:true` and a path; Nova only *reads* about it: its
+   sessions (the `claude agents` list Mission Control already reads), its
+   cost (the ledger) and its git log. Code refuses every write to a linked
+   project, in one guard every writer calls (`assertWritable(project)`):
+   no folder layout, no `git init`, no `.nova/`, no commit, no queue, no
+   Watcher destination, no vault page. A test proves each writer refuses.
+   Full adoption is a later decision for him, after the room redesign has
+   been through phase 3. Note: the Code screen's existing `atlas` and
+   `wren` workspaces already let the Builder edit those folders when he
+   asks it to; linking does not change that. Making those workspaces
+   read-only is a separate one-line change if he wants it.
+3. **Where it lives:** Projects absorbs the Code screen (§4, option a).
+4. **Several at once:** a cap of two projects working at once until a week
+   of receipts shows the Mac copes.
+5. **Usage percentage:** if the CLI cannot expose it, the CLI's cost
+   figure is acceptable as the worst case, with the page saying which it
+   shows.
+6. **The doc:** shown to him as a page on 29 Oct; approval of phase 1
+   pending his read.
 
 ## 11 · Verified versus assumed (survey of 29 Oct)
 
