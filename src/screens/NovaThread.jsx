@@ -444,7 +444,8 @@ export function NovaThread({ v }) {
 // his sentence a capture came from, for the words that fly out of it
 const youLine = (j) => document.querySelector(`.nv-nt-you[data-line="${j}"]`);
 
-function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
+// exported for a project page's thread (Projects T7): the same lines, never a copy
+export function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
   const lp = useLongPress(m?.who === 'nova' && m.text ? onHold : null);
   if (!m) return null;
   const meta = [m.time, m.where].filter(Boolean).join(' · ');

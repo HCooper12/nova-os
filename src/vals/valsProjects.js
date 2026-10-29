@@ -94,7 +94,16 @@ export function valsProjects(app) {
       project: { id: p.id, name: p.name, kind: p.kind, stage: p.stage, linked: !!p.linked, folder: p.linked ? p.linked.path : p.folder, goal: p.goal || null, dryRun: !!p.dryRun, workspace: p.workspace || null },
       loading: !d || d.project?.id !== p.id,
       error: st.projectDetailError || null,
-      // the thread: what happened, in the project's own log (code-written)
+      // THE CONVERSATION (T7): his turns and Nova's about this project, from
+      // the conversation record filtered by projectId, newest last
+      conversation: {
+        lines: (st.projectThreads?.[p.id] || []).map((t) => ({ ...t, time: t.at ? new Date(t.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '' })),
+        text: st.projectAskText || '',
+        set: (e) => app.setState({ projectAskText: e.target.value }),
+        send: () => app.sendProjectAsk(),
+        busy: !!st.projectAskBusy,
+      },
+      // what happened, in the project's own log (code-written)
       thread: p.linked ? (d?.commits || []).map((c) => ({ at: String(c.at || '').slice(0, 16).replace('T', ' '), dry: false, text: c.subject })) : logLines.slice(-12).reverse(),
       phases: phases.map((x, i) => ({ name: x.name, what: x.what || '', done: !!x.done, current: i === firstOpen })),
       files: (d?.files || []).slice(0, 40),

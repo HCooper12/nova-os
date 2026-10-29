@@ -12,7 +12,8 @@ export function conversationRouter() {
       const limit = Math.min(Math.max(Number(req.query.limit) || 150, 1), 1000);
       const since = typeof req.query.since === 'string' && req.query.since ? req.query.since : null;
       const before = typeof req.query.before === 'string' && req.query.before ? req.query.before : null;
-      res.json({ turns: await readTurns({ limit, since, before }) });
+      const projectId = typeof req.query.projectId === 'string' && /^([0-9a-f]{8}|repo|atlas|wren)$/.test(req.query.projectId) ? req.query.projectId : null;
+      res.json({ turns: await readTurns({ limit, since, before, ...(projectId ? { projectId } : {}) }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

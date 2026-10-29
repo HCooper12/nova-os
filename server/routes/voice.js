@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import { startGreeting, getMessageJob, prewarmAsk } from '../lib/claudeCode.js';
 import { startAsk } from '../lib/askDispatch.js';
@@ -133,6 +135,10 @@ export function voiceRouter(vaultPath) {
   // already carry it. Shared builder (lib/askContext.js) so the Voice
   // screen, the Siri sync ask, and the Telegram bridge can never drift.
   const askContext = (sessionId, opts) => buildAskContext(vaultPath, sessionId, opts);
+  // a project page's turn (Projects T7): an id the kernel or the linked list
+  // could own; anything else is ignored, never trusted as a path
+  const projectIdOf = (body) => (typeof body?.projectId === 'string' && /^([0-9a-f]{8}|repo|atlas|wren)$/.test(body.projectId) ? body.projectId : null);
+  const projectOpts = (pid, extra = {}) => (pid ? { ...extra, projectId: pid, repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') } : (Object.keys(extra).length ? extra : undefined));
 
   // PHOTOS AND VIDEOS WITH A QUESTION (lib/attachments.js): stored here,
   // then named by id on the ask that follows. The question carries the
@@ -328,7 +334,8 @@ export function voiceRouter(vaultPath) {
       // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
-      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
+      const pid = projectIdOf(req.body);
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid)), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
       watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });
@@ -497,7 +504,7 @@ export function voiceRouter(vaultPath) {
       const { buildStartQuestion } = await import('../lib/rituals.js');
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
       const question = buildStartQuestion(req.body?.item, Number(req.body?.days) || 0);
-      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId), sessionId });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(projectIdOf(req.body))), sessionId });
       res.json({ jobId, label: '▸ Start it with me' });
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -673,7 +680,7 @@ export function voiceRouter(vaultPath) {
       // awaited the same way so the fast path stays visibly the cheap one.
       const [context, liveLine] = spoken.resumed
         ? ['', await todayLocalContext().catch(() => null) || '']
-        : [await askContext(null, { fast: true }), ''];
+        : [await askContext(null, projectOpts(projectIdOf(body), { fast: true })), ''];
       const started = Date.now();
       // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
       // the exact string Nova's turn takes (attachments ride in front), since

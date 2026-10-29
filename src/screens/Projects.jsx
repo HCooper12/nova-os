@@ -3,6 +3,7 @@ import { Interactive } from '../Interactive.jsx';
 import { ScreenHead, Eyebrow, Meta, Tag, Button, Chip, TextAction, Rail, Segmented } from '../Controls.jsx';
 import { Group, GRow } from '../AppleLayout.jsx';
 import { RingTile } from '../RingTile.jsx';
+import { Line } from './NovaThread.jsx';
 
 // PROJECTS (phase 1, 29 Oct 2026; design/PROJECTS-PLAN.md §4). Absorbs the
 // Code screen: the list is a rail of projects (the next tile peeks), a
@@ -121,6 +122,26 @@ function PhasePath({ phases }) {
   );
 }
 
+// THE PROJECT'S CONVERSATION (T7): the Nova thread's own lines (NovaThread
+// Line), on the ordinary /ask path with this project's context attached.
+function ProjectTalk({ c, name }) {
+  return (
+    <div className="nv-pj-talk">
+      {c.lines.length ? (
+        <div className="nv-nt-thread">
+          {c.lines.map((m, i) => <Line key={`${m.at}-${i}`} i={i} m={m} fresh={i === c.lines.length - 1} onHold={null} onOpen={() => {}} onReplay={() => {}} />)}
+        </div>
+      ) : <Meta>Ask anything about {name}. Nova answers from its brief, its log and the pages it may read.</Meta>}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '14px', minWidth: 0 }}>
+        <textarea value={c.text} onChange={c.set} rows={1} placeholder={`Ask Nova about ${name}`} aria-label={`Ask Nova about ${name}`}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); c.send(); } }}
+          style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', resize: 'none', background: 'var(--nv-well)', color: 'var(--nv-ink)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '20px', padding: '10px 14px', font: `400 16px/1.4 ${UI}`, outline: 'none' }} />
+        <Button onClick={c.text.trim() && !c.busy ? c.send : undefined} disabled={!c.text.trim() || c.busy} style={{ flex: 'none' }}>{c.busy ? 'Asking' : 'Ask'}</Button>
+      </div>
+    </div>
+  );
+}
+
 const ALLOW_LABEL = { research: 'Research', draft: 'Draft', code: 'Write code', test: 'Run tests', commit: 'Commit', deploy: 'Deploy' };
 
 function Section({ summary, label, trailing, children }) {
@@ -166,6 +187,10 @@ function ProjectPage({ pg, summary }) {
           ))}
         </Section>
       )}
+
+      <Section summary={summary} label={`Talk to Nova about ${p.name}`}>
+        <ProjectTalk c={pg.conversation} name={p.name} />
+      </Section>
 
       <Section summary={summary} label="Phases"><PhasePath phases={pg.phases} /></Section>
 

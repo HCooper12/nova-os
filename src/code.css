@@ -441,3 +441,14 @@
 .nv-pj-live { width: 7px; height: 7px; border-radius: 50%; background: var(--nv-cy); animation: nvPjLive 1.6s ease-in-out infinite; }
 @keyframes nvPjLive { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .nv-pj-live { animation: none; } }
+
+/* Projects T7: a project's conversation wears the Nova thread's own line
+   styles; these are the thread's tokens, scoped to the page section */
+.nv-pj-talk {
+  --nt-quiet: color-mix(in srgb, var(--nv-ink) 9%, transparent);
+  --nt-edge: color-mix(in srgb, var(--nv-ink) 16%, transparent);
+  --nt-bubble: color-mix(in srgb, var(--nv-ink) 13%, transparent);
+  min-width: 0;
+}
+.nv-pj-talk .nv-nt-thread { margin-top: 0; padding-top: 0; }
+.nv-pj-talk .nv-nt-say, .nv-pj-talk .nv-nt-you { font-size: 15px; }

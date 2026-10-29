@@ -657,6 +657,7 @@ export default class App extends Component {
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
     liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
+    projectThreads: {}, projectSessions: {}, projectAskText: '', projectAskBusy: false,
     projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
@@ -6762,6 +6763,50 @@ export default class App extends Component {
     api.project(conn, id)
       .then((d) => { if (this.state.projectOpen === id) this.setState({ projectDetail: d, projectDetailError: null }); })
       .catch((e) => { if (this.state.projectOpen === id) this.setState({ projectDetailError: e.message || 'Could not read the project' }); });
+    api.projectThread(conn, id)
+      .then((r) => this.setState((s) => ({ projectThreads: { ...s.projectThreads, [id]: (r.turns || []).map((t) => ({ who: t.who === 'you' ? 'you' : 'nova', text: t.text, at: t.at })) } })))
+      .catch(() => {});
+  }
+  // THE PROJECT'S THREAD (Projects T7): one Nova, on the ordinary /ask path,
+  // with projectId so the server appends the project's own context (code-read:
+  // the brief, phases, log tail and its reads pages). The answer streams into
+  // the page; both lines go to the conversation record carrying projectId.
+  sendProjectAsk() {
+    const conn = getConnection();
+    const id = this.state.projectOpen;
+    const text = String(this.state.projectAskText || '').trim();
+    if (!conn || !id || !text || this.state.projectAskBusy) return;
+    const at = new Date().toISOString();
+    const push = (turn) => this.setState((s) => ({ projectThreads: { ...s.projectThreads, [id]: [...(s.projectThreads[id] || []), turn] } }));
+    const settle = (patch) => this.setState((s) => {
+      const list = [...(s.projectThreads[id] || [])];
+      const last = list.length - 1;
+      if (last >= 0 && list[last].streaming) list[last] = { ...list[last], ...patch };
+      else list.push({ who: 'nova', at: new Date().toISOString(), ...patch });
+      return { projectThreads: { ...s.projectThreads, [id]: list } };
+    });
+    push({ who: 'you', text, at });
+    this.setState({ projectAskText: '', projectAskBusy: true });
+    const sid = (this.state.projectSessions || {})[id] || null;
+    const done = (reply, sessionId) => {
+      settle({ text: reply, streaming: false, typing: false });
+      this.setState((s) => ({ projectAskBusy: false, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
+      api.saveConversation(conn, [{ who: 'you', text, at, via: 'app', projectId: id }, { who: 'nova', text: reply, at: new Date().toISOString(), via: 'app', projectId: id }]).catch(() => {});
+    };
+    const fail = (msg) => { settle({ who: 'system', text: msg, streaming: false }); this.setState({ projectAskBusy: false }); };
+    api.ask(conn, text, sid, { projectId: id })
+      .then((resp) => {
+        if (resp.text) { done(resp.text, resp.sessionId || sid); return; }
+        if (!resp.jobId) { fail('Nova could not take that one. Try again.'); return; }
+        push({ who: 'nova', text: '', at: new Date().toISOString(), streaming: true, typing: true });
+        this.startPoll('projectAsk', () => api.claudeCodeJob(conn, resp.jobId), {
+          timeoutMs: 120_000, intervalMs: 700,
+          onProgress: (job) => { if (job.partial) settle({ text: String(job.partial), streaming: true, typing: true }); },
+          onReady: (job) => done(job.result?.text || 'Nothing came back for that.', job.result?.sessionId || job.sessionId || sid),
+          onError: (msg) => fail(`That failed: ${msg}`),
+        });
+      })
+      .catch((e) => fail(`That failed: ${e.message}`));
   }
   refreshProjects() {
     const conn = getConnection();

@@ -597,6 +597,8 @@ export const api = {
   // voice-chat line goes up; the Voice screen reads the whole record back
   conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),
   saveConversation: (conn, turns) => post(conn, '/api/conversation', { turns }),
+  // one project's thread (Projects T7): the same record, filtered by projectId
+  projectThread: (conn, projectId) => call(conn, `/api/conversation?limit=200&projectId=${encodeURIComponent(projectId)}`),
   // photos/videos with a question — stored first, named by id on the ask
   attach: (conn, files) => post(conn, '/api/attachments', { files }, { timeoutMs: 180_000 }),
   // fired the moment the mic opens, before a question exists — boots the
