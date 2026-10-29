@@ -1219,6 +1219,12 @@ export async function undoFiling(vaultPath, undo) {
   // Undo refuse the same things in the same words.
   // A DELETE MADE IN NOTION, taken back: the vault day page as it was
   // (lib/notionJournal.js). Notion keeps it deleted; the entry is vault only.
+  // HIS NOTION WISHLIST (29 Oct 2026): an add archived, a status, a star or
+  // a removal put back (lib/wishlist.js)
+  if (typeof undo.kind === 'string' && undo.kind.startsWith('wishlist-')) {
+    const { undoWishlist } = await import('./wishlist.js');
+    return undoWishlist(undo);
+  }
   if (undo.kind === 'journal-notion-delete') {
     const { undoNotionDelete } = await import('./notionJournal.js');
     return undoNotionDelete(vaultPath, undo);
@@ -1882,9 +1888,26 @@ async function mediaLaneFor(vaultPath, text, deps = {}) {
   return startStudy(vaultPath, { urls: decision.urls, prose: decision.prose });
 }
 
+// "add this to my wishlist https://…": exactly one link and the word
+// wishlist. Code decides; nothing else is taken to be a wish.
+export function wishlistLink(text) {
+  const t = String(text || '');
+  const urls = t.match(/https?:\/\/[^\s<>"]+/g) || [];
+  if (urls.length !== 1 || !/\bwish\s?list\b/i.test(t)) return null;
+  const url = urls[0].replace(/[.,;:!?)\]]+$/, '');
+  return { url, said: t.replace(urls[0], ' ').replace(/\s+/g, ' ').trim() };
+}
+
 // Creates the record and kicks off async classification.
 // `deps` is for tests only (fetchCaption, startRecipeFromVideo, startVideoWatch).
 export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }, deps = {}) {
+  // a link he says is for his WISHLIST goes to his Notion list (lib/wishlist.js):
+  // the row goes on the board now; the page read and the Notion write run behind
+  const wish = wishlistLink(text);
+  if (wish) {
+    const { startWishlistCapture } = await import('./wishlist.js');
+    return startWishlistCapture(vaultPath, { ...wish, source });
+  }
   // a video link watches itself; a channel link studies itself. A lane that
   // is switched off, or a transcript that cannot be fetched, falls through
   // to the ordinary classifier rather than losing what he sent.
@@ -1945,6 +1968,13 @@ export async function retryRecord(vaultPath, id) {
   if (record.kind === 'ingest' && record.ingestRetry) {
     const { retryIngest } = await import('./ingest.js');
     return retryIngest(vaultPath, record);
+  }
+  if (record.kind === 'wishlist' && !record.undoData) {
+    const wish = wishlistLink(record.text) || { url: (String(record.text).match(/https?:\/\/\S+/) || [])[0], said: '' };
+    const { addFromLink } = await import('./wishlist.js');
+    const again = await updateRecord(id, { status: 'classifying', error: null, errorCode: null });
+    addFromLink(vaultPath, { url: wish.url, said: wish.said, source: record.source, record: again }).catch(() => {});
+    return again;
   }
   if (record.kind === 'recipe-video') {
     const { retryRecipeImport } = await import('./recipeFromPage.js');

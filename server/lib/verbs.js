@@ -482,6 +482,45 @@ verb({
   },
 });
 
+// HIS NOTION WISHLIST (29 Oct 2026). The add files its OWN record (kind
+// 'wishlist', lib/wishlist.js), the same one Quick Capture's add files, so
+// this verb lands no second receipt: `receipt: false`, and `extra` hands the
+// door that record's id with its Undo and the questions still open.
+verb({
+  id: 'wishlist.add', tier: 'act', receipt: false,
+  describe: 'add a product link to his Notion Wishlist: code reads the name, photo, price and colour off the page, matches his category, and asks only what it could not fill. Use when he says wishlist with a link',
+  args: { url: 'the exact product link he gave', said: 'optional — everything else he said with it, verbatim (priority, "this month", a star, a note)' },
+  async run(vaultPath, args) {
+    const { addFromLink } = await import('./wishlist.js');
+    const out = await addFromLink(vaultPath, { url: String(args.url).trim(), said: String(args.said || ''), source: 'voice' });
+    return {
+      destination: out.record.destination,
+      said: out.said,
+      receipt: false,
+      undo: null,
+      extra: { recordId: out.record.id, undoable: true, title: `Wishlist — ${out.draft.name}`, wishlist: { recordId: out.record.id, pageUrl: out.pageUrl, questions: out.questions } },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { undoRecord } = await import('./inbox.js');
+    await undoRecord(vaultPath, u.recordId);
+    return 'took it off your Wishlist';
+  },
+});
+
+verb({
+  id: 'wishlist.answer', tier: 'act', receipt: false,
+  describe: 'answer the question Nova just asked about a Wishlist add (which category, colour or size), with his word for it — e.g. "clothing", "navy", "medium"',
+  args: { value: 'his answer, one of the choices Nova offered', field: 'optional — category|colour|size' },
+  async run(vaultPath, args) {
+    const { answer, openQuestionRecord } = await import('./wishlist.js');
+    const rec = await openQuestionRecord();
+    if (!rec) throw new Error('there is no Wishlist question waiting for an answer');
+    const out = await answer(rec.id, args.field || null, String(args.value));
+    return { destination: `Wishlist — ${out.field}: ${out.value}`, said: out.said, receipt: false, undo: null, extra: { wishlist: { recordId: rec.id, questions: out.questions } } };
+  },
+});
+
 verb({
   id: 'money.category', tier: 'act',
   describe: 'file a recent transaction under a different category (and remember the merchant)', args: { merchant: 'the transaction, by merchant or words', category: 'Groceries|Eating Out|Transport|Health & Fitness|Subscriptions|Utilities & Bills|Shopping|Entertainment|Income|Other' },

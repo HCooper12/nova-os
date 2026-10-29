@@ -23,6 +23,8 @@ export const KIND_AGENT = {
   // the Stash: his own change filed with Undo (lib/stashRails.js), and its
   // news (a level check, a gift day, a price drop; lib/stashSignals.js)
   'stash-write': 'Stash', stash: 'Stash',
+  // his Notion Wishlist: an add read off a link, a status, a star (lib/wishlist.js)
+  wishlist: 'Stash',
   // a tier-later alert (lib/alerts.js): the one line Nova raised, Inbox only
   alert: 'Nova',
   // a fact he told Nova about himself, filed to Wiki/Profile.md with Undo (profileTalk.js)

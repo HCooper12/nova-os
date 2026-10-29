@@ -48,16 +48,40 @@ export function CaptureReceipts({ q }) {
   return (
     <div className="nv-qc-rows">
       {q.rows.map((r) => (
-        <div key={r.id} className="nv-qc-row">
-          <span className="nv-qc-txt">{r.text}</span>
-          <TagChip tag={r.tag} onClick={r.onTag} />
-          {r.onUndo && <Interactive as="button" type="button" className="nv-qc-undo" onClick={r.onUndo} haptic="tick">Undo</Interactive>}
+        <div key={r.id} className="nv-qc-item">
+          <div className="nv-qc-row">
+            <span className="nv-qc-txt">{r.text}</span>
+            <TagChip tag={r.tag} onClick={r.onTag} />
+            {r.onUndo && <Interactive as="button" type="button" className="nv-qc-undo" onClick={r.onUndo} haptic="tick">Undo</Interactive>}
+          </div>
+          {r.why && <p className="nv-qc-why" role="alert">{r.why}</p>}
+          {r.ask && <AskTaps ask={r.ask} />}
         </div>
       ))}
       <p className="nv-qc-how">{q.unsortedNote || 'Tap a tag to move it somewhere else.'}</p>
       {/* on the page, not in the card: the card's entrance transform would
           otherwise trap a fixed sheet inside it */}
       {q.sheet && typeof document !== 'undefined' && createPortal(<TagSheet s={q.sheet} />, document.body)}
+    </div>
+  );
+}
+
+// A Wishlist add's one open question, as taps: a few up front, the rest
+// behind "Show all" (choice overload). The chosen chip answers it in Notion.
+function AskTaps({ ask }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? ask.options : ask.options.slice(0, ask.upFront);
+  return (
+    <div className="nv-qc-ask" role="group" aria-label={ask.text}>
+      <span className="nv-qc-ask-q">{ask.text}</span>
+      <div className="nv-qc-ask-opts">
+        {shown.map((o) => (
+          <Interactive key={o.label} as="button" type="button" className="nv-qc-opt" onClick={o.pick} haptic="tick">{o.label}</Interactive>
+        ))}
+        {!all && ask.options.length > shown.length && (
+          <Interactive as="button" type="button" className="nv-qc-opt more" onClick={() => setAll(true)} haptic="tick">Show all</Interactive>
+        )}
+      </div>
     </div>
   );
 }

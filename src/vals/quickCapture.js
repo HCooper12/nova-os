@@ -7,6 +7,23 @@ import { captureTag, PLACES } from '../captureTag.js';
 // the provisional card captureToInbox already puts on the board.
 const WHERE = { shopping: 'on your shopping list', todo: 'on your to-do list', note: 'a note in your vault', journal: 'in your journal', idea: 'in your ideas', reminder: 'a reminder' };
 
+// A Wishlist add (server/lib/wishlist.js): the ONE open question as taps
+// (category, colour or size; priority is never asked), a few up front and
+// the rest behind "Show all"; a failed add shows its real cause.
+function wishlistExtras(r, app) {
+  if (r.status === 'error') return { why: r.error || null };
+  if (r.status !== 'filed') return {};
+  const q = (r.decision?.payload?.questions || [])[0];
+  if (!q) return {};
+  return {
+    ask: {
+      text: q.ask,
+      upFront: q.upFront || 6,
+      options: q.options.map((o) => ({ label: o, pick: () => app.answerWishlist(r.id, q.field, o) })),
+    },
+  };
+}
+
 export function quickCaptureModel(st, app) {
   const items = st.liveInbox?.items || [];
   const byId = new Map(items.map((r) => [r.id, r]));
@@ -16,10 +33,11 @@ export function quickCaptureModel(st, app) {
       if (!tag) return null;
       return {
         id: r.id,
-        text: r.text,
+        text: r.kind === 'wishlist' && r.decision?.payload?.draft?.name ? r.decision.payload.draft.name : r.text,
         tag,
         onTag: tag.movable ? () => app.openCaptureTag(r.id) : null,
-        onUndo: r.status === 'filed' ? () => app.inboxAction(r.id, 'undo') : null,
+        onUndo: r.status === 'filed' && (r.kind !== 'wishlist' || r.undoData) ? () => app.inboxAction(r.id, 'undo') : null,
+        ...(r.kind === 'wishlist' ? wishlistExtras(r, app) : {}),
       };
     }).filter(Boolean);
   const open = st.qcSheetId ? byId.get(st.qcSheetId) : null;

@@ -8561,6 +8561,18 @@ export default class App extends Component {
       this.refreshInbox();
     }).catch((e) => this.setState({ qcBusy: false, qcError: e.message }));
   }
+  // HIS NOTION WISHLIST: a tap on an add's open question (category, colour or
+  // size) writes it to the Notion row; the refresh drops the answered question
+  answerWishlist(recordId, field, value) {
+    const conn = getConnection();
+    if (!conn || this.state.qcBusy) return;
+    haptic('tick');
+    this.setState({ qcBusy: true, qcError: null });
+    api.wishlistAnswer(conn, recordId, field, value).then(() => {
+      this.setState({ qcBusy: false });
+      this.refreshInbox();
+    }).catch((e) => this.setState({ qcBusy: false, qcError: e.message }));
+  }
   captureToInbox(text, source = 'text') {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
