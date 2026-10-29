@@ -73,6 +73,10 @@ const ANNOUNCE_SKIP_KINDS = new Set(['followup', 'forge-job']);
 export async function announceRecord(record) {
   if (!telegramConfigured() || !CHAT_ID()) return;
   if (!record || record.status !== 'pending' || ANNOUNCE_SKIP_KINDS.has(record.kind)) return;
+  // the same rule as the push (lib/notifyPolicy.js): a second channel is a
+  // second interruption
+  const { recordPush } = await import('./notifyPolicy.js');
+  if (!recordPush(record).push) return;
   const title = record.decision?.title || record.text || 'Waiting for review';
   // standing by: the record waits in the Inbox as always; only the ping holds
   if (!(await standbyAllows('telegram', title, false))) return;

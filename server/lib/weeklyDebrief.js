@@ -360,7 +360,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = 
         import('./push.js').then(({ sendPush }) => sendPush({
           title: 'Weekly Debrief — Nova',
           body: decision.title || 'The week, held against the plan — in your journal.',
-          tag: `record-${recordId}`,
+          tag: `record-${recordId}`, kind: 'weekly-debrief',
         })).catch(() => {});
       } else {
         await updateRecord(recordId, { status: 'pending', decision });
@@ -384,7 +384,7 @@ async function debriefFailed(recordId, message, weekStart) {
     const failed = records.filter((r) => r.kind === 'weekly-debrief' && r.status === 'error' && recordWeekStart(r) === (weekStart || todayISO(mondayOf(new Date())))).length;
     if (failed >= DEBRIEF_MAX_ATTEMPTS) {
       const { sendPush } = await import('./push.js');
-      await sendPush({ title: 'Weekly Debrief — Nova', body: "The week's debrief couldn't compose, three times over — tap to run it from the Inbox.", tag: 'debrief-failed' });
+      await sendPush({ title: 'Weekly Debrief — Nova', body: "The week's debrief couldn't compose, three times over — tap to run it from the Inbox.", tag: 'debrief-failed', kind: 'compose-failed' });
     }
   } catch { /* the push is the courtesy; the error record is the truth */ }
 }

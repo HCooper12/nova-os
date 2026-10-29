@@ -344,7 +344,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
         import('./push.js').then(({ sendPush }) => sendPush({
           title: 'Daily Review — Nova',
           body: decision.title || 'Today\'s review is in your journal.',
-          tag: `record-${recordId}`,
+          tag: `record-${recordId}`, kind: 'daily-review',
         })).catch(() => {});
       } else {
         await updateRecord(recordId, { status: 'pending', decision });
@@ -442,7 +442,7 @@ async function reviewFailed(recordId, message, now) {
   try {
     if (failedAttemptsToday(await listRecords(), now) >= REVIEW_MAX_ATTEMPTS) {
       const { sendPush } = await import('./push.js');
-      await sendPush({ title: 'Daily Review — Nova', body: "Today's review couldn't compose, three times over — tap to retry from the Inbox.", tag: 'review-failed' });
+      await sendPush({ title: 'Daily Review — Nova', body: "Today's review couldn't compose, three times over — tap to retry from the Inbox.", tag: 'review-failed', kind: 'compose-failed' });
     }
   } catch { /* the push is the courtesy; the error record is the truth */ }
 }

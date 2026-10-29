@@ -240,7 +240,7 @@ export function startFuelReviewScheduler(vaultPath) {
       const r = await runFuelReview(vaultPath, { now });
       if (r?.fresh && r.recordId && r.title) {
         const { sendPush } = await import('./push.js');
-        sendPush({ title: 'Your numbers, reviewed', body: r.title, tag: 'fuel-review', url: '/#inbox' }).catch(() => {});
+        sendPush({ title: 'Your numbers, reviewed', body: r.title, tag: 'fuel-review', kind: 'fuel-review', url: '/#inbox' }).catch(() => {});
       }
     } catch (e) {
       console.error('fuel review failed:', e.message);

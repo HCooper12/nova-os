@@ -326,7 +326,7 @@ async function planFailed(recordId, message, now, excerpt = null) {
   try {
     if (failedPlansToday(await listRecords(), now) >= PLAN_MAX_ATTEMPTS) {
       const { sendPush } = await import('./push.js');
-      await sendPush({ title: 'Plan Today — Nova', body: "Today's plan couldn't compose, three times over — tap to run it from the Inbox.", tag: 'plan-failed' });
+      await sendPush({ title: 'Plan Today — Nova', body: "Today's plan couldn't compose, three times over — tap to run it from the Inbox.", tag: 'plan-failed', kind: 'compose-failed' });
     }
   } catch { /* the push is the courtesy; the error record is the truth */ }
 }

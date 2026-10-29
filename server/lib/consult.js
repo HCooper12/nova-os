@@ -619,11 +619,9 @@ async function askResearcher(vaultPath, q, o = {}) {
   const { startResearch } = await import('./researcher.js');
   const { getRecord } = await import('./inboxStore.js');
   const record = await startResearch(vaultPath, q, { context: o.context || '', consult: { chain: o.chain || [], ledger: o.ledger || null } });
-  // asked while he was in a voice session? Then the brief landing is an
-  // alert (lib/alerts.js): tier now if he is still talking to Nova when it
-  // lands, next otherwise. Asked any other way, the Inbox record is enough.
-  const { voiceLive } = await import('./alerts.js');
-  const askedLive = await voiceLive().catch(() => false);
+  // no "brief landed" alert here (29 Oct 2026): this ask waits for the brief
+  // and the answer built on it reaches him at the same moment, so the alert
+  // only ever repeated it (lib/notifyPolicy.js)
   for (;;) {
     await sleep(3000);
     const r = await getRecord(record.id);
@@ -635,10 +633,6 @@ async function askResearcher(vaultPath, q, o = {}) {
     // the brief's own title and its sources' titles travel with it, so the
     // synthesis can name them (his 30 Sep rule: never "the study")
     const title = r.decision?.payload?.title || r.decision?.title || '';
-    if (askedLive) {
-      import('./alerts.js').then(async ({ raiseAlert, researcherAlert, voiceLive: live }) => raiseAlert(researcherAlert({ recordId: r.id, title, live: await live() })))
-        .catch((e) => console.log(`researcher alert failed: ${e.message}`));
-    }
     return { text: title ? `Brief: "${title}"\n\n${body}` : body, recordId: r.id, sources: researchSources(body), consult: Array.isArray(r.consult) ? r.consult : null };
   }
 }

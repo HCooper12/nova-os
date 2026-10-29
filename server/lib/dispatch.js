@@ -599,7 +599,7 @@ export async function runDispatch(vaultPath, { slot = 'morning', force = false }
       import('./push.js').then(({ sendPush }) => sendPush({
         title: `${title} — Nova`,
         body: "Today's brief hit a snag filing — it's waiting in your Inbox.",
-        tag: `record-${record.id}`,
+        tag: `record-${record.id}`, kind: 'dispatch',
       })).catch(() => {});
       return { record: await updateRecord(record.id, { status: 'pending', error: 'auto-filing failed: ' + e.message }) };
     }

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import webpush from 'web-push';
+import { recordPush, kindPush } from './notifyPolicy.js';
 
 // Real notifications: Web Push to the installed PWA. iOS (16.4+) delivers
 // these to the lock screen like any app's, and the phone mirrors them to
@@ -85,7 +86,13 @@ export async function subscriptionCount() {
 // five"), a push that is not urgent is QUEUED there instead (one line, for
 // "Back. Two things landed while you were out.") and not sent. `tier: 'now'`
 // passes standby but still respects quiet hours; `urgent` passes both.
-export async function sendPush({ title, body, tag, url, urgent = false, tier = null } = {}) {
+export async function sendPush({ title, body, tag, url, urgent = false, tier = null, kind = null } = {}) {
+  // a kind the policy keeps quiet lands in the feed, never on his lock screen
+  const verdict = kindPush(kind);
+  if (!verdict.push) {
+    console.log(`push kept quiet (${verdict.why}) — ${title}`);
+    return { sent: 0, quiet: true };
+  }
   const note = { title: title || 'Nova', body: body || '', tag: tag || 'nova', url: url || './#/inbox' };
   const at = clock();
   try {
@@ -258,6 +265,9 @@ export async function resumeHeldPushes() {
 // everything that happens. One per record, at creation.
 export function pushForRecord(record) {
   if (!record || record.status !== 'pending') return;
+  // what is worth interrupting him for (lib/notifyPolicy.js, 29 Oct 2026):
+  // only what he asked for, what only he can act on, what is broken
+  if (!recordPush(record).push) return;
   // followup records transit 'pending' for milliseconds on their way to filed —
   // the record IS the user's own tap; pushing about it was a stray notification
   if (record.kind === 'followup') return;

@@ -290,7 +290,7 @@ export function formatChangeMessage({ alias, from, to }) {
 async function defaultAnnounce(change) {
   const message = formatChangeMessage(change);
   const [{ sendPush }, { sendTelegramText, telegramConfigured }] = await Promise.all([import('./push.js'), import('./telegram.js')]);
-  await sendPush({ title: 'Nova — a model moved', body: message, tag: 'model-watch' }).catch(() => {});
+  await sendPush({ title: 'Nova — a model moved', body: message, tag: 'model-watch', kind: 'model-watch' }).catch(() => {});
   if (telegramConfigured()) await sendTelegramText(`◇ ${message}`).catch(() => {});
 }
 

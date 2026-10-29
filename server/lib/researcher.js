@@ -149,6 +149,9 @@ export async function startResearch(vaultPath, question, { model, context, paren
     parentPlanId: parentPlanId || null,
     // the card this was asked from (Look deeper), so the report grows on it
     ...(parentId ? { parentId: String(parentId) } : {}),
+    // asked by an agent mid-answer (lib/consult.js), not by him: the answer
+    // already reached him, so the brief lands quietly (lib/notifyPolicy.js)
+    ...(consult ? { askedBy: 'agent' } : {}),
   });
   runResearchJob(vaultPath, record.id, q, model, context, consult);
   return record;
