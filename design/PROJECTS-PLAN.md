@@ -485,6 +485,30 @@ what was not.
 6. **The doc:** shown to him as a page on 29 Oct; approval of phase 1
    pending his read.
 
+## 10b · The same machinery under Wren (his ask, 29 Oct)
+
+His ask: do all of this for Science Atlas through the Atlas project's
+Mission Control (Lab), with Wren in Nova's place. So the project
+machinery is a **kernel** from phase 1, not a Nova feature:
+
+- `server/lib/projectKernel.js` (new): the record, the folder layout and
+  containment, the brief validator, the stage rules, the queue shape, the
+  linked-project guard. It imports nothing from Nova's prompts, lens,
+  vault layout or UI. Its one injection is a `host` object: `{name, lens,
+  vaultRoot, projectsRoot, dataDir, filers}`. Nova passes `{name:'Nova',
+  lens:NOVA_LENS, ...}`; Wren will pass its own.
+- Nova-specific parts stay outside the kernel: the intake lane's prompt
+  wrapper, the inbox filers, the screens, the Home card.
+- Exposed over HTTP under `/api/projects/*` so a second host can drive
+  the same projects; the kernel file is kept byte-identical in both repos
+  the way `claudeSessions.js` already is (a test checks it).
+- The Wren host is its own phase (after phase 3, once the room redesign
+  has run through). Until then Science Atlas and Wren remain linked and
+  read-only (§10.2), and the Code screen's `atlas`/`wren` workspaces are
+  left exactly as they are.
+
+**Phase 1 started 29 Oct on his "proceed" (doc unread by him; his call).**
+
 ## 11 · Verified versus assumed (survey of 29 Oct)
 
 Verified in code: the seams named in §0–§6 exist at the files and lines
