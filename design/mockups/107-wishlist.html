@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wishlist in Nova</title>
+<!--
+  107 · HIS NOTION WISHLIST, IN NOVA (29 October 2026)
+  His words: "I have a Wishlist of items I want on Notion. I want Nova to be
+  capable of adding to this in the same style and format ... I should be able
+  to just add a link to capture or voice and tell it to add to my Wishlist ...
+  Even better if there is a way to link notion and nova together so that there
+  is its own page or visual page in Nova that reflects everything from the
+  Notion page but in a cleaner looking state."
+
+  WHAT IS DRAWN (Summary style, glass; his real rows from Notion, 29 Oct)
+    1 THE PAGE. Big photos in two columns, grouped by his own Status:
+      Considering (62), This month (none today), Purchased (13, folded).
+      Category chips across the top: six up front, "Show all" for the rest.
+      Each card: photo, name, store, his priority as a small mark in HIS
+      Notion colours (High green, Medium blue, Low yellow), his stars as
+      "most wanted" marks, and a price only when his row has one.
+    2 THE CARD SHEET. Tap a card: the photo large, the link, his notes,
+      his size from his Sizes section, and three actions: Mark bought,
+      This month, Remove. The star row writes ⭐️ / ⭐️⭐️ back to the Name.
+      Every action lands with Undo (the Inbox rails).
+    3 ADD BY LINK. A link and the word "wishlist" in Quick Capture (or said):
+      the row is added at once with what code read; the receipt names the
+      list; only a question code could not answer is asked, as taps.
+    4 NOT SHARED YET (his real state today). The page says what to do, in the
+      content, not a banner.
+
+  PHOTOS ARE PLACEHOLDER BLOCKS: the real page shows the Gallery photo from
+  each Notion row (kept on his Mac, because Notion's own links expire).
+  Motion: cards rise in a 30 ms stagger; the sheet rises over a 60% scrim;
+  a status change slides the card to its group. Reduced motion: end states.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Georgia,serif;
+  --ease:cubic-bezier(.23,1,.32,1);
+  --void:#070816;--ink:#eef0fa;--ink2:rgba(238,240,250,.74);--ink3:rgba(238,240,250,.52);
+  --glass:rgba(255,255,255,.075);--ring:rgba(255,255,255,.16);--well:rgba(0,0,0,.28);
+  --cy:#59e6ff;--gold:#e0b26a;--good:#5fe8a8;--vi:#a18bff;--warn:#e08383;--mg:#ff7ad9;
+  /* his Notion priority colours */
+  --p-high:#5fe8a8;--p-med:#6fb0ff;--p-low:#f0d264;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--void);color:var(--ink);font:15px/1.45 var(--ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+.page{max-width:1640px;margin:0 auto;padding:28px 16px 80px}
+h1.t{font:600 30px/1.1 var(--serif)}
+.lede{color:var(--ink3);margin:8px 0 26px;max-width:70ch}
+.row{display:flex;flex-wrap:wrap;gap:28px}
+.col{flex:1 1 330px;max-width:375px}
+.cap{font-size:13px;color:var(--ink3);margin:10px 4px 0}.cap b{color:var(--ink)}
+.phone{position:relative;height:760px;border-radius:40px;overflow:hidden;border:1px solid var(--ring);
+  background:radial-gradient(120% 60% at 0% 0%,#123247 0%,transparent 55%),radial-gradient(90% 60% at 100% 40%,#3a1d4a 0%,transparent 60%),#0a0b1d;padding:52px 16px 0}
+.scroll{height:100%;overflow:hidden}
+.top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:4px}
+.h{font:700 34px/1 var(--ui);letter-spacing:-.02em}
+.sync{font-size:12px;color:var(--ink3);margin-bottom:12px}
+.sync b{color:var(--ink2);font-weight:600}
+.add{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(255,122,217,.16);color:var(--mg);font:600 22px/1 var(--ui)}
+/* category chips: six up front, the rest behind Show all */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{font:600 12.5px/1 var(--ui);padding:8px 11px;border-radius:999px;border:1px solid var(--ring);color:var(--ink2);background:rgba(255,255,255,.04)}
+.chip.on{color:var(--void);background:var(--ink);border-color:var(--ink)}
+.chip.more{border-style:dashed;color:var(--ink3);background:none}
+.grp{display:flex;align-items:baseline;justify-content:space-between;margin:6px 2px 8px}
+.grp b{font:600 15px var(--ui)}.grp span{font-size:12.5px;color:var(--ink3)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.card{position:relative;border-radius:18px;overflow:hidden;background:var(--glass);border:1px solid var(--ring);animation:rise .4s var(--ease) both;animation-delay:calc(var(--i,0) * 30ms)}
+.ph{aspect-ratio:4/5;display:grid;place-items:center;background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03));color:var(--ink3);font:600 11px var(--ui);letter-spacing:.08em}
+.meta{padding:9px 10px 10px}
+.nm{font:600 13px/1.25 var(--ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sub{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden}
+.sub .store{overflow:hidden;text-overflow:ellipsis}
+.pr{flex:none;width:8px;height:8px;border-radius:50%}
+.pr.h{background:var(--p-high)}.pr.m{background:var(--p-med)}.pr.l{background:var(--p-low)}
+.price{flex:none;margin-left:auto;color:var(--ink);font-weight:600}
+.star{position:absolute;top:8px;left:8px;font:700 11px/1 var(--ui);padding:5px 7px;border-radius:999px;background:rgba(7,8,22,.62);color:var(--gold);letter-spacing:1px}
+.empty{border:1px dashed var(--ring);border-radius:16px;padding:14px;color:var(--ink3);font-size:13px;margin-bottom:16px}
+.fold{display:flex;align-items:center;gap:10px;border-radius:16px;padding:12px 14px;background:var(--glass);border:1px solid var(--ring);margin-bottom:12px}
+.fold .stack{display:flex}
+.fold .stack i{width:30px;height:30px;border-radius:9px;background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.04));border:2px solid #0d0e22;margin-left:-8px}
+.fold .stack i:first-child{margin-left:0}
+.fold b{font:600 14px var(--ui)}.fold small{display:block;color:var(--ink3);font-size:12px}
+.fold .chev{margin-left:auto;color:var(--ink3)}
+/* the sheet */
+.scrim{position:absolute;inset:0;background:rgba(3,4,12,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;border-radius:28px 28px 0 0;background:rgba(28,30,52,.97);border-top:1px solid var(--ring);padding:12px 18px 26px;animation:up .34s var(--ease) both}
+.grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.25);margin:0 auto 12px}
+.big{aspect-ratio:16/11;border-radius:16px;display:grid;place-items:center;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));color:var(--ink3);font:600 11px var(--ui);letter-spacing:.08em;margin-bottom:12px}
+.st{font:600 19px/1.2 var(--ui)}
+.ln{display:flex;flex-wrap:wrap;gap:6px 12px;margin:6px 0 12px;font-size:12.5px;color:var(--ink3)}
+.ln .pill{display:inline-flex;align-items:center;gap:6px}
+.kv{border-top:1px solid rgba(255,255,255,.08);padding:9px 0;font-size:13.5px;display:flex;gap:10px}
+.kv span{width:62px;flex:none;color:var(--ink3)}
+.kv a{color:var(--cy);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stars{display:flex;gap:6px;margin:10px 0 12px}
+.stars span{flex:1;text-align:center;padding:9px 0;border-radius:12px;border:1px solid var(--ring);font:600 12.5px var(--ui);color:var(--ink2)}
+.stars span.on{border-color:rgba(224,178,106,.6);background:rgba(224,178,106,.12);color:var(--gold)}
+.acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.act{min-height:46px;border-radius:14px;display:grid;place-items:center;font:600 13px var(--ui);background:rgba(255,255,255,.08);border:1px solid var(--ring)}
+.act.go{background:rgba(95,232,168,.14);border-color:rgba(95,232,168,.45);color:var(--good)}
+.act.mo{background:rgba(111,176,255,.12);border-color:rgba(111,176,255,.4);color:var(--p-med)}
+.act.rm{color:var(--warn)}
+.undo-line{font-size:11.5px;color:var(--ink3);margin-top:10px;text-align:center}
+/* quick capture */
+.qc{background:var(--glass);border:1px solid var(--ring);border-radius:24px;padding:16px;margin-bottom:12px}
+.qch{display:flex;gap:11px;align-items:center}
+.tile{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#5fd3ff,#7b6bff);flex:none;color:#fff;font-weight:700}
+.qch b{display:block;font:600 16px var(--ui)}.qch small{color:var(--ink3);font-size:12.5px}
+.field{display:flex;align-items:center;gap:8px;margin-top:13px;background:var(--well);border:1px solid var(--ring);border-radius:999px;padding:6px 6px 6px 16px}
+.field span{flex:1;font-size:14px;color:var(--ink3)}
+.field i{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(89,230,255,.16);color:var(--cy);font-style:normal;font-weight:700}
+.rcpt{display:flex;align-items:center;gap:10px;padding:11px 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:12px;animation:drop .22s var(--ease) both}
+.rcpt .txt{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{flex:none;font:600 12px var(--ui);padding:5px 10px;border-radius:999px;border:1px solid;color:var(--mg);border-color:rgba(255,122,217,.42);background:rgba(255,122,217,.1)}
+.u{flex:none;font-size:12.5px;color:var(--ink3)}
+.ask{margin:2px 2px 6px;padding:10px 12px;border-radius:12px;border-left:2px solid var(--mg);background:rgba(255,122,217,.07);animation:drop .22s var(--ease) .12s both}
+.ask b{display:block;font:600 13px var(--ui);margin-bottom:8px}
+.ask .o{display:inline-block;margin:0 6px 6px 0;padding:9px 12px;border-radius:999px;font:600 12.5px var(--ui);border:1px solid rgba(255,122,217,.4);background:rgba(255,122,217,.1)}
+.ask .o.more{border-style:dashed;background:none;color:var(--ink3)}
+.said{margin:12px 2px 0;font:400 16px/1.4 var(--serif);color:var(--ink2)}
+.said b{color:var(--ink);font-weight:600}
+.notice{border-radius:18px;padding:16px;background:var(--glass);border:1px solid rgba(255,122,217,.35);margin-bottom:12px}
+.notice b{display:block;font:600 16px/1.3 var(--ui);margin-bottom:6px}
+.notice p{color:var(--ink2);font-size:13.5px}
+.steps{list-style:none;margin:12px 0 4px;position:relative}
+.steps li{position:relative;padding:0 0 12px 26px;font-size:13.5px}
+.steps li::before{content:"";position:absolute;left:5px;top:5px;width:9px;height:9px;border-radius:50%;background:var(--mg)}
+.steps li:not(:last-child)::after{content:"";position:absolute;left:9px;top:16px;bottom:0;width:1px;background:rgba(255,122,217,.4)}
+.ghost{opacity:.35}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+@keyframes drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.card,.sheet,.rcpt,.ask{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="t">107 · His Wishlist, in Nova</h1>
+  <p class="lede">His Notion list, read every 15 minutes, shown with big photos and grouped by his own Status. Names, stores, priorities, stars and the one price below are his real rows from Notion on 29 Oct. Photos are placeholder blocks here; the built page shows each row's Gallery photo.</p>
+  <div class="row">
+
+    <!-- 1 · THE PAGE -->
+    <div class="col">
+      <div class="phone"><div class="scroll">
+        <div class="top"><div class="h">Wishlist</div><div class="add" aria-label="Add by link">+</div></div>
+        <div class="sync">From your Notion list · read <b>2 min ago</b></div>
+        <div class="chips">
+          <span class="chip on">All</span><span class="chip">★ Most wanted</span><span class="chip">Clothing</span><span class="chip">Shoes</span><span class="chip">Cologne</span><span class="chip">Technology</span><span class="chip more">Show all</span>
+        </div>
+        <div class="grp"><b>Considering</b><span>62</span></div>
+        <div class="grid">
+          <div class="card" style="--i:0"><div class="ph">PHOTO</div><span class="star">★</span><div class="meta"><div class="nm">Union Bomber Jacket (navy)</div><div class="sub"><i class="pr h"></i><span class="store">thursdayboots.com</span></div></div></div>
+          <div class="card" style="--i:1"><div class="ph">PHOTO</div><span class="star">★★★</span><div class="meta"><div class="nm">Apple TV 4K</div><div class="sub"><i class="pr h"></i><span class="store">apple.com</span></div></div></div>
+          <div class="card" style="--i:2"><div class="ph">PHOTO</div><span class="star">★★</span><div class="meta"><div class="nm">Stronger with you intensely cologne</div><div class="sub"><i class="pr h"></i><span class="store">chemistwarehouse.com.au</span></div></div></div>
+          <div class="card" style="--i:3"><div class="ph">PHOTO</div><span class="star">★</span><div class="meta"><div class="nm">The New Money Strategy: The Modern Guide to Rational, Long-Term Investing, Australian Edition (Book)</div><div class="sub"><i class="pr h"></i><span class="store">amzn.asia</span></div></div></div>
+          <div class="card" style="--i:4"><div class="ph">PHOTO</div><div class="meta"><div class="nm">Haze Wall Cabinet (black)</div><div class="sub"><i class="pr m"></i><span class="store">fermliving.com</span></div></div></div>
+          <div class="card" style="--i:5"><div class="ph">PHOTO</div><div class="meta"><div class="nm">Mont Blanc Explorer Cologne</div><div class="sub"><i class="pr l"></i><span class="store">chemistwarehouse.com.au</span></div></div></div>
+        </div>
+      </div></div>
+      <p class="cap"><b>The page.</b> Two big-photo columns; the dot is his priority in his Notion colours (green High, blue Medium, yellow Low); ★ is his "most wanted" mark, copied from the ⭐️ in his Names. No prices: his Considering rows have none, so none is shown.</p>
+    </div>
+
+    <!-- 1b · lower down the page -->
+    <div class="col">
+      <div class="phone"><div class="scroll">
+        <div class="grid">
+          <div class="card" style="--i:0"><div class="ph">PHOTO</div><span class="star">★</span><div class="meta"><div class="nm">Union Bomber Jacket (khaki)</div><div class="sub"><i class="pr h"></i><span class="store">thursdayboots.com</span></div></div></div>
+          <div class="card" style="--i:1"><div class="ph">PHOTO</div><span class="star">★</span><div class="meta"><div class="nm">Union Bomber Jacket (olive)</div><div class="sub"><i class="pr h"></i><span class="store">thursdayboots.com</span></div></div></div>
+          <div class="card" style="--i:2"><div class="ph">PHOTO</div><div class="meta"><div class="nm">LED Mask (Currentbody Skin LED Red Light Therapy Face Mask: Series 2)</div><div class="sub"><i class="pr m"></i><span class="store">no link</span></div></div></div>
+          <div class="card" style="--i:3"><div class="ph">PHOTO</div><span class="star">★★</span><div class="meta"><div class="nm">Nike Air Force 1 Low (SNKRS Day 5th Anniversary)</div><div class="sub"><i class="pr h"></i><span class="store">no link</span></div></div></div>
+        </div>
+        <div class="grp"><b>This month</b><span>none</span></div>
+        <div class="empty">Nothing marked for this month. Tap a card, then <b>This month</b>.</div>
+        <div class="grp"><b>Purchased</b><span>13</span></div>
+        <div class="fold">
+          <span class="stack"><i></i><i></i><i></i></span>
+          <span><b>13 bought</b><small>AirPods Pro 3 · $429, Jean Paul Gaultier Le Male Elixir Parfum, VALENTINO Born In Roma…</small></span>
+          <span class="chev">›</span>
+        </div>
+      </div></div>
+      <p class="cap"><b>Further down.</b> This month is empty today, and says so. Purchased folds to one row so the things he still wants lead. The one price on his list (AirPods Pro 3, $429) shows where his row has it.</p>
+    </div>
+
+    <!-- 2 · THE CARD SHEET -->
+    <div class="col">
+      <div class="phone">
+        <div class="ghost"><div class="top"><div class="h">Wishlist</div></div></div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="big">PHOTO</div>
+          <div class="st">Union Bomber Jacket (navy)</div>
+          <div class="ln"><span class="pill"><i class="pr h"></i>High</span><span>Clothing</span><span>Considering</span></div>
+          <div class="kv"><span>Link</span><a href="https://thursdayboots.com/products/mens-union-bomber-jacket-navy">thursdayboots.com/products/mens-union-bomber-jacket-navy</a></div>
+          <div class="kv"><span>Notes</span><span style="width:auto;color:var(--ink3)">None yet</span></div>
+          <div class="stars"><span>No star</span><span class="on">★ Most wanted</span><span>★★ Top</span></div>
+          <div class="acts"><span class="act go">Mark bought</span><span class="act mo">This month</span><span class="act rm">Remove</span></div>
+          <p class="undo-line">Each change is written to Notion, with Undo here and in the Inbox.</p>
+        </div>
+      </div>
+      <p class="cap"><b>Tap a card.</b> The link, his notes, and three actions. The star row writes ⭐️ or ⭐️⭐️ to the front of the Name in Notion, exactly as he types it.</p>
+    </div>
+
+    <!-- 3 · ADD BY LINK -->
+    <div class="col">
+      <div class="phone">
+        <div class="top"><div class="h">Inbox</div></div>
+        <div class="qc">
+          <div class="qch"><span class="tile">+</span><span><b>Quick capture</b><small>Anything: a thing to buy, a to-do, a thought, a link</small></span></div>
+          <div class="field"><span>Toothpaste, call the bank, a podcast link…</span><i>→</i></div>
+          <div class="rcpt"><span class="txt">Motorcycle Jacket</span><span class="tag">Wishlist · Clothing</span><span class="u">Undo</span></div>
+          <div class="ask"><b>Which colour?</b><span class="o">Black</span><span class="o">Tobacco</span><span class="o more">Show all</span></div>
+        </div>
+        <p class="said">“<b>Added Motorcycle Jacket to your Wishlist, under Clothing.</b> Which colour: Black, Tobacco, or another?”</p>
+      </div>
+      <p class="cap"><b>Add by link.</b> He pastes <i>add to my wishlist thursdayboots.com/…</i> or says it. The row is in Notion at once: name, photo, link, price in AUD, category, Medium priority. Only what code could not read is asked, as taps. (The jacket link and its colour list are illustrative; Black and Tobacco are the two colours his own rows name.)</p>
+    </div>
+
+    <!-- 4 · NOT SHARED YET -->
+    <div class="col">
+      <div class="phone">
+        <div class="top"><div class="h">Wishlist</div></div>
+        <div class="sync">Not read yet</div>
+        <div class="notice">
+          <b>Nova can't see your Wishlist yet</b>
+          <p>Notion only shows Nova the pages you share with it.</p>
+          <ol class="steps">
+            <li>Open <b>My Shopping Wishlist</b> in Notion</li>
+            <li>Tap ··· then <b>Connections</b></li>
+            <li>Add <b>Nova</b>. This page fills in within a minute</li>
+          </ol>
+        </div>
+      </div>
+      <p class="cap"><b>His state today.</b> The Nova connection cannot see the list yet (Notion answers 404). The page says what to do in the content itself, as one path of three steps.</p>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
