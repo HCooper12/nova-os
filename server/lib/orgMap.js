@@ -79,7 +79,7 @@ export const KIND_BEING = {
   'model-choice': 'guardian', 'forge-job': 'guardian',
   research: 'researcher', study: 'researcher', paper: 'researcher', scout: 'researcher', repertoire: 'researcher',
   video: 'watcher',
-  'read-next': 'librarian', 'stash': 'librarian', 'stash-write': 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
+  'read-next': 'librarian', 'stash': 'librarian', 'stash-write': 'librarian', wishlist: 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
   // his own answer on the Daily review card — Wiki/Library/Review Log.md,
   // the same shelf the Librarian already keeps (conceptReview.js)
   'concept-recall': 'librarian',
