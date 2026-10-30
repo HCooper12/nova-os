@@ -289,7 +289,12 @@ export function useEdgeBack({ onBack, enabled = true }) {
     // screens have them (Voice's sheet, Briefing's bar, Ambient). Inline
     // styles are how Nova sets `fixed`, so an attribute match finds them
     // without a computed-style read.
-    const FIXED_INSIDE = '[style*="position: fixed"],[style*="position:fixed"]';
+    // 31 OCT 2026, his recording: the Nova page's stage layers (sky, core,
+    // header) are fixed by CSS class, not inline style, so this missed them,
+    // <main> was moved under a back swipe and they slid away with the
+    // scroll: a black page with no orb. A CSS-fixed layer says so with
+    // data-fixed.
+    const FIXED_INSIDE = '[style*="position: fixed"],[style*="position:fixed"],[data-fixed]';
     const underlay = (main) => {
       if (!main || main.querySelector(FIXED_INSIDE)) return null;
       return { el: main, saved: { transform: main.style.transform, transition: main.style.transition, willChange: main.style.willChange } };

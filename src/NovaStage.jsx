@@ -305,7 +305,7 @@ export function NovaStage({ T, S, dict, since, onTalk, onOpen, onStatus, caption
   return (
     <>
       {/* THE GROUND: the full screen's sky and its embers, under the whole page */}
-      <div ref={groundRef} className="nv-nt-ground" aria-hidden="true">
+      <div ref={groundRef} className="nv-nt-ground" data-fixed="" aria-hidden="true">
         <div className="nv-fx-sky"><i /><i /><i /><i /></div>
         <canvas ref={fieldRef} className="nv-fx-field" />
       </div>
@@ -313,7 +313,7 @@ export function NovaStage({ T, S, dict, since, onTalk, onOpen, onStatus, caption
       {/* THE PRESENTER'S SPOT: a band that keeps the history legible under it,
           "Nova" and the state beside the travelled core, the way back down,
           and status and settings (always there) */}
-      <div ref={headRef} className="nv-nt-ohead">
+      <div ref={headRef} className="nv-nt-ohead" data-fixed="">
         <span ref={bandRef} className="nv-nt-oband" aria-hidden="true" />
         <button ref={pnRef} type="button" className="nv-nt-opn" onClick={() => toStageRef.current(true)} aria-label={`Nova, ${stateWord.toLowerCase()}. Back to the stage`}>
           <b>Nova</b>
@@ -326,13 +326,13 @@ export function NovaStage({ T, S, dict, since, onTalk, onOpen, onStatus, caption
       </div>
 
       {/* THE CORE: one element, fixed, moved by transform alone */}
-      <div ref={coreRef} className="nv-nt-ocore" style={{ '--fx-hue': sayHue }}>
+      <div ref={coreRef} className="nv-nt-ocore" data-fixed="" style={{ '--fx-hue': sayHue }}>
         <button type="button" className="nv-fx-corehit" onClick={onTalk}
           aria-label={S.key === 'listening' ? 'Nova is listening. Tap to send' : S.key === 'speaking' ? `Nova is ${contest ? 'pushing back' : 'speaking'}. Tap to stop and talk` : `Nova, ${S.word.toLowerCase()}. Tap to talk`}>
           <CoreFace stateKey={S.key} engine={T.engine} focus tinted size={300} contest={contest} />
         </button>
       </div>
-      {pours && <canvas ref={pourCanvasRef} className="nv-nt-opour" aria-hidden="true" />}
+      {pours && <canvas ref={pourCanvasRef} className="nv-nt-opour" data-fixed="" aria-hidden="true" />}
 
       {/* THE STAGE: the foot of the one scroll */}
       <section ref={secRef} className="nv-nt-osec" data-phase={phase} data-state={S.key} aria-label="Nova" style={{ '--fx-hue': sayHue }}>
