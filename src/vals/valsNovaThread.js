@@ -6,6 +6,7 @@ import { tabLabel } from '../tabOrder.js';
 import { undoLabel } from '../chatUndo.js';
 import { clock, panelsOf, settleStage, stageLine, bylineOf, gistOf, newestAt, contestOf } from '../novaThreadFacts.js';
 import { filedFor } from '../filedFlight.js';
+import { wishlistAsk } from './quickCapture.js';
 
 // THE NOVA THREAD'S VIEW MODEL (29 Sep 2026) — design/mockups/63-redesign-
 // nova-r2.html, D · Rising, with his amendment (the name at the top toggles a
@@ -67,6 +68,12 @@ export function valsNovaThread(app, ctx, v) {
       acted: live && m.acted ? {
         title: m.acted.title, status: m.acted.status || 'done',
         undo: (m.acted.status || 'done') === 'done' && m.acted.undoable ? () => app.undoVoiceAct(m.acted.recordId, m.at) : null,
+        // A WISHLIST ADD BY VOICE asks what code could not read, as the same
+        // taps Quick Capture shows (vals/quickCapture.js wishlistAsk). The
+        // live Inbox record is the truth once it has loaded (an answered
+        // question leaves it); until then, the questions the turn carried,
+        // less any he has already tapped here
+        ask: (m.acted.status || 'done') === 'done' ? wishlistAskFor(m.acted, inboxItems, st.wishlistAnswered, app) : null,
       } : null,
       proposal: live && m.proposal ? {
         title: m.proposal.title, status: m.proposal.status, replaced: !!m.proposal.replaced,
@@ -181,6 +188,14 @@ export function valsNovaThread(app, ctx, v) {
         undoNewChat: v.voiceChatUndo ? { label: undoLabel(v.voiceChatUndo), run: v.undoNewVoiceChat } : null,
         endBrief: bq ? bq.stop : null,
         settings: () => app.navigate('settings'),
+        // WHAT THE TOP BAR HELD (30 Oct 2026, his call: the orb gets the whole
+        // screen, so this page draws no top bar). The bar's live dot, its
+        // running-work chip and its outbox chip are rows here, behind the
+        // page's own › button; its ⚙ is the Settings row above, its ✦ Ask
+        // opened this very page, and its wordmark is the tab bar's Home.
+        connection: connectionOf(v.statusChip),
+        jobs: v.jobTray?.jobs?.length ? { count: v.jobTray.jobs.length, running: v.jobTray.running || 0, open: v.jobTray.toggle } : null,
+        outbox: v.outboxCount > 0 ? { count: v.outboxCount, open: v.openOutbox } : null,
       },
       composer: {
         value: st.orbInput || '',
@@ -213,4 +228,25 @@ export function valsNovaThread(app, ctx, v) {
       openCapture: v.openCaptureSheet || null,
     },
   };
+}
+
+function wishlistAskFor(acted, inboxItems, answered, app) {
+  const w = acted?.wishlist;
+  if (!w?.recordId) return null;
+  const rec = (inboxItems || []).find((r) => r.id === w.recordId);
+  if (rec) return rec.status === 'filed' ? wishlistAsk(rec.id, rec.decision?.payload?.questions, app) : null;
+  const done = (answered && answered[w.recordId]) || [];
+  return wishlistAsk(w.recordId, (w.questions || []).filter((q) => !done.includes(q.field)), app);
+}
+
+// the top bar's connection chip, in words and a house hue
+const CONNECTION = {
+  LIVE: { word: 'Live', hue: 'var(--nv-cy)', pulse: true },
+  OFFLINE: { word: 'Offline', hue: 'var(--nv-warn)' },
+  'DEMO DATA': { word: 'Demo data', hue: 'var(--nv-gold)' },
+  'CONNECTING…': { word: 'Connecting…', hue: 'var(--nv-ink50)' },
+};
+function connectionOf(chip) {
+  if (!chip?.label) return null;
+  return CONNECTION[chip.label] || { word: chip.label, hue: 'var(--nv-ink50)' };
 }

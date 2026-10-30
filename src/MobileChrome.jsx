@@ -59,39 +59,45 @@ export function MobileChrome({ v }) {
     <>
       {/* a tap on the bar itself (not a control in it) goes back to the top,
           the status-bar gesture an installed web app never hears */}
-      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")} onClick={(e) => { if (e.target === e.currentTarget) v.toTop?.(); }}>
-        {/* ONE SLOT, TWO LAYERS. The wordmark is the compact-title slot: as the
-            screen's large title scrolls under the bar the wordmark yields to it,
-            and returns when he scrolls back. Scroll-driven in index.css; both
-            layers ride the same tappable element so either takes him home. */}
-        <Interactive as="span" onClick={v.goHome} haptic="tick" className="nv-title-slot" base={css('cursor:pointer')}>
-          <span className="nv-wordmark" style={css(`font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink);white-space:nowrap`)}>
-            NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
-          </span>
-          <span className="nv-compact-title" aria-hidden="true">{v.compactTitle}</span>
-        </Interactive>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: apple ? `600 11px ${R}` : `500 9px ${M}`, letterSpacing: apple ? '.02em' : '.12em', color: v.statusChip.color }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite var(--nv-anim)' : 'none' }}></span>{v.statusChip.label}</span>
-        {/* C3 — in-flight work, visible: a spinner chip while agents run */}
-        {v.jobTray.jobs.length > 0 && (
-          <Interactive as="span" onClick={v.jobTray.toggle} haptic="tick" base={css(`${chip('var(--nv-cy)')}`)}>
-            {/* spins only while something is running; work that is only
-                waiting for him is a still gold dot, like its row */}
-            {v.jobTray.running > 0
-              ? <span style={css("width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
-              : <span style={css(`width:7px;height:7px;border-radius:50%;background:${v.jobTray.waiting ? 'var(--nv-gold)' : 'var(--nv-warn)'}`)}></span>}
-            {v.jobTray.jobs.length}
+      {/* THE NOVA PAGE IS CHROMELESS (30 Oct 2026, his call: "I like the orb
+          getting the whole screen like the mockup", 106 option A): no top
+          bar there; the sky and the core run to the status bar. What the bar
+          held lives behind that page's own › button (NovaThread StatusSheet) */}
+      {!v.novaThread && (
+        <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")} onClick={(e) => { if (e.target === e.currentTarget) v.toTop?.(); }}>
+          {/* ONE SLOT, TWO LAYERS. The wordmark is the compact-title slot: as the
+              screen's large title scrolls under the bar the wordmark yields to it,
+              and returns when he scrolls back. Scroll-driven in index.css; both
+              layers ride the same tappable element so either takes him home. */}
+          <Interactive as="span" onClick={v.goHome} haptic="tick" className="nv-title-slot" base={css('cursor:pointer')}>
+            <span className="nv-wordmark" style={css(`font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink);white-space:nowrap`)}>
+              NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
+            </span>
+            <span className="nv-compact-title" aria-hidden="true">{v.compactTitle}</span>
           </Interactive>
-        )}
-        {v.outboxCount > 0 && (
-          <Interactive as="span" onClick={v.openOutbox} haptic="tick" base={css(chip('var(--nv-gold)'))}>⇪ {v.outboxCount}</Interactive>
-        )}
-        <Interactive as="span" onClick={v.openPalette} haptic="tick" base={css(apple
-          ? `cursor:pointer;font:600 13px ${R};padding:8px 14px;border:1px solid transparent;border-radius:999px;color:var(--nv-acc);background:var(--nv-acc-bg)`
-          : `cursor:pointer;font:500 10px ${M};padding:7px 12px;border:1px solid var(--nv-acc-border);border-radius:8px;color:var(--nv-acc);background:var(--nv-acc-bg)`)}>{apple ? '✦ Ask' : '✦ ASK'}</Interactive>
-        <Interactive as="span" onClick={v.goSettings} aria-label="Settings" haptic="tick" base={css(apple
-          ? `cursor:pointer;font-size:15px;line-height:1;padding:8px 11px;border:1px solid transparent;border-radius:999px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'};background:${v.isSettings ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-ink) 8%, transparent)'}`
-          : `cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</Interactive>
-      </div>
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: apple ? `600 11px ${R}` : `500 9px ${M}`, letterSpacing: apple ? '.02em' : '.12em', color: v.statusChip.color }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite var(--nv-anim)' : 'none' }}></span>{v.statusChip.label}</span>
+          {/* C3 — in-flight work, visible: a spinner chip while agents run */}
+          {v.jobTray.jobs.length > 0 && (
+            <Interactive as="span" onClick={v.jobTray.toggle} haptic="tick" base={css(`${chip('var(--nv-cy)')}`)}>
+              {/* spins only while something is running; work that is only
+                  waiting for him is a still gold dot, like its row */}
+              {v.jobTray.running > 0
+                ? <span style={css("width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+                : <span style={css(`width:7px;height:7px;border-radius:50%;background:${v.jobTray.waiting ? 'var(--nv-gold)' : 'var(--nv-warn)'}`)}></span>}
+              {v.jobTray.jobs.length}
+            </Interactive>
+          )}
+          {v.outboxCount > 0 && (
+            <Interactive as="span" onClick={v.openOutbox} haptic="tick" base={css(chip('var(--nv-gold)'))}>⇪ {v.outboxCount}</Interactive>
+          )}
+          <Interactive as="span" onClick={v.openPalette} haptic="tick" base={css(apple
+            ? `cursor:pointer;font:600 13px ${R};padding:8px 14px;border:1px solid transparent;border-radius:999px;color:var(--nv-acc);background:var(--nv-acc-bg)`
+            : `cursor:pointer;font:500 10px ${M};padding:7px 12px;border:1px solid var(--nv-acc-border);border-radius:8px;color:var(--nv-acc);background:var(--nv-acc-bg)`)}>{apple ? '✦ Ask' : '✦ ASK'}</Interactive>
+          <Interactive as="span" onClick={v.goSettings} aria-label="Settings" haptic="tick" base={css(apple
+            ? `cursor:pointer;font-size:15px;line-height:1;padding:8px 11px;border:1px solid transparent;border-radius:999px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'};background:${v.isSettings ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-ink) 8%, transparent)'}`
+            : `cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</Interactive>
+        </div>
+      )}
       {/* THE JOB TRAY LIVES OUTSIDE THE BAR (17 Sep 2026).
           It is a full-screen `position: fixed` overlay, and it used to be a
           CHILD of the bar. That made the bar the one place in the chrome that
@@ -102,7 +108,7 @@ export function MobileChrome({ v }) {
           properly. See the transform note in index.css. */}
       {v.jobTray.open && v.jobTray.jobs.length > 0 && (
         <div onClick={v.jobTray.toggle} style={css("position:fixed;inset:0;z-index:110")}>
-          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
+          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:calc(52px + env(safe-area-inset-top));right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
             <Eyebrow style={{ padding: '11px 15px 8px' }}>Running now — Nova pings you when each lands</Eyebrow>
             {v.jobTray.jobs.map((j) => (
               <Interactive as="div" key={j.id} onClick={() => v.jobTray.pick(j)} haptic="tick" base={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>

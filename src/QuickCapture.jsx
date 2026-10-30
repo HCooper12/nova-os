@@ -68,7 +68,8 @@ export function CaptureReceipts({ q }) {
 
 // A Wishlist add's one open question, as taps: a few up front, the rest
 // behind "Show all" (choice overload). The chosen chip answers it in Notion.
-function AskTaps({ ask }) {
+// Exported for the Nova thread's receipt, which asks the same question.
+export function AskTaps({ ask }) {
   const [all, setAll] = useState(false);
   const shown = all ? ask.options : ask.options.slice(0, ask.upFront);
   return (

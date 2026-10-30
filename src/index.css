@@ -5075,7 +5075,8 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
   padding: 0 16px calc(150px + min(env(safe-area-inset-bottom), 34px));
   font: 400 15px/1.4 var(--nv-font-ui); color: var(--nv-ink);
 }
-.nv-nt.mob { --nt-top: calc(48px + env(safe-area-inset-top)); min-height: 100dvh; padding-top: var(--nt-top); }
+/* chromeless since 30 Oct 2026 (MobileChrome draws no top bar here): the page starts under the status bar */
+.nv-nt.mob { --nt-top: env(safe-area-inset-top, 0px); min-height: 100dvh; padding-top: var(--nt-top); }
 .nv-nt:not(.mob) { padding-top: 12px; padding-bottom: 120px; }
 .nv-nt button { -webkit-tap-highlight-color: transparent; }
 /* zero-specificity reset, so every .nv-nt-* rule below sets a button's face */
@@ -5271,6 +5272,15 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-receipt .rx b, .nv-nt-job .rx b, .nv-nt-offl b { display: block; font: 600 15px/1.25 var(--nv-font-ui); overflow-wrap: anywhere; }
 .nv-nt-receipt .rx span, .nv-nt-job .rx span, .nv-nt-offl span span { display: block; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-sum-ink3); }
 .nv-nt-undo { height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: 22px; background: none; cursor: pointer; font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+/* the top bar's live dot, now a row in the status sheet */
+.nv-nt-conn { display: inline-flex; align-items: center; gap: 7px; color: var(--h); }
+.nv-nt-conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--h); }
+.nv-nt-conn i[data-pulse] { animation: novaPulse 2s infinite var(--nv-anim); }
+@media (prefers-reduced-motion: reduce) { .nv-nt-conn i[data-pulse] { animation: none; } }
+/* a Wishlist add's open question under its receipt (QuickCapture.jsx AskTaps), tucked to the receipt above */
+.nv-nt-ask { margin: -2px 0 8px; }
+.nv-nt-ask .nv-qc-ask { margin: 0; }
+.nv-nt-ask .nv-qc-opt { min-height: 44px; }
 .nv-nt-job .spin { width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--nv-ink) 18%, transparent); border-top-color: var(--nv-ink); animation: nvNtSpin 1s linear infinite; justify-self: center; }
 
 /* the close and a proposal: the Coach deck's card, gold because it waits */
@@ -5489,7 +5499,11 @@ body:has(.nv-nt.mob .nv-nt-ground) .nv-sky { visibility: hidden; }
 .nv-nt-ohead { position: fixed; z-index: 14; left: 0; top: var(--nt-top); width: 100%; height: 106px; pointer-events: none; }
 .nv-nt-oband {
   position: absolute; left: 0; right: 0; top: calc(-1 * var(--nt-top)); bottom: -22px; opacity: 0; will-change: opacity;
-  background: linear-gradient(color-mix(in srgb, var(--fx-g0) 94%, transparent) 72%, transparent);
+  /* solid under the name, then a soft fade: the history read through it
+     at 94% on his sky theme (30 Oct shot), so the top is opaque and blurred */
+  background: linear-gradient(var(--fx-g0) 0 70%, transparent);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent);
 }
 .nv-nt-opn {
   position: absolute; top: 53px; left: calc(max(16px, (100% - 560px) / 2 + 16px) + 102px); right: 160px;

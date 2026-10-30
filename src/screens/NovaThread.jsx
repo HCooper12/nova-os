@@ -16,6 +16,7 @@ import { Ico, Glyph, Stage, Settled, KeptTake, Meter, Proposal } from '../NovaTh
 import { NovaStage } from '../NovaStage.jsx';
 import { CAPTIONS_KEY, captionsOn } from '../novaFocusFacts.js';
 import { FiledRows } from '../motion/FiledRows.jsx';
+import { AskTaps } from '../QuickCapture.jsx';
 
 // THE NOVA THREAD (29 Sep 2026) — design/mockups/63-redesign-nova-r2.html,
 // variation D · Rising, his pick: "The rising option D mock up seems to be the
@@ -426,6 +427,8 @@ export function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
           {m.acted.undo ? <button type="button" className="nv-nt-undo" onClick={m.acted.undo}>Undo</button> : <span />}
         </div>
       )}
+      {/* a Wishlist add's one open question, the same taps as Quick Capture */}
+      {m.acted?.ask && <div className="nv-nt-ask"><AskTaps ask={m.acted.ask} /></div>}
       {m.filed && <FiledRows f={m.filed} source={youLine} />}
       {m.proposal && <Proposal p={m.proposal} />}
       {m.planReport && <PlanReport r={m.planReport} time={m.time} />}
@@ -576,6 +579,10 @@ function StatusSheet({ T, dict, S, captions, onCaptions, onClose }) {
           <button type="button" className="nv-nt-tuck" data-edge-close onClick={onClose} aria-label="Close"><Ico name="x" /></button>
         </div>
         <div className="nv-nt-group">
+          {s.connection && (
+            <div className="nv-nt-stat"><span>Your Mac</span>
+              <b className="nv-nt-conn" style={{ '--h': s.connection.hue }}><i data-pulse={s.connection.pulse ? '1' : undefined} aria-hidden="true" />{s.connection.word}</b></div>
+          )}
           <div className="nv-nt-stat"><span>Answers</span><b>{s.answers}</b></div>
           <div className="nv-nt-stat"><span>Voice</span><b>{s.engine}</b></div>
           {s.engineDetail && <p className="nv-nt-note">{s.engineDetail}</p>}
@@ -600,7 +607,9 @@ function StatusSheet({ T, dict, S, captions, onCaptions, onClose }) {
             <button type="button" className="nv-nt-mi" onClick={go(s.newChat)}><Ico name="compose" /><span>New chat</span><span className="v">the record keeps it</span></button>
           ) : null}
           {s.endBrief && <button type="button" className="nv-nt-mi" onClick={go(s.endBrief)}><Ico name="x" /><span>End the brief</span><span className="v" /></button>}
-          <button type="button" className="nv-nt-mi" onClick={go(s.settings)}><Ico name="gear" /><span>Voice settings</span><span className="v">hearing, pauses, voice</span></button>
+          {s.jobs && <button type="button" className="nv-nt-mi" onClick={go(s.jobs.open)}><Ico name="retry" /><span>Running now</span><span className="v">{s.jobs.running ? `${s.jobs.running} working` : `${s.jobs.count} waiting on you`}</span></button>}
+          {s.outbox && <button type="button" className="nv-nt-mi" onClick={go(s.outbox.open)}><Ico name="tray" /><span>Waiting to send</span><span className="v">{s.outbox.count} on this phone</span></button>}
+          <button type="button" className="nv-nt-mi" onClick={go(s.settings)}><Ico name="gear" /><span>Settings</span><span className="v">voice, hearing and the rest</span></button>
         </div>
       </div>
     </div>

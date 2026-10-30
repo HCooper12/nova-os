@@ -10,18 +10,24 @@ const WHERE = { shopping: 'on your shopping list', todo: 'on your to-do list', n
 // A Wishlist add (server/lib/wishlist.js): the ONE open question as taps
 // (category, colour or size; priority is never asked), a few up front and
 // the rest behind "Show all"; a failed add shows its real cause.
+// ONE builder for the taps, shared with the Nova thread's receipt
+// (valsNovaThread.js), so a question asked by voice and one asked in Quick
+// Capture are the same object answering through the same POST.
+export function wishlistAsk(recordId, questions, app) {
+  const q = (questions || []).find((x) => x && Array.isArray(x.options) && x.options.length);
+  if (!q || !recordId) return null;
+  return {
+    text: q.ask,
+    upFront: q.upFront || 6,
+    options: q.options.map((o) => ({ label: o, pick: () => app.answerWishlist(recordId, q.field, o) })),
+  };
+}
+
 function wishlistExtras(r, app) {
   if (r.status === 'error') return { why: r.error || null };
   if (r.status !== 'filed') return {};
-  const q = (r.decision?.payload?.questions || [])[0];
-  if (!q) return {};
-  return {
-    ask: {
-      text: q.ask,
-      upFront: q.upFront || 6,
-      options: q.options.map((o) => ({ label: o, pick: () => app.answerWishlist(r.id, q.field, o) })),
-    },
-  };
+  const ask = wishlistAsk(r.id, r.decision?.payload?.questions, app);
+  return ask ? { ask } : {};
 }
 
 export function quickCaptureModel(st, app) {
