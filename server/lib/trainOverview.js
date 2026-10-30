@@ -261,6 +261,23 @@ export async function buildTrainOverview(vaultPath) {
   // Past days are judged by the plan as it stood (lib/planHistory.js), and a
   // lift carried to a make-up still ahead is still to come. Either source
   // failing leaves today's plan and no carry-overs: the week still renders.
+  // THE DATED PLANS (mockup 104): a date holding two workouts. Read once,
+  // here, so the planned week, the muscle sheet and the count all plan the
+  // same day the same way (31 Oct 2026: the second Saturday session was
+  // missing from the sheet because only the count read them). Only ids his
+  // routines still hold, and only plans that still hold two or more.
+  let dayPlans = [];
+  try {
+    const { listDayPlans } = await import('./extraWorkouts.js');
+    const { todayIso } = await import('./makeupDay.js');
+    const start = mondayOf(new Date());
+    const sunday = (() => { const d = new Date(`${start}T12:00:00`); d.setDate(d.getDate() + 6); return todayIso(d); })();
+    const liveIds = new Set(routines.map((r) => r.id));
+    dayPlans = (await listDayPlans({ from: start, to: sunday }).catch(() => []))
+      .map((p) => ({ date: p.date, routineIds: p.routineIds.filter((id) => liveIds.has(id)) }))
+      .filter((p) => p.routineIds.length >= 2);
+  } catch { /* no day plans: every date is the template's */ }
+
   let week = null;
   try {
     const { refreshPlanHistory, planAt } = await import('./planHistory.js');
@@ -268,7 +285,7 @@ export async function buildTrainOverview(vaultPath) {
     const { listCarryovers } = await import('./workoutCarryover.js');
     const carryovers = await listCarryovers().catch(() => []);
     week = plannedWeek({
-      routines, schedule, sessions, live: liveSession, exercises, carryovers,
+      routines, schedule, sessions, live: liveSession, exercises, carryovers, dayPlans,
       routinesAt: history?.versions?.length ? (iso) => planAt(history.versions, iso)?.routines || null : null,
       targetOf: (m) => ({ target: rangeFor(m, ranges)[0], range: rangeFor(m, ranges), goalMuscle: focused.has(m) }),
     });
@@ -285,6 +302,7 @@ export async function buildTrainOverview(vaultPath) {
       carryovers: await listCarryovers().catch(() => []),
       goalMuscles: [...focused],
       ranges,
+      dayPlans,
     });
   } catch { /* honest absence */ }
 
@@ -315,19 +333,13 @@ export async function buildTrainOverview(vaultPath) {
   // Train can split a day's capsule and Begin can ask which first. Null on
   // failure: the card falls back to the counting it did before.
   let weekCountModel = null;
-  let dayPlans = [];
   try {
     const { weekCount } = await import('./weekCount.js');
-    const { listDayPlans } = await import('./extraWorkouts.js');
     const { workoutsForRange, countsForActiveRest, cardioKind } = await import('./healthWorkouts.js');
     const { listCarryovers } = await import('./workoutCarryover.js');
     const { todayIso } = await import('./makeupDay.js');
     const start = mondayOf(new Date());
     const sunday = (() => { const d = new Date(`${start}T12:00:00`); d.setDate(d.getDate() + 6); return todayIso(d); })();
-    const live = new Set(routines.map((r) => r.id));
-    dayPlans = (await listDayPlans({ from: start, to: sunday }).catch(() => []))
-      .map((p) => ({ date: p.date, routineIds: p.routineIds.filter((id) => live.has(id)) }))
-      .filter((p) => p.routineIds.length >= 2);
     const makeups = (await listCarryovers().catch(() => [])).filter((c) => c.plannedAs === 'day' && c.forDate >= start && c.forDate <= sunday);
     weekCountModel = weekCount({
       start, today: todayIso(), schedule, routines, dayPlans, makeups,

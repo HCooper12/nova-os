@@ -160,3 +160,69 @@ test('a filed make-up session is its own card, named for the routine it finished
   assert.deepEqual(thu.focus, { Lats: 3 });
   assert.deepEqual(thu.accessory, { 'Upper Back': 3, Biceps: 3 });
 });
+
+// HIS SATURDAY, 31 OCT 2026: Arms and Delts & Back both planned for the one
+// date (a dated two-a-day, lib/extraWorkouts.js). The template still says
+// Arms; the second session was missing from the sheet until the day plan
+// was read. Both must tally, net of what is filed, and a cleared plan must
+// fall back to the template alone.
+const DB = { id: 'dback', name: 'Delts & Back', exercises: [slot('lateral', 4), slot('row', 3)] };
+const TWO_A_DAY = [{ date: '2026-10-31', routineIds: ['arms', 'dback'] }];
+const SAT = new Date('2026-10-31T07:00:00');
+const sat = (over = {}) => muscleWeek({ routines: [...ROUTINES, DB], schedule: SCHEDULE, sessions: [], exercises: EXERCISES, now: SAT, dayPlans: TWO_A_DAY, ...over });
+
+test('a dated two-a-day plans BOTH routines, before either is filed', () => {
+  const w = sat();
+  const today = w.days.filter((d) => d.date === '2026-10-31');
+  assert.deepEqual(today.map((d) => [d.routine, d.status]), [['Arms', 'today'], ['Delts & Back', 'today']]);
+  // Side Delts: Arms lateral 3 + Delts & Back lateral 4; Rear Delts: ½ of the row's 3
+  assert.equal(M(w, 'Side Delts').bySunday, 7);
+  assert.equal(M(w, 'Rear Delts').bySunday, 1.5);
+  assert.equal(M(w, 'Lats').bySunday, 3);
+  assert.equal(M(w, 'Upper Back').bySunday, 1.5);
+  assert.equal(M(w, 'Biceps').bySunday, 3 + 1.5, 'Arms curls + ½ of the row');
+  for (const m of w.muscles) assert.equal(sum(m.lines), m.bySunday, m.muscle);
+});
+
+test('a two-a-day with one session filed plans only the other; with both filed, nothing more', () => {
+  const armsDone = sess('2026-10-31', 'arms', 'Arms', [['curl', 3], ['lateral', 3]]);
+  const one = sat({ sessions: [armsDone] });
+  assert.equal(M(one, 'Side Delts').done, 3);
+  assert.equal(M(one, 'Side Delts').bySunday, 7, 'the done Arms lateral + the planned Delts & Back lateral, no double count');
+  assert.equal(M(one, 'Lats').bySunday, 3);
+  const cards = one.days.filter((d) => d.date === '2026-10-31');
+  assert.deepEqual(cards.map((d) => [d.routine, d.status]), [['Arms', 'done'], ['Delts & Back', 'today']]);
+
+  const dbDone = sess('2026-10-31', 'dback', 'Delts & Back', [['lateral', 4], ['row', 3]]);
+  const both = sat({ sessions: [armsDone, dbDone] });
+  assert.equal(M(both, 'Side Delts').done, 7);
+  assert.equal(M(both, 'Side Delts').bySunday, 7);
+  assert.equal(M(both, 'Lats').bySunday, 3);
+  assert.ok(both.muscles.every((m) => m.bySunday === m.done), 'nothing is left to plan');
+});
+
+test('the day plan cleared: Saturday is the template alone, and Delts & Back appears nowhere', () => {
+  const w = sat({ dayPlans: [] });
+  assert.deepEqual(w.days.filter((d) => d.date === '2026-10-31').map((d) => d.routine), ['Arms']);
+  assert.equal(M(w, 'Side Delts').bySunday, 3);
+  assert.equal(M(w, 'Rear Delts'), undefined);
+  assert.ok(w.muscles.every((m) => m.lines.every((l) => l.routine !== 'Delts & Back')));
+});
+
+test('a routine in a past day plan that was never filed is drawn missed, adding nothing', () => {
+  const sun = new Date('2026-11-01T09:00:00');
+  const w = sat({ now: sun });
+  const missed = w.days.filter((d) => d.date === '2026-10-31');
+  assert.deepEqual(missed.map((d) => [d.routine, d.status]), [['Arms', 'missed'], ['Delts & Back', 'missed']]);
+  assert.equal(M(w, 'Side Delts')?.bySunday || 0, 0);
+});
+
+test('on a two-a-day, a set ticked live in the second session nets against that session, not the first', () => {
+  const live = { routineId: 'dback', routineName: 'Delts & Back', exercises: [
+    { exerciseId: 'lateral', sets: [{ weight: 10, reps: 12, done: true }, { weight: 10, reps: 12, done: true }] },
+  ] };
+  const w = sat({ live });
+  const lines = M(w, 'Side Delts').lines.map((l) => [l.routine, l.sets, l.status]);
+  assert.deepEqual(lines.sort(), [['Arms', 3, 'today'], ['Delts & Back', 2, 'done'], ['Delts & Back', 2, 'today']]);
+  assert.equal(M(w, 'Side Delts').bySunday, 7);
+});

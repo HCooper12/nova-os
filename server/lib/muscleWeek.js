@@ -9,6 +9,7 @@
 //   focusPlanned / accPlanned  SETS the rest of this week's plan still holds
 //   done, bySunday             the credited totals (focus + ½ accessory)
 //   low, high, goal            its growth range and whether his goal names it
+//   ownRange                   the range is his goal's for this muscle, not the default
 //   lines                      every (day, exercise) that adds to it, done and
 //                              planned; their `value`s sum EXACTLY to bySunday
 // and per day: the routine, its status, and the focus / accessory sets each
@@ -29,6 +30,12 @@
 //   * A make-up he planned for a day (a 'day' carry-over) is that day's plan,
 //     as everywhere else (lib/makeupDay.js); other carried work waiting on a
 //     day still ahead is added to it.
+//   * A DATED plan beats the weekday template (31 Oct 2026, his report: the
+//     second Saturday session, Delts & Back beside Arms, was missing from
+//     the sheet). A date with a day plan (lib/extraWorkouts.js, two or more
+//     routines) plans EVERY routine in it, each by the same rules: filed
+//     today plans nothing more, pulled forward is not planned again. A date
+//     without one keeps schedule[day]. A routine in neither appears nowhere.
 
 import { mondayIso } from './cadence.js';
 import { todayIso } from './makeupDay.js';
@@ -67,14 +74,24 @@ const sessionSig = (s) => JSON.stringify([s.date, s.routineId || s.routineName |
  * @param goalMuscles the muscles his goal names (any order; drawn in the body's order)
  * @param ranges      his goal's per-muscle overrides { muscle: [low, high] }
  * @param carryovers  carry-over rows (lib/workoutCarryover.js)
+ * @param dayPlans    dated plans [{ date, routineIds }] (lib/extraWorkouts.js)
  * @param now         the clock
  */
-export function muscleWeek({ routines = [], schedule = {}, sessions = [], live = null, exercises = [], goalMuscles = [], ranges = null, carryovers = [], now = new Date() } = {}) {
+export function muscleWeek({ routines = [], schedule = {}, sessions = [], live = null, exercises = [], goalMuscles = [], ranges = null, carryovers = [], dayPlans = [], now = new Date() } = {}) {
   const today = todayIso(now);
   const start = mondayIso(now);
   const dates = WEEK_DAYS.map((_, i) => addDays(start, i));
   const sunday = dates[6];
   const dayOf = (iso) => WEEK_DAYS[dates.indexOf(iso)];
+
+  // the routine ids a date holds: its dated plan when it has one, else the
+  // weekday template's one routine (active rest and absent are none)
+  const datedPlan = new Map((dayPlans || []).filter((p) => p?.date && Array.isArray(p.routineIds) && p.routineIds.length).map((p) => [p.date, p.routineIds]));
+  const routinesOn = (iso) => {
+    if (datedPlan.has(iso)) return datedPlan.get(iso);
+    const id = schedule?.[dayOf(iso)];
+    return id && id !== ACTIVE_REST ? [id] : [];
+  };
 
   const creditsOf = creditsById(exercises);
   const known = new Map(exercises.map((e) => [e.id, e]));
@@ -113,7 +130,17 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
   const filed = sessions
     .filter((s) => s?.date && s.date >= start && s.date <= sunday)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
-  const loggedToday = new Map(); // exerciseId → working sets logged today (the pool today's plan is net of)
+  // working sets logged today, by the routine they were logged under ('' for
+  // a make-up or an unnamed session): the pools today's plan is net of. A
+  // routine draws on its OWN pool first, then on sets logged under no routine
+  // planned today; never on another planned routine's sets, so on a two-a-day
+  // the laterals done in Arms do not cancel the laterals Delts & Back holds.
+  const loggedToday = new Map(); // routineKey → Map(exerciseId → n)
+  const logToday = (key, exerciseId, n) => {
+    if (!loggedToday.has(key)) loggedToday.set(key, new Map());
+    const pool = loggedToday.get(key);
+    pool.set(exerciseId, (pool.get(exerciseId) || 0) + n);
+  };
   const filedRoutine = new Map(); // routineId → dates it was filed this week (not make-ups)
   for (const s of filed) {
     const sig = sessionSig(s);
@@ -130,7 +157,7 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
     for (const ex of s.exercises || []) {
       const n = (ex.sets || []).filter(isWorkingSet).length;
       addEx(entry, ex.exerciseId, ex.name || known.get(ex.exerciseId)?.name || ex.exerciseId, 'done', n);
-      if (s.date === today) loggedToday.set(ex.exerciseId, (loggedToday.get(ex.exerciseId) || 0) + n);
+      if (s.date === today) logToday(makeup ? '' : s.routineId || '', ex.exerciseId, n);
     }
   }
   // the session he is in right now: its ticked working sets, dated today
@@ -143,7 +170,7 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
     for (const ex of live.exercises) {
       const n = (ex.sets || []).filter((x) => x.done && isWorkingSet(x)).length;
       addEx(entry, ex.exerciseId, ex.name || known.get(ex.exerciseId)?.name || ex.exerciseId, 'done', n);
-      if (n) loggedToday.set(ex.exerciseId, (loggedToday.get(ex.exerciseId) || 0) + n);
+      if (n) logToday(r?.id || '', ex.exerciseId, n);
     }
   }
 
@@ -155,7 +182,7 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
   // how many scheduled occurrences of a routine are left to plan this week:
   // a routine filed on a day it was not scheduled was pulled forward, and
   // takes one later occurrence with it
-  const scheduledOn = (id) => dates.filter((d) => schedule?.[dayOf(d)] === id);
+  const scheduledOn = (id) => dates.filter((d) => routinesOn(d).includes(id));
   const pulledForward = new Map();
   for (const [id, filedDates] of filedRoutine) {
     const own = new Set(scheduledOn(id));
@@ -167,22 +194,22 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
   const madeUp = new Set(entries.filter((e) => e.makeup).map((e) => e.key));
   for (const date of dates) {
     if (date >= today) break;
-    const id = schedule?.[dayOf(date)];
-    const r = id && id !== ACTIVE_REST ? routineById.get(id) : null;
-    if (!r || filedRoutine.has(r.id) || madeUp.has(`makeup:${r.id}`) || madeUp.has(`makeup:${r.name}`)) continue;
-    entryFor(date, `r:${r.id}`, { routineId: r.id, routine: r.name, makeup: false, missed: true });
+    for (const id of routinesOn(date)) {
+      const r = routineById.get(id);
+      if (!r || filedRoutine.has(r.id) || madeUp.has(`makeup:${r.id}`) || madeUp.has(`makeup:${r.name}`)) continue;
+      entryFor(date, `r:${r.id}`, { routineId: r.id, routine: r.name, makeup: false, missed: true });
+    }
   }
 
   for (const date of dates) {
     if (date < today) continue;
-    const day = dayOf(date);
     const plans = [];
     const mk = dayMakeup.get(date);
     if (mk) plans.push({ key: `makeup:${mk.sourceRoutineId || mk.sourceRoutineName}`, routine: `${mk.sourceRoutineName || 'Session'} make-up`, routineId: null, makeup: true, exercises: mk.exercises || [] });
     else {
-      const id = schedule?.[day];
-      const r = id && id !== ACTIVE_REST ? routineById.get(id) : null;
-      if (r) {
+      for (const id of routinesOn(date)) {
+        const r = routineById.get(id);
+        if (!r) continue;
         const doneToday = date === today && (filedRoutine.get(r.id) || []).includes(today);
         const pulled = pulledForward.get(r.id) || 0;
         if (pulled > 0 && !doneToday) pulledForward.set(r.id, pulled - 1); // already done earlier this week
@@ -199,10 +226,15 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
         let want = Number(ex.targetSets) || 0;
         if (date === today) {
           // net of what is already logged today, so nothing counts twice
-          const have = loggedToday.get(ex.exerciseId) || 0;
-          const used = Math.min(have, want);
-          loggedToday.set(ex.exerciseId, have - used);
-          want -= used;
+          const todayIds = new Set(dayMakeup.has(today) ? [] : routinesOn(today)); // a make-up day plans no template routine
+          const keys = [...(p.routineId ? [p.routineId] : []), ...[...loggedToday.keys()].filter((k) => k !== p.routineId && !todayIds.has(k))];
+          for (const k of keys) {
+            const pool = loggedToday.get(k);
+            const have = pool?.get(ex.exerciseId) || 0;
+            const used = Math.min(have, want);
+            if (used) pool.set(ex.exerciseId, have - used);
+            want -= used;
+          }
         }
         addEx(entry, ex.exerciseId, ex.name || known.get(ex.exerciseId)?.name || ex.exerciseId, 'planned', want);
       }
@@ -214,7 +246,7 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
   const rowFor = (m) => {
     if (!muscles.has(m)) {
       const [low, high] = rangeFor(m, ranges);
-      muscles.set(m, { muscle: m, goal: false, low, high, focusDone: 0, accDone: 0, focusPlanned: 0, accPlanned: 0, done: 0, bySunday: 0, lines: [] });
+      muscles.set(m, { muscle: m, goal: false, low, high, ownRange: !!(ranges && Object.hasOwn(ranges, m)), focusDone: 0, accDone: 0, focusPlanned: 0, accPlanned: 0, done: 0, bySunday: 0, lines: [] });
     }
     return muscles.get(m);
   };

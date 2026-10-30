@@ -189,3 +189,29 @@ test('a lift carried to a make-up still ahead this week is marked carried, not l
   assert.equal(rope.carriedTo, 'saturday');
   assert.equal(straight.carriedTo, undefined, 'a make-up next week does not save this week\'s set');
 });
+
+// HIS SATURDAY (31 Oct 2026): two routines on one date by a dated plan
+// (lib/extraWorkouts.js). The template's one routine is not the whole day.
+test('a dated two-a-day plans every routine in it; with the plan cleared, only the template', () => {
+  const sat = new Date('2026-09-26T07:00:00'); // Saturday of the same test week
+  const schedule = { ...SCHEDULE, saturday: 'pull' };
+  const dayPlans = [{ date: '2026-09-26', routineIds: ['pull', 'push'] }];
+  const w = plannedWeek({ routines: ROUTINES, schedule, sessions: [], exercises: EXERCISES, targetOf, now: sat, dayPlans });
+  const d = w.days.find((x) => x.date === '2026-09-26');
+  assert.deepEqual(d.routines.map((r) => r.name), ['Pull', 'Push']);
+  assert.equal(d.routineName, 'Pull + Push');
+  assert.equal(d.routineId, 'pull');
+  assert.deepEqual(muscle(w, 'Chest').exercises.map((e) => [e.day, e.routineName]), [['monday', 'Push'], ['friday', 'Upper Body'], ['saturday', 'Push']]);
+  assert.equal(muscle(w, 'Triceps').planned, 3 + 3 + 3 + 1.5 * 3, 'three carter slots + ½ of three bench slots');
+
+  // one of the two filed: its sets land in its own slot, the other still planned
+  const pushDone = sess('2026-09-26', 'push', [['bench', working(3)], ['carter', working(3)]]);
+  const one = plannedWeek({ routines: ROUTINES, schedule, sessions: [pushDone], exercises: EXERCISES, targetOf, now: sat, dayPlans });
+  const satBench = muscle(one, 'Chest').exercises.find((e) => e.day === 'saturday');
+  assert.equal(satBench.done, 3);
+  assert.equal(muscle(one, 'Lats').exercises.find((e) => e.day === 'saturday').done, 0);
+
+  const cleared = plannedWeek({ routines: ROUTINES, schedule, sessions: [], exercises: EXERCISES, targetOf, now: sat, dayPlans: [] });
+  assert.equal(cleared.days.find((x) => x.date === '2026-09-26').routineName, 'Pull');
+  assert.equal(muscle(cleared, 'Chest').exercises.some((e) => e.day === 'saturday'), false);
+});
