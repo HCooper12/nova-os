@@ -370,9 +370,11 @@ export function priorityFrom(words) {
 }
 
 // ⭐️ only from his own words (his call, 29 Oct): two is "top of my most
-// wanted", one is "one of my top wants". Never inferred, never asked.
+// wanted", one is "one of my top wants", three (his answer, 30 Oct) is an
+// even higher want still. Never inferred, never asked.
 export function starsFrom(words) {
   const w = String(words || '').toLowerCase();
+  if (/\b(?:three stars?|3 stars?|triple star|even higher|highest want|want (?:it|this) (?:the )?most of all)\b|⭐️\s*⭐️\s*⭐️|⭐⭐⭐/.test(w)) return 3;
   if (/\b(?:two stars?|2 stars?|double star|top of (?:my|the) (?:most wanted|top wants|list)|most wanted of all|number one want)\b|⭐️\s*⭐️|⭐⭐/.test(w)) return 2;
   if (/\b(?:star (?:it|this|that)|one star|1 star|starred|one of (?:my|the) (?:top wants|most wanted|top things)|most wanted|top wants?|things? i want most)\b|⭐/.test(w)) return 1;
   return 0;
@@ -390,7 +392,7 @@ export function notesFrom(words, categoryNames = []) {
     .replace(/\b(?:add|put|save|stick|throw|pop)\s+(?:this|that|it)?\s*(?:to|on|in|into|onto)\s+(?:my\s+|the\s+)?wish\s?list\b/gi, ' ')
     .replace(/\b(?:wish\s?list(?: this| it| that)?|for (?:my|the) wish\s?list|to (?:my|the) wish\s?list|on (?:my|the) wish\s?list)\b/gi, ' ')
     .replace(/\b(?:high(?:est)?|medium|mid|low) priority\b|\bpriority (?:is )?(?:high|medium|low)\b|\btop priority\b|\breally want(?: (?:this|it))?\b|\bmust[- ]have\b|\bno rush\b|\bnot urgent\b|\bsome ?day\b|\beventually\b/gi, ' ')
-    .replace(/\b(?:two stars?|2 stars?|one star|1 star|double star|star (?:it|this|that)|top of (?:my|the) (?:most wanted|top wants|list)|one of (?:my|the) (?:top wants|most wanted|top things)|most wanted|top wants?)\b|⭐️|⭐/gi, ' ')
+    .replace(/\b(?:three stars?|3 stars?|triple star|even higher|highest want|two stars?|2 stars?|one star|1 star|double star|star (?:it|this|that)|top of (?:my|the) (?:most wanted|top wants|list)|one of (?:my|the) (?:top wants|most wanted|top things)|most wanted|top wants?)\b|⭐️|⭐/gi, ' ')
     .replace(/\b(?:for |buying it |buy it )?this month\b/gi, ' ');
   for (const n of categoryNames) w = w.replace(new RegExp(`\\b(?:under|in|as|into)\\s+(?:my\\s+|the\\s+)?${esc(n)}\\b`, 'gi'), ' ');
   w = w.replace(/\s+/g, ' ').replace(/^[\s,.;:—–&-]+|[\s,.;:—–&-]+$/g, '').replace(/^(?:and|with|it'?s|its)\s+/i, '').trim();
@@ -724,14 +726,14 @@ export async function setStatus(pageId, status) {
 }
 
 export async function setStars(pageId, stars) {
-  const n = Math.max(0, Math.min(2, Math.floor(Number(stars) || 0)));
+  const n = Math.max(0, Math.min(3, Math.floor(Number(stars) || 0)));
   const item = await itemFor(pageId);
   if (!item) throw Object.assign(new Error('that item is not in the Wishlist Nova last read'), { status: 404 });
   const { base } = splitStars(item.rawName || item.name);
   const name = withStars(base, n);
   await patchPage(pageId, { properties: { Name: { title: rt(name) } } });
   await patchCache(pageId, { rawName: name, name: base, stars: n });
-  const rec = await fileRecord({ text: n ? `${STAR.repeat(n)} ${base}` : `No star on ${base}`, destination: `Wishlist · ${n ? `${n === 2 ? 'top of ' : ''}most wanted` : 'star taken off'}`, undoData: { kind: 'wishlist-name', pageId, prior: item.rawName || item.name, name: base } });
+  const rec = await fileRecord({ text: n ? `${STAR.repeat(n)} ${base}` : `No star on ${base}`, destination: `Wishlist · ${n ? `${n === 3 ? 'very top of ' : n === 2 ? 'top of ' : ''}most wanted` : 'star taken off'}`, undoData: { kind: 'wishlist-name', pageId, prior: item.rawName || item.name, name: base } });
   kickSync();
   return { stars: n, name, recordId: rec.id };
 }

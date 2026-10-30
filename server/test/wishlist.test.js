@@ -173,6 +173,9 @@ test('priority: his words or Medium, never asked; stars only from his words; "th
   assert.equal(W.starsFrom('add to my wishlist'), 0);
   assert.equal(W.starsFrom('one of my top wants'), 1);
   assert.equal(W.starsFrom('star it'), 1);
+  // his answer, 30 Oct: three stars is an even higher want
+  assert.equal(W.starsFrom('three stars, I want it even higher'), 3);
+  assert.equal(W.starsFrom('⭐️⭐️⭐️'), 3);
   assert.equal(W.starsFrom('top of my most wanted'), 2);
   assert.equal(W.starsFrom('two stars'), 2);
   assert.equal(W.starsFrom('high priority'), 0, 'priority is not a star');

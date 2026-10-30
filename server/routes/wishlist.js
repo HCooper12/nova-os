@@ -52,7 +52,7 @@ export function wishlistRouter(vaultPath) {
     } catch (err) { fail(res, err); }
   });
 
-  // { stars: 0 | 1 | 2 }: his "most wanted" marks, written as the Name prefix
+  // { stars: 0 | 1 | 2 | 3 }: his "most wanted" marks, written as the Name prefix
   router.post('/wishlist/:id/star', async (req, res) => {
     try {
       const { setStars } = await import('../lib/wishlist.js');
