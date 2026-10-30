@@ -207,6 +207,10 @@ export function NovaThread({ v }) {
   const seenAtOpen = useMemo(() => readSeen(), []);
   const rows = useMemo(() => threadRows(T.lines, { takes: tk, nameOf: T.nameOf, seenAt: seenAtOpen }), [T.lines, tk, T.nameOf, seenAtOpen]);
 
+  // at the foot of the one scroll (where the stage is). effa24a3 removed this
+  // and left its caller: a ReferenceError on every scroll frame (31 Oct)
+  const atFoot = () => { const m = mainRef.current; return !m || m.scrollHeight - m.scrollTop - m.clientHeight < 96; };
+
   // ---- opening: on the stage, the foot of the one scroll (NovaStage puts
   // it there and keeps it there while the history grows above it)
   useLayoutEffect(() => {
