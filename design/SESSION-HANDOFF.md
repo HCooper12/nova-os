@@ -12,6 +12,13 @@ the session log at the foot is append-only.
 ---
 
 
+
+## 30 Oct: Wishlist page, chromeless Nova, wishlist shared (b3cfc9ac)
+- His list is SHARED with Nova: 75 rows, 10 categories, sizes read; 62/64 photos cached on the Mac. No add has yet been written to his real Notion.
+- Wishlist page (mockup 107, approved) in More / Index Life; stars 0-3 (⭐️⭐️⭐️ = even higher, 790e4c8d). Shots on his real data via --readonly; not seen on his phone.
+- Nova page chromeless (his call): top bar hidden on the Nova tab under summary; live dot / running work / outbox moved into the › status sheet. Presenter band made opaque + blurred (history read through it). Safe-area spacing unverified on device (headless inset 0).
+- Chat receipt shows a Wishlist add's question taps (shared AskTaps from Quick Capture).
+
 ## 29 Oct late: calendar quiet, × Type, one Nova page, Notion wishlist (2003e4bc)
 - Calendar "starts soon": recurring events raise nothing; one-off events show on screen only, never push (3ec8939f, his call).
 - × Type on the listening bar: closes the mic, nothing sent, keyboard up (0926f4cf). LIVE in bundle; not seen on his phone.
