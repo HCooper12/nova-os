@@ -51,3 +51,9 @@
 .nv-qc-opt { min-height: 36px; padding: 0 12px; border-radius: 999px; cursor: pointer; font: 600 12.5px/1 var(--nv-font-ui); color: var(--nv-ink); border: 1px solid color-mix(in srgb, var(--nv-mg) 40%, transparent); background: color-mix(in srgb, var(--nv-mg) 10%, transparent); }
 .nv-qc-opt.more { color: var(--nv-ink60); border-style: dashed; background: none; }
 @media (prefers-reduced-motion: reduce) { .nv-qc-row, .nv-qc-scrim, .nv-qc-ask { animation: none; } .nv-qc-tag { transition: none; } }
+
+/* the Wishlist chip: shown only with exactly one link in the box; on = the
+   Wishlist's own hue (--nv-mg), filled, so the choice reads before sending */
+.nv-qc-wish { margin-top: 8px; display: flex; }
+.nv-qc-wishchip { transition: background .2s var(--nv-ease, ease), border-color .2s var(--nv-ease, ease); }
+.nv-qc-wishchip.on { background: color-mix(in srgb, var(--nv-mg) 26%, transparent); border-color: var(--nv-mg); }

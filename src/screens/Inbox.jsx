@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { CaptureReceipts } from '../QuickCapture.jsx';
+import { CaptureReceipts, WishChip } from '../QuickCapture.jsx';
 import { subjectOf } from '../inboxDigest.js';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
@@ -154,6 +154,7 @@ function InboxClassic({ v }) {
           <Button onClick={submit} disabled={!v.inboxConnected || v.inboxCaptureBusy}
           >{v.inboxCaptureBusy ? 'Routing…' : '✦ Capture'}</Button>
         </div>
+        <WishChip q={v.quickCapture} />
         {v.quickCapture.error && <div style={css('margin-top:8px;font-size:12.5px;color:var(--nv-warn)')} role="alert">{v.quickCapture.error}</div>}
         {/* where each capture went, with the tag that moves it (mockup 103) */}
         <div style={{ marginTop: '10px' }}><CaptureReceipts q={v.quickCapture} /></div>

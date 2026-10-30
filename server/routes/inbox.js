@@ -15,7 +15,8 @@ export function inboxRouter(vaultPath) {
       if (text.length > 4000) return res.status(400).json({ error: 'capture is too long (4000 chars max)' });
       const mode = MODES.includes(req.body?.mode) ? req.body.mode : 'auto-high';
       const source = req.body?.source === 'voice' ? 'voice' : 'text';
-      const record = await startCapture(vaultPath, { text, source, mode });
+      const dest = req.body?.dest === 'wishlist' ? 'wishlist' : null;
+      const record = await startCapture(vaultPath, { text, source, mode, dest });
       // `kind` says which lane took it (a recipe import, a video watch, a channel study, research), so a door can say what Nova decided
       res.json({ id: record.id, status: record.status, kind: record.kind || null });
     } catch (e) {

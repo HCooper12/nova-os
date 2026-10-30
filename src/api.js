@@ -711,7 +711,7 @@ export const api = {
   commitmentDismiss: (conn, id) => post(conn, `/api/commitments/${encodeURIComponent(id)}/dismiss`),
   sparStart: (conn, workspace, focus) => post(conn, '/api/claude-code/spar', { workspace, focus }),
   inboxItem: (conn, id) => call(conn, `/api/inbox/item/${encodeURIComponent(id)}`),
-  inboxCapture: (conn, text, mode, source) => post(conn, '/api/inbox/capture', { text, mode, source }),
+  inboxCapture: (conn, text, mode, source, dest) => post(conn, '/api/inbox/capture', { text, mode, source, ...(dest ? { dest } : {}) }),
   inboxApprove: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/approve`),
   inboxSeen: (conn, id, seen = true) => post(conn, `/api/inbox/${encodeURIComponent(id)}/seen`, { seen }),
   planPriorityOutcome: (conn, id, index, outcome) => post(conn, `/api/inbox/${encodeURIComponent(id)}/priority`, { index, outcome }),

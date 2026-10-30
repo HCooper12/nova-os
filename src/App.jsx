@@ -49,6 +49,7 @@ import { pageMove, pageKey } from './pageMoveRule.js';
 import { startSkyRest } from './skyRest.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
+import { wishChip } from './vals/quickCapture.js';
 import { valsRecipes, CURRENT_VERSION, eatOutParams, eatOutHasBudget } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
@@ -729,7 +730,7 @@ export default class App extends Component {
     // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
     // QUICK CAPTURE (mockup 103): this visit's captures, the tag sheet, its detail line
-    qcRecent: [], qcSheetId: null, qcDetail: '', qcBusy: false, qcError: null,
+    qcRecent: [], qcWish: false, qcSheetId: null, qcDetail: '', qcBusy: false, qcError: null,
     inboxAskWhy: null, inboxWhyText: '', // decline-asks-why on Coach advice
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
@@ -1482,7 +1483,7 @@ export default class App extends Component {
   // live path makes, so the server sees identical requests either way.
   outboxDrainFns() {
     return {
-      capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source),
+      capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source, p.dest),
       // items ride along (14 Oct): an itemised plate logged offline used to
       // land as bare totals, losing the lines he could drop or restore
       food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, date: p.date }),
@@ -8528,7 +8529,9 @@ export default class App extends Component {
   quickCapture(source = 'text', said) {
     const t = String((typeof said === 'string' && said) || this.state.inboxInput || '').trim();
     if (!t) return;
-    const r = readLink(t);
+    // the Wishlist chip: one link marked for his Wishlist skips the link lanes
+    const dest = wishChip(t, this.state.qcWish).dest;
+    const r = dest ? { ok: false } : readLink(t);
     if (r.ok) {
       if (/open\.spotify\.com/i.test(r.url)) { this.setState({ qcError: "Spotify episodes can't be read. Paste the YouTube or Apple Podcasts link for that episode." }); return; }
       if (isLongForm(r.url)) {
@@ -8537,8 +8540,8 @@ export default class App extends Component {
         return;
       }
     }
-    this.setState({ qcError: null });
-    this.captureToInbox(t, source);
+    this.setState({ qcError: null, qcWish: false });
+    this.captureToInbox(t, source, dest);
   }
   // a history level, so the back swipe closes the sheet, not the tab
   openCaptureTag(id) {
@@ -8579,7 +8582,7 @@ export default class App extends Component {
       this.refreshInbox();
     }).catch((e) => { this.setState({ qcBusy: false, qcError: e.message }); if (this.state.screen !== 'inbox') this.toastMsg(`The Wishlist did not change: ${e.message}`); });
   }
-  captureToInbox(text, source = 'text') {
+  captureToInbox(text, source = 'text', dest = null) {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     const t = (text || '').trim();
@@ -8609,7 +8612,7 @@ export default class App extends Component {
         ? { ...st.liveInbox, items: (st.liveInbox.items || []).filter((r) => r.id !== localId) }
         : st.liveInbox,
     }));
-    api.inboxCapture(conn, t, this.state.inboxMode, source).then(({ id }) => {
+    api.inboxCapture(conn, t, this.state.inboxMode, source, dest).then(({ id }) => {
       this.setState((st) => ({ qcRecent: [id, ...st.qcRecent.filter((x) => x !== id)].slice(0, 5) }));
       this.refreshInbox();
       this.startPoll('inboxCapture:' + id, () => api.inboxItem(conn, id), {
@@ -8630,7 +8633,7 @@ export default class App extends Component {
       // the card came back off the board — it was never real
       dropProvisional();
       this.setState({ inboxCaptureBusy: false });
-      if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source }); return; }
+      if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source, dest }); return; }
       this.toastFail('Capture failed: ' + e.message);
     });
   }

@@ -1890,20 +1890,25 @@ async function mediaLaneFor(vaultPath, text, deps = {}) {
 
 // "add this to my wishlist https://…": exactly one link and the word
 // wishlist. Code decides; nothing else is taken to be a wish.
-export function wishlistLink(text) {
+export function wishlistLink(text, { explicit = false } = {}) {
   const t = String(text || '');
   const urls = t.match(/https?:\/\/[^\s<>"]+/g) || [];
-  if (urls.length !== 1 || !/\bwish\s?list\b/i.test(t)) return null;
+  if (urls.length !== 1) return null;
+  // "wl <link>": the short form counts only as a whole word at the very start
+  const short = /^\s*wl\b[\s:,-]*/i.test(t);
+  if (!explicit && !short && !/\bwish\s?list\b/i.test(t)) return null;
   const url = urls[0].replace(/[.,;:!?)\]]+$/, '');
-  return { url, said: t.replace(urls[0], ' ').replace(/\s+/g, ' ').trim() };
+  const said = t.replace(urls[0], ' ').replace(short ? /^\s*wl\b[\s:,-]*/i : /$^/, ' ').replace(/\s+/g, ' ').trim();
+  return { url, said };
 }
 
 // Creates the record and kicks off async classification.
 // `deps` is for tests only (fetchCaption, startRecipeFromVideo, startVideoWatch).
-export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }, deps = {}) {
+export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high', dest = null }, deps = {}) {
   // a link he says is for his WISHLIST goes to his Notion list (lib/wishlist.js):
   // the row goes on the board now; the page read and the Notion write run behind
-  const wish = wishlistLink(text);
+  // `dest: 'wishlist'` is his Wishlist chip in Quick Capture: one link is enough, no words needed
+  const wish = wishlistLink(text, { explicit: dest === 'wishlist' });
   if (wish) {
     const { startWishlistCapture } = await import('./wishlist.js');
     return startWishlistCapture(vaultPath, { ...wish, source });

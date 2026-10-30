@@ -34,12 +34,27 @@ export function QuickCaptureCard({ q }) {
           <Ico name="arrow" />
         </Interactive>
       </div>
+      <WishChip q={q} />
       {q.error && <p className="nv-qc-err" role="alert">{q.error}</p>}
       <CaptureReceipts q={q} />
       {q.links.map((e) => (
         <div key={e.key} className="nv-qc-link" role="status"><Ico name="loop" /><span><b>{e.title}</b><span>{e.sub}</span></span></div>
       ))}
     </section>
+  );
+}
+
+// Appears only while the box holds exactly one link: marks this capture for
+// his Notion Wishlist (the same lane as "add this to my wishlist <link>").
+export function WishChip({ q }) {
+  if (!q.wish?.show) return null;
+  return (
+    <div className="nv-qc-wish">
+      <Interactive as="button" type="button" className={`nv-qc-opt nv-qc-wishchip${q.wish.on ? ' on' : ''}`} onClick={q.wish.toggle}
+        aria-pressed={q.wish.on} haptic="tick">
+        {q.wish.on ? 'Going to your Wishlist' : 'Add to Wishlist'}
+      </Interactive>
+    </div>
   );
 }
 

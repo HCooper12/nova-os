@@ -1,4 +1,14 @@
 import { captureTag, PLACES } from '../captureTag.js';
+import { urlsIn } from '../linkKind.js';
+
+// THE WISHLIST CHIP (31 Oct 2026): his ask, "quickly add things into the inbox
+// for it to then be added to my wish list". Shown only when the box holds
+// exactly one link (the Wishlist lane takes one); `dest` is what the capture
+// sends. Pure, so the App and the card read the same answer.
+export function wishChip(text, on) {
+  const show = urlsIn(text).length === 1;
+  return { show, on: show && !!on, dest: show && on ? 'wishlist' : null };
+}
 
 // QUICK CAPTURE's view model (mockup 103), shared by both Inbox layouts so
 // the box, the receipts and the tag sheet are one thing: this visit's
@@ -54,6 +64,7 @@ export function quickCaptureModel(st, app) {
   const cause = unsorted.map((r) => byId.get(r.id)?.modelCause).find(Boolean);
   return {
     rows,
+    wish: { ...wishChip(st.inboxInput, st.qcWish), toggle: () => app.setState({ qcWish: !st.qcWish }) },
     error: st.qcError || null,
     unsortedNote: unsorted.length
       ? `${cause ? `${cause}, so ` : ''}Claude couldn't sort ${unsorted.length === 1 ? 'this one' : 'these'}. Nova's own rules filed what they know. Pick a place for the rest, or it sorts itself on the next try.`

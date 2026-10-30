@@ -371,6 +371,24 @@ test('the doors: Quick Capture and his voice both reach the same add; nothing wi
   assert.equal(out.acted.said, 'Under Technology.');
 });
 
+test('the quick door: the Wishlist chip (dest) and the short phrase forms', async () => {
+  await fresh();
+  assert.deepEqual(wishlistLink(`wishlist: ${JACKET}`), { url: JACKET, said: 'wishlist:' });
+  assert.deepEqual(wishlistLink(`${JACKET} wishlist`), { url: JACKET, said: 'wishlist' });
+  assert.deepEqual(wishlistLink(`wl ${JACKET}`), { url: JACKET, said: '' });
+  assert.deepEqual(wishlistLink(`WL: ${JACKET} navy`), { url: JACKET, said: 'navy' });
+  assert.equal(wishlistLink(`wlan ${JACKET}`), null);
+  assert.equal(wishlistLink(`buy a wl ${JACKET}`), null);
+  // the chip: one link is enough, none or two is not
+  assert.deepEqual(wishlistLink(JACKET, { explicit: true }), { url: JACKET, said: '' });
+  assert.equal(wishlistLink('a thing', { explicit: true }), null);
+  assert.equal(wishlistLink(`${JACKET} ${THING}`, { explicit: true }), null);
+  const rec = await startCapture('/vault', { text: JACKET, source: 'text', dest: 'wishlist' });
+  assert.equal(rec.kind, 'wishlist');
+  const filed = await waitFor(async () => { const r = await getRecord(rec.id); return r.status === 'filed' ? r : null; });
+  assert.equal(filed.decision.payload.draft.name, 'Union Bomber Jacket (navy)');
+});
+
 test('Quick Capture\'s receipt: the tag names the list, a failed add shows its cause, the one open question is taps', async () => {
   const { captureTag } = await import('../../src/captureTag.js');
   const { quickCaptureModel } = await import('../../src/vals/quickCapture.js');
