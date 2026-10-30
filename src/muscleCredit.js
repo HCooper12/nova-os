@@ -53,7 +53,12 @@ export function resolveMuscles(e, { strict = false } = {}) {
   let muscleGroup;
   let audit;
   let primarySource;
-  if (own) { muscleGroup = own; audit = 'approved'; primarySource = 'override'; }
+  // FILED AS MOBILITY, NO WORKING SETS (his call, 31 Oct 2026: "only stop them
+  // counting if they aren't actual working sets ... it's just mobility work").
+  // His Huberman stretches carried a primary (Quads, Glutes) and were counted
+  // as volume; a lift filed under a non-volume group trains nothing countable.
+  if (NON_VOLUME.has(canonicalGroup(filedAs))) { muscleGroup = canonicalGroup(filedAs); audit = row ? 'audited' : 'approved'; primarySource = 'filed'; }
+  else if (own) { muscleGroup = own; audit = 'approved'; primarySource = 'override'; }
   else if (row) { muscleGroup = row.primary; audit = 'audited'; primarySource = 'audit'; }
   else {
     muscleGroup = canonicalGroup(filedAs) || (legacyGroup(filedAs) ? suggestPrimary(e?.name, filedAs) : String(filedAs || '').trim());
@@ -62,7 +67,8 @@ export function resolveMuscles(e, { strict = false } = {}) {
   }
   let secondary;
   let secondarySource;
-  if (Array.isArray(e?.secondary)) { secondary = validSecondary(e.secondary, muscleGroup); secondarySource = 'override'; }
+  if (NON_VOLUME.has(muscleGroup)) { secondary = []; secondarySource = 'none'; }
+  else if (Array.isArray(e?.secondary)) { secondary = validSecondary(e.secondary, muscleGroup); secondarySource = 'override'; }
   else if (row && !own) { secondary = row.secondary.filter((m) => m !== muscleGroup); secondarySource = 'audit'; }
   else { secondary = []; secondarySource = audit === 'filed' ? 'filed' : 'none'; }
   if (NO_SECONDARY.has(muscleGroup)) secondary = [];

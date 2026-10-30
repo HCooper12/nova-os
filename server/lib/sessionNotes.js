@@ -28,7 +28,9 @@ const FORM_POSITIVE = /\b(form (?:was |felt )?(?:good|great|solid|clean|strict|f
 
 const FATIGUE = /\b(fatigu\w*|tired|exhaust\w*|drained|no energy|gassed|後|after (?:a|the|my) \w+|pre[- ]?fatigu\w*|second session|rushed)\b/i;
 const TOO_EASY = /\b(too easy|felt easy|easy|comfortable|no challenge|barely felt|could have done more|had more in (?:me|the tank))\b/i;
-const PAIN_WORDS = /\b(pain|hurt|sore(?:ness)?|niggle|tweak(?:ed)?|pinch(?:ing)?|ache|aching|strain(?:ed)?|impinge\w*)\b/i;
+// "sore" is not pain (his call, 31 Oct 2026): "Triceps sore from yesterday's
+// arm workout" is ordinary soreness and kept turning into pain cards
+const PAIN_WORDS = /\b(pain|hurt|niggle|tweak(?:ed)?|pinch(?:ing)?|ache|aching|strain(?:ed)?|impinge\w*)\b/i;
 
 export const SIGNALS = ['form-breakdown', 'fatigue', 'too-easy', 'pain'];
 
