@@ -83,6 +83,8 @@ export function valsWorkouts(app, ctx) {
       // a question in his words, straight to the Coach tab (the planned week's
       // "talk this week through" carries its own figures)
       askCoach: (question) => { app.setState({ trainTab: 'coach' }); app.doCoach(question); },
+      // a ranges card waiting: Coach's changes, where it sits first
+      reviewRanges: () => app.openCoachSuggestions(),
       // the Coach's open program ask: take it, or say no. Either way it
       // stops asking — an answered question is answered.
       applyCoachAsk: (recordId, fix, proposal) => app.openCoachApply({ recordId, fix, proposal }),
@@ -779,7 +781,7 @@ export function valsWorkouts(app, ctx) {
     const view = cards.map((c) => {
       const a = anim[c.id];
       const state = a?.state && a.state !== 'gone' ? a.state : (st.coachDiscuss === c.id ? 'discussing' : 'open');
-      const ex = c.diff?.exercise || c.diff?.from || null;
+      const ex = c.diff?.exercise || c.diff?.from || (c.diff?.moves?.[0] ? { muscle: c.diff.moves[0].muscle } : null);
       return {
         ...c,
         state,
@@ -811,7 +813,10 @@ export function valsWorkouts(app, ctx) {
   })();
   const coachBanner = coachDeck && coachDeck.waiting > 0 ? {
     count: coachDeck.waiting,
-    title: `${coachDeck.waiting} change${coachDeck.waiting === 1 ? '' : 's'} from Coach`,
+    // a ranges card waiting leads the banner (31 Oct 2026)
+    title: coachDeck.cards.some((c) => c.kind === 'ranges' && (c.state === 'open' || c.state === 'discussing' || c.state === 'error'))
+      ? 'Coach proposed your weekly ranges — review'
+      : `${coachDeck.waiting} change${coachDeck.waiting === 1 ? '' : 's'} from Coach`,
     where: coachDeck.where,
     go: () => app.openCoachSuggestions(),
   } : null;

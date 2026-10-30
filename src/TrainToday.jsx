@@ -373,7 +373,7 @@ export function TrainToday({ o, actions, resume, done = null }) {
       )}
       {weekOpen && o?.muscleWeek && (
         <WeekSetsSheet model={o.muscleWeek} originEl={volumeCard.current} onClose={() => setWeekOpen(false)}
-          onAskCoach={actions?.askCoach} />
+          onAskCoach={actions?.askCoach} onReviewRanges={actions?.reviewRanges} />
       )}
     </div>
   );

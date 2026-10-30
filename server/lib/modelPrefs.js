@@ -272,6 +272,19 @@ export const LANES = [
     off: 'Studies are refused; the Researcher can still read a link into a note.',
   },
   {
+    // his ask, 31 Oct 2026: the weekly set ranges must come from research,
+    // not the house default. Code decides when it runs; the model decides
+    // only the numbers and the reasons; code validates them (coachRanges.js)
+    id: 'coach-ranges', label: 'Weekly set ranges from research', group: 'coach', def: 'opus', defEffort: 'high',
+    hint: 'his vault research on weekly volume read into one ranges card — every muscle a range, a reason and its sources',
+    off: 'No ranges card is raised; the 10–20 default and any ranges already approved stand.',
+  },
+  {
+    id: 'coach-program-check', label: 'Weekly program check', group: 'coach', def: 'opus', defEffort: 'high',
+    hint: 'code finds the volume gaps in his plan; Coach proposes the fewest-minutes changes that close them, each a card',
+    off: 'No weekly program-change cards; the program review still raises its own findings.',
+  },
+  {
     id: 'form-check', label: 'Form check', group: 'coach', def: 'opus', defEffort: 'high',
     hint: 'frames of one working set read against a written rubric — refuses a clip it cannot read',
     off: 'Form checks are refused; film the set and review it yourself.',

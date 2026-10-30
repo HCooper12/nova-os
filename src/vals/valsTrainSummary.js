@@ -342,6 +342,8 @@ export function valsTrainSummary(app, ctx, v) {
     // still gets its question to Coach, as the classic card's row did
     ask: !o?.muscleWeek && ring.short.length ? () => askCoach(`My weekly sets for ${ring.short.join(', ')} are under target for my goal — how should I add volume?`) : null,
     askCoach,
+    // a ranges card waiting: the Coach sheet, whose deck leads with it
+    reviewRanges: () => app.openTrainCoach(),
     // sets on unaudited lifts, left out of the ring: said, never hidden
     uncounted: uncountedView(o?.uncounted),
   } : null;

@@ -271,7 +271,9 @@ function useMuscleCard() {
   return { sel, open, close, reopen, cardRef, scrimRef };
 }
 
-export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
+// onReviewRanges (31 Oct 2026): opens Coach's changes, where a ranges card
+// waiting on him sits first. Without it the line still says the card waits.
+export function WeekSetsSheet({ model, originEl, onClose, onAskCoach, onReviewRanges }) {
   const scrollRef = useRef(null);
   const view = useMemo(() => muscleWeekView(model), [model]);
   const uc = useMemo(() => uncountedView(model?.uncounted), [model]);
@@ -297,6 +299,14 @@ export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
           {view.legend.map((l) => <span key={l.state} className={`is-${l.state}`}><i className="nv-mw-dot" />{l.label}</span>)}
         </div>
         <p className="nv-mw-ranges">{view.rangesLine}</p>
+        {/* gold = waiting on his yes (NOVA-METHOD §2b rule 8) */}
+        {view.rangesPending && (
+          <div className="nv-mw-needgo" style={{ margin: '-4px 0 10px' }}>
+            {onReviewRanges
+              ? <TextAction tone="gold" onClick={() => { onClose(); onReviewRanges(view.rangesPending.recordId); }}>{view.rangesPending.text} →</TextAction>
+              : <span style={{ fontSize: 12.5, color: 'var(--nv-gold)' }}>{view.rangesPending.text} in Coach</span>}
+          </div>
+        )}
         <Uncounted u={uc} />
         {view.goal.length > 0 && (
           <>

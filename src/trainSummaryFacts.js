@@ -110,7 +110,9 @@ export function trainedDays(week, doneToday = null, today = new Date()) {
  */
 export function coachWaiting(cards = []) {
   const waiting = (cards || []).filter((c) => c && (!c.state || c.state === 'open' || c.state === 'discussing' || c.state === 'error'));
-  return { count: waiting.length, headline: waiting[0]?.headline || null };
+  // a ranges card waiting is the line Train leads with (31 Oct 2026)
+  const ranges = waiting.some((c) => c.kind === 'ranges');
+  return { count: waiting.length, headline: ranges ? 'Coach proposed your weekly ranges — review' : waiting[0]?.headline || null };
 }
 
 /**

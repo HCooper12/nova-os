@@ -606,7 +606,7 @@ function HardSetsCard({ hs }) {
         <section className="nv-sum-card nv-sum-tile nv-ts-halfcard" style={{ '--nv-sum-tint': 'var(--nv-vi)' }} aria-label="Hard sets">{body}</section>
       )}
       {open && hs.model && (
-        <WeekSetsSheet model={hs.model} originEl={cardRef.current} onClose={() => setOpen(false)} onAskCoach={hs.askCoach} />
+        <WeekSetsSheet model={hs.model} originEl={cardRef.current} onClose={() => setOpen(false)} onAskCoach={hs.askCoach} onReviewRanges={hs.reviewRanges} />
       )}
     </div>
   );

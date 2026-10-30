@@ -200,15 +200,18 @@ test('a finding he argued down does not return under next week\'s key — until 
     updateRecord: async (id, patch) => { Object.assign(rows.find((r) => r.id === id), patch); },
   };
   const finding = (week, avg) => ({ kind: 'under-volume', key: `under:Chest:${week}`, muscle: 'Chest', avg, target: 12, weeks: 3, line: `Chest has been under target — averaging ${avg} against 12.`, fix: null });
+  // the respect-the-no rule under test; with the weekly program check on,
+  // under-volume is raised by the check as concrete changes instead (31 Oct)
+  const raise = (opts) => raiseProgramFindings('/tmp/v', { checkOn: false, ...opts });
 
   // next week, same picture → the no holds (this used to re-raise: new key, same subject)
-  let out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [finding('2026-08-03', 8)] }), now: t0 + 7 * day });
+  let out = await raise({ store, review: async () => ({ findings: [finding('2026-08-03', 8)] }), now: t0 + 7 * day });
   assert.equal(out.raised.length, 0, 'a new week key is not a new finding');
   // five weeks on, the number barely moved → still no
-  out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [finding('2026-09-07', 7.5)] }), now: t0 + 35 * day });
+  out = await raise({ store, review: async () => ({ findings: [finding('2026-09-07', 7.5)] }), now: t0 + 35 * day });
   assert.equal(out.raised.length, 0, 'a 12.5% move is not material');
   // five weeks on and materially worse → it returns, naming the history
-  out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [finding('2026-09-07', 6)] }), now: t0 + 35 * day });
+  out = await raise({ store, review: async () => ({ findings: [finding('2026-09-07', 6)] }), now: t0 + 35 * day });
   assert.equal(out.raised.length, 1);
   assert.match(out.raised[0].text, /You passed on this on 3 Aug \("shoulder is grumpy"\); the number behind it has moved from 4 to 6\./);
 });
@@ -249,4 +252,40 @@ test('demoteAverted: a candidate named in the What Works Avoid section sinks to 
   assert.deepEqual(demoteAverted([{ id: 'x', name: 'Direct arm isolation work' }], page).skipped, []);
   assert.deepEqual(demoteAverted(alts, '').ordered.map((x) => x.id), ['a', 'b', 'c', 'd'], 'no file, no change');
   assert.deepEqual(demoteAverted(alts, '# Page\n\n## Responds to\n- nothing').skipped, [], 'no Avoid section, nothing skipped');
+});
+
+// ---- 31 Oct 2026: his notes go last, one at a time, said once ----
+test('his own notes never outrank or crowd out the program: ranked last, one open at a time, never nudged', async () => {
+  const { raiseProgramFindings, rankFindings } = await import('../lib/coachProgramReview.js');
+  assert.deepEqual(rankFindings([{ kind: 'reported-form' }, { kind: 'reported-pain' }, { kind: 'tenure' }, { kind: 'under-volume' }, { kind: 'mapping' }]).map((f) => f.kind),
+    ['mapping', 'under-volume', 'tenure', 'reported-pain', 'reported-form']);
+  const day = 86_400_000;
+  const t0 = Date.parse('2026-10-20T08:00:00Z');
+  const rows = [];
+  const store = {
+    listRecords: async () => rows,
+    createRecord: async (r) => { rows.push(r); return r; },
+    updateRecord: async (id, patch) => { Object.assign(rows.find((r) => r.id === id), patch); },
+  };
+  const notes = [
+    { kind: 'reported-form', key: 'form:a', line: 'You have flagged your own form on A 2 times.', fix: null },
+    { kind: 'reported-form', key: 'form:b', line: 'You have flagged your own form on B 3 times.', fix: null },
+    { kind: 'under-volume', key: 'under:Side Delts:w', muscle: 'Side Delts', avg: 6, target: 12, line: 'Side Delts short.', fix: { action: 'add-sets' } },
+  ];
+  const out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: rankFindings(notes) }), now: t0, checkOn: true });
+  assert.deepEqual(out.raised.map((r) => r.findingKey), ['form:a'], 'the under-volume observation is the check\'s now; ONE note, not two');
+  // with the check's three cards open, the review's own two slots are still its own
+  rows.push(...[1, 2, 3].map((i) => ({ id: `c${i}`, kind: 'coach-program', findingKind: 'program-check', status: 'pending', createdAt: new Date(t0).toISOString(), lastRaisedAt: new Date(t0).toISOString(), text: 'Coach: change.' })));
+  const later = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [{ kind: 'mapping', key: 'map:x', line: 'remap', fix: { action: 'remap' } }] }), now: t0 + day, checkOn: true });
+  assert.deepEqual(later.raised.map((r) => r.findingKey), ['map:x']);
+  // days later: the note is not nudged; the program cards are
+  const nudge = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [] }), now: t0 + 4 * day, checkOn: true });
+  const nudgedIds = nudge.nudged.map((n) => n.id);
+  assert.ok(!nudgedIds.includes(rows.find((r) => r.findingKey === 'form:a').id), 'a note is said once');
+  assert.ok(nudgedIds.includes('c1'));
+  // lane off: the old observation is raised as before
+  const rows2 = [];
+  const store2 = { ...store, listRecords: async () => rows2, createRecord: async (r) => { rows2.push(r); return r; } };
+  const off = await raiseProgramFindings('/tmp/v', { store: store2, review: async () => ({ findings: rankFindings(notes) }), now: t0, checkOn: false });
+  assert.deepEqual(off.raised.map((r) => r.findingKey), ['under:Side Delts:w', 'form:a']);
 });

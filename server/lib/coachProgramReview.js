@@ -5,6 +5,7 @@ import { atlasFor } from './data/exerciseAtlas.js';
 import { patternFor } from '../../src/exerciseMotion.js';
 import { formatSets, PRIMARY_RULES } from './muscleSecondary.js';
 import { VOLUME_RANGE, rangeFor } from '../../src/muscleTaxonomy.js';
+import { laneEnabled } from './modelPrefs.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -687,11 +688,19 @@ export function findEffortCeiling(sessions = [], { minSets = 100, share = EFFORT
 /* ------------------------------ the review -------------------------------- */
 
 // Priority: a wrong mapping first (it corrupts every other number), then a
-// muscle short for weeks, then too much of one thing, then a bloated
-// session, then a movement not paying its way, then a lift that has stopped
-// paying, and last the "you've done this a long time" nudge — which is real
-// but never urgent.
-const RANK = { 'reported-pain': 0, 'reported-form': 1, mapping: 2, 'effort-ceiling': 3, 'under-volume': 4, 'junk-volume': 5, 'routine-oversized': 6, 'low-value': 7, stale: 8, tenure: 9 };
+// muscle short for weeks, then too much of one thing, then the effort habit,
+// then a bloated session, then a movement not paying its way, then a lift
+// that has stopped paying, then the "you've done this a long time" nudge,
+// and LAST his own notes read back to him.
+//
+// HIS NOTES WENT LAST (31 Oct 2026). They used to rank first, and with two
+// open slots the review spent 12 of its 18 cards from 15–29 Oct on "you have
+// flagged your form on X twice" while his goal muscles sat short. His words:
+// "it doesn't seem to be focussing on what really matters most". A note is
+// still raised, but after everything about the program, at most one at a
+// time, and never nudged (it is said once).
+const RANK = { mapping: 0, 'under-volume': 1, 'junk-volume': 2, 'effort-ceiling': 3, 'routine-oversized': 4, 'low-value': 5, stale: 6, tenure: 7, 'reported-pain': 8, 'reported-form': 9 };
+export const NOTE_KINDS = new Set(['reported-pain', 'reported-form']);
 
 export function rankFindings(findings) {
   return [...findings].sort((a, b) => (RANK[a.kind] ?? 9) - (RANK[b.kind] ?? 9));
@@ -851,15 +860,28 @@ export function nudgeLine(record, nudge) {
     : `Still open, sir: ${what} Worth a decision before the next block.`;
 }
 
+// Cards other lanes file as coach-program records (the weekly program check,
+// a study read) have their own caps; the review's two slots are its own.
+const OTHER_LANES = new Set(['program-check', 'paper']);
+// The review's own volume observations, superseded while the weekly program
+// check is on: it raises the same gaps as concrete, one-tap changes. Its
+// {action:'add-sets'} fix applied nothing (opsFromFix maps it to null), so a
+// yes on one changed nothing — two of his three were declined on 19 Oct.
+const SUPERSEDED_BY_CHECK = new Set(['under-volume', 'junk-volume']);
+
 export async function raiseProgramFindings(vaultPath, deps = {}) {
   const { createRecord, listRecords, updateRecord } = deps.store || await import('./inboxStore.js');
   const now = deps.now || Date.now();
   const records = await listRecords();
-  const open = records.filter((r) => r.kind === 'coach-program' && r.status === 'pending');
+  const pendingAll = records.filter((r) => r.kind === 'coach-program' && r.status === 'pending');
+  const open = pendingAll.filter((r) => !OTHER_LANES.has(r.findingKind));
+  const checkOn = deps.checkOn ?? (() => { try { return laneEnabled('coach-program-check'); } catch { return false; } })();
 
-  // 1) NUDGE what is already open and unanswered
+  // 1) NUDGE what is already open and unanswered — never his own notes,
+  // which are said once ("keeps on bringing up past notes", 31 Oct)
   const nudged = [];
-  for (const r of open) {
+  for (const r of pendingAll) {
+    if (NOTE_KINDS.has(r.findingKind)) continue;
     const due = nudgeDue(r, now);
     if (!due) continue;
     await updateRecord(r.id, {
@@ -892,13 +914,18 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
     const CHANGE = new Set(['stale', 'tenure']);
     let changeRoom = records.some((r) => r.kind === 'coach-program' && CHANGE.has(r.findingKind)
       && now - new Date(r.createdAt || 0).getTime() < 7 * 86_400_000) ? 0 : 1;
+    // ONE NOTE AT A TIME, after the program's own findings (rankFindings)
+    let noteRoom = open.some((r) => NOTE_KINDS.has(r.findingKind)) ? 0 : 1;
     for (const f of findings) {
       if (seen.has(f.key)) continue;
+      if (checkOn && SUPERSEDED_BY_CHECK.has(f.kind)) continue;
       if (CHANGE.has(f.kind) && changeRoom <= 0) continue;
+      if (NOTE_KINDS.has(f.kind) && noteRoom <= 0) continue;
       const no = respectNo({ declined: declines.get(subjectOfKey(f.key)), now, cooldownDays: DECLINE_COOLDOWN_DAYS, metric: findingMetric(f), materialChange: 0.2 });
       if (!no.raise) continue;
       if (raisedOut.length >= room) break;
       if (CHANGE.has(f.kind)) changeRoom -= 1;
+      if (NOTE_KINDS.has(f.kind)) noteRoom -= 1;
       const line = no.history ? `${f.line} (You ${no.history.replace(/^you /, '')}.)` : f.line;
       raisedOut.push(await createRecord({
         id: randomUUID().slice(0, 8),

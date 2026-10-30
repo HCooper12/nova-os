@@ -100,13 +100,23 @@ export function needsOf(w, { limit = 4 } = {}) {
   };
 }
 
-/** Where the ranges came from, said once and never invented. */
+/**
+ * Where the ranges came from, said once and never invented. `rangesFrom`
+ * (31 Oct 2026) is the server's word that the ranges on his goals page were
+ * written by the ranges card, from his research, on that date.
+ */
 export function rangesLineOf(w) {
   const own = (w?.muscles || []).filter((m) => m.ownRange).map((m) => m.muscle);
   const all = (w?.muscles || []).length;
   if (!own.length) return `Ranges: the ${VOLUME_RANGE[0]}–${VOLUME_RANGE[1]} default. Coach hasn't set yours.`;
-  if (own.length === all) return "Ranges: Coach's, from your goal.";
-  return `Ranges: Coach's for ${listOf(own)}, from your goal; the ${VOLUME_RANGE[0]}–${VOLUME_RANGE[1]} default for the rest.`;
+  const from = w?.rangesFrom?.date ? `from your research (${dm(w.rangesFrom.date).d} ${dm(w.rangesFrom.date).m})` : 'from your goal';
+  if (own.length === all) return `Ranges: Coach's, ${from}.`;
+  return `Ranges: Coach's for ${listOf(own)}, ${from}; the ${VOLUME_RANGE[0]}–${VOLUME_RANGE[1]} default for the rest.`;
+}
+
+/** A ranges card waiting on him: the sheet's one line to it. Null when none. */
+export function rangesPendingOf(w) {
+  return w?.rangesPending?.recordId ? { recordId: w.rangesPending.recordId, text: 'Coach proposed your weekly ranges — review' } : null;
 }
 
 /** One muscle's card: its summary, and every line grouped by day, in order. */
@@ -169,6 +179,7 @@ export function muscleWeekView(w) {
     // the three states in one compact line, each with its shape
     legend: ['reached', 'onway', 'short'].map((k) => ({ state: k, label: k === 'reached' ? 'Minimum reached' : k === 'onway' ? 'On the way' : 'Short by Sunday' })),
     rangesLine: rangesLineOf(w),
+    rangesPending: rangesPendingOf(w),
     needs: needsOf(w),
     goal: goalRows.map(rowOf),
     rest: w.muscles.filter((m) => !m.goal).map(rowOf),

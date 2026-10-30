@@ -36,6 +36,8 @@ export const PROFILE_READERS = [
   { id: 'studio', label: 'Studio', module: 'lib/studio.js', talks: false },
   { id: 'journal', label: 'Journal prompts', module: 'lib/journalPrompt.js', talks: false },
   { id: 'paper', label: 'Paper check', module: 'lib/paperLane.js', talks: false },
+  { id: 'coach-ranges', label: 'Weekly set ranges', module: 'lib/coachRanges.js', talks: false },
+  { id: 'coach-program-check', label: 'Weekly program check', module: 'lib/coachProgramCheck.js', talks: false },
   { id: 'pattern-scout', label: 'Pattern scout', module: 'lib/patternScout.js', talks: false },
   { id: 'repertoire', label: 'Repertoire', module: 'lib/repertoireLane.js', talks: false },
   { id: 'watcher', label: 'Video watch', module: 'lib/watcher.js', talks: false },

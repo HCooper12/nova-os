@@ -13,6 +13,16 @@ import { cleanTargetHistory, withTargetChange } from '../../src/targetHistory.js
 // Structured fields for the machine, free notes for the human.
 
 const GOALS_REL = 'Wiki/Health/Fitness Goals.md';
+
+/** The ranges' provenance, validated: { by, date, recordId?, sources[] } or null. */
+export function cleanRangesSource(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(raw.date || '')) ? String(raw.date) : null;
+  const by = String(raw.by || '').trim().slice(0, 40);
+  if (!date || !by) return null;
+  const sources = Array.isArray(raw.sources) ? raw.sources.map((x) => String(x).slice(0, 300)).filter(Boolean).slice(0, 20) : [];
+  return { by, date, ...(raw.recordId ? { recordId: String(raw.recordId).slice(0, 40) } : {}), sources };
+}
 const posInt = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : null);
 
 export async function getFitnessGoals(vaultPath) {
@@ -39,6 +49,11 @@ export async function getFitnessGoals(vaultPath) {
       // may set a muscle its own [low, high] on his yes (the 'goal' card);
       // every other muscle reads VOLUME_RANGE (src/muscleTaxonomy.js)
       volumeRanges: cleanVolumeRanges(data.volumeRanges),
+      // WHERE THOSE RANGES CAME FROM (31 Oct 2026): set by the ranges card
+      // (lib/coachRanges.js) beside the ranges it writes — { by, date,
+      // recordId, sources } — so the week sheet can say "Coach's, from your
+      // research (31 Oct)". Absent for ranges set any other way.
+      volumeRangesSource: cleanRangesSource(data.volumeRangesSource),
       // WHICH MUSCLES HIS GOAL TRAINS, said outright (16 Oct 2026): when
       // present this list is his goal muscles everywhere (trainOverview's
       // goalMuscles); absent, the goal's words are read as before
@@ -109,6 +124,9 @@ export async function setFitnessGoals(vaultPath, input, { sync = true } = {}) {
   if (!Array.isArray(input.targets) && existing?.targets?.length) input = { ...input, targets: existing.targets };
   const volumeRanges = Object.hasOwn(input, 'volumeRanges') ? cleanVolumeRanges(input.volumeRanges) : existing?.volumeRanges || null;
   const goalMuscles = Object.hasOwn(input, 'goalMuscles') ? cleanGoalMuscles(input.goalMuscles) : existing?.goalMuscles || null;
+  // the source travels with the ranges: kept while they are, gone with them
+  const volumeRangesSource = !volumeRanges ? null
+    : Object.hasOwn(input, 'volumeRangesSource') ? cleanRangesSource(input.volumeRangesSource) : existing?.volumeRangesSource || null;
   // a change to either daily number is dated, so past days keep the target
   // they were set against; the numbers before the first recorded change
   // stand for every earlier day
@@ -126,6 +144,7 @@ export async function setFitnessGoals(vaultPath, input, { sync = true } = {}) {
   if (kcalTarget) frontmatter.kcalTarget = kcalTarget;
   if (Array.isArray(input.targets) && input.targets.length) frontmatter.targets = input.targets;
   if (volumeRanges) frontmatter.volumeRanges = volumeRanges;
+  if (volumeRangesSource) frontmatter.volumeRangesSource = volumeRangesSource;
   if (goalMuscles) frontmatter.goalMuscles = goalMuscles;
   if (targetHistory.length) frontmatter.targetHistory = targetHistory;
   await writeFile(full, matter.stringify(`# Fitness Goals\n\n${notes}\n`, frontmatter), 'utf8');
@@ -137,9 +156,13 @@ export async function setFitnessGoals(vaultPath, input, { sync = true } = {}) {
 // card can set his goal line and the per-muscle growth ranges; this is the
 // write its yes makes. Only the fields named change; `prior` is each of
 // them as it stood, which the card's undo puts back exactly.
-export const GOAL_SETTING_KEYS = ['goal', 'goalMuscles', 'volumeRanges'];
-export async function setGoalSettings(vaultPath, settings = {}) {
+export const GOAL_SETTING_KEYS = ['goal', 'goalMuscles', 'volumeRanges', 'volumeRangesSource'];
+export async function setGoalSettings(vaultPath, settingsIn = {}) {
   const g = (await getFitnessGoals(vaultPath)) || { goal: 'Training goals', focus: '', daysPerWeek: null, equipment: '', limitations: '', notes: '', targets: [] };
+  // ranges set without a source (a chat goal card) are not "from your
+  // research": the old source goes, and Undo puts it back with the ranges
+  const settings = Object.hasOwn(settingsIn, 'volumeRanges') && !Object.hasOwn(settingsIn, 'volumeRangesSource')
+    ? { ...settingsIn, volumeRangesSource: null } : settingsIn;
   const prior = {};
   const next = { ...g };
   for (const k of GOAL_SETTING_KEYS) {
@@ -180,7 +203,8 @@ export async function removeGoalTarget(vaultPath, id) {
 // shared range, and any muscle his goal gives its own.
 export function volumeRangeLine(g) {
   const own = Object.entries(g?.volumeRanges || {}).map(([m, [lo, hi]]) => `${m} ${lo}-${hi}`);
-  return `GROWTH RANGE: ${VOLUME_RANGE[0]}-${VOLUME_RANGE[1]} working sets per muscle per week (each focus set counts 1, each accessory set ½); under ${VOLUME_RANGE[0]} is short, over ${VOLUME_RANGE[1]} is past the point more sets help.${own.length ? ` This goal sets its own range for ${own.join(', ')}.` : ''}`;
+  const src = g?.volumeRangesSource?.by === 'coach-research' ? ` (set from his research on ${g.volumeRangesSource.date}, his yes on the ranges card)` : '';
+  return `GROWTH RANGE: ${VOLUME_RANGE[0]}-${VOLUME_RANGE[1]} working sets per muscle per week (each focus set counts 1, each accessory set ½); under ${VOLUME_RANGE[0]} is short, over ${VOLUME_RANGE[1]} is past the point more sets help.${own.length ? ` This goal sets its own range for ${own.join(', ')}${src}.` : ''}`;
 }
 
 // Compact context block for the Coach's prompts.

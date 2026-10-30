@@ -147,3 +147,16 @@ test('the ranges line says where the ranges came from, and never invents one', a
   assert.equal(rangesLineOf({ muscles: WEEK.muscles.map((m) => ({ ...m, ownRange: true })) }), "Ranges: Coach's, from your goal.");
   assert.equal(rangesLineOf({ muscles: WEEK.muscles.map((m) => ({ ...m, ownRange: m.muscle === 'Lats' })) }), "Ranges: Coach's for Lats, from your goal; the 10–20 default for the rest.");
 });
+
+// 31 Oct 2026: ranges from his research say so, with the date; a ranges card
+// waiting on him is the sheet's one line to it
+test('the ranges line says "from your research (date)" once approved, and a waiting ranges card is offered for review', async () => {
+  const { rangesLineOf, rangesPendingOf, muscleWeekView } = await import('../../src/muscleWeekView.js');
+  const all = WEEK.muscles.map((m) => ({ ...m, ownRange: true }));
+  assert.equal(rangesLineOf({ muscles: all, rangesFrom: { by: 'coach-research', date: '2026-10-31' } }), "Ranges: Coach's, from your research (31 Oct).");
+  assert.equal(rangesLineOf({ muscles: WEEK.muscles.map((m) => ({ ...m, ownRange: m.muscle === 'Lats' })), rangesFrom: { date: '2026-10-31' } }),
+    "Ranges: Coach's for Lats, from your research (31 Oct); the 10–20 default for the rest.");
+  assert.equal(rangesPendingOf(WEEK), null);
+  assert.deepEqual(rangesPendingOf({ ...WEEK, rangesPending: { recordId: 'abc' } }), { recordId: 'abc', text: 'Coach proposed your weekly ranges — review' });
+  assert.equal(muscleWeekView({ ...WEEK, rangesPending: { recordId: 'abc' } }).rangesPending.recordId, 'abc');
+});

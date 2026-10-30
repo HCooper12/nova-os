@@ -305,15 +305,30 @@ export async function buildTrainOverview(vaultPath) {
       dayPlans,
     });
   } catch { /* honest absence */ }
+  // WHERE HIS RANGES CAME FROM, AND A RANGES CARD WAITING (31 Oct 2026): the
+  // week sheet says "Coach's, from your research (31 Oct)" once approved, and
+  // "Coach proposed your weekly ranges — review" while a card waits
+  if (muscleWeek) {
+    const src = goals?.volumeRangesSource;
+    muscleWeek.rangesFrom = goals?.volumeRanges && src?.by === 'coach-research' ? { by: src.by, date: src.date } : null;
+    try {
+      const { listRecords } = await import('./inboxStore.js');
+      const { pendingRangesCard } = await import('./coachRanges.js');
+      const card = pendingRangesCard(await listRecords());
+      muscleWeek.rangesPending = card ? { recordId: card.id, date: String(card.key).split(':')[1] || null } : null;
+    } catch { muscleWeek.rangesPending = null; }
+  }
 
   // the Coach's open program ask — shown on Train, because that is where a
   // change to his program is actually decided
   const coachAsk = await (async () => {
     try {
       const { listRecords } = await import('./inboxStore.js');
+      // the weekly program check's changes lead, his own notes trail (31 Oct)
+      const lead = (r) => (r.findingKind === 'program-check' ? 0 : ['reported-pain', 'reported-form'].includes(r.findingKind) ? 2 : 1);
       const open = (await listRecords())
         .filter((r) => r.kind === 'coach-program' && r.status === 'pending')
-        .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+        .sort((a, b) => lead(a) - lead(b) || String(a.createdAt).localeCompare(String(b.createdAt)));
       if (!open.length) return null;
       const r = open[0];
       return {
@@ -321,7 +336,7 @@ export async function buildTrainOverview(vaultPath) {
         text: String(r.text || '').replace(/^Coach:\s*/, ''),
         nudges: r.nudges || 0,
         daysOpen: Math.floor((Date.now() - new Date(r.createdAt || Date.now())) / 86_400_000),
-        applies: !!(r.fix && ['remap', 'swap', 'weighted-variant', 'drop'].includes(r.fix.action)),
+        applies: !!(r.fix && ['remap', 'swap', 'weighted-variant', 'drop', 'ops', 'tune'].includes(r.fix.action)),
         fix: r.fix || null,
       };
     } catch { return null; }

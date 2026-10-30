@@ -264,6 +264,47 @@ function ChangeStrip({ c }) {
       </div>
     );
   }
+  // THE WEEKLY PROGRAM CHECK (31 Oct 2026): what each muscle gains or loses a
+  // week, in its own hue, and the minutes it costs or saves — code's numbers
+  if (x.type === 'muscles') {
+    const fmt = (n) => String(Math.abs(n)).replace(/\.5$/, '½');
+    return row(
+      <>
+        {x.moves.map((m) => (
+          <Pill key={m.muscle} ex={{ name: m.muscle, muscle: m.muscle }} arriving={m.delta > 0}>
+            <span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500;font-variant-numeric:tabular-nums')}>{m.delta > 0 ? '+' : '−'}{fmt(m.delta)} → {fmt(m.after)}<span style={css('color:var(--nv-ink40)')}> / {m.low}–{m.high}</span></span>
+          </Pill>
+        ))}
+        {x.minutes != null && (
+          <span style={chip(x.minutes > 0 ? 'var(--nv-gold)' : 'var(--nv-good)')}>
+            {x.minutes === 0 ? 'same time' : x.minutes > 0 ? `+${x.minutes} min a week` : `${-x.minutes} min a week saved`}{x.estimated ? ' (est.)' : ''}
+          </span>
+        )}
+      </>,
+    );
+  }
+  // HIS WEEKLY RANGES (31 Oct 2026): each goal muscle's range with its reason,
+  // then every other muscle's range as one compact row
+  if (x.type === 'ranges') {
+    const goal = x.rows.filter((r) => r.goal);
+    const rest = x.rows.filter((r) => !r.goal);
+    return (
+      <div style={css('margin-top:10px;display:flex;flex-direction:column;gap:9px;min-width:0')}>
+        {goal.map((r) => (
+          <div key={r.muscle} style={css('display:flex;flex-direction:column;gap:4px;min-width:0')}>
+            <span><Pill ex={{ name: r.muscle, muscle: r.muscle }} arriving><span style={css('flex:none;white-space:nowrap;color:var(--nv-ink);font-weight:600;font-variant-numeric:tabular-nums')}>{r.low}–{r.high} sets</span></Pill></span>
+            {r.why && <span style={css('font:500 12.5px/1.45 var(--nv-font-ui);color:var(--nv-ink60);text-wrap:pretty')}>{r.why}</span>}
+          </div>
+        ))}
+        {rest.length > 0 && (
+          <div style={css('display:flex;flex-wrap:wrap;gap:6px;min-width:0')}>
+            {rest.map((r) => <Pill key={r.muscle} ex={{ name: r.muscle, muscle: r.muscle }}><span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500;font-variant-numeric:tabular-nums')}>{r.low}–{r.high}</span></Pill>)}
+          </div>
+        )}
+        {x.kept?.length > 0 && <span style={css('font:500 12px/1.4 var(--nv-font-ui);color:var(--nv-ink40)')}>{x.kept.join(', ')} keep the 10–20 default.</span>}
+      </div>
+    );
+  }
   if (x.type === 'gauge') {
     return (
       <div style={css('margin-top:10px;display:flex;align-items:center;gap:12px')}>

@@ -383,8 +383,24 @@ export function startCoachCadenceScheduler(vaultPath) {
       const { telegramConfigured } = await import('./telegram.js');
       await note('coach-cadence', telegramConfigured() ? null : 'armed, no channel — Telegram is not configured, so the morning card, PR pings and debriefs go nowhere');
     } catch { /* the note is optional */ }
+    // cards a lane made outside this process (a by-hand run) are filed here,
+    // in the process that owns the Inbox (lib/stagedCards.js); boot runs it too
+    try {
+      const { fileStagedCards } = await import('./stagedCards.js');
+      const { filed } = await fileStagedCards();
+      if (filed.length) console.log(`staged cards filed: ${filed.join(', ')}`);
+    } catch (e) { console.log('staged cards failed:', e.message); }
     try {
       const h = new Date().getHours();
+      // THE WEEKLY RANGES + PROGRAM CHECK (31 Oct 2026, his ask): ranges from
+      // his research when a new note lands (else monthly), then the program
+      // check weekly and whenever the ranges change. Code decides when; the
+      // run is minutes of model time, so it is not awaited by the tick.
+      if (h >= 7 && h < 21) {
+        import('./coachProgramCheck.js').then(({ maybeRunCoachChecks }) => maybeRunCoachChecks(vaultPath))
+          .then((out) => { if (out?.ranges?.status !== 'skipped' || out?.check?.status !== 'skipped') console.log(`coach checks: ranges ${out?.ranges?.status} (${out?.ranges?.why || ''}); program ${out?.check?.status} (${out?.check?.why || out?.check?.filed?.length || ''})`); })
+          .catch((e) => console.log('coach checks failed:', e.message));
+      }
       if (h >= 7 && h < 12) await morningReadiness(vaultPath);
       if (h >= 7 && h < 12) await raiseFuelFindings(vaultPath); // weekly-cooldown inside
       // the program review: catch a mis-filed lift, a muscle short for weeks,

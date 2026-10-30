@@ -46,6 +46,8 @@ export function whenLabel(iso, now = Date.now()) {
 }
 
 export function sourceLabel(r) {
+  if (r.rangesProposal) return 'From your research, read by Coach';
+  if (r.kind === 'coach-program' && r.findingKind === 'program-check') return "From Coach's weekly program check";
   if (r.kind === 'coach-program') return r.findingKind === 'paper' ? 'From a study' : "From Coach's program review";
   if (r.source === 'voice') return 'From what you said to Nova';
   return 'From your chat with Coach';
@@ -220,6 +222,19 @@ function findingChange(r, routines) {
       why: line, actionable,
     };
   }
+  // THE WEEKLY PROGRAM CHECK (31 Oct 2026): the sets each muscle gains or
+  // loses and the minutes a week, all computed by code when the card was made
+  if (r.findingKind === 'program-check' && r.finding) {
+    const f = r.finding;
+    const shown = (f.moves || []).filter((m) => (f.fixes || []).includes(m.muscle) || Math.abs(m.delta) >= 1).slice(0, 4);
+    const from = (f.evidence || []).map((e) => e.title).filter(Boolean);
+    return {
+      headline: f.title || firstSentence,
+      diff: { type: 'muscles', moves: shown.map((m) => ({ muscle: m.muscle, delta: m.delta, after: m.after, low: m.low, high: m.high })), minutes: f.minutesPerWeek ?? null, estimated: f.measured === false },
+      why: [f.why, from.length ? `From: ${from.join('; ')}.` : null, f.against ? `Judged against ${f.against}.` : null].filter(Boolean).join(' '),
+      actionable,
+    };
+  }
   const pct = Number(r.finding?.pct);
   return {
     headline: r.finding?.title || firstSentence,
@@ -283,12 +298,23 @@ export function buildSuggestion(r, { routines = [], schedule = {}, now = Date.no
       : route === 'schedule-edit' ? scheduleChange(p, routines, schedule)
         : otherChange(route, p);
     c.why = p.reason || r.decision?.reason || '';
+    // HIS WEEKLY RANGES, FROM HIS RESEARCH (31 Oct 2026): every muscle's
+    // range drawn, each goal muscle with its reason, and the notes it read
+    if (r.rangesProposal?.rows?.length) {
+      const rp = r.rangesProposal;
+      c = {
+        headline: 'Your weekly set ranges, from your research',
+        diff: { type: 'ranges', rows: rp.rows.map((x) => ({ muscle: x.muscle, low: x.low, high: x.high, goal: !!x.goal, why: x.why })), kept: rp.kept || [] },
+        why: [rp.summary, rp.sources?.length ? `From: ${rp.sources.map((x) => x.title).join('; ')}.` : null].filter(Boolean).join(' '),
+      };
+    }
     base.via = 'approve';
     if (route === 'routine-edit') base.stale = staleReason(p, routines);
   }
   const routine = c.routine || null;
   return {
     ...base,
+    kind: r.rangesProposal ? 'ranges' : r.findingKind || null,
     headline: c.headline,
     stale: base.stale || null,
     diff: c.diff,
@@ -302,12 +328,16 @@ export function buildSuggestion(r, { routines = [], schedule = {}, now = Date.no
 // then anything that is not about one routine.
 export function coachSuggestions(items = [], { routines = [], schedule = {}, now = Date.now() } = {}) {
   const cards = items.filter(isCoachSuggestion).map((r) => buildSuggestion(r, { routines, schedule, now }));
+  // WHAT MATTERS FIRST (31 Oct 2026): his ranges, then the weekly program
+  // check's changes in the order code ranked them, then the rest by his
+  // week, and his own notes read back to him last
+  const lead = (c) => (c.kind === 'ranges' ? -2 : c.kind === 'program-check' ? -1 : c.kind === 'reported-form' || c.kind === 'reported-pain' ? 1 : 0);
   const dayRank = (c) => {
     if (!c.routine) return 99;
     const i = WEEK.findIndex((d) => schedule?.[d] === c.routine.id);
     return i >= 0 ? i : 50;
   };
-  cards.sort((a, b) => dayRank(a) - dayRank(b)
+  cards.sort((a, b) => lead(a) - lead(b) || dayRank(a) - dayRank(b)
     || String(a.routine?.name || '').localeCompare(String(b.routine?.name || ''))
     || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
   return cards;

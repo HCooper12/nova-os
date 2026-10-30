@@ -107,6 +107,27 @@ export function workoutsRouter(vaultPath) {
     } catch (err) { next(err); }
   });
 
+  // THE RANGES + WEEKLY PROGRAM CHECK (31 Oct 2026). GET previews what code
+  // would hand the model (the research it found, the gaps it measured) with
+  // no model and no write; POST runs both now, the same run the cadence
+  // makes on its own (each still refuses to stack on a card that waits).
+  router.get('/train/coach-checks', async (req, res, next) => {
+    try {
+      const { gatherVolumeResearch, readRangesState, rangesDue, pendingRangesCard } = await import('../lib/coachRanges.js');
+      const { readCheckState } = await import('../lib/coachProgramCheck.js');
+      const { listRecords } = await import('../lib/inboxStore.js');
+      const sources = await gatherVolumeResearch(vaultPath);
+      const state = await readRangesState();
+      res.json({ sources, rangesState: state, rangesDue: rangesDue({ state, sources, pending: !!pendingRangesCard(await listRecords()) }), checkState: await readCheckState() });
+    } catch (err) { next(err); }
+  });
+  router.post('/train/coach-checks/run', async (req, res, next) => {
+    try {
+      const { maybeRunCoachChecks } = await import('../lib/coachProgramCheck.js');
+      res.json(await maybeRunCoachChecks(vaultPath));
+    } catch (err) { next(err); }
+  });
+
   // THE WEEKLY AUDIT. GET previews it without writing — including the checks
   // that came back CLEAR, which is the whole reason it exists: three
   // detectors had never fired on his data and silence was indistinguishable
