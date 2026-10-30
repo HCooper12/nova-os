@@ -167,7 +167,7 @@ export function startBuild(brief, { name, model } = {}) {
           confidence: 'high',
           title: slug,
           reason: (job.status === 'done' ? summary : job.error || '').slice(0, 300),
-          payload: { slug, dir, shell, brief: text.slice(0, 2000) },
+          payload: { slug, dir, shell: job.shell, brief: text.slice(0, 2000) }, // `shell` alone was undefined here: the receipt threw into the catch below and never filed (found by no-undef, 31 Oct)
         },
         // moved aside, never deleted — see projects.undoProject
         undoData: { route: 'build', slug },
