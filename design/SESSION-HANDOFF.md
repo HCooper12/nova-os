@@ -13,6 +13,15 @@ the session log at the foot is append-only.
 
 
 
+
+## 31 Oct: Nova page rebuilt identical to mockup 106 A, back-swipe fault, Coach ranges + program check (9a6b49db)
+- HIS ORDER (top priority, all projects): an approved mockup ships IDENTICAL, proven side by side on his LIVE settings (summary / command / glass) in WebKit as an iPhone, plus a recording. Harness: scratchpad wk/*.cjs (playwright-core driving ~/Library/Caches/ms-playwright/webkit-2359). Rule in ~/.claude/CLAUDE.md + memory mockup-identical-live-proof.
+- His black, orb-less screen: src/edgeBack.js moved <main> under a back swipe because the stage's CSS-fixed layers were invisible to FIXED_INSIDE; now [data-fixed] (test edgeBackFixed). Also atFoot ReferenceError restored; lint has no-undef (found builder.js receipt bug).
+- Rebuild 9a6b49db: core centred in every turn state, state colours, violet listening bar with waveform, plate under the core; phone has no tab bar (swipe back), no Brief me, › only in history. Switches in src/novaStageFacts.js: ONE_NOVA_CHROME, STAGE_SPEAK ('gold' per 106; his 4 Oct call was jade - DECISION PENDING).
+- Coach 4c629b66: coachRanges (ranges from his vault research, goal-target card) + coachProgramCheck (concrete ops cards, minutes per week, <=15 min added); notes demoted. Cards pending: 4918c1fe ranges, 5b0626fd side delts, 5f83c0c3 rear delts, 27748d85 pull day. Open: mobility stretches counted as volume; "sore" counted as pain.
+- Mac mockup 108 awaiting approval (https://claude.ai/artifact/GwowXT67MD2dUefZq8XtyF).
+- Weekly sets now count dated two-a-day plans + reached/on the way/short colours; Quick Capture "Add to Wishlist" chip and "wl <link>".
+
 ## 30 Oct: Wishlist page, chromeless Nova, wishlist shared (b3cfc9ac)
 - His list is SHARED with Nova: 75 rows, 10 categories, sizes read; 62/64 photos cached on the Mac. No add has yet been written to his real Notion.
 - Wishlist page (mockup 107, approved) in More / Index Life; stars 0-3 (⭐️⭐️⭐️ = even higher, 790e4c8d). Shots on his real data via --readonly; not seen on his phone.
