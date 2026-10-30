@@ -10,7 +10,7 @@
 export const INDEX_GROUPS = [
   { key: 'today', label: 'Today', rows: ['mission', 'workouts', 'recipes', 'inbox', 'todos', 'voice'] },
   { key: 'mind', label: 'Mind', rows: ['practice', 'leader', 'review', 'technique', 'library', 'documents', 'notes', 'journal'] },
-  { key: 'life', label: 'Life', rows: ['money', 'shopping', 'stash', 'galaxy'] },
+  { key: 'life', label: 'Life', rows: ['money', 'shopping', 'stash', 'wishlist', 'galaxy'] },
   { key: 'nova', label: 'Nova', rows: ['agents', 'ops', 'briefing', 'projects', 'ambient', 'settings'] },
 ];
 
@@ -47,6 +47,8 @@ export const ROW_META = {
   money: { label: 'Money', hue: '--nv-vi' },
   shopping: { label: 'Shopping', hue: '--nv-ink40' },
   stash: { label: 'Stash', hue: '--nv-ink40' },
+  // his Notion Wishlist (30 Oct 2026): the magenta the Wishlist tag already wears
+  wishlist: { label: 'Wishlist', hue: '--nv-mg' },
   galaxy: { label: 'Galaxy', hue: '--nv-vi' },
   // the agents themselves, one tap into their skill sets; the Ops row below
   // keeps the Org map and the machinery

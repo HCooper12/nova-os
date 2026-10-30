@@ -122,6 +122,11 @@ function rowValue(key, v) {
       const n = countOf(v, 'stash');
       return { value: n != null ? counted(n, 'link') : '' };
     }
+    case 'wishlist': {
+      // the things he still wants (not bought), once the list has been read
+      const n = countOf(v, 'wishlist');
+      return { value: n != null ? `${n} wanted` : '' };
+    }
     case 'galaxy':
       return { value: 'the vault as stars' };
     case 'agents':

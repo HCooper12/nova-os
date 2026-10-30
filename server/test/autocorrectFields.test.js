@@ -63,6 +63,8 @@ const ALLOWED_AUTOCORRECT_OFF = new Set([
   'src/screens/Stash.jsx',
   // the summary Stash's add bar: a pasted URL (its search field keeps autocorrect)
   'src/screens/StashSummary.jsx',
+  // the Wishlist's add-by-link sheet: its one field is a pasted product URL
+  'src/screens/Wishlist.jsx',
 ]);
 
 function listJsFiles(absDir, relDir, out) {

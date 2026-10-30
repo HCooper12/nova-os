@@ -77,6 +77,8 @@ import { valsSessionSummary } from './vals/valsSessionSummary.js';
 import { valsNovaThread } from './vals/valsNovaThread.js';
 import { glassSnapshot, bindGlassSentences } from './novaThreadFacts.js';
 import { valsDocuments } from './vals/valsDocuments.js';
+import { valsWishlist } from './vals/valsWishlist.js';
+import { wishlistFromHistory } from './wishlistActions.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
@@ -172,6 +174,7 @@ const SCREEN_LOADERS = {
   journal: () => import('./screens/Journal.jsx'),
   settings: () => import('./screens/Settings.jsx'),
   stash: () => import('./screens/Stash.jsx'),
+  wishlist: () => import('./screens/Wishlist.jsx'),
   shopping: () => import('./screens/Shopping.jsx'),
   ambient: () => import('./screens/Ambient.jsx'),
   code: () => import('./screens/ClaudeCode.jsx'),
@@ -191,6 +194,7 @@ const Ops = lazyScreen(SCREEN_LOADERS.ops, 'Ops');
 const Journal = lazyScreen(SCREEN_LOADERS.journal, 'Journal');
 const Settings = lazyScreen(SCREEN_LOADERS.settings, 'Settings');
 const Stash = lazyScreen(SCREEN_LOADERS.stash, 'Stash');
+const Wishlist = lazyScreen(SCREEN_LOADERS.wishlist, 'Wishlist');
 const Shopping = lazyScreen(SCREEN_LOADERS.shopping, 'Shopping');
 const Ambient = lazyScreen(SCREEN_LOADERS.ambient, 'Ambient');
 const ClaudeCode = lazyScreen(SCREEN_LOADERS.code, 'ClaudeCode');
@@ -656,6 +660,7 @@ export default class App extends Component {
     liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
     projectThreads: {}, projectSessions: {}, projectAskText: '', projectAskBusy: false,
     projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
+    liveWishlist: null, wishlistDemo: null, wishlistUi: null, wishlistError: null, wishlistAnswered: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     foodEntryUndo: null, // the last whole meal removed with its ×, held 30s for Undo
@@ -4137,7 +4142,7 @@ export default class App extends Component {
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
     // the Money page's sheet and pushed page are its other two levels (10 Oct 2026)
-    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.trainPageFromHistory(), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this), ...this.shopFromHistory() };
+    return { ...wishlistFromHistory(this), ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.trainPageFromHistory(), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this), ...this.shopFromHistory() };
   }
   // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
   // carrying the whole path, so popstate restores exactly the page he was on
@@ -8569,9 +8574,10 @@ export default class App extends Component {
     haptic('tick');
     this.setState({ qcBusy: true, qcError: null });
     api.wishlistAnswer(conn, recordId, field, value).then(() => {
-      this.setState({ qcBusy: false });
+      // the Nova thread's receipt reads this until the Inbox refresh lands
+      this.setState((s) => ({ qcBusy: false, wishlistAnswered: { ...(s.wishlistAnswered || {}), [recordId]: [...((s.wishlistAnswered || {})[recordId] || []), field] } }));
       this.refreshInbox();
-    }).catch((e) => this.setState({ qcBusy: false, qcError: e.message }));
+    }).catch((e) => { this.setState({ qcBusy: false, qcError: e.message }); if (this.state.screen !== 'inbox') this.toastMsg(`The Wishlist did not change: ${e.message}`); });
   }
   captureToInbox(text, source = 'text') {
     const conn = getConnection();
@@ -10111,6 +10117,7 @@ export default class App extends Component {
       ...valsNotes(this, ctx),
       ...valsLibrary(this, ctx),
       ...valsDocuments(this, ctx),
+      ...valsWishlist(this, ctx),
       ...valsLeader(this, ctx),
       ...valsPractice(this, ctx),
       ...valsBriefing(this, ctx),
@@ -13930,6 +13937,7 @@ export default class App extends Component {
               {v.isRecipes && <Recipes v={v} />}
               {v.isShopping && <Shopping v={v} />}
               {v.isStash && <Stash v={v} />}
+              {v.isWishlist && <Wishlist v={v} />}
               {v.isOps && <Ops v={v} />}
               {v.isAmbient && <Ambient v={v} />}
               {v.isTodos && <Todos v={v} />}

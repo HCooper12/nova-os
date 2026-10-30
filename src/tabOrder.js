@@ -13,6 +13,8 @@ export const TAB_META = [
   // Documents (28 Sep 2026): appended for the same reason — and here at all so
   // the More sheet reaches it under cupertino, where the sidebar is not drawn
   ['documents', 'Documents'],
+  // his Notion Wishlist (30 Oct 2026, mockup 107): appended, for the same reason
+  ['wishlist', 'Wishlist'],
 ];
 const ALL_KEYS = TAB_META.map((t) => t[0]);
 // TAB_META fixes the canonical NUMBERING (Train is always IX). This is the
@@ -20,7 +22,7 @@ const ALL_KEYS = TAB_META.map((t) => t[0]);
 // one-tap dock slots before he has customised anything. Train and Recipes are
 // the daily surfaces; Galaxy and Code are occasional, so they move back.
 const DEFAULT_ORDER = ['mission', 'voice', 'workouts', 'recipes', 'inbox', 'todos',
-  'shopping', 'notes', 'library', 'documents', 'journal', 'money', 'stash', 'galaxy', 'code', 'ops', 'settings'];
+  'shopping', 'notes', 'library', 'documents', 'journal', 'money', 'stash', 'wishlist', 'galaxy', 'code', 'ops', 'settings'];
 const LABELS = Object.fromEntries(TAB_META);
 const ROMAN = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.', 'VII.', 'VIII.', 'IX.', 'X.', 'XI.', 'XII.', 'XIII.', 'XIV.', 'XV.', 'XVI.', 'XVII.'];
 

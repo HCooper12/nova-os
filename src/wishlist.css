@@ -1,0 +1,171 @@
+/* HIS WISHLIST (mockup 107; src/screens/Wishlist.jsx). Every colour is a
+   house token. The page's own hue is magenta (--nv-mg): the Wishlist tag
+   Quick Capture already wears, "the one place no other tag uses: things he
+   wants" (captureTag.js). Gold is his stars. The three priority dots are his
+   own Notion colours (High green, Medium blue, Low yellow), tokenised below
+   because nothing else in Nova means "priority". Green also marks Mark
+   bought (a done thing); red only Remove. Motion: transform and opacity
+   only; reduced motion lands end states with short fades. Every control
+   is 44 pt. */
+
+:root { --nv-pri-high: #5fe8a8; --nv-pri-med: #6fb0ff; --nv-pri-low: #f0d264; }
+:root[data-nv-theme="daylight"] { --nv-pri-high: #1c7a3e; --nv-pri-med: #1f62c4; --nv-pri-low: #8a6a00; }
+
+.nv-wl, .nv-wl-scrim {
+  --wl: var(--nv-mg);
+  --wl-ink2: var(--nv-sum-ink2, var(--nv-ink60)); --wl-ink3: var(--nv-sum-ink3, var(--nv-ink50));
+  --wl-card: var(--nv-sum-card, var(--nv-glass)); --wl-ring: var(--nv-sum-card-ring, var(--nv-edge)); --wl-hi: var(--nv-sum-card-hi, color-mix(in srgb, var(--nv-ink) 12%, transparent));
+  --wl-sep: color-mix(in srgb, var(--nv-ink) 9%, transparent);
+  --wl-out: cubic-bezier(.23,1,.32,1);
+  box-sizing: border-box; color: var(--nv-ink); font: 400 15px/1.45 var(--nv-font-ui);
+}
+.nv-wl { position: relative; min-width: 0; }
+.nv-wl *, .nv-wl-scrim * { box-sizing: border-box; }
+:where(.nv-wl, .nv-wl-scrim) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: inherit; }
+:where(.nv-wl, .nv-wl-scrim) button:disabled { cursor: default; opacity: .45; }
+:where(.nv-wl, .nv-wl-scrim) button:not(:disabled):active { transform: scale(.97); transition: transform .14s var(--wl-out); }
+.nv-wl .num, .nv-wl-scrim .num { font-family: var(--nv-font-round); font-variant-numeric: tabular-nums; }
+
+/* ---------- the head ---------- */
+.nv-wl-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; margin-bottom: 2px; }
+.nv-wl-top h1 { margin: 0; font: 700 34px/1.05 var(--nv-font-ui); letter-spacing: -.02em; }
+.nv-wl-add { flex: none; width: 44px; height: 44px; display: grid !important; place-items: center; }
+.nv-wl-add span { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 600 22px/1 var(--nv-font-ui); color: var(--wl); background: color-mix(in srgb, var(--wl) 16%, transparent); }
+.nv-wl-sync { margin: 0 0 12px; font-size: 12px; color: var(--wl-ink3); }
+.nv-wl-sync b { color: var(--wl-ink2); font-weight: 600; }
+.nv-wl-reading { animation: nvWlBreath 1.6s ease-in-out infinite; }
+@keyframes nvWlBreath { 50% { opacity: .45; } }
+.nv-wl-note { margin: -4px 0 12px; font-size: 12.5px; line-height: 1.4; color: var(--wl-ink2); }
+
+/* ---------- the chips: six up front, the rest behind Show all ---------- */
+.nv-wl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.nv-wl-chip { position: relative; min-height: 32px; font: 600 12.5px/1 var(--nv-font-ui) !important; padding: 0 11px !important; border-radius: 999px; color: var(--wl-ink2) !important;
+  box-shadow: 0 0 0 1px var(--wl-ring); background: color-mix(in srgb, var(--nv-ink) 4%, transparent) !important; transition: background-color .2s ease, color .2s ease; }
+/* the visible pill is 32 tall; the hit area reaches 44 */
+.nv-wl-chip::after { content: ''; position: absolute; inset: -6px -2px; }
+.nv-wl-chip.on { color: var(--nv-void) !important; background: var(--nv-ink) !important; box-shadow: 0 0 0 1px var(--nv-ink); }
+.nv-wl-chip.more { box-shadow: none; outline: 1px dashed var(--wl-ring); outline-offset: -1px; color: var(--wl-ink3) !important; background: none !important; }
+
+/* ---------- groups ---------- */
+.nv-wl-sec { min-width: 0; }
+.nv-wl-grp { display: flex; align-items: baseline; justify-content: space-between; margin: 6px 2px 8px; font: inherit; }
+.nv-wl-grp b { font: 600 15px var(--nv-font-ui); }
+.nv-wl-grp span { font-size: 12.5px; color: var(--wl-ink3); font-variant-numeric: tabular-nums; }
+.nv-wl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+@media (min-width: 720px) { .nv-wl-grid { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; } }
+.nv-wl-emptybox { margin: 0 0 16px; padding: 14px; border-radius: 16px; outline: 1px dashed var(--wl-ring); outline-offset: -1px; color: var(--wl-ink3); font-size: 13px; line-height: 1.45; }
+.nv-wl-emptybox b { color: var(--wl-ink2); }
+.nv-wl-empty { margin: 18px 2px; color: var(--wl-ink3); font-size: 14px; line-height: 1.5; }
+
+/* ---------- the card: a photo with the facts under it ---------- */
+.nv-wl-card { position: relative; display: flex !important; flex-direction: column; min-width: 0; border-radius: 18px; overflow: hidden; text-align: left;
+  background: var(--wl-card) !important; box-shadow: 0 0 0 .5px var(--wl-ring), inset 0 1px 0 var(--wl-hi);
+  animation: nvWlRise .4s var(--wl-out) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
+@keyframes nvWlRise { from { opacity: 0; transform: translateY(10px); } }
+.nv-wl-ph { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 5; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--nv-ink) 10%, transparent), color-mix(in srgb, var(--nv-ink) 3%, transparent)); }
+.nv-wl-ph img, .nv-wl-big img, .nv-wl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; animation: fadeIn .3s ease backwards; }
+/* a photo lit by its own light: a 1px inset edge, never a tinted ring */
+.nv-wl-ph::after, .nv-wl-big::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 8%, transparent); border-radius: inherit; }
+.nv-wl-ph.none b, .nv-wl-big.none b { font: 600 30px/1 var(--nv-font-serif); color: var(--wl-ink3); }
+.nv-wl-ph.none[data-art], .nv-wl-big.none[data-art], .nv-wl-thumb.none[data-art] { --art: var(--nv-ink40); background: linear-gradient(160deg, color-mix(in srgb, var(--art) 30%, transparent), color-mix(in srgb, var(--art) 6%, transparent)); }
+[data-art="cy"] { --art: var(--nv-cy) !important; } [data-art="vi"] { --art: var(--nv-vi) !important; } [data-art="gold"] { --art: var(--nv-gold) !important; }
+[data-art="good"] { --art: var(--nv-good) !important; } [data-art="mg"] { --art: var(--nv-mg) !important; } [data-art="ink"] { --art: var(--nv-ink40) !important; }
+.nv-wl-star { position: absolute; top: 8px; left: 8px; z-index: 1; font: 700 11px/1 var(--nv-font-ui); padding: 5px 7px; border-radius: 999px; letter-spacing: 1px;
+  background: color-mix(in srgb, var(--nv-void) 62%, transparent); color: var(--nv-gold); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  animation: nvWlStar var(--nv-spring-bouncy-ms, 600ms) var(--nv-spring-bouncy, var(--wl-out)) backwards; }
+@keyframes nvWlStar { from { opacity: 0; transform: scale(.6); } }
+.nv-wl-meta { display: block; padding: 9px 10px 10px; min-width: 0; }
+.nv-wl-nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 600 13px/1.25 var(--nv-font-ui); overflow-wrap: anywhere; }
+.nv-wl-sub { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 11.5px; color: var(--wl-ink3); white-space: nowrap; overflow: hidden; min-width: 0; }
+.nv-wl-store { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nv-wl-pr { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.nv-wl-pr.h { background: var(--nv-pri-high); } .nv-wl-pr.m { background: var(--nv-pri-med); } .nv-wl-pr.l { background: var(--nv-pri-low); }
+.nv-wl-price { flex: none; margin-left: auto; color: var(--nv-ink); font-weight: 600; font-family: var(--nv-font-round); font-variant-numeric: tabular-nums; }
+
+/* the loading shape: the cards that are coming, not a blank */
+.nv-wl-card.skel { pointer-events: none; }
+.nv-wl-ph.sk, .nv-wl-skl { background: linear-gradient(90deg, color-mix(in srgb, var(--nv-ink) 6%, transparent), color-mix(in srgb, var(--nv-ink) 12%, transparent), color-mix(in srgb, var(--nv-ink) 6%, transparent)); background-size: 200% 100%; animation: skeletonSweep 1.5s ease-in-out infinite; }
+.nv-wl-skl { display: block; height: 11px; border-radius: 6px; margin-bottom: 6px; }
+
+/* ---------- Purchased, folded to one row ---------- */
+.nv-wl-fold { display: flex !important; align-items: center; gap: 10px; width: 100%; min-height: 56px; border-radius: 16px; padding: 12px 14px !important; margin-bottom: 12px;
+  background: var(--wl-card) !important; box-shadow: 0 0 0 .5px var(--wl-ring), inset 0 1px 0 var(--wl-hi); text-align: left; }
+.nv-wl-stack { display: flex; flex: none; }
+.nv-wl-thumb { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; overflow: hidden; margin-left: -8px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--nv-ink) 14%, transparent), color-mix(in srgb, var(--nv-ink) 4%, transparent)); box-shadow: 0 0 0 2px var(--nv-void); }
+.nv-wl-thumb:first-child { margin-left: 0; }
+.nv-wl-thumb.none b { font: 600 12px/1 var(--nv-font-serif); color: var(--wl-ink3); }
+.nv-wl-foldtx { flex: 1; min-width: 0; }
+.nv-wl-foldtx b { display: block; font: 600 14px var(--nv-font-ui); }
+.nv-wl-foldtx small { display: block; color: var(--wl-ink3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-wl-chev { flex: none; color: var(--wl-ink3); font-size: 20px; transition: transform .3s var(--wl-out); }
+.nv-wl-chev.open { transform: rotate(90deg); }
+
+/* ---------- not shared: what to do, as one path of steps ---------- */
+.nv-wl-notice { border-radius: 18px; padding: 16px; margin-bottom: 12px; background: var(--wl-card); box-shadow: 0 0 0 1px color-mix(in srgb, var(--wl) 35%, transparent), inset 0 1px 0 var(--wl-hi);
+  animation: nvWlRise .4s var(--wl-out) backwards; animation-delay: 40ms; }
+.nv-wl-notice > b { display: block; font: 600 16px/1.3 var(--nv-font-ui); margin-bottom: 6px; }
+.nv-wl-notice > p { margin: 0; color: var(--wl-ink2); font-size: 13.5px; }
+.nv-wl-steps { list-style: none; margin: 12px 0 4px; padding: 0; position: relative; }
+.nv-wl-steps li { position: relative; padding: 0 0 12px 26px; font-size: 13.5px; }
+.nv-wl-steps li::before { content: ''; position: absolute; left: 5px; top: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--wl); }
+.nv-wl-steps li:not(:last-child)::after { content: ''; position: absolute; left: 9px; top: 16px; bottom: 0; width: 1px; background: color-mix(in srgb, var(--wl) 40%, transparent); }
+
+/* ---------- the sheets ---------- */
+.nv-wl-scrim { position: fixed; inset: 0; z-index: 145; display: flex; align-items: flex-end; justify-content: center;
+  background: color-mix(in srgb, var(--nv-void) 60%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fadeIn var(--nv-dur-base, .24s) var(--nv-ease); }
+.nv-wl-sheet { width: 100%; max-width: 560px; max-height: 92vh; display: flex; flex-direction: column; outline: none; border-radius: 28px 28px 0 0; padding: 0 18px calc(22px + env(safe-area-inset-bottom));
+  animation: nvWlUp .34s var(--wl-out) backwards; }
+@keyframes nvWlUp { from { transform: translateY(100%); } }
+.nv-wl-grabzone { padding: 10px 0 10px; display: flex; justify-content: center; touch-action: none; }
+.nv-wl-grab { width: 38px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--nv-ink) 25%, transparent); }
+.nv-wl-shbody { overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 0 2px 2px; margin: 0 -2px; } /* 2px of room so the 1px rings are not cut by the scroller */
+.nv-wl-big { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 11; border-radius: 16px; overflow: hidden; margin-bottom: 12px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--nv-ink) 12%, transparent), color-mix(in srgb, var(--nv-ink) 3%, transparent)); }
+.nv-wl-st { margin: 0; font: 600 19px/1.2 var(--nv-font-ui); overflow-wrap: anywhere; }
+.nv-wl-ln { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 6px 0 12px; font-size: 12.5px; color: var(--wl-ink3); }
+.nv-wl-ln .pill { display: inline-flex; align-items: center; gap: 6px; }
+.nv-wl-ln .num { color: var(--nv-ink); font-weight: 600; }
+.nv-wl-kv { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--wl-sep); font-size: 13.5px; min-width: 0; }
+.nv-wl-kv > span:first-child { width: 62px; flex: none; color: var(--wl-ink3); }
+.nv-wl-kv a { min-width: 0; color: var(--nv-cy); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-wl-kv .none { color: var(--wl-ink3); }
+.nv-wl-kv .val { min-width: 0; overflow-wrap: anywhere; }
+.nv-wl-kv .val small { display: block; font-size: 11.5px; color: var(--wl-ink3); }
+.nv-wl-stars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0 12px; }
+.nv-wl-stars button { min-height: 44px; padding: 4px 4px !important; border-radius: 12px; text-align: center !important; font: 600 12px/1.2 var(--nv-font-ui) !important; color: var(--wl-ink2) !important;
+  box-shadow: 0 0 0 1px var(--wl-ring); transition: background-color .2s ease, color .2s ease, box-shadow .2s ease; }
+.nv-wl-stars button.on { box-shadow: 0 0 0 1px color-mix(in srgb, var(--nv-gold) 60%, transparent); background: color-mix(in srgb, var(--nv-gold) 12%, transparent) !important; color: var(--nv-gold) !important; }
+.nv-wl-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.nv-wl-act { min-height: 46px; border-radius: 14px; display: grid !important; place-items: center; text-align: center !important; padding: 0 6px !important; font: 600 13px/1.2 var(--nv-font-ui) !important;
+  background: color-mix(in srgb, var(--nv-ink) 8%, transparent) !important; box-shadow: 0 0 0 1px var(--wl-ring); }
+.nv-wl-act.go { background: color-mix(in srgb, var(--nv-good) 14%, transparent) !important; box-shadow: 0 0 0 1px color-mix(in srgb, var(--nv-good) 45%, transparent); color: var(--nv-good) !important; }
+.nv-wl-act.mo { background: color-mix(in srgb, var(--nv-pri-med) 12%, transparent) !important; box-shadow: 0 0 0 1px color-mix(in srgb, var(--nv-pri-med) 40%, transparent); color: var(--nv-pri-med) !important; }
+.nv-wl-act.rm { color: var(--nv-warn) !important; }
+.nv-wl-undoline { margin: 10px 0 0; text-align: center; font-size: 11.5px; color: var(--wl-ink3); }
+
+/* adding by link */
+.nv-wl-hint { margin: 4px 0 12px; color: var(--wl-ink3); font-size: 13px; }
+.nv-wl-field { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 14px; border-radius: 999px; background: var(--nv-well); box-shadow: inset 0 0 0 1px var(--wl-ring); }
+.nv-wl-field input { flex: 1; min-width: 0; height: 44px; border: 0; outline: none; background: transparent; color: var(--nv-ink); font: 400 16px var(--nv-font-ui); }
+.nv-wl-paste { flex: none; min-height: 36px; padding: 0 12px !important; border-radius: 999px; font: 600 13px var(--nv-font-ui) !important; color: var(--wl-ink2) !important; background: color-mix(in srgb, var(--nv-ink) 8%, transparent) !important; }
+.nv-wl-go { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid !important; place-items: center; font-weight: 700; color: var(--wl) !important; background: color-mix(in srgb, var(--wl) 16%, transparent) !important; }
+.nv-wl-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--wl); border-top-color: transparent; animation: spin 1s linear infinite; }
+.nv-wl-err { margin: 10px 2px 0; color: var(--nv-warn); font-size: 13px; }
+.nv-wl-done { margin-top: 12px; }
+.nv-wl-rcpt { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 2px; border-top: 1px solid var(--wl-sep); animation: nvWlDrop .22s var(--wl-out) backwards; }
+@keyframes nvWlDrop { from { opacity: 0; transform: translateY(-6px); } }
+.nv-wl-rcpt .txt { flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-wl-rcpt .tag { flex: none; font: 600 12px var(--nv-font-ui); padding: 5px 10px; border-radius: 999px; color: var(--wl); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wl) 42%, transparent); background: color-mix(in srgb, var(--wl) 10%, transparent); }
+.nv-wl-rcpt .u { flex: none; min-height: 44px; padding: 0 6px !important; font-size: 12.5px !important; color: var(--wl-ink3) !important; }
+.nv-wl-said { margin: 8px 2px 0; font: 400 16px/1.4 var(--nv-font-serif); color: var(--wl-ink2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-wl-card, .nv-wl-notice, .nv-wl-star, .nv-wl-rcpt { animation: fadeIn .16s ease backwards !important; }
+  .nv-wl-sheet { animation: fadeIn .16s ease backwards; }
+  .nv-wl-reading, .nv-wl-ph.sk, .nv-wl-skl { animation: none; }
+  .nv-wl-chev { transition: none; }
+}
+:root[data-nv-calm="1"] .nv-wl-card, :root[data-nv-calm="1"] .nv-wl-star { animation: none; }
+@media (prefers-reduced-transparency: reduce) { .nv-wl-scrim { -webkit-backdrop-filter: none; backdrop-filter: none; background: color-mix(in srgb, var(--nv-void) 80%, transparent); } }

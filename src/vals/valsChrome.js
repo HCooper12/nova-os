@@ -169,6 +169,7 @@ export function valsChrome(app, ctx) {
     wrapJournal: mob ? mp : { padding: '28px 40px 44px' },
     wrapLibrary: mob ? mp : { padding: '28px 40px 44px' },
     wrapStash: mob ? mp : { padding: '28px 40px 44px', maxWidth: '900px' },
+    wrapWishlist: mob ? mp : { padding: '28px 40px 44px', maxWidth: '980px' },
     gridStats: mob ? col('20px') : { display: 'grid', gridTemplateColumns: '1.7fr 1fr 1fr', gap: '14px', marginTop: '24px' },
     gridNoticed: mob ? col('12px') : { display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: '14px', marginTop: '14px' },
     gridVault: mob ? col('12px') : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginTop: '14px' },
@@ -193,7 +194,7 @@ export function valsChrome(app, ctx) {
     recipeOvVtName: st.openRecipeId ? `recipe-${st.openRecipeId}` : null,
     supportsViewTransitions: typeof document !== 'undefined' && !!document.startViewTransition,
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
-    isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isProjects: st.screen === 'projects', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
+    isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWishlist: st.screen === 'wishlist', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isProjects: st.screen === 'projects', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     // THE INDEX (P3): the More tab under `summary` — every screen, grouped
     isIndex: st.screen === 'index',
     dateLabel: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date()).toUpperCase().replace(/,/g, ''),
@@ -245,6 +246,9 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
       mkNav('Money', 'XII.', 'money'),
       Object.assign(mkNav('Stash', 'XIII.', 'stash'), { count: st.liveStash ? String(st.liveStash.reduce((n, c) => n + c.items.length, 0)) : demoMode ? '0' : '—' }),
+      // HIS WISHLIST (30 Oct 2026): what he still wants, once it has been read
+      // (it reads on arrival, never at boot); before that, nothing
+      Object.assign(mkNav('Wishlist', 'XXI.', 'wishlist'), st.liveWishlist?.shared ? { count: String((st.liveWishlist.items || []).filter((i) => i.status !== 'Purchased' && i.status !== 'Cancelled').length) } : {}),
     ]),
     navSystem: sortByOrder([
       Object.assign(mkNav('Operations', 'XIV.', 'ops'), { count: st.liveOps ? String(st.liveOps.pending) : demoMode ? '0' : '—' }),

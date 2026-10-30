@@ -327,7 +327,7 @@ export const api = {
   setRotationEaten: (conn, slot, recipeId, eaten, date) => post(conn, '/api/rotation/eaten', { slot, recipeId, eaten, ...(date ? { date } : {}) }),
   addRotationSlot: (conn, label) => post(conn, '/api/rotation/slot', { label }),
   renameRotationSlot: (conn, key, label) => post(conn, `/api/rotation/slot/${encodeURIComponent(key)}/rename`, { label }),
-  removeRotationSlot: (conn, key) => post(conn, `/api/rotation/slot/${encodeURIComponent(key)}/remove`),
+  removeRotationSlot: (conn, key) => post(conn, `/api/rotation/slot/${encodeURIComponent(key)}/remove`, {}),
   setPortions: (conn, recipeId, count, name) => post(conn, '/api/portions', { recipeId, count, name }),
   adjustPortions: (conn, recipeId, delta, name) => post(conn, '/api/portions/adjust', { recipeId, delta, name }),
   foodLog: (conn, date) => call(conn, `/api/food-log${date ? `?date=${encodeURIComponent(date)}` : ''}`),
@@ -724,6 +724,19 @@ export const api = {
   inboxReroute: (conn, id, route, detail) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reroute`, { route: route || null, detail: detail || '' }),
   // his Notion Wishlist: the tap that answers an add's open question (id = the add's inbox record)
   wishlistAnswer: (conn, id, field, value) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/answer`, { field, value }),
+  // the Wishlist page (mockup 107): the list, and his taps on it; each write
+  // answers with the Inbox record whose Undo takes it back
+  wishlist: (conn) => call(conn, '/api/wishlist'),
+  wishlistStatus: (conn, id, status) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/status`, { status }),
+  wishlistStar: (conn, id, stars) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/star`, { stars }),
+  wishlistRemove: (conn, id) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/remove`, {}),
+  wishlistAdd: (conn, url, said = '') => post(conn, '/api/wishlist/add', { url, said }, { timeoutMs: 45000 }),
+  // the photos are kept on his Mac behind the token, so they come as blobs (the Stash's way)
+  wishlistImageBlobUrl: async (conn, file) => {
+    const res = await fetch(baseOf(conn) + `/api/wishlist/image/${encodeURIComponent(file)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  },
   // THE SKILL SETS (mockup 97): read, and his tick / cross / undo on a suggestion
   skillSets: (conn) => call(conn, '/api/skillsets'),
   skillSuggestion: (conn, id, verb) => post(conn, `/api/skillsets/suggestions/${encodeURIComponent(id)}/${verb}`),
