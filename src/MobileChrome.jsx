@@ -6,6 +6,7 @@ import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
 import { NovaCore } from './NovaCore.jsx';
 import { Eyebrow, isAppleStyle } from './Controls.jsx';
+import { ONE_NOVA_CHROME } from './novaStageFacts.js';
 import { SummaryDock } from './SummaryDock.jsx';
 import { useHoldRing } from './motion/holdToTalk.js';
 import { HoldRing } from './motion/HoldRing.jsx';
@@ -184,7 +185,9 @@ export function MobileChrome({ v }) {
       {/* …except under `summary`, which has the iOS 26 tab bar instead
           (SummaryDock.jsx): four tabs, More as the Index, Nova detached.
           The dock below is untouched and still draws for every other style. */}
-      {v.summary ? <SummaryDock v={v} /> : (
+      {/* NO TAB BAR ON THE NOVA PAGE (31 Oct 2026, his answer on mockup 106:
+          he leaves it by the back swipe; src/novaStageFacts.js ONE_NOVA_CHROME) */}
+      {v.summary ? (v.novaThread && !ONE_NOVA_CHROME.tabBar ? null : <SummaryDock v={v} />) : (
       <div className="nv-liquid nv-liquid-dock" style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(6px + min(env(safe-area-inset-bottom), 34px));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px")}>
         {dockTabs.slice(0, 3).map((t) => <DockTab key={t.screen} t={t} />)}
         {/* THE mini Nova icon — his ask: tapping it starts talking right

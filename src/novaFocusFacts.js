@@ -53,7 +53,7 @@ export function focusTint(stateKey, { contest = false } = {}) {
 export const EMBER_RGB = { blue: [150, 215, 255], violet: [186, 168, 255], cyan: [150, 232, 255], jade: [150, 240, 205], red: [255, 150, 160] };
 // the grains that pour from the heart into each word (RGB): Nova's own
 // speaking jade, its lit edge, and red for a pushback
-export const POUR_RGB = { jade: [80, 228, 168], rim: [150, 250, 240], red: [255, 84, 96] };
+export const POUR_RGB = { jade: [80, 228, 168], rim: [150, 250, 240], red: [255, 84, 96], gold: [224, 178, 106], goldRim: [255, 230, 176] };
 
 // THE FIELD, REFINED (his "albeit refined further"): fewer and finer embers
 // than the mockup's 230, one canvas, capped here so no later change can turn
@@ -149,7 +149,13 @@ export function focusPours(mode) {
 // 280 ms behind its pour; the briefing's fades up in place (mockup 83: 4 px,
 // a 3 px blur, about 240 ms), and under reduced motion the briefing's whole
 // sentence appears at once in a quarter-second fade.
+// The one-canvas stage (31 Oct 2026, mockup 106 option A, approved): a word
+// rises 9 px over 280 ms with no blur, is the speaker's hue outright while it
+// is in the air (the mockup's .w.lit), and the sentences run on as one
+// paragraph from the plate's top (`flow`), scrolling only when the word being
+// said would pass the plate's foot.
 export const WORD_LOOK = {
   thread: { rise: 10, blur: 4, arrive: 280, whole: false },
   briefing: { rise: 4, blur: 3, arrive: 240, whole: true },
+  stage: { rise: 9, blur: 0, arrive: 280, whole: false, flow: true, litFull: true },
 };

@@ -88,8 +88,12 @@ function buildFilamentScene(opts, R) {
 // still shades the hue, and each target sits where 82% of the way lands on
 // the state's own hue (jade 156, red 356, cyan 189) for the middle depth.
 // With every mix at 0 (rest) the hue is exactly what it always was.
-function tintHue(hue, mS, mL, mT, mC) {
-  hue += (145 - hue) * mS * 0.82;
+// THE STAGE SPEAKS IN GOLD (31 Oct 2026, mockup 106 option A, approved
+// 29 Oct): with `gold` the speaking pull aims at 445 (82% of the way lands on
+// gold, 42°, for the middle depth), unwrapped upward so the change sweeps
+// through violet and rose, never through green, as the mockup's does.
+function tintHue(hue, mS, mL, mT, mC, gold = false) {
+  hue += ((gold ? 445 : 145) - hue) * mS * 0.82;
   hue += (185 - hue) * mT * 0.82;
   hue += (389 - hue) * mC * 0.82;
   hue += (272 - hue) * mL * 0.82;
@@ -144,10 +148,10 @@ function makeFilamentDraw(ctx, size, opts, getState) {
   //           tintHue) as the rings fade out and back in;
   //   lvl — raw amplitude, flaring alpha, weight and the band radii.
   // Idle (all of them at 0) is EXACTLY the core he already knows.
-  let mixS = 0, mixL = 0, mixT = 0, mixC = 0, clock = 0, last = null, lvl = 0;
+  let mixS = 0, mixL = 0, mixT = 0, mixC = 0, clock = 0, last = null, lvl = 0, gold = false;
   const lean = [0, 0]; // the heart's lean toward his finger, smoothed (see leanRef)
   const col = (f, a) => {
-    const hue = tintHue(224 - f * 36, mixS, mixL, mixT, mixC);
+    const hue = tintHue(224 - f * 36, mixS, mixL, mixT, mixC, gold);
     const lit = Math.min(38 + (1 - f) * 44 + lvl * 12, 88);
     return `hsla(${hue % 360},${90 - f * 10}%,${lit}%,${a})`;
   };
@@ -156,7 +160,7 @@ function makeFilamentDraw(ctx, size, opts, getState) {
   // elliptic sectors their scaled, butt-capped strokes always covered, so
   // no band needs a save/translate/rotate/scale/restore of its own
   const pal = makePalette(FIL_STEPS, (f, o) => {
-    o[0] = tintHue(224 - f * 36, mixS, mixL, mixT, mixC) % 360;
+    o[0] = tintHue(224 - f * 36, mixS, mixL, mixT, mixC, gold) % 360;
     o[1] = 90 - f * 10;
     o[2] = Math.min(38 + (1 - f) * 44 + lvl * 12, 88);
   });
@@ -211,6 +215,7 @@ function makeFilamentDraw(ctx, size, opts, getState) {
     const k = snap ? 1 : 0.07;
     const turn = st.formOnly ? REST : turnOf(st);
     const pushing = turn === SPEAK && !!st.contest;
+    gold = !!st.gold;
     mixS += ((turn === SPEAK && !pushing ? 1 : 0) - mixS) * k;
     mixL += ((turn === LISTEN ? 1 : 0) - mixL) * k;
     mixT += ((turn === THINK ? 1 : 0) - mixT) * k;
@@ -715,16 +720,16 @@ function makeHoloDraw(ctx, size, opts, getState) {
   // same live-speech dynamics as the filament engine (see that comment):
   // an audio-accelerated clock, smoothed state mixes toward the turn's
   // colour, amplitude flares. Idle is exactly the hologram he already knows.
-  let mixS = 0, mixL = 0, mixT = 0, mixC = 0, clock = 0, last = null, lvl = 0;
+  let mixS = 0, mixL = 0, mixT = 0, mixC = 0, clock = 0, last = null, lvl = 0, gold = false;
   const lean = [0, 0];
   const col = (dp, a) => {
-    const hue = tintHue(222 - 28 * dp, mixS, mixL, mixT, mixC);
+    const hue = tintHue(222 - 28 * dp, mixS, mixL, mixT, mixC, gold);
     const lit = Math.min(44 + 38 * dp + lvl * 10, 90);
     return `hsla(${hue % 360},${90 - 6 * dp}%,${lit}%,${a})`;
   };
   // the same colour, as the batched shades see it
   const pal = makePalette(HOLO_DEPTHS, (dp, o) => {
-    o[0] = tintHue(222 - 28 * dp, mixS, mixL, mixT, mixC) % 360;
+    o[0] = tintHue(222 - 28 * dp, mixS, mixL, mixT, mixC, gold) % 360;
     o[1] = 90 - 6 * dp;
     o[2] = Math.min(44 + 38 * dp + lvl * 10, 90);
   });
@@ -832,6 +837,7 @@ function makeHoloDraw(ctx, size, opts, getState) {
     const k = snap ? 1 : 0.07;
     const turn = st.formOnly ? REST : turnOf(st);
     const pushing = turn === SPEAK && !!st.contest;
+    gold = !!st.gold;
     mixS += ((turn === SPEAK && !pushing ? 1 : 0) - mixS) * k;
     mixL += ((turn === LISTEN ? 1 : 0) - mixL) * k;
     mixT += ((turn === THINK ? 1 : 0) - mixT) * k;
@@ -1061,18 +1067,21 @@ function makeHoloDraw(ctx, size, opts, getState) {
 // And one for the wall (9 Oct 2026, mockup 86):
 //   fps      — a cap on the frame rate; a core that runs for hours on a
 //              wall needs 30, not the display's 60 or 120. Absent, uncapped.
+// And one for the one-canvas stage (31 Oct 2026, mockup 106 option A):
+//   speakGold — speaking wears gold (the rings, the grain body, the heart)
+//               instead of Living jade, as the approved mockup draws it.
 // When more than one turn is set, listening wins, then speaking, then
 // thinking. `formOnly` keeps the forms and Nova's blue. A still core (`still`
 // or reduced motion) draws the turn's final form as one frame in its colour,
 // and once more when the turn changes; at rest, the frame it always drew.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0 }) {
+export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false }) {
   const ref = useRef(null);
   const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
   // canvas being torn down and rebuilt on every speech toggle
-  const stateRef = useRef({ speaking, listening, thinking, contest, formOnly, pace, lean: leanRef });
-  stateRef.current = { speaking, listening, thinking, contest, formOnly, pace, lean: leanRef };
+  const stateRef = useRef({ speaking, listening, thinking, contest, formOnly, pace, lean: leanRef, gold: speakGold });
+  stateRef.current = { speaking, listening, thinking, contest, formOnly, pace, lean: leanRef, gold: speakGold };
 
   useEffect(() => {
     const canvas = ref.current;
@@ -1150,7 +1159,7 @@ export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'fila
   // back at rest, the very frame it drew before
   useEffect(() => {
     stillDraw.current?.(engine === 'hologram' ? 3.2 : 1.7, true, true);
-  }, [speaking, listening, thinking, contest, formOnly, engine]);
+  }, [speaking, listening, thinking, contest, formOnly, engine, speakGold]);
 
   return <canvas ref={ref} style={{ width: size, height: size, display: 'block', ...style }} />;
 }

@@ -12,8 +12,10 @@ import { StageCard } from '../StageCard.jsx';
 import { useLongPress } from '../longPress.js';
 import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
 import { stateOf, threadRows, clock, failedLast } from '../novaThreadFacts.js';
-import { Ico, Glyph, Stage, Settled, KeptTake, Meter, Proposal } from '../NovaThreadParts.jsx';
+import { Ico, Glyph, Stage, Settled, KeptTake, Proposal } from '../NovaThreadParts.jsx';
 import { NovaStage } from '../NovaStage.jsx';
+import { ONE_NOVA_CHROME } from '../novaStageFacts.js';
+import { audioLevel } from '../audioLevel.js';
 import { CAPTIONS_KEY, captionsOn } from '../novaFocusFacts.js';
 import { FiledRows } from '../motion/FiledRows.jsx';
 import { AskTaps } from '../QuickCapture.jsx';
@@ -72,7 +74,6 @@ export function NovaThread({ v }) {
   const [sheet, setSheet] = useState(null);          // { card, originEl }
   const [retrying, setRetrying] = useState(null);    // the take being resent
   const [typingFor, setTypingFor] = useState(null);  // Type it: the take his typed words replace
-  const [listenSince, setListenSince] = useState(0);
   const wasAtFoot = useRef(true);
 
   // ---- the microphone: the classic Voice screen's wiring, plus the take ----
@@ -114,7 +115,7 @@ export function NovaThread({ v }) {
   cont.dictRef.current = dict;
   const dictRef = useRef(dict);
   dictRef.current = dict;
-  useEffect(() => { v.reportScreenMic?.(dict.on); if (dict.on) setListenSince(Date.now()); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
+  useEffect(() => { v.reportScreenMic?.(dict.on); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
   useEffect(() => () => v.reportScreenMic?.(false), []); // eslint-disable-line react-hooks/exhaustive-deps
   // "Writing it down" is thinking app-wide too (the tab bar's Nova, Home's core)
   useEffect(() => { v.reportHearing?.('screen', dict.hearing || !!retrying); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.hearing, retrying]);
@@ -268,7 +269,7 @@ export function NovaThread({ v }) {
   const holdTake = (id) => ({ target }) => setHeld({ kind: 'take', id, rect: target.getBoundingClientRect() });
 
   return (
-    <div ref={rootRef} className={`nv-nt${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice">
+    <div ref={rootRef} className={`nv-nt${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice" data-tabbar={ONE_NOVA_CHROME.tabBar ? '1' : '0'}>
       {/* A REPLAYED STAGE rises under the presenter's spot over the history,
           which steps back behind it (30 Sep, his: "the background should be
           blurred so the amount of visible information on screen is
@@ -347,11 +348,11 @@ export function NovaThread({ v }) {
       {/* THE STAGE: the foot of this same scroll, where the page opens. The
           brief's question (gold, it waits on his call) sits on it in place of
           the last exchange, where he is, not up in the history. */}
-      <NovaStage T={T} S={S} dict={dict} since={listenSince} onTalk={startTalking} onOpen={openSheet}
+      <NovaStage T={T} S={S} dict={dict} onTalk={startTalking} onOpen={openSheet} chrome={ONE_NOVA_CHROME}
         onStatus={() => setStatusOpen(true)} captions={captions} apiRef={stageApi}
         close={T.close ? <CloseCard c={T.close} onTalk={startTalking} /> : null} />
 
-      <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} nudged={nudged} continuing={cont.continuing} />
+      <Composer T={T} dict={dict} fieldRef={fieldRef} onSend={send} onTalk={startTalking} attach={ONE_NOVA_CHROME.attach} typingFor={typingFor} nudged={nudged} continuing={cont.continuing} />
 
       {statusOpen && <StatusSheet T={T} dict={dict} S={S} captions={captions} onCaptions={toggleCaptions} onClose={() => setStatusOpen(false)} />}
       {held && <HoldMenu held={held} T={T} takes={tk} onClose={() => setHeld(null)}
@@ -497,35 +498,48 @@ function CloseCard({ c, onTalk }) {
 
 // ------------------------------------------------------------ composer --
 
-function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false, continuing = false }) {
+// THE LISTENING WAVE (mockup 106's .meter): 26 violet bars, tallest in the
+// middle, each breathing with his real voice level (audioLevel: his mic on
+// every engine that has one); with no level, they lie low and still
+function StageMeter() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduced()) return undefined;
+    const bars = [...el.children];
+    const n = bars.length;
+    let raf = 0;
+    const loop = (now) => {
+      const lvl = Math.min(1, audioLevel());
+      for (let i = 0; i < n; i++) {
+        const c = 1 - Math.abs(i - (n - 1) / 2) / ((n - 1) / 2);
+        const v = Math.max(0.1, Math.min(1, 0.1 + lvl * 3.2 * (0.35 + 0.65 * c) * (0.65 + 0.35 * Math.sin(now / 90 + i * 1.7))));
+        bars[i].style.transform = `scaleY(${v.toFixed(3)})`;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <div ref={ref} className="nv-nt-wave" role="img" aria-label="Your voice, live">{Array.from({ length: 26 }, (_, i) => <i key={i} />)}</div>;
+}
+
+// THE COMPOSER, as mockup 106: at rest "Type, or hold to talk" and the round
+// mic; listening, "× Type", his voice as a wave and the violet "Send now",
+// the whole bar outlined in violet. The + (attach) is a switch he kept.
+function Composer({ T, dict, fieldRef, onSend, onTalk, attach = true, typingFor, nudged = false, continuing = false }) {
   const C = T.composer;
   const [text, setText] = useState(C.value);
   useEffect(() => { setText(C.value); }, [C.value]);
   const route = text.trim() ? C.route(text) : null;
   const pending = C.attach?.pending || [];
   const canSend = !!(text.trim() || pending.length);
-  if (dict.on) {
-    return (
-      <div className="nv-nt-composer listening">
-        {/* TYPE INSTEAD (29 Oct 2026, his words: "there doesn't seem to be a
-            way to cancel the automatic listening without waiting for it to
-            fail"). The hold opens the mic; this closes it with nothing sent
-            and puts the keyboard up inside the same tap (iOS raises it only
-            from a gesture, so the field is rendered before focus). */}
-        <button type="button" className="nv-nt-type" aria-label="Stop listening and type instead"
-          onClick={() => { flushSync(() => dict.abandon()); fieldRef.current?.focus(); }}>
-          <Ico name="x" />Type
-        </button>
-        <Meter since={since} />
-        <button type="button" className="nv-nt-stop" onClick={dict.toggle}>Send now</button>
-        {/* a tap before he has said anything keeps the mic open; a second ends it */}
-        <span className="nv-nt-meta" role="status" aria-live="polite" style={{ gridColumn: '1 / -1', minHeight: 17 }}>{nudged ? NUDGE_LINE : dict.extended ? 'Still listening, go on' : continuing ? 'Add to that, or wait' : ''}</span>
-      </div>
-    );
-  }
+  const note = dict.on ? (nudged ? NUDGE_LINE : dict.extended ? 'Still listening, go on' : continuing ? 'Add to that, or wait' : '') : '';
   return (
-    <div className={`nv-nt-composer${C.offline ? ' off' : ''}`}>
-      {pending.length > 0 && (
+    <div className={`nv-nt-composer${dict.on ? ' listening' : ''}${C.offline ? ' off' : ''}`}>
+      {/* a tap before he has said anything keeps the mic open; a second ends it */}
+      <span className="nv-nt-cnote" role="status" aria-live="polite">{note}</span>
+      {!dict.on && pending.length > 0 && (
         <div className="nv-nt-pending">
           {pending.map((p, i) => (
             <span key={i} className="nv-nt-att">
@@ -536,29 +550,49 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false,
           <span className="nv-nt-meta">rides with your next question</span>
         </div>
       )}
-      <div className="nv-nt-bar">
-        <label className="nv-nt-plus" aria-label="Attach a photo, a video or a file">
-          <Ico name="plus" />
-          <input type="file" accept="image/*,video/*,application/pdf,text/plain,text/markdown,text/csv,.pdf,.txt,.md,.csv" multiple disabled={!C.attach || C.attach.busy || C.offline}
-            onChange={(e) => { C.attach?.pick(e.target.files); e.target.value = ''; }} />
-        </label>
-        {/* the route label and the field share one box: it names where the
-            words will go, beside the words (audit finding 2) */}
-        <div className="nv-nt-field">
-          {route && <span className="nv-nt-route" title={route.why}>→ {route.label}</span>}
-          <LocalInput ref={fieldRef} value={C.value} data-orb-composer=""
-            onChange={(t) => { setText(t); C.setTyped(t); }}
-            onSubmit={(t) => onSend(t)}
-            onInput={(e) => setText(e.target.value)}
-            autoCorrect="on" autoCapitalize="sentences" spellCheck enterKeyHint="send"
-            disabled={C.offline}
-            aria-label="Message Nova"
-            placeholder={C.offline ? 'Reconnect to ask Nova' : typingFor ? 'Type what you said' : pending.length ? 'Ask about what you attached' : 'Type, or tap Nova to talk'} />
+      {dict.on ? (
+        <div className="nv-nt-bar listen">
+          {/* TYPE INSTEAD (29 Oct 2026, his words: "there doesn't seem to be a
+              way to cancel the automatic listening without waiting for it to
+              fail"). The hold opens the mic; this closes it with nothing sent
+              and puts the keyboard up inside the same tap (iOS raises it only
+              from a gesture, so the field is rendered before focus). */}
+          <button type="button" className="nv-nt-type" aria-label="Stop listening and type instead"
+            onClick={() => { flushSync(() => dict.abandon()); fieldRef.current?.focus(); }}>
+            <Ico name="x" />Type
+          </button>
+          <StageMeter />
+          <button type="button" className="nv-nt-stop" onClick={dict.toggle}>Send now</button>
         </div>
-        {canSend ? (
-          <button type="button" className="nv-nt-send" onClick={() => onSend(fieldRef.current?.value ?? text)} aria-label="Send"><Ico name="up" /></button>
-        ) : <span />}
-      </div>
+      ) : (
+        <div className="nv-nt-bar">
+          {attach && (
+            <label className="nv-nt-plus" aria-label="Attach a photo, a video or a file">
+              <Ico name="plus" />
+              <input type="file" accept="image/*,video/*,application/pdf,text/plain,text/markdown,text/csv,.pdf,.txt,.md,.csv" multiple disabled={!C.attach || C.attach.busy || C.offline}
+                onChange={(e) => { C.attach?.pick(e.target.files); e.target.value = ''; }} />
+            </label>
+          )}
+          {/* the route label and the field share one box: it names where the
+              words will go, beside the words (audit finding 2) */}
+          <div className="nv-nt-field">
+            {route && <span className="nv-nt-route" title={route.why}>→ {route.label}</span>}
+            <LocalInput ref={fieldRef} value={C.value} data-orb-composer=""
+              onChange={(t) => { setText(t); C.setTyped(t); }}
+              onSubmit={(t) => onSend(t)}
+              onInput={(e) => setText(e.target.value)}
+              autoCorrect="on" autoCapitalize="sentences" spellCheck enterKeyHint="send"
+              disabled={C.offline}
+              aria-label="Message Nova"
+              placeholder={C.offline ? 'Reconnect to ask Nova' : typingFor ? 'Type what you said' : pending.length ? 'Ask about what you attached' : 'Type, or hold to talk'} />
+          </div>
+          {canSend ? (
+            <button type="button" className="nv-nt-send" onClick={() => onSend(fieldRef.current?.value ?? text)} aria-label="Send"><Ico name="up" /></button>
+          ) : (
+            <button type="button" className="nv-nt-mic" onClick={onTalk} disabled={!dict.supported || C.offline} aria-label="Talk to Nova"><Ico name="mic" /></button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

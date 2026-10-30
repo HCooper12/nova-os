@@ -69,6 +69,11 @@ const C_JADE = [80, 228, 168];
 const C_JADE_RIM = [150, 250, 240];
 const C_JADE_GLOW = [30, 200, 140];
 const C_CONTEST = [255, 84, 96];
+// the one-canvas stage's speaking gold (mockup 106, --nv-gold #e0b26a): the
+// same three parts as the jade, for a core drawn with `gold` (NovaCore speakGold)
+const C_GOLD = [224, 178, 106];
+const C_GOLD_RIM = [255, 230, 176];
+const C_GOLD_GLOW = [214, 146, 52];
 const C_WHITE = [255, 255, 255];
 const STATE_C = [C_REST, C_LISTEN, C_THINK, C_JADE];
 
@@ -177,9 +182,9 @@ export function makeGrains(ctx, size, rings) {
     BX = new Float32Array(N); BY = new Float32Array(N); BA = new Float32Array(N); BS = new Float32Array(N);
     // the mockup's body, grain for grain (seed 11, the same draws in the same order)
     const r = seeded(11);
-    const gold = Math.PI * (3 - Math.sqrt(5));
+    const phi = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < N; i++) {
-      const y0 = 1 - (2 * (i + 0.5)) / N, rad = Math.sqrt(1 - y0 * y0), th0 = gold * i;
+      const y0 = 1 - (2 * (i + 0.5)) / N, rad = Math.sqrt(1 - y0 * y0), th0 = phi * i;
       let x = Math.cos(th0) * rad + (r() - 0.5) * 0.07;
       let y = y0 + (r() - 0.5) * 0.07;
       let z = Math.sin(th0) * rad + (r() - 0.5) * 0.07;
@@ -220,7 +225,8 @@ export function makeGrains(ctx, size, rings) {
   // the turn and its forms
   let turn = REST, turnAt = -1e12, step = 0;
   let form = F_REST, fromF = F_REST, formAt = -1e12, formD = 1, stag = 0.4, settledAt = -1e12;
-  let T = 0, lvl = 0, still = false, plain = false;
+  let T = 0, lvl = 0, still = false, plain = false, gold = false;
+  const stateC = (w) => (w === SPEAK && gold ? C_GOLD : STATE_C[w]);
   const ringsW = tween(1); // the engine's rings
   const spW = tween(0); // the speaking state: the heart's swell, the jade's weight
   const cwW = tween(0); // pushing back
@@ -401,6 +407,7 @@ export function makeGrains(ctx, size, rings) {
       // settled at rest: everything already reads rest, so skip the work
       if (want === REST && turn === REST && !layer.active && !isStill) return;
       plain = !!st.formOnly;
+      gold = !!st.gold;
       still = !!isStill;
       lvl = still ? 0 : level;
       const contest = want === SPEAK && !!st.contest;
@@ -415,7 +422,7 @@ export function makeGrains(ctx, size, rings) {
         pin(spW, want === SPEAK ? 1 : 0);
         pin(cwW, contest ? 1 : 0);
         pin(glowW, form === F_MEMBRANE ? 1 : 0);
-        cTo = plain ? C_REST : STATE_C[want];
+        cTo = plain ? C_REST : stateC(want);
         cFrom.set(cTo);
         cAt = -1e12;
       } else {
@@ -423,7 +430,7 @@ export function makeGrains(ctx, size, rings) {
         aim(ringsW, T, home ? 1 : 0, home ? 700 : 450, home ? 300 : 0);
         aim(spW, T, want === SPEAK ? 1 : 0, home ? 900 : 420);
         aim(cwW, T, contest ? 1 : 0, contest ? 300 : 400);
-        const ct = plain ? C_REST : STATE_C[want];
+        const ct = plain ? C_REST : stateC(want);
         if (ct !== cTo) {
           cFrom.set(cNow);
           cTo = ct;
@@ -467,8 +474,8 @@ export function makeGrains(ctx, size, rings) {
       const sw = plain ? 0 : sp * (1 - contNow); // the jade's weight
       mix3(body, cNow, C_CONTEST, plain ? 0 : contNow);
       mix3(rim, body, C_WHITE, 0.5);
-      if (sw > 0) mix3(rim, rim, C_JADE_RIM, sw);
-      mix3(glow, body, C_JADE_GLOW, sw);
+      if (sw > 0) mix3(rim, rim, gold ? C_GOLD_RIM : C_JADE_RIM, sw);
+      mix3(glow, body, gold ? C_GOLD_GLOW : C_JADE_GLOW, sw);
       const bk = keyOf(body);
       if (bk !== bodyKey) { bodyKey = bk; bodyStyle = `rgb(${bk >> 16},${(bk >> 8) & 255},${bk & 255})`; }
       const rk = keyOf(rim);

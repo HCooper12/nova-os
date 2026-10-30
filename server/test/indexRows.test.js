@@ -216,7 +216,8 @@ test('off the Index there is no Index to build', () => {
 
 test('the tab bar is summary-only, and the floating dock is still there for every other style', () => {
   const chrome = read('src/MobileChrome.jsx');
-  assert.match(chrome, /\{v\.summary \? <SummaryDock v=\{v\} \/> : \(\n\s*<div className="nv-liquid nv-liquid-dock"/);
+  // 31 Oct 2026: none on the Nova page (ONE_NOVA_CHROME.tabBar, his answer on mockup 106)
+  assert.match(chrome, /\{v\.summary \? \(v\.novaThread && !ONE_NOVA_CHROME\.tabBar \? null : <SummaryDock v=\{v\} \/>\) : \(\n\s*<div className="nv-liquid nv-liquid-dock"/);
   assert.match(chrome, /onClick=\{\(\) => setMoreOpen\(true\)\}/, 'the More sheet still opens under the other styles');
 });
 

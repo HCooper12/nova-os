@@ -311,8 +311,8 @@ test('one canvas (29 Oct, mockup 106 A): the head became the presenter\'s spot; 
   assert.match(src, /<NovaStage T=\{T\} S=\{S\} dict=\{dict\}/, 'the stage is drawn by the page itself');
   const stage = read('src/NovaStage.jsx');
   assert.equal((stage.match(/<CoreFace /g) || []).length, 1, 'one core on the page');
-  assert.match(stage, /<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus tinted size=\{300\} contest=\{contest\} \/>/, 'the full screen\'s tinted core');
-  assert.match(stage, /className="nv-nt-omore" onClick=\{onStatus\}/, 'the › still opens status, always on screen');
+  assert.match(stage, /<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus tinted size=\{300\} contest=\{contest\} gold=\{STAGE_SPEAK === 'gold'\} \/>/, 'the full screen\'s tinted core, speaking in the mockup\'s gold');
+  assert.match(stage, /\{chrome\.status && <button ref=\{moreRef\} type="button" className="nv-nt-omore" onClick=\{onStatus\}/, 'the › opens status, on the history view (31 Oct, his answer)');
   assert.match(src, /onStatus=\{\(\) => setStatusOpen\(true\)\}/);
 });
 
@@ -383,7 +383,7 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
 
 test('NovaCore and StageCard draw exactly as before unless the thread asks', () => {
   const core = read('src/NovaCore.jsx');
-  assert.match(core, /formOnly = false, pace = 1, still = false, pixelRatio = 0 \}\) \{/);
+  assert.match(core, /formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false \}\) \{/);
   // formOnly keeps Nova's blue: the grain engine (0d5b89c) reads it as rest
   assert.match(core, /const turn = st\.formOnly \? REST : turnOf\(st\);/);
   const card = read('src/StageCard.jsx');

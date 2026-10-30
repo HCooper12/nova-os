@@ -59,7 +59,7 @@ export function Ico({ name, className = '' }) {
 // speaking"), with the heart leaning toward his finger (`leanRef`). Left at
 // their defaults the thread's face is exactly as it was: form only.
 export const CORE_BIG = 208;
-export function CoreFace({ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null, contest = false }) {
+export function CoreFace({ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null, contest = false, gold = false }) {
   const form = coreFormOf(stateKey);
   const growRef = useRef(null);
   useEffect(() => {
@@ -86,7 +86,7 @@ export function CoreFace({ stateKey, engine, focus, tinted = false, size = CORE_
       <span ref={growRef} className="nv-nt-grow">
         <span className="nv-nt-canvas">
           <NovaCore size={size} engine={engine} formOnly={!tinted} tintStill={tinted} leanRef={leanRef} pace={form.pace} still={form.still}
-            listening={stateKey === 'listening'} speaking={stateKey === 'speaking'} thinking={stateKey === 'thinking'} contest={contest} style={{ pointerEvents: 'none' }} />
+            listening={stateKey === 'listening'} speaking={stateKey === 'speaking'} thinking={stateKey === 'thinking'} contest={contest} speakGold={gold} style={{ pointerEvents: 'none' }} />
         </span>
         {form.spin && (
           <svg className="nv-nt-chase" viewBox="0 0 100 100" aria-hidden="true">

@@ -158,16 +158,16 @@ test('the state → tint table (his calls, 4 Oct): violet listening, cyan thinki
   assert.match(fx, /const contest = S\.key === 'speaking' && !!T\.contest;/);
   assert.match(fx, /const stateWord = contest \? 'Pushing back' : S\.word;/);
   const parts = read('src/NovaThreadParts.jsx');
-  assert.match(parts, /export function CoreFace\(\{ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null, contest = false \}\) \{/);
+  assert.match(parts, /export function CoreFace\(\{ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null, contest = false, gold = false \}\) \{/);
   // the core is told thinking and a pushback, as well as listening and speaking (4 Oct 2026)
   assert.match(parts, /thinking=\{stateKey === 'thinking'\} contest=\{contest\}/);
   assert.match(parts, /<NovaCore size=\{size\} engine=\{engine\} formOnly=\{!tinted\} tintStill=\{tinted\} leanRef=\{leanRef\}/);
   assert.match(parts, /listening=\{stateKey === 'listening'\} speaking=\{stateKey === 'speaking'\}/, 'the core is told the state, which its own tints read');
   const core = read('src/NovaCore.jsx');
-  assert.match(core, /leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0 \}\) \{/, 'the lean and the still tint are optional; every other caller draws as before');
+  assert.match(core, /leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false \}\) \{/, 'the lean and the still tint are optional; every other caller draws as before');
   // under reduced motion the full screen's one still frame wears the state colour, redrawn when it changes
   assert.match(core, /draw\(engine === 'hologram' \? 3\.2 : 1\.7, tintStill(?:, true)?\);/);
-  assert.match(core, /stillDraw\.current\?\.\(engine === 'hologram' \? 3\.2 : 1\.7, true(?:, true)?\);\n  \}, \[speaking, listening, (?:thinking, contest, )?formOnly, engine\]\);/);
+  assert.match(core, /stillDraw\.current\?\.\(engine === 'hologram' \? 3\.2 : 1\.7, true(?:, true)?\);\n  \}, \[speaking, listening, (?:thinking, contest, )?formOnly, engine(?:, speakGold)?\]\);/);
   assert.match(core, /const k = snap \? 1 : 0\.07;/);
 });
 
@@ -328,7 +328,7 @@ test('the classic Voice screen is untouched: the full screen lives on the summar
   assert.doesNotMatch(voice, /NovaFocus|nv-fx/);
   // the thread's stage reuses the full screen's pieces, never copies of them
   assert.match(read('src/screens/NovaThread.jsx'), /import \{ NovaStage \} from '\.\.\/NovaStage\.jsx';/);
-  assert.match(read('src/NovaStage.jsx'), /import \{ useHeldPhase, useEmberField, Listening, Thinking, Captions \} from '\.\/NovaFocus\.jsx';/);
+  assert.match(read('src/NovaStage.jsx'), /import \{ Captions \} from '\.\/NovaFocus\.jsx';/);
   for (const f of ['src/NovaFocus.jsx', 'src/NovaStage.jsx', 'src/novaStageFacts.js', 'src/novaFocusFacts.js', 'src/subtitlePace.js', 'src/speechClock.js']) {
     const src = read(f).replace(/\/\/[^\n]*/g, '');
     assert.doesNotMatch(src, /\bfetch\(|\bapi\.|from '\.\.?\/api\.js'/, `${f} reaches no network`);

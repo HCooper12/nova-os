@@ -4400,6 +4400,9 @@ button.nv-ts-cd[disabled] { cursor: default; }
   .nv-nt-stage, .nv-nt-composer, .nv-nt-strip, .nv-nt-sheet, .nv-nt-cmenu { background: var(--nv-void); }
   /* the one canvas's glass on the Nova page (29 Oct, the .nv-nt block's end) */
   .nv-nt .nv-fx-plate, .nv-nt .nv-fx-panel, .nv-nt .nv-fx-ask, .nv-nt .nv-nt-oback, .nv-nt .nv-nt-omore { background: var(--fx-g1); }
+  /* and the One Nova stage's glass (31 Oct, the block at the file's end; :root
+     outranks its two-class rules) */
+  :root .nv-nt .nv-nt-composer, :root .nv-nt-stplate, :root .nv-nt-oback, :root .nv-nt-omore { background: var(--nv-void); }
   /* and the dim behind the Nova thread's stage is a solid dim, not a blur
      (two classes: the .nv-nt block comes later in the file, and one class
      there would outrank one class here) */
@@ -4663,6 +4666,171 @@ button.nv-ts-cd[disabled] { cursor: default; }
   .nv-lamp[data-bloom="true"] { animation: none; }
   .nv-practice-mic[data-on="true"]::after { animation: none; opacity: .6; transform: none; }
 }
+
+/* ================================================================
+   ONE NOVA STAGE (31 Oct 2026) — design/mockups/106-one-nova.html option A,
+   rebuilt to BE the mockup (his words: "If I approve a mockup it should
+   always and always be identical to the mock up when you deploy it").
+   src/NovaStage.jsx and the composer in src/screens/NovaThread.jsx. Every
+   size, colour and timing here is the mockup's own (its CSS, 390 x 844),
+   on its --nv-* tokens; the stage's children sit at the mockup's distances
+   from the screen's top (the stage's top is the screen's top at the foot of
+   the scroll), the hint and the plate's foot at its distances above the
+   composer (--st-ctop, measured). The core is the real one (NovaCore), his
+   one exception, placed, sized and tinted here and in the driver.
+   ================================================================ */
+/* the ground: the mockup phone's own gradient and its three drifting lights */
+.nv-nt .nv-nt-ground { background: linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%); }
+.nv-nt-stsky { position: absolute; inset: 0; overflow: hidden; }
+.nv-nt-stsky i { position: absolute; display: block; border-radius: 50%; will-change: transform; }
+.nv-nt-stsky i:nth-child(1) { width: 150%; height: 62%; left: -55%; top: -20%; background: radial-gradient(closest-side, color-mix(in srgb, var(--nv-cy) 24%, transparent), transparent); animation: nvStDrift1 26s ease-in-out infinite alternate; }
+.nv-nt-stsky i:nth-child(2) { width: 140%; height: 70%; left: 25%; top: 6%; background: radial-gradient(closest-side, color-mix(in srgb, var(--nv-vi) 28%, transparent), transparent); animation: nvStDrift2 32s ease-in-out infinite alternate; }
+.nv-nt-stsky i:nth-child(3) { width: 170%; height: 46%; left: -35%; top: 70%; background: radial-gradient(closest-side, color-mix(in srgb, var(--nv-gold) 15%, transparent), transparent); animation: nvStDrift1 38s ease-in-out infinite alternate-reverse; }
+@keyframes nvStDrift1 { to { transform: translate3d(9%, 6%, 0); } }
+@keyframes nvStDrift2 { to { transform: translate3d(-10%, -5%, 0); } }
+.nv-nt-stembers { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* the core: one fixed element, placed and sized by transform alone */
+.nv-nt-ocore { position: fixed; z-index: 15; left: 0; top: 0; width: 300px; height: 300px; transform-origin: 50% 50%; will-change: transform; --nt-core: 300px; --nt-k: 1; }
+.nv-nt-ocore .nv-nt-canvas { width: 300px; height: 300px; }
+.nv-nt-ocore .nv-fx-corehit { position: absolute; inset: 0; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.nv-nt-ocore .nv-nt-core { width: 300px; height: 300px; }
+/* thinking: the orbit arc, cyan, close round the knot (the mockup's R x 1.04) */
+.nv-nt-ocore .nv-nt-chase { inset: 13%; width: 74%; height: 74%; }
+.nv-nt-ocore .nv-nt-chase circle { stroke: var(--nv-cy); stroke-width: 1.6; }
+.nv-nt-opour { position: fixed; z-index: 16; left: 0; top: 0; width: 100vw; height: 100dvh; display: block; pointer-events: none; }
+
+/* the presenter's spot, only over the history (.hdr) */
+.nv-nt-ohead { position: fixed; z-index: 14; left: 0; top: 0; width: 100%; height: 132px; pointer-events: none; }
+.nv-nt-oband { position: absolute; inset: 0; opacity: 0; will-change: opacity; background: linear-gradient(color-mix(in srgb, var(--nv-void) 97%, transparent) 72%, transparent); }
+.nv-nt-opn {
+  position: absolute; left: calc(max(0px, (100% - 560px) / 2) + 84px); top: 50px; display: grid; gap: 1px; justify-items: start; padding: 0; border: 0; background: none;
+  cursor: pointer; text-align: left; color: var(--nv-ink); opacity: 0; pointer-events: none; will-change: opacity;
+}
+.nv-nt-opn b { font: 700 22px/1.1 var(--nv-font-ui); letter-spacing: -.02em; }
+.nv-nt-opn span { display: inline-flex; align-items: center; gap: 7px; font: 400 14px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-opn .nv-nt-stdot { width: 8px; height: 8px; box-shadow: none; }
+.nv-nt-oact { position: absolute; top: 46px; right: calc(max(0px, (100% - 560px) / 2) + 12px); display: flex; align-items: center; gap: 8px; }
+.nv-nt-oback, .nv-nt-omore {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 0 14px 0 12px; border: 0; border-radius: 22px; cursor: pointer;
+  font: 600 14px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 10%, transparent);
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 16%, transparent), 0 1px 0 color-mix(in srgb, var(--nv-ink) 20%, transparent) inset;
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  opacity: 0; pointer-events: none; will-change: opacity; transition: transform var(--nv-dur-fast) var(--nv-ease);
+}
+.nv-nt-omore { width: 44px; padding: 0; color: var(--nv-ink60); }
+.nv-nt-oback .nv-nt-ico { width: 17px; height: 17px; }
+.nv-nt-opn[data-on], .nv-nt-oback[data-on], .nv-nt-omore[data-on] { pointer-events: auto; }
+.nv-nt-oback:active, .nv-nt-omore:active { transform: scale(.97); }
+
+/* the stage: the foot of the one scroll, its top the screen's top there */
+.nv-nt-osec {
+  position: relative; z-index: 1; flex: none; box-sizing: border-box; margin: 0 -16px; min-height: 360px;
+  height: calc(var(--oc-vh, 100dvh) - var(--oc-foot, 150px));
+}
+.nv-nt-stdot { flex: none; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--st-dot, var(--nv-cy)); box-shadow: 0 0 12px var(--st-dot, var(--nv-cy)); transition: background var(--nv-dur-base) var(--nv-ease), box-shadow var(--nv-dur-base) var(--nv-ease); }
+.nv-nt-stdot[data-tone="vi"] { --st-dot: var(--nv-vi); }
+.nv-nt-stdot[data-tone="gold"] { --st-dot: var(--nv-gold); }
+.nv-nt-stdot[data-tone="jade"] { --st-dot: var(--nv-say); }
+.nv-nt-stdot[data-tone="contest"] { --st-dot: var(--nv-contest); }
+.nv-nt-stdot[data-tone="warn"] { --st-dot: var(--nv-warn); }
+.nv-nt-stdot[data-tone="quiet"] { --st-dot: var(--nv-ink40); box-shadow: none; }
+.nv-nt-stword { position: absolute; left: 0; right: 0; top: 396px; height: 28px; margin: 0; display: flex; justify-content: center; align-items: center; gap: 9px; color: var(--nv-ink); }
+.nv-nt-stword b { display: inline-block; font: 600 20px var(--nv-font-ui); letter-spacing: -.01em; animation: nvStWord .28s var(--nv-ease) both; }
+.nv-nt-stword span { font: 400 15px var(--nv-font-ui); color: var(--nv-ink50); }
+@keyframes nvStWord { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+/* what each state holds: in with the house ease, out with the exit curve */
+.nv-nt-stexch, .nv-nt-stheard, .nv-nt-stplate {
+  position: absolute; opacity: 0; transform: translate3d(0, var(--nv-rise), 0); pointer-events: none;
+  transition: opacity var(--nv-dur-base) var(--nv-ease-exit), transform var(--nv-dur-base) var(--nv-ease-exit);
+}
+.nv-nt-osec[data-state="idle"] .nv-nt-stexch, .nv-nt-osec[data-state="listen"] .nv-nt-stheard,
+.nv-nt-osec[data-state="think"] .nv-nt-stheard, .nv-nt-osec[data-state="speak"] .nv-nt-stplate {
+  opacity: 1; transform: none; pointer-events: auto; transition-timing-function: var(--nv-ease);
+}
+.nv-nt-stexch { left: 28px; right: 28px; top: 446px; display: grid; gap: 10px; justify-items: center; text-align: center; }
+.nv-nt-stexch > button { display: block; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; color: inherit; text-align: center; text-wrap: balance; }
+.nv-nt-stexch .t { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.nv-nt-stexch .q .t { -webkit-line-clamp: 2; }
+.nv-nt-stexch .a .t { -webkit-line-clamp: 3; }
+.nv-nt-stexch .q { font: 400 15px/1.35 var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-nt-stexch .a { font: 400 22px/1.3 var(--nv-font-serif); color: var(--nv-ink60); }
+.nv-nt-stexch > button > span:first-child { display: block; margin-bottom: 2px; font: 600 12px var(--nv-font-ui); letter-spacing: .02em; color: var(--nv-ink40); }
+.nv-nt-stexch .nv-nt-decide { width: 100%; text-align: left; }
+.nv-nt-stasks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.nv-nt-stheard { left: 28px; right: 28px; top: 446px; text-align: center; font: italic 400 22px/1.35 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; }
+.nv-nt-stheard small { display: block; margin-bottom: 6px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+.nv-nt-sthw .w { display: inline-block; white-space: pre; animation: nvStHw .28s var(--nv-ease) both; }
+@keyframes nvStHw { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+.nv-nt-sthint { position: absolute; left: 0; right: 0; top: calc(var(--st-ctop, 762px) - 66px); margin: 0; display: flex; justify-content: center; align-items: center; gap: 6px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink40); transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-nt-sthint .nv-nt-ico { width: 15px; height: 15px; }
+.nv-nt-osec[data-state="listen"] .nv-nt-sthint, .nv-nt-osec[data-state="speak"] .nv-nt-sthint, .nv-nt-osec[data-crowded][data-state="idle"] .nv-nt-sthint { opacity: 0; }
+
+/* the plate and its serif subtitles (mockup 106 .plate, .who, .pq, .pa, .w) */
+.nv-nt-stplate {
+  left: 12px; right: 12px; top: 426px; height: calc(var(--st-ctop, 762px) - 55px - 426px); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
+  padding: 14px 20px 16px; border-radius: 30px; background: color-mix(in srgb, var(--nv-bg1) 62%, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5); backdrop-filter: blur(30px) saturate(1.5);
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 14%, transparent), 0 1px 0 color-mix(in srgb, var(--nv-ink) 22%, transparent) inset, 0 26px 54px -24px rgba(0, 0, 0, .85);
+  --fx-ink: var(--nv-ink); --fx-ink3: var(--nv-ink40);
+}
+.nv-nt-stplate .nv-fx-phead { min-height: 0; margin-bottom: 10px; }
+.nv-nt-stplate .nv-fx-who {
+  gap: 7px; height: 28px; padding: 0 12px 0 8px; border-radius: 14px; font: 600 14px var(--nv-font-ui); color: var(--nv-ink);
+  background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-hue) 45%, transparent);
+}
+.nv-nt-stplate .nv-fx-who .dot { width: 12px; height: 12px; background: var(--fx-hue); box-shadow: none; }
+.nv-nt-stasked { flex: none; margin: 0 0 10px; font: italic 400 15px/1.35 var(--nv-font-serif); color: var(--nv-ink50); }
+.nv-nt-stasked b { margin-right: 7px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+.nv-nt-stplate .nv-fx-dock { flex: none; max-height: 45%; margin-bottom: 10px; }
+.nv-nt-stplate .nv-fx-pbody { margin-top: 0; -webkit-mask-image: none; mask-image: none; }
+.nv-nt-stplate .nv-fx-pbody[data-scrolled] { -webkit-mask-image: linear-gradient(transparent 0, #000 28px); mask-image: linear-gradient(transparent 0, #000 28px); }
+.nv-nt-stplate .nv-fx-pcol { top: 0; left: 0; right: 0; margin: 0; font: 400 25px/1.3 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+.nv-nt-stplate .nv-fx-pcol p, .nv-nt-stplate .nv-fx-pcol p.earlier { display: inline; margin: 0; font: inherit; color: inherit; }
+.nv-nt-stplate .nv-fx-w { color: var(--nv-ink); transition: color var(--nv-dur-base) var(--nv-ease); }
+.nv-nt-stplate .nv-fx-w::after { background: var(--fx-hue); }
+.nv-nt-stplate .nv-fx-note { margin: 0; }
+
+/* the composer, always at the foot (.composer): a glass bar 68 tall, the
+   field and the round mic; listening, × Type, the violet wave, Send now,
+   the bar outlined in violet. With no tab bar (ONE_NOVA_CHROME.tabBar) it
+   sits 14 px off the foot, as the mockup. */
+.nv-nt .nv-nt-composer {
+  display: block; height: auto; min-height: 68px; padding: 10px 10px 10px 12px; border-radius: 34px;
+  background: var(--nv-glass); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: inset 0 0 0 1px var(--nv-edge), inset 0 1px 0 var(--nv-spec), 0 14px 34px -16px rgba(0, 0, 0, .7);
+}
+.nv-nt.mob[data-tabbar="0"] .nv-nt-composer { bottom: 14px; }
+.nv-nt .nv-nt-composer::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; box-shadow: 0 0 0 1.5px var(--nv-vi), 0 0 26px -6px var(--nv-vi); transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-nt .nv-nt-composer.listening::after { opacity: .9; }
+.nv-nt .nv-nt-bar { display: flex; align-items: center; gap: 8px; }
+.nv-nt .nv-nt-bar.listen { animation: nvStIn .28s var(--nv-ease) both; }
+@keyframes nvStIn { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+.nv-nt .nv-nt-plus { flex: none; width: 48px; height: 48px; border-radius: 24px; }
+.nv-nt .nv-nt-field { flex: 1; min-height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: rgba(0, 0, 0, .28); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 12%, transparent); }
+.nv-nt .nv-nt-field input { height: 46px; font: 400 16px var(--nv-font-ui); }
+.nv-nt .nv-nt-field input::placeholder { color: var(--nv-ink50); }
+.nv-nt .nv-nt-mic, .nv-nt .nv-nt-send { flex: none; width: 48px; height: 48px; border: 0; border-radius: 24px; display: grid; place-items: center; cursor: pointer; transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-nt .nv-nt-mic { color: var(--nv-cy); background: color-mix(in srgb, var(--nv-cy) 16%, transparent); box-shadow: inset 0 0 0 1.5px var(--nv-cy); }
+.nv-nt .nv-nt-mic .nv-nt-ico { width: 20px; height: 20px; }
+.nv-nt .nv-nt-mic:disabled { opacity: .45; }
+.nv-nt .nv-nt-type { flex: none; gap: 5px; height: 48px; padding: 0 16px 0 12px; border-radius: 24px; font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 10%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 20%, transparent); }
+.nv-nt .nv-nt-type svg { width: 17px; height: 17px; }
+.nv-nt-wave { flex: 1; min-width: 0; height: 48px; display: flex; align-items: center; justify-content: center; gap: 3px; overflow: hidden; }
+.nv-nt-wave i { flex: none; display: block; width: 3px; height: 30px; border-radius: 2px; background: var(--nv-vi); opacity: .9; transform: scaleY(.12); transform-origin: 50% 50%; }
+.nv-nt .nv-nt-stop { flex: none; height: 48px; padding: 0 18px; border-radius: 24px; font: 700 15px var(--nv-font-ui); color: #14102e; background: var(--nv-vi); }
+.nv-nt .nv-nt-mic:active, .nv-nt .nv-nt-type:active, .nv-nt .nv-nt-stop:active { transform: scale(.96); }
+.nv-nt-cnote { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); text-align: center; font: 500 13px var(--nv-font-ui); color: var(--nv-ink60); pointer-events: none; }
+.nv-nt-cnote:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-nt-stsky i { animation: none; }
+  .nv-nt-stexch, .nv-nt-stheard, .nv-nt-stplate, .nv-nt-sthw .w, .nv-nt-stword b { transition: opacity var(--nv-dur-fast) linear; animation: none; }
+  .nv-nt-stexch, .nv-nt-stheard, .nv-nt-stplate { transform: none; }
+  .nv-nt .nv-nt-bar.listen { animation: none; }
+}
+:root[data-nv-calm="1"] .nv-nt-stsky i { animation: none; }
+/* end of the One Nova stage */
 
 /* ================================================================
    THE RECIPE PAGE (29 Sep 2026) — src/RecipePage.jsx's parts, laid out
@@ -5495,84 +5663,8 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-ground { position: fixed; z-index: 0; left: 0; top: 0; width: 100vw; height: 100dvh; overflow: hidden; pointer-events: none; background: var(--fx-g0); }
 body:has(.nv-nt.mob .nv-nt-ground) .nv-sky { visibility: hidden; }
 .nv-nt .nv-nt-thread { position: relative; z-index: 1; padding-top: 116px; }
-/* the presenter's spot: the band keeps the history legible under it */
-.nv-nt-ohead { position: fixed; z-index: 14; left: 0; top: var(--nt-top); width: 100%; height: 106px; pointer-events: none; }
-.nv-nt-oband {
-  position: absolute; left: 0; right: 0; top: calc(-1 * var(--nt-top)); bottom: -22px; opacity: 0; will-change: opacity;
-  /* solid under the name, then a soft fade: the history read through it
-     at 94% on his sky theme (30 Oct shot), so the top is opaque and blurred */
-  background: linear-gradient(var(--fx-g0) 0 70%, transparent);
-  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
-  -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent);
-}
-.nv-nt-opn {
-  position: absolute; top: 53px; left: calc(max(16px, (100% - 560px) / 2 + 16px) + 102px); right: 160px;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
-  opacity: 0; transform: translateY(-50%); will-change: opacity, transform; pointer-events: none;
-}
-.nv-nt-opn[data-on] { pointer-events: auto; }
-.nv-nt-opn b { font: 700 24px/1.1 var(--nv-font-ui); letter-spacing: -.02em; color: var(--fx-ink); }
-.nv-nt-opn span { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; font: 400 15px/1.3 var(--nv-font-ui); color: var(--fx-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nv-nt-opn span[data-contest] { color: var(--nv-contest); }
-.nv-nt-oact { position: absolute; top: 53px; right: max(12px, (100% - 560px) / 2 + 12px); display: flex; align-items: center; gap: 8px; transform: translateY(-50%); pointer-events: auto; }
-.nv-nt-oback, .nv-nt-omore {
-  height: 44px; border: 0; border-radius: 22px; cursor: pointer; color: var(--fx-ink);
-  background: var(--fx-quiet); box-shadow: 0 0 0 .5px var(--fx-ring), 0 1px 0 var(--fx-hi) inset;
-  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
-  transition: transform var(--nv-dur-fast) var(--nv-ease);
-}
-.nv-nt-oback { display: inline-flex; align-items: center; gap: 4px; padding: 0 14px 0 10px; font: 600 15px/1 var(--nv-font-ui); opacity: 0; pointer-events: none; will-change: opacity; }
-.nv-nt-oback[data-on] { pointer-events: auto; }
-.nv-nt-omore { width: 44px; display: grid; place-items: center; padding: 0; color: var(--fx-ink2); }
-.nv-nt-oback:active, .nv-nt-omore:active { transform: scale(.97); }
-/* the core: one fixed element, placed by transform alone */
-.nv-nt-ocore { position: fixed; z-index: 15; left: 0; top: 0; width: 300px; height: 300px; transform-origin: 50% 50%; will-change: transform; --nt-core: 300px; --nt-k: 1; }
-.nv-nt-ocore .nv-nt-canvas { width: 300px; height: 300px; }
-.nv-nt-opour { position: fixed; z-index: 16; left: 0; top: 0; width: 100vw; height: 100dvh; display: block; pointer-events: none; }
-/* the stage: the foot of the scroll, exactly the room between the head and the composer */
-.nv-nt-osec {
-  position: relative; z-index: 1; flex: none; box-sizing: border-box; margin: 0 -16px; min-height: 360px;
-  height: calc(var(--oc-vh, 100dvh) - var(--oc-top, 0px) - var(--oc-foot, 150px));
-}
-.nv-nt-ofield {
-  position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 16px 40px;
-  transition: opacity var(--nv-dur-base) var(--nv-ease) 120ms, transform var(--nv-dur-slow) var(--nv-ease) 120ms;
-}
-.nv-nt-osec[data-phase="stage"] .nv-nt-ofield { opacity: 0; transform: translateY(10px); pointer-events: none; transition-delay: 0s; }
-.nv-nt-oslot { flex: none; width: calc(300px * var(--oc-k, .84)); height: calc(300px * var(--oc-k, .84)); }
-.nv-nt-ofield > * { flex-shrink: 0; }
-.nv-nt-ostate { display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; margin: 4px 0 0; font: 400 15px/1.3 var(--nv-font-ui); color: var(--fx-ink2); text-align: center; }
-.nv-nt-ostate b { font: 600 19px/1.2 var(--nv-font-ui); letter-spacing: -.01em; color: var(--fx-ink); }
-.nv-nt-ostate span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nv-nt-oasks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
-.nv-nt-oex { display: grid; gap: 6px; width: 100%; max-width: 440px; margin-top: 14px; min-height: 0; }
-.nv-nt-oex button {
-  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; padding: 2px 8px; border: 0; border-radius: 14px;
-  background: none; cursor: pointer; text-align: center; text-wrap: balance; color: inherit;
-}
-.nv-nt-oex .q { -webkit-line-clamp: 3; font: 400 15px/1.35 var(--nv-font-ui); color: var(--fx-ink3); }
-.nv-nt-oex .a { -webkit-line-clamp: 4; font: 400 20px/1.3 var(--nv-font-serif); color: var(--fx-ink2); }
-.nv-nt-oex span { display: block; margin-bottom: 2px; font: 600 13px/1.3 var(--nv-font-ui); letter-spacing: .02em; color: var(--fx-ink3); }
-.nv-nt-oex button:active { transform: scale(.985); transition: transform .12s var(--nv-ease); }
-.nv-nt-ofield .nv-nt-decide { width: 100%; max-width: 440px; box-sizing: border-box; margin-top: 14px; }
-.nv-nt-ohint { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; font: 500 13px var(--nv-font-ui); color: var(--fx-ink3); }
-.nv-nt-ohint .nv-nt-ico { width: 15px; height: 15px; }
-/* his turn: the plate (and a docked panel) under the presenter's core */
-.nv-nt-obox {
-  position: absolute; left: 12px; right: 12px; top: 112px; bottom: 12px; max-width: 416px; margin: 0 auto;
-  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
-  opacity: 0; transform: translateY(18px) scale(.98); transform-origin: 50% 0;
-  transition: opacity var(--nv-dur-fast) var(--nv-ease), transform var(--nv-dur-slow) var(--nv-ease);
-}
-.nv-nt-osec[data-phase="stage"] .nv-nt-obox { opacity: 1; transform: none; pointer-events: auto; transition-delay: 120ms; transition-duration: var(--nv-dur-base), var(--nv-dur-slow); }
-@media (hover: hover) and (pointer: fine) {
-  .nv-nt-oback:hover, .nv-nt-omore:hover, .nv-nt-oex button:hover { background: color-mix(in srgb, var(--fx-ink) 12%, transparent); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .nv-nt-ofield, .nv-nt-obox { transition: opacity .2s ease; }
-  .nv-nt-ofield, .nv-nt-obox, .nv-nt-osec[data-phase="stage"] .nv-nt-ofield, .nv-nt-osec[data-phase="stage"] .nv-nt-obox { transform: none; }
-  .nv-nt-oback, .nv-nt-omore, .nv-nt-oex button:active { transition: none; transform: none; }
-}
+/* the stage's layers, the presenter's spot and the composer's face are
+   drawn by the ONE NOVA STAGE block at the end of this file (31 Oct 2026) */
 /* end of the Nova thread */
 
 /* ================================================================
@@ -6416,3 +6508,4 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 .nv-ss-hrow .w em { margin-left: 8px; padding: 2px 8px; border-radius: 10px; font: 600 13px/1.3 var(--nv-font-ui); font-style: normal; color: var(--nv-gold); background: color-mix(in srgb, var(--nv-gold) 14%, transparent); }
 @keyframes nv-ss-hin { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .nv-ss-hrow { animation: none; } }
+

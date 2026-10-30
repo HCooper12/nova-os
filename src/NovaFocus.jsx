@@ -402,7 +402,7 @@ function drawPour(ctx, jobs, heart, o, now) {
         lat: (r() - 0.5) * 70, dn: r() * 36, delay: (k / K) * 90 + r() * 30, dur: job.land * (0.85 + 0.25 * r()), sz: 1.1 + r() * 1.2,
       }));
     }
-    const base = job.red ? POUR_RGB.red : POUR_RGB.jade;
+    const base = job.red ? POUR_RGB.red : job.gold ? POUR_RGB.gold : POUR_RGB.jade;
     let alive = false;
     for (const q of job.parts) {
       const t = now - job.t0 - q.delay;
@@ -426,7 +426,7 @@ function drawPour(ctx, jobs, heart, o, now) {
         x = q.ex; y = q.ey;
       }
       // the body's colour in flight, its lit edge near the word, white as it lands
-      const toward = job.red ? [255, 200, 205] : POUR_RGB.rim;
+      const toward = job.red ? [255, 200, 205] : job.gold ? POUR_RGB.goldRim : POUR_RGB.rim;
       const m = k < 0.6 ? k / 0.6 : 1;
       const w2 = k < 0.6 ? 0 : (k - 0.6) / 0.4;
       const cr = lerp(lerp(base[0], toward[0], m), 255, w2);
@@ -458,7 +458,7 @@ function wholeLook(s, sp, t) {
   if (Number.isFinite(s.cut) && sp.st >= s.cut) return { e: 0, lit: 0, p: 0 };
   return { e: clamp01((t - s.at) / 250), lit: 0, p: 0 };
 }
-export function Captions({ said, on, speaker, markHue = null, pour = null, look = WORD_LOOK.thread, offNote = 'Subtitles are off. Turn them on at the top right.' }) {
+export function Captions({ said, on, speaker, markHue = null, pour = null, look = WORD_LOOK.thread, offNote = 'Subtitles are off. Turn them on at the top right.', lead = null }) {
   const paced = useMemo(() => said.map((s) => ({ ...s, ...paceSentence(s) })), [said]);
   const colRef = useRef(null);
   const bodyRef = useRef(null);
@@ -490,7 +490,7 @@ export function Captions({ said, on, speaker, markHue = null, pour = null, look 
       sink.push({
         x: r.left, y: r.top, w: r.width, h: r.height, letters: el.textContent.length,
         t0: performance.now(), land: Math.max(180, Math.min(420, paced[i].spans[j].st - t)),
-        red: paced[i].stance === 'contest', seed: (i * 131 + j * 17 + 7) % 2147483646 + 1,
+        red: paced[i].stance === 'contest', gold: !!pour.gold, seed: (i * 131 + j * 17 + 7) % 2147483646 + 1,
       });
     };
     const paint = (i, t) => {
@@ -501,12 +501,15 @@ export function Captions({ said, on, speaker, markHue = null, pour = null, look 
         const L = reduced && look.whole ? wholeLook(s, sp, t) : wordLook(sp, t, { cut: s.cut, arrive: look.arrive });
         el.style.opacity = L.e.toFixed(3);
         el.style.transform = reduced ? '' : `translateY(${((1 - L.e) * look.rise).toFixed(2)}px)`;
-        el.style.filter = reduced || L.e >= 1 || L.e <= 0 ? '' : `blur(${((1 - L.e) * look.blur).toFixed(2)}px)`;
+        el.style.filter = reduced || !look.blur || L.e >= 1 || L.e <= 0 ? '' : `blur(${((1 - L.e) * look.blur).toFixed(2)}px)`;
         el.style.setProperty('--p', reduced ? (L.lit > 0 ? '1' : '0') : L.p.toFixed(3));
         // the underline leaves a little ahead of the colour, so the word
         // just said never carries a smudge into the next one
-        el.style.setProperty('--u', (L.lit * L.lit).toFixed(3));
-        el.style.color = L.lit > 0 ? `color-mix(in srgb, var(--fx-hue) ${Math.round(L.lit * 35)}%, var(--fx-ink))` : '';
+        el.style.setProperty('--u', (look.litFull ? L.lit : L.lit * L.lit).toFixed(3));
+        // the stage's look: the speaker's hue outright while the word is in
+        // the air (CSS eases the colour), as mockup 106's .w.lit
+        if (look.litFull) el.style.color = L.lit > 0.5 ? 'var(--fx-hue)' : '';
+        else el.style.color = L.lit > 0 ? `color-mix(in srgb, var(--fx-hue) ${Math.round(L.lit * 35)}%, var(--fx-ink))` : '';
       });
     };
     const tick = () => {
@@ -519,7 +522,14 @@ export function Captions({ said, on, speaker, markHue = null, pour = null, look 
       // moved only when the answer changes.
       const p = ps[ci];
       let y = 0;
-      if (p) {
+      if (p && look.flow) {
+        // one paragraph from the top: it moves only when the word being said
+        // would pass the plate's foot
+        const j = Math.max(0, Math.min(paced[ci].spans.length - 1, wordAt(paced[ci].spans, t)));
+        const w = words[ci]?.[j];
+        if (w) y = Math.round(Math.min(0, body.clientHeight - 8 - col.offsetTop - (w.offsetTop + w.offsetHeight)));
+        if (y !== lastY) body.toggleAttribute('data-scrolled', y < 0);
+      } else if (p) {
         const top = col.offsetTop;
         const foot = body.clientHeight - 8;
         y = foot - top - (p.offsetTop + p.offsetHeight);
@@ -590,13 +600,17 @@ export function Captions({ said, on, speaker, markHue = null, pour = null, look 
       <div className="nv-fx-phead">
         <span className="nv-fx-who" style={{ '--fx-hue': speaker.hue }}><i className="dot" aria-hidden="true" />{speaker.name}{speaker.voiced && <span>in Nova’s voice</span>}</span>
       </div>
+      {lead}
       {on ? (
         <div ref={bodyRef} className="nv-fx-pbody">
           <div ref={colRef} className="nv-fx-pcol">
             {paced.map((s, i) => (
-              <p key={s.id} data-i={i}>
-                {s.spans.map((w, j) => <Fragment key={j}><span className="nv-fx-w">{w.text}</span>{j < s.spans.length - 1 ? ' ' : null}</Fragment>)}
-              </p>
+              <Fragment key={s.id}>
+                <p data-i={i}>
+                  {s.spans.map((w, j) => <Fragment key={j}><span className="nv-fx-w">{w.text}</span>{j < s.spans.length - 1 ? ' ' : null}</Fragment>)}
+                </p>
+                {look.flow && i < paced.length - 1 ? ' ' : null}
+              </Fragment>
             ))}
           </div>
         </div>
