@@ -1,7 +1,7 @@
 /* THE WEEKLY MUSCLE SETS SHEET (16 Oct 2026; src/WeekSets.jsx). His
    approved round 4 mockup, on the house tokens: each muscle wears its own
-   hue (--h, from src/muscleHue.js), the growth range is --nv-good, short of
-   it is --nv-or, past it is --nv-warn, today is --nv-cy. Neutral fills mix
+   hue (--h, from src/muscleHue.js), the growth range is --nv-good, each
+   number's state is reached / on the way / short (below), today is --nv-cy. Neutral fills mix
    --nv-ink so the light theme reads too. */
 
 .nv-mw { --mw-track: color-mix(in srgb, var(--nv-ink) 4%, transparent); --mw-range: color-mix(in srgb, var(--nv-good) 9%, transparent); --mw-range-edge: color-mix(in srgb, var(--nv-good) 35%, transparent); font: 15px/1.45 var(--nv-font-ui); color: var(--nv-ink); }
@@ -23,7 +23,7 @@
 
 /* the muscles: one row each, a button that opens its card */
 .nv-mw-sect { display: flex; justify-content: space-between; gap: 10px; margin: 16px 0 6px; }
-.nv-mw-m { all: unset; box-sizing: border-box; width: calc(100% + 12px); display: grid; grid-template-columns: 86px minmax(0, 1fr) 52px; align-items: center; gap: 10px; margin: 0 -6px; padding: 5px 6px; border-radius: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; color: var(--nv-ink); }
+.nv-mw-m { all: unset; box-sizing: border-box; width: calc(100% + 12px); display: grid; grid-template-columns: 86px minmax(0, 1fr) 60px; align-items: center; gap: 10px; margin: 0 -6px; padding: 5px 6px; border-radius: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; color: var(--nv-ink); }
 .nv-mw-m:active { background: color-mix(in srgb, var(--nv-ink) 4%, transparent); }
 .nv-mw-m:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 1px; }
 .nv-mw-nm { font-size: 14px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -34,11 +34,27 @@
 .nv-mw-n { text-align: right; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .nv-mw-n b { font-size: 16px; font-weight: 700; display: block; }
 .nv-mw-n small { font-size: 11px; color: var(--nv-ink50); }
-.nv-mw-m.low .nv-mw-n b { color: var(--nv-or); }
-.nv-mw-m.high .nv-mw-n b { color: var(--nv-warn); }
-.nv-mw-scale { display: grid; grid-template-columns: 86px minmax(0, 1fr) 52px; gap: 10px; font: 500 10px var(--nv-font-mono); color: var(--nv-ink50); }
+/* where it stands (31 Oct 2026): one state per muscle, on the number only,
+   with a shape beside it so colour is never the only signal: a filled dot
+   (minimum reached, --nv-good), a half dot (on the way, --nv-gold: not yet,
+   but the plan gets there), an open ring (short by Sunday, --nv-warn) */
+.nv-mw { --mw-reached: var(--nv-good); --mw-onway: var(--nv-gold); --mw-short: var(--nv-warn); }
+.nv-mw-card { --mw-reached: var(--nv-good); --mw-onway: var(--nv-gold); --mw-short: var(--nv-warn); }
+:is(.nv-mw, .nv-mw-card) .is-reached { --mw-s: var(--mw-reached); }
+:is(.nv-mw, .nv-mw-card) .is-onway { --mw-s: var(--mw-onway); }
+:is(.nv-mw, .nv-mw-card) .is-short { --mw-s: var(--mw-short); }
+.nv-mw-n b { color: var(--mw-s, var(--nv-ink)); transition: color .3s ease; }
+.nv-mw-n em { display: block; font-style: normal; font-size: 10.5px; color: var(--nv-ink60); }
+.nv-mw-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: 2px; box-sizing: border-box; flex: none; }
+.is-reached .nv-mw-dot { background: var(--mw-s); }
+.is-onway .nv-mw-dot { background: linear-gradient(90deg, var(--mw-s) 50%, transparent 50%); box-shadow: inset 0 0 0 1.25px var(--mw-s); }
+.is-short .nv-mw-dot, .nv-mw-need .nv-mw-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--mw-short); }
+.nv-mw-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--nv-ink50); margin: 0 0 4px; }
+.nv-mw-ranges { margin: 0 0 10px; font-size: 12px; color: var(--nv-ink50); }
+.nv-mw-sum.is-reached strong, .nv-mw-sum.is-onway strong, .nv-mw-sum.is-short strong { color: var(--mw-s); }
+.nv-mw-scale { display: grid; grid-template-columns: 86px minmax(0, 1fr) 60px; gap: 10px; font: 500 10px var(--nv-font-mono); color: var(--nv-ink50); }
 .nv-mw-scale div { position: relative; height: 12px; }
-.nv-mw-scale span { position: absolute; transform: translateX(-50%); }
+.nv-mw-scale div span { position: absolute; transform: translateX(-50%); }
 .nv-mw-scale div span:first-child { transform: none; }
 
 /* the workouts: a card per training day */
@@ -56,6 +72,14 @@
 .nv-mw-chip.acc { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 30%, transparent); color: var(--nv-ink60); }
 .nv-mw-chip b { font-weight: 650; font-variant-numeric: tabular-nums; }
 .nv-mw-dup { margin-left: auto; font: 500 11.5px var(--nv-font-ui); color: var(--nv-or); white-space: nowrap; }
+.nv-mw-needs { margin-top: 18px; }
+.nv-mw-need { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: baseline; gap: 6px; padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--nv-ink) 5%, transparent); font-size: 13.5px; color: var(--nv-ink); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+div.nv-mw-need { cursor: default; }
+.nv-mw-need span { flex: 1; min-width: 0; text-wrap: pretty; }
+.nv-mw-need b { color: var(--nv-ink50); font-weight: 400; }
+.nv-mw-need:active { background: color-mix(in srgb, var(--nv-ink) 4%, transparent); }
+.nv-mw-need:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 1px; }
+.nv-mw-needgo { margin-top: 8px; }
 .nv-mw-talk { margin-top: 16px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent); }
 
 /* the muscle card: grows out of the tapped row, above the sheet */

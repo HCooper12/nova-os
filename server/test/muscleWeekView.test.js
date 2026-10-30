@@ -62,11 +62,12 @@ test('the bar: one 0 to 25 scale, range shaded, accessory drawn at half, the pla
   assert.deepEqual(b.acc, { left: 12, width: 6 });
   assert.deepEqual(b.plan, { left: 18, width: 30 });
   const v = muscleWeekView(WEEK);
-  assert.equal(v.goal[0].tone, 'low', 'Side Delts lands at 7');
-  assert.equal(v.rest[0].tone, 'high', 'Chest lands at 21');
-  assert.equal(v.goal.find((r) => r.muscle === 'Biceps').tone, null);
+  assert.equal(v.goal[0].state, 'short', 'Side Delts lands at 7');
+  assert.equal(v.rest[0].state, 'onway', 'Chest: 3 done, lands at 21');
+  assert.equal(v.rest[0].over, true, 'past 20 by Sunday is said, quietly');
+  assert.equal(v.goal.find((r) => r.muscle === 'Biceps').state, 'reached', '10½ done');
   assert.equal(v.goal.find((r) => r.muscle === 'Biceps').bySunday, '19½');
-  assert.match(v.goal[0].aria, /^Side Delts: 1 sets done, 7 by Sunday, range 10 to 20\. Open the exercises\.$/);
+  assert.match(v.goal[0].aria, /^Side Delts: 1 sets done, 7 by Sunday, range 10 to 20, short by Sunday\. Open the exercises\.$/);
   // a muscle with its own range draws its own band
   assert.deepEqual(barOf({ ...WEEK.muscles[0], low: 12, high: 22 }).range, { left: 48, width: 40 });
 });
@@ -111,4 +112,38 @@ test('the tray under the set card: goal muscles, done against the low end, how m
   assert.equal(none.label, 'Muscles in range this week');
   assert.equal(none.bars[0].muscle, 'Biceps');
   assert.equal(none.bars.length, 6);
+});
+
+// WHERE IT STANDS (31 Oct 2026): one state per muscle, and the headline agrees
+test('the states: reached when done meets the minimum, on the way when the plan gets there, short when it does not', async () => {
+  const { stateOf } = await import('../../src/muscleWeekView.js');
+  assert.equal(stateOf(muscle('A', { focusDone: 10 })), 'reached');
+  assert.equal(stateOf(muscle('A', { focusDone: 22 })), 'reached', 'over the top is still the minimum met');
+  assert.equal(stateOf(muscle('A', { focusDone: 4, focusPlanned: 6 })), 'onway');
+  assert.equal(stateOf(muscle('A', { focusDone: 4, focusPlanned: 5 })), 'short');
+  assert.equal(stateOf(muscle('A', { low: 12, high: 22, focusDone: 10, focusPlanned: 2 })), 'onway', "his goal's own low is the minimum");
+  // the headline's "reach the growth range by Sunday" is exactly reached + on the way
+  const v = muscleWeekView(WEEK);
+  const reach = v.goal.filter((r) => r.state !== 'short').length;
+  assert.equal(v.headline.count, `${reach} of ${v.goal.length}`);
+  assert.deepEqual(v.legend.map((l) => l.label), ['Minimum reached', 'On the way', 'Short by Sunday']);
+});
+
+test('needs: every muscle short by Sunday, goal muscles first, at most four, each a question for Coach', async () => {
+  const { needsOf } = await import('../../src/muscleWeekView.js');
+  const extra = ['Adductors', 'Calves', 'Glutes'].map((m, i) => muscle(m, { goal: false, focusDone: i, focusPlanned: 2 }));
+  const n = needsOf({ ...WEEK, muscles: [...WEEK.muscles, ...extra] });
+  assert.deepEqual(n.lines.map((l) => l.muscle), ['Side Delts', 'Upper Back', 'Adductors', 'Calves']);
+  assert.deepEqual(n.more.map((l) => l.muscle), ['Glutes']);
+  assert.equal(n.lines[0].text, 'Side Delts lands at 7 of 10 by Sunday, 3 sets short');
+  assert.match(n.lines[0].question, /^Side Delts lands at 7 of 10 sets by Sunday on my plan this week, 3 short of its range \(10–20\)\. What should I add, and where\?$/);
+  assert.match(n.question, /^Side Delts, Upper Back, Adductors, Calves and Glutes land short of their range this week/);
+  assert.equal(needsOf({ ...WEEK, muscles: WEEK.muscles.map((m) => ({ ...m, bySunday: 12 })) }), null, 'nothing short, nothing said');
+});
+
+test('the ranges line says where the ranges came from, and never invents one', async () => {
+  const { rangesLineOf } = await import('../../src/muscleWeekView.js');
+  assert.equal(rangesLineOf(WEEK), "Ranges: the 10–20 default. Coach hasn't set yours.");
+  assert.equal(rangesLineOf({ muscles: WEEK.muscles.map((m) => ({ ...m, ownRange: true })) }), "Ranges: Coach's, from your goal.");
+  assert.equal(rangesLineOf({ muscles: WEEK.muscles.map((m) => ({ ...m, ownRange: m.muscle === 'Lats' })) }), "Ranges: Coach's for Lats, from your goal; the 10–20 default for the rest.");
 });

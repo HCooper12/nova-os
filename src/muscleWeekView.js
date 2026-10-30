@@ -7,8 +7,20 @@
 // range shaded: solid is focus sets done (each counts 1), striped is
 // accessory sets done (each counts ½, so drawn at half their count), and the
 // outlined tail is what the rest of this week's plan adds. The number beside
-// it is done, then where the plan lands it by Sunday; amber when that is
-// short of the range, red when it is past it.
+// it is done, then where the plan lands it by Sunday.
+//
+// WHERE IT STANDS, ON THE NUMBER (31 Oct 2026, his ask: "some sort of
+// indication for each muscle group that it has hit the minimum ... sort of
+// like traffic light colour system but I don't want it to be overwhelming").
+// One state per muscle, coloured on the done figure only, with a small shape
+// beside it so the state never rests on colour alone:
+//   reached   done >= low                the minimum is met      green, filled dot
+//   on the way done < low <= bySunday    the plan gets it there  gold, half dot
+//   short     bySunday < low             the plan does not       red, open ring
+// The minimum is the low end of the muscle's growth range (rangeFor: his
+// goal's range for it, else the 10 to 20 default). Past the top of the range
+// is not a fourth colour: the minimum is still met, so it stays reached and
+// says "over" quietly beside where Sunday lands it.
 
 import { formatSets as fmt } from './muscleCredit.js';
 import { VOLUME_RANGE, V_TAPER_MUSCLES } from './muscleTaxonomy.js';
@@ -41,16 +53,60 @@ export function barOf(m) {
   };
 }
 
-/** 'low' when Sunday lands short of the range, 'high' past it, else null. */
-export const toneOf = (m) => (m.bySunday < m.low ? 'low' : m.bySunday > m.high ? 'high' : null);
+/** 'reached' (done meets the minimum), 'onway' (the plan gets it there), 'short' (it does not). */
+export const stateOf = (m) => (m.done >= m.low ? 'reached' : m.bySunday >= m.low ? 'onway' : 'short');
+/** Past the top of the range, done or by Sunday. */
+export const isOver = (m) => Math.max(m.done, m.bySunday) > m.high;
+export const STATE_WORDS = { reached: 'minimum reached', onway: 'on the way', short: 'short by Sunday' };
 
 function rowOf(m) {
+  const state = stateOf(m);
+  const over = isOver(m);
   return {
     muscle: m.muscle, goal: m.goal, low: m.low, high: m.high,
-    done: fmt(m.done), bySunday: fmt(m.bySunday), tone: toneOf(m),
+    done: fmt(m.done), bySunday: fmt(m.bySunday), state, over,
     bar: barOf(m),
-    aria: `${m.muscle}: ${fmt(m.done)} sets done, ${fmt(m.bySunday)} by Sunday, range ${m.low} to ${m.high}. Open the exercises.`,
+    aria: `${m.muscle}: ${fmt(m.done)} sets done, ${fmt(m.bySunday)} by Sunday, range ${m.low} to ${m.high}, ${STATE_WORDS[state]}${over ? `, past ${m.high}` : ''}. Open the exercises.`,
   };
+}
+
+const gapOf = (m) => fmt(Math.round((m.low - m.bySunday) * 2) / 2);
+
+/**
+ * WHAT NEEDS MORE (31 Oct 2026, his ask: "if any muscles would benefit from
+ * additional work ... this should be getting raised to me through Coach and
+ * on this view"). Code's lines, no model: every muscle whose Sunday lands
+ * short of its minimum, goal muscles first, then by the size of the gap.
+ * Each line, and the section's one action, opens Coach with the question
+ * already asked.
+ */
+export function needsOf(w, { limit = 4 } = {}) {
+  const short = (w?.muscles || []).filter((m) => m.bySunday < m.low)
+    .sort((a, b) => Number(b.goal) - Number(a.goal) || (b.low - b.bySunday) - (a.low - a.bySunday));
+  if (!short.length) return null;
+  const lines = short.map((m) => {
+    const gap = gapOf(m);
+    return {
+      muscle: m.muscle, goal: m.goal,
+      text: `${m.muscle} ${m.done === m.bySunday ? 'stays' : 'lands'} at ${fmt(m.bySunday)} of ${m.low} by Sunday, ${gap} ${gap === '1' ? 'set' : 'sets'} short`,
+      question: `${m.muscle} lands at ${fmt(m.bySunday)} of ${m.low} sets by Sunday on my plan this week, ${gap} short of its range (${m.low}–${m.high}). What should I add, and where?`,
+    };
+  });
+  const names = listOf(short.map((m) => m.muscle));
+  return {
+    lines: lines.slice(0, limit),
+    more: lines.slice(limit),
+    question: `${names} ${short.length === 1 ? 'lands' : 'land'} short of ${short.length === 1 ? 'its' : 'their'} range this week on my plan (${short.map((m) => `${m.muscle} ${fmt(m.bySunday)} of ${m.low}`).join(', ')}). What should I add, and where?`,
+  };
+}
+
+/** Where the ranges came from, said once and never invented. */
+export function rangesLineOf(w) {
+  const own = (w?.muscles || []).filter((m) => m.ownRange).map((m) => m.muscle);
+  const all = (w?.muscles || []).length;
+  if (!own.length) return `Ranges: the ${VOLUME_RANGE[0]}–${VOLUME_RANGE[1]} default. Coach hasn't set yours.`;
+  if (own.length === all) return "Ranges: Coach's, from your goal.";
+  return `Ranges: Coach's for ${listOf(own)}, from your goal; the ${VOLUME_RANGE[0]}–${VOLUME_RANGE[1]} default for the rest.`;
 }
 
 /** One muscle's card: its summary, and every line grouped by day, in order. */
@@ -73,7 +129,7 @@ export function cardOf(m) {
   return {
     muscle: m.muscle,
     done: fmt(m.done), bySunday: fmt(m.bySunday), range: `${m.low}–${m.high}`,
-    bar: barOf(m), tone: toneOf(m),
+    bar: barOf(m), state: stateOf(m), over: isOver(m),
     groups: groups.map((g) => ({ ...g, tag: g.status === 'today' ? 'today' : g.status === 'planned' ? 'planned' : null })),
     total: fmt(total),
     empty: !groups.length,
@@ -110,6 +166,10 @@ export function muscleWeekView(w) {
     rangeKey: ranges.length === 1 ? ranges[0] : `${VOLUME_RANGE[0]}–${VOLUME_RANGE[1]}`,
     scale: [0, VOLUME_RANGE[0], VOLUME_RANGE[1]].map((n) => ({ n, at: round(pct(n)) })),
     group,
+    // the three states in one compact line, each with its shape
+    legend: ['reached', 'onway', 'short'].map((k) => ({ state: k, label: k === 'reached' ? 'Minimum reached' : k === 'onway' ? 'On the way' : 'Short by Sunday' })),
+    rangesLine: rangesLineOf(w),
+    needs: needsOf(w),
     goal: goalRows.map(rowOf),
     rest: w.muscles.filter((m) => !m.goal).map(rowOf),
     days: (w.days || []).map((d) => ({

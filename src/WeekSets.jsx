@@ -41,11 +41,11 @@ function Bar({ bar }) {
 
 function Row({ r, onOpen, i }) {
   return (
-    <button type="button" className={`nv-mw-m${r.tone ? ` ${r.tone}` : ''}`} data-m={r.muscle} aria-label={r.aria} aria-haspopup="dialog"
+    <button type="button" className={`nv-mw-m is-${r.state}${r.over ? ' is-over' : ''}`} data-m={r.muscle} aria-label={r.aria} aria-haspopup="dialog"
       style={{ '--h': muscleVar(r.muscle), '--i': Math.min(i, 12) }} onClick={(e) => onOpen(r.muscle, e.currentTarget)}>
       <span className="nv-mw-nm">{r.muscle}</span>
       <Bar bar={r.bar} />
-      <span className="nv-mw-n"><b>{r.done}</b><small>→ {r.bySunday}</small></span>
+      <span className="nv-mw-n"><b><i className="nv-mw-dot" />{r.done}</b><small>→ {r.bySunday}{r.over && <em> over</em>}</small></span>
     </button>
   );
 }
@@ -72,6 +72,23 @@ function Day({ d }) {
   );
 }
 
+// WHAT NEEDS MORE: code's lines (src/muscleWeekView.js needsOf), each one a
+// question already asked of Coach when there is a Coach to ask
+function Needs({ n, ask }) {
+  const [all, setAll] = useState(false);
+  const lines = all ? [...n.lines, ...n.more] : n.lines;
+  return (
+    <div className="nv-mw-needs">
+      <div className="nv-mw-sect"><Eyebrow as="span">Short by Sunday</Eyebrow><Eyebrow as="span">ask Coach</Eyebrow></div>
+      {lines.map((l) => (ask
+        ? <button key={l.muscle} type="button" className="nv-mw-need" style={{ '--h': muscleVar(l.muscle) }} onClick={() => ask(l.question)}><i className="nv-mw-dot" /><span>{l.text}</span><b aria-hidden="true">›</b></button>
+        : <div key={l.muscle} className="nv-mw-need" style={{ '--h': muscleVar(l.muscle) }}><i className="nv-mw-dot" /><span>{l.text}</span></div>))}
+      {!all && n.more.length > 0 && <TextAction onClick={() => setAll(true)}>Show all {n.lines.length + n.more.length}</TextAction>}
+      {ask && <div className="nv-mw-needgo"><TextAction tone="cyan" onClick={() => ask(n.question)}>What should I add? Ask Coach →</TextAction></div>}
+    </div>
+  );
+}
+
 function CardBody({ c, onClose }) {
   return (
     <>
@@ -80,7 +97,7 @@ function CardBody({ c, onClose }) {
         <button type="button" className="nv-mw-x" aria-label="Close" onClick={(e) => { e.stopPropagation(); onClose(); }}>✕</button>
       </div>
       <div className="nv-mw-ch" style={{ marginTop: 4 }}><b id="nv-mw-title">{c.muscle}</b></div>
-      <div className="nv-mw-sum nv-mw-rise"><strong>{c.done}</strong> sets done <span>· {c.bySunday} by Sunday · range {c.range}</span></div>
+      <div className={`nv-mw-sum nv-mw-rise is-${c.state}`}><strong>{c.done}</strong> sets done <span>· {c.bySunday} by Sunday · range {c.range}</span></div>
       <div className="nv-mw-rise"><Bar bar={c.bar} /></div>
       {c.empty && <p className="nv-mw-foot nv-mw-rise">Nothing this week trains {c.muscle.toLowerCase()}, done or planned.</p>}
       {c.groups.map((g) => (
@@ -276,6 +293,10 @@ export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
           <span><i className="nv-mw-p" />Still in the plan</span>
           <span><i className="nv-mw-kr" />{view.rangeKey}</span>
         </div>
+        <div className="nv-mw-legend" aria-hidden="true">
+          {view.legend.map((l) => <span key={l.state} className={`is-${l.state}`}><i className="nv-mw-dot" />{l.label}</span>)}
+        </div>
+        <p className="nv-mw-ranges">{view.rangesLine}</p>
         <Uncounted u={uc} />
         {view.goal.length > 0 && (
           <>
@@ -294,6 +315,7 @@ export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
           <div>{view.scale.map((s) => <span key={s.n} style={{ left: `${s.at}%` }}>{s.n}</span>)}</div>
           <span />
         </div>
+        {view.needs && <Needs n={view.needs} ask={onAskCoach ? (q) => { onClose(); onAskCoach(q); } : null} />}
         {view.days.length > 0 && (
           <>
             <div className="nv-mw-sect" style={{ marginTop: 22 }}><Eyebrow as="span">The workouts</Eyebrow><Eyebrow as="span">focus · also works</Eyebrow></div>
