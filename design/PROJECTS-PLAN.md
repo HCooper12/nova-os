@@ -485,6 +485,20 @@ what was not.
 6. **The doc:** shown to him as a page on 29 Oct; approval of phase 1
    pending his read.
 
+## 10a · STANDING RULE (his, 1 Nov 2026): Nova never writes to Science Atlas, its Mission Control or Wren
+
+Enforced by folder, not by name, in `server/lib/protectedRoots.js`, at the
+lowest spawn sites: a Code-lane turn in those folders gets no Edit, Write or
+shell (`toolBoundaryFor`, `lib/claudeCode.js`; the old `readOnly` flag alone
+still allowed Edit and Write, so it was never enough); background sessions
+cannot start there (`startSession`); a project cannot be created, or
+registered as a workspace, inside them; the kernel refuses linked projects.
+Every phase after this one must keep it: any new job runner that takes a
+`cwd` calls `isProtectedPath` first. Test: `server/test/protectedRoots.test.js`.
+Still allowed, and his to decide: messaging or stopping a session he already
+has running in those folders from Mission Control's session list (Nova only
+relays his words; the session's own tools do any writing).
+
 ## 10b · The same machinery under Wren (his ask, 29 Oct)
 
 His ask: do all of this for Science Atlas through the Atlas project's
