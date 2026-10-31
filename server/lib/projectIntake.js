@@ -13,6 +13,8 @@
 // preferences, and TURN_TAKING last before his words.
 
 import { randomUUID } from 'node:crypto';
+import { statSync } from 'node:fs';
+import path from 'node:path';
 import { validateBrief, KINDS, ALLOWANCES } from './projectKernel.js';
 
 export const MAX_FIX_ROUNDS = 2;
@@ -26,13 +28,13 @@ Ask short questions, ONE OR TWO PER TURN, until you know the fixed core:
 3. a deadline, if there is one;
 4. the kind: ${KINDS.join(', ')} (build = ends in something that runs; life = a room, a trip, a job search);
 5. what Nova may do alone, from: ${ALLOWANCES.join(', ')} (everything else asks first);
-6. how much it may spend before asking (talk it through; a rough feel is fine, never make him invent a number);
-7. which parts of his vault it should read (propose a short list of relative vault paths from the goal; he edits it).
+6. how much of Nova's OWN usage (model cost) it may run through before checking in (talk it through; a rough feel is fine, never make him invent a number). This is not the money he spends in the world: a trip's bookings, a purchase or a domain always come to him and never belong in "limit". Unless he gave a limit on Nova's own work, leave "limit" as null and null;
+7. which vault pages it should read. Only name a page you were shown or he named; you cannot see his vault, so when unsure leave "reads" empty. Pages only, never a folder, never a whole library such as Wiki/Sources.
 Then the kind's own questions (a build: the stack and where it runs; a room: measurements and photos later; research: what a good answer lets him do). Ask at least one round, always. Never ask what he already told you.
 
 When you have enough, say so in one short sentence, then on its own line write exactly:
 BRIEF {"name":"…","kind":"build|research|life","goal":"…","done":"…","deadline":null,"phases":[{"name":"…","what":"…","first":"…"}],"reads":["Wiki/…"],"allowances":{"research":true,"draft":true,"code":false,"test":false,"commit":false,"deploy":false},"limit":{"discussAbove":null,"agreed":null},"firstMoves":["…"]}
-The JSON is on ONE line. Nothing after it. The name is at most 60 characters. Two to six phases. Reads are relative vault paths, never absolute, never "..". Do not write the BRIEF line until he has answered at least one question.`;
+The JSON is on ONE line. Nothing after it. The name is at most 60 characters. Two to six phases. Reads are relative paths to pages that exist, never absolute, never "..". The card has only Approve and Discard, so never promise he can edit it: if he wants a change he tells you, you write the BRIEF line again, and the earlier card is withdrawn. Do not write the BRIEF line until he has answered at least one question.`;
 
 export const PASTED_NOTE = `HE PASTED A LONG PROMPT. Treat it as the brief's source. First echo back your understanding of it in two or three sentences, then ask ONLY what the core above still lacks.`;
 
@@ -62,6 +64,37 @@ export async function buildIntakePrompt(vaultPath, text) {
   return [NOVA_LENS, who, PROJECT_INTAKE, long ? PASTED_NOTE : '', talk, TURN_TAKING, `HIS WORDS:\n${text}`].filter(Boolean).join('\n\n');
 }
 
+/**
+ * The model cannot see his vault, so a path it proposes is a guess. Keep only
+ * the pages that exist inside the vault; say what was dropped.
+ */
+export function cleanReads(vaultPath, reads) {
+  const kept = [];
+  const dropped = [];
+  const root = vaultPath ? path.resolve(vaultPath) : null;
+  for (const raw of Array.isArray(reads) ? reads : []) {
+    const rel = String(raw || '').trim();
+    if (!rel) continue;
+    const withExt = /\.[a-z0-9]{1,5}$/i.test(rel) ? rel : `${rel}.md`;
+    let ok = false;
+    if (root) {
+      const full = path.resolve(root, withExt);
+      try { ok = full.startsWith(root + path.sep) && statSync(full).isFile(); } catch { ok = false; }
+    }
+    (ok ? kept : dropped).push(ok ? withExt : rel);
+  }
+  return { kept, dropped };
+}
+
+/** A new brief from the same conversation replaces the earlier pending card. */
+export async function withdrawSuperseded(sessionId) {
+  if (!sessionId) return [];
+  const { listRecords, updateRecord } = await import('./inboxStore.js');
+  const old = (await listRecords()).filter((r) => r.kind === 'project-brief' && r.status === 'pending' && r.intakeSessionId === sessionId);
+  for (const r of old) await updateRecord(r.id, { status: 'withdrawn', withdrawnAt: new Date().toISOString(), withdrawnFor: 'a newer brief from the same conversation' });
+  return old.map((r) => r.id);
+}
+
 // per-session fix rounds; in memory like the warm pool itself
 const rounds = new Map();
 export const _resetIntake = () => rounds.clear();
@@ -70,7 +103,7 @@ export const _resetIntake = () => rounds.clear();
  * What code does with one finished reply. Exported for the test, which hands
  * it a stub `again` instead of a model.
  */
-export async function settleIntakeReply(reply, job, again, sessionId, { file } = {}) {
+export async function settleIntakeReply(reply, job, again, sessionId, { file, vaultPath = null, withdraw } = {}) {
   const { cleanText, brief, parseError } = parseBriefLine(reply);
   if (!brief && !parseError) {
     job.result = { text: cleanText, sessionId, stage: 'asking' };
@@ -81,8 +114,12 @@ export async function settleIntakeReply(reply, job, again, sessionId, { file } =
   const fileIt = file || fileBriefCard;
   if (v.ok) {
     rounds.delete(sessionId);
-    const record = await fileIt({ brief: v.brief, sessionId, status: 'pending' });
-    job.result = { text: cleanText || 'I have enough.', sessionId, stage: 'filed', recordId: record.id, brief: v.brief };
+    const { kept, dropped } = cleanReads(vaultPath, v.brief.reads);
+    const brief = { ...v.brief, reads: kept };
+    await (withdraw || withdrawSuperseded)(sessionId);
+    const record = await fileIt({ brief, sessionId, status: 'pending' });
+    const note = dropped.length ? ` Correction: I left out ${dropped.join(', ')} from what it reads, because ${dropped.length === 1 ? 'that is not a page' : 'those are not pages'} in your vault, so ${dropped.length === 1 ? 'it is' : 'they are'} not on the card.` : '';
+    job.result = { text: `${cleanText || 'I have enough.'}${note}`, sessionId, stage: 'filed', recordId: record.id, brief };
     job.status = 'ready';
     return job.result;
   }
@@ -136,6 +173,6 @@ export async function startIntake(vaultPath, { text, sessionId = null } = {}, { 
   return run(vaultPath, {
     text: prompt,
     sessionId: sid,
-    finish: (reply, job, again, s) => settleIntakeReply(reply, job, again, s),
+    finish: (reply, job, again, s) => settleIntakeReply(reply, job, again, s, { vaultPath }),
   });
 }

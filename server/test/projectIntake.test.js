@@ -17,7 +17,9 @@ process.env.TELEGRAM_BOT_TOKEN = '';
 
 const test = (await import('node:test')).default;
 const assert = (await import('node:assert/strict')).default;
-const { parseBriefLine, settleIntakeReply, startIntake, buildIntakePrompt, _resetIntake } = await import('../lib/projectIntake.js');
+const intakeMod = await import('../lib/projectIntake.js');
+globalThis.__intakeMod = intakeMod;
+const { parseBriefLine, settleIntakeReply, startIntake, buildIntakePrompt, _resetIntake } = intakeMod;
 const { listRecords, getRecord } = await import('../lib/inboxStore.js');
 const { approveRecord, undoRecord } = await import('../lib/inbox.js');
 const { LANES, modelFor } = await import('../lib/modelPrefs.js');
@@ -127,4 +129,39 @@ test('startIntake runs the injected turn with the full prompt first, then his wo
   assert.match(calls[0].text, /YOU ARE STARTING A PROJECT/);
   assert.equal(calls[1].text, 'by Christmas');
   await assert.rejects(() => startIntake(vault, { text: '  ' }, { runTurn }), /say what/);
+});
+
+// FOUND BY THE REAL-MODEL RUN OF 1 NOV: the model invented vault pages, and a
+// corrected brief left the first card pending beside it.
+test('cleanReads keeps only pages that exist in the vault and names what it dropped', () => {
+  const { cleanReads } = intakeMod;
+  mkdirSync(path.join(vault, 'Wiki', 'Travel'), { recursive: true });
+  writeFileSync(path.join(vault, 'Wiki', 'Travel', 'Hobart.md'), '# Hobart');
+  const r = cleanReads(vault, ['Wiki/Travel/Hobart', 'Wiki/Travel', 'Wiki/Sources', 'Wiki/Nope.md', '../outside.md', '/etc/hosts']);
+  assert.deepEqual(r.kept, ['Wiki/Travel/Hobart.md']);
+  assert.deepEqual(r.dropped, ['Wiki/Travel', 'Wiki/Sources', 'Wiki/Nope.md', '../outside.md', '/etc/hosts']);
+});
+
+test('a filed brief carries only real reads, says what it dropped, and withdraws the earlier card of the same conversation', async () => {
+  _resetIntake();
+  const sid = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const first = await settleIntakeReply(`One.\nBRIEF ${JSON.stringify({ ...BRIEF, name: 'Trip', reads: ['Wiki/Sources'] })}`, job(), () => {}, sid, { vaultPath: vault });
+  assert.equal(first.stage, 'filed');
+  assert.deepEqual((await getRecord(first.recordId)).decision.payload.brief.reads, []);
+  assert.match(first.text, /left out Wiki\/Sources/);
+  const second = await settleIntakeReply(`Changed.\nBRIEF ${JSON.stringify({ ...BRIEF, name: 'Trip', reads: ['Wiki/Travel/Hobart'] })}`, job(), () => {}, sid, { vaultPath: vault });
+  assert.equal((await getRecord(first.recordId)).status, 'withdrawn');
+  assert.equal((await getRecord(second.recordId)).status, 'pending');
+  assert.deepEqual((await getRecord(second.recordId)).decision.payload.brief.reads, ['Wiki/Travel/Hobart.md']);
+  // another conversation's pending card is left alone
+  const other = await settleIntakeReply(`Other.\nBRIEF ${JSON.stringify({ ...BRIEF, name: 'Other', reads: [] })}`, job(), () => {}, 'cccccccc-cccc-cccc-cccc-cccccccccccc', { vaultPath: vault });
+  assert.equal((await getRecord(second.recordId)).status, 'pending');
+  assert.equal((await getRecord(other.recordId)).status, 'pending');
+});
+
+test("the intake prompt keeps the limit about Nova's own usage and never promises card editing", () => {
+  const { PROJECT_INTAKE } = intakeMod;
+  assert.match(PROJECT_INTAKE, /OWN usage/);
+  assert.match(PROJECT_INTAKE, /never a folder/);
+  assert.match(PROJECT_INTAKE, /never promise he can edit it/);
 });
