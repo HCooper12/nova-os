@@ -32,7 +32,7 @@ export const ONE_NOVA_CHROME = { tabBar: false, attach: true, status: true, brie
 // one value decides the core's turn colour, the state dot, the plate's chip,
 // the subtitles' lit word and underline, the pour and the embers on this
 // page: 'gold' or 'jade'.
-export const STAGE_SPEAK = 'gold';
+export const STAGE_SPEAK = 'jade'; // his call 31 Oct, after seeing both
 export const STAGE_SPEAK_VAR = STAGE_SPEAK === 'gold' ? 'var(--nv-gold)' : 'var(--nv-say)';
 
 // How far up he scrolls before the core has fully travelled from the stage
