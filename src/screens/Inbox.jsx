@@ -12,6 +12,7 @@ import { InboxSummary } from './InboxSummary.jsx';
 import { CodeShipDetail } from '../CodeShipDetail.jsx';
 import { useSpringStack } from '../motion/springStack.js';
 import { briefingGrowKey } from '../motion/growKeys.js';
+import { LibraryFlag } from '../LibraryFlag.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -786,6 +787,11 @@ function InboxClassic({ v }) {
                     <Button variant="quiet" compact tone="quiet" onClick={item.retry} disabled={item.busy}
                       style={{ flex: 'none' }}>{item.busy ? '…' : 'Retry'}</Button>
                   )}
+                  {item.tellMe && (
+                    <Button variant="quiet" compact onClick={item.tellMe}
+                      title="Nova tells you what it found, out loud, on the project's page; then talk back"
+                      style={{ flex: 'none' }}>Tell me</Button>
+                  )}
                   {item.deepAnalyse && item.status === 'filed' && (
                     <Button variant="quiet" compact onClick={item.deepAnalyse} disabled={item.busy}
                       title="Run the full vault weave on this video — every concept and idea into your second brain"
@@ -796,6 +802,9 @@ function InboxClassic({ v }) {
                       style={{ flex: 'none' }}>{item.busy ? '…' : 'Dismiss'}</Button>
                   )}
                 </div>
+                {item.libraryFlag && (
+                  <div style={{ margin: '6px 0 2px', paddingLeft: 'min(86px, 18%)', minWidth: 0 }}><LibraryFlag flag={item.libraryFlag} compact /></div>
+                )}
                 {item.expanded && (
                   <div style={css("margin:8px 0 2px 88px;display:flex;flex-direction:column;gap:8px")}>
                     {item.captured && (

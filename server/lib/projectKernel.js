@@ -28,6 +28,11 @@ export const KINDS = ['build', 'research', 'life'];
 export const STAGES = ['idea', 'planning', 'active', 'paused', 'done', 'archived'];
 export const ALLOWANCES = ['research', 'draft', 'code', 'test', 'commit', 'deploy'];
 export const DRY_RUN_PROJECTS = 3;
+// how a project's Watcher reads a video (phase 2, PROJECTS-PLAN §2): what it
+// says, whether its claims hold, or what it SHOWS (frames). A record without
+// one reads as 'reference'.
+export const LENSES = ['reference', 'claims', 'design'];
+export const lensOf = (rec) => (LENSES.includes(rec?.lens) ? rec.lens : 'reference');
 
 // the moves Nova may propose. archived is reachable from anywhere (it is the
 // one way a project leaves the list); nothing comes back from archived here.
@@ -322,6 +327,7 @@ export function makeKernel(host) {
       limit: brief.limit,
       quiet: { from: '22:00', to: '07:00' },
       modelOverride: null,
+      lens: 'reference',
       dryRun: dryRun ?? defaultDryRun(),
       reads: brief.reads,
       phases: brief.phases,
@@ -365,7 +371,7 @@ export function makeKernel(host) {
 
   function updateProject(p, patch) {
     const rec = resolve(p);
-    const allowed = ['dryRun', 'allowances', 'quiet', 'modelOverride', 'limit', 'phases', 'stage', 'workspace'];
+    const allowed = ['dryRun', 'allowances', 'quiet', 'modelOverride', 'limit', 'phases', 'stage', 'workspace', 'lens'];
     const next = { ...rec };
     for (const k of allowed) if (k in (patch || {})) next[k] = patch[k];
     next.updatedAt = now().toISOString();
@@ -403,6 +409,10 @@ export function makeKernel(host) {
       if (m === null || m === '') out.modelOverride = null;
       else if (typeof m === 'string' && /^(opus|sonnet|haiku|claude-[a-z0-9.-]{1,60})$/.test(m)) out.modelOverride = m;
       else errors.push('modelOverride');
+    }
+    if ('lens' in patch) {
+      if (!LENSES.includes(patch.lens)) errors.push(`lens (one of ${LENSES.join(', ')})`);
+      else out.lens = patch.lens;
     }
     if ('limit' in patch) {
       const l = patch.limit || {};
@@ -569,10 +579,206 @@ export function makeKernel(host) {
     try { return readFileSync(path.join(rec.folder, 'LOG.md'), 'utf8'); } catch { return ''; }
   }
 
+  // ---- PHASE 2: what a project's research and Watcher write ----------------
+  //
+  // Two places, both contained: the project's own vault folder
+  // (Projects/<Name>/Sources and Raw, never Wiki/Sources or Raw) and its own
+  // ~/Projects/<slug>/research. Every writer runs the guard first, checks the
+  // path is inside the project (through symlinks), refuses a protected folder,
+  // writes all or nothing, and logs. Undo removes exactly what was written and
+  // only while it is unchanged; nothing is deleted outright (folder files go
+  // to .nova/undone/).
+
+  // the project's vault folder, from its name: Projects/<Name> (or nested under
+  // the parent's). Computed, so a deleted page does not strand its Sources.
+  function projectVaultDir(rec) {
+    const parent = rec.parent ? getProject(rec.parent) : null;
+    return path.posix.dirname(pageRel(rec, parent));
+  }
+
+  function projectVaultFull(rec, rel) {
+    const clean = String(rel || '');
+    if (!clean || clean.includes('\0') || path.isAbsolute(clean) || clean.split('/').some((x) => x === '..' || x === '.')) throw refuse(`${clean} is not a path inside the project`, 'vault');
+    const dirRel = projectVaultDir(rec);
+    const relPath = path.posix.join(dirRel, clean);
+    const full = vaultFull(relPath);
+    const own = path.resolve(host.vaultRoot, dirRel) + path.sep;
+    if (!full.startsWith(own)) throw refuse(`${relPath} is outside ${dirRel}/ — refused`, 'vault');
+    if (host.isProtected && host.isProtected(full)) throw refuse('that folder is one Nova never writes to', 'protected');
+    return { full, relPath };
+  }
+
+  // the real folder an existing directory resolves to must still be inside the
+  // project's vault folder (a symlinked Sources/ pointing out is refused)
+  function assertRealInside(dir, rec) {
+    const real = realpathSync(dir);
+    const own = realpathSync(path.resolve(host.vaultRoot, projectVaultDir(rec)));
+    if (real !== own && !real.startsWith(own + path.sep)) throw refuse(`${dir} resolves outside the project's vault folder — refused`, 'vault');
+  }
+
+  /** Files that do not exist yet, under the project's vault folder. All or nothing. */
+  function writeProjectVaultFiles(p, files, { line = null, action = 'file' } = {}) {
+    const rec = resolve(p);
+    if (!host.vaultRoot) throw refuse('no vault configured for this host', 'vault');
+    if (!Array.isArray(files) || !files.length) throw refuse('nothing to write');
+    const plan = files.map((f) => ({ ...projectVaultFull(rec, f.rel), content: String(f.content ?? '') }));
+    for (const f of plan) if (existsSync(f.full)) throw refuse(`${f.relPath} already exists`, 'exists');
+    for (const f of plan) {
+      mkdirSync(path.dirname(f.full), { recursive: true });
+      assertRealInside(path.dirname(f.full), rec);
+    }
+    const written = [];
+    try {
+      for (const f of plan) {
+        writeFileSync(f.full, f.content, { encoding: 'utf8', flag: 'wx' });
+        written.push(f);
+      }
+    } catch (e) {
+      for (const f of written) { try { unlinkSync(f.full); } catch { /* best effort: it was ours a moment ago */ } }
+      throw e;
+    }
+    if (line && existsSync(rec.folder)) appendLog(rec, line, { action });
+    return plan.map((f) => ({ relPath: f.relPath, hash: sha(f.content) }));
+  }
+
+  /** The undo of writeProjectVaultFiles: every file checked before any goes. */
+  function removeProjectVaultFiles(p, files, { line = null } = {}) {
+    const rec = resolve(p);
+    if (!host.vaultRoot) throw refuse('no vault configured for this host', 'vault');
+    const dirRel = projectVaultDir(rec);
+    const plan = (files || []).map((f) => {
+      if (!String(f.relPath || '').startsWith(`${dirRel}/`)) throw refuse(`${f.relPath} is not inside ${dirRel}/ — refused`, 'vault');
+      const { full } = projectVaultFull(rec, f.relPath.slice(dirRel.length + 1));
+      if (!existsSync(full)) throw refuse(`${f.relPath} no longer exists`, 'changed');
+      if (sha(readFileSync(full, 'utf8')) !== f.hash) throw refuse(`${f.relPath} has been edited since filing — delete it in Obsidian if you still want it gone`, 'changed');
+      return full;
+    });
+    for (const full of plan) unlinkSync(full);
+    if (line && existsSync(rec.folder)) appendLog(rec, line, { action: 'undo' });
+    return plan.length;
+  }
+
+  function folderFull(rec, rel) {
+    if (!existsSync(rec.folder)) throw refuse('the project folder is missing');
+    const root = realpathSync(rec.folder);
+    const full = path.resolve(root, rel);
+    if (full !== root && !full.startsWith(root + path.sep)) throw refuse(`${rel} is outside the project folder — refused`, 'folder');
+    if (host.isProtected && host.isProtected(full)) throw refuse('that folder is one Nova never writes to', 'protected');
+    if (existsSync(full)) {
+      const real = realpathSync(full);
+      if (real !== root && !real.startsWith(root + path.sep)) throw refuse(`${rel} resolves outside the project folder — refused`, 'folder');
+    }
+    return full;
+  }
+
+  const SOURCE_NAME = /^[^/\\\u0000]{1,140}\.md$/;
+
+  /**
+   * One research run, written: a file per source under research/, and
+   * research/SYNTHESIS.md rewritten (the previous one moved to
+   * research/.history/ first, so nothing is lost). `synthesisFor(names)` gets
+   * the final file names (a collision gets a suffix) and returns the text.
+   */
+  function writeResearch(p, { sources = [], synthesisFor, line = '' } = {}) {
+    const rec = resolve(p);
+    if (typeof synthesisFor !== 'function') throw refuse('no synthesis to write');
+    const dir = folderFull(rec, 'research');
+    mkdirSync(dir, { recursive: true });
+    const taken = new Set(readdirSync(dir));
+    const names = sources.map((s) => {
+      const want = String(s.name || '');
+      if (!SOURCE_NAME.test(want) || want === 'SYNTHESIS.md') throw refuse(`"${want}" is not a research file name`, 'folder');
+      let name = want;
+      for (let n = 2; taken.has(name); n++) name = want.replace(/\.md$/, ` ${n}.md`);
+      taken.add(name);
+      return name;
+    });
+    const synthesis = String(synthesisFor(names) || '');
+    if (!synthesis.trim()) throw refuse('the synthesis is empty');
+    const files = [];
+    const written = [];
+    try {
+      sources.forEach((s, i) => {
+        const full = folderFull(rec, `research/${names[i]}`);
+        writeFileSync(full, String(s.content ?? ''), { encoding: 'utf8', flag: 'wx' });
+        written.push(full);
+        files.push({ rel: `research/${names[i]}`, hash: sha(String(s.content ?? '')) });
+      });
+    } catch (e) {
+      for (const f of written) { try { unlinkSync(f); } catch { /* ours a moment ago */ } }
+      throw e;
+    }
+    const synFull = folderFull(rec, 'research/SYNTHESIS.md');
+    let history = null;
+    let previousHash = null;
+    if (existsSync(synFull)) {
+      previousHash = sha(readFileSync(synFull, 'utf8'));
+      const hist = folderFull(rec, 'research/.history');
+      mkdirSync(hist, { recursive: true });
+      let name = `SYNTHESIS ${stamp(now()).replace(':', '')}.md`;
+      for (let n = 2; existsSync(path.join(hist, name)); n++) name = `SYNTHESIS ${stamp(now()).replace(':', '')} ${n}.md`;
+      renameSync(synFull, path.join(hist, name));
+      history = `research/.history/${name}`;
+    }
+    writeFileSync(synFull, synthesis, 'utf8');
+    appendLog(rec, line || `research filed: ${files.length} source${files.length === 1 ? '' : 's'}, SYNTHESIS.md rewritten${history ? ` (the last one kept in ${history})` : ''}`, { action: 'research' });
+    return { files, synthesis: { rel: 'research/SYNTHESIS.md', hash: sha(synthesis) }, history, previousHash };
+  }
+
+  /**
+   * The undo of writeResearch. Refused while SYNTHESIS.md is not the one this
+   * run wrote (he edited it, or a later run replaced it). The previous
+   * synthesis comes back from .history; each new source file goes to
+   * .nova/undone/ only if unchanged (an edited one stays, and is named).
+   */
+  function undoResearch(p, undo) {
+    const rec = resolve(p);
+    const synFull = folderFull(rec, 'research/SYNTHESIS.md');
+    if (!existsSync(synFull)) throw refuse('research/SYNTHESIS.md is gone; nothing to put back', 'changed');
+    if (sha(readFileSync(synFull, 'utf8')) !== undo.synthesis?.hash) throw refuse('research/SYNTHESIS.md has changed since this research was filed (edited, or a later research rewrote it): undo the later one first', 'changed');
+    const histFull = undo.history ? folderFull(rec, undo.history) : null;
+    if (histFull && !existsSync(histFull)) throw refuse(`${undo.history} is missing, so the previous synthesis cannot come back`, 'changed');
+    const said = [];
+    const bin = folderFull(rec, `.nova/undone/${new Date().toISOString().replace(/[:.]/g, '-')}`);
+    let moved = 0;
+    const kept = [];
+    for (const f of undo.files || []) {
+      const full = folderFull(rec, f.rel);
+      if (!existsSync(full)) continue;
+      if (sha(readFileSync(full, 'utf8')) !== f.hash) { kept.push(f.rel); continue; }
+      mkdirSync(bin, { recursive: true });
+      renameSync(full, path.join(bin, path.basename(full)));
+      moved++;
+    }
+    mkdirSync(bin, { recursive: true });
+    renameSync(synFull, path.join(bin, 'SYNTHESIS.md'));
+    if (histFull) { renameSync(histFull, synFull); said.push('the previous synthesis is back'); } else said.push('SYNTHESIS.md removed (there was none before)');
+    said.unshift(`removed ${moved} source file${moved === 1 ? '' : 's'}`);
+    if (kept.length) said.push(`kept ${kept.join(', ')}: edited since`);
+    appendLog(rec, `research undone: ${said.join('; ')}`, { action: 'undo' });
+    return said.join('; ');
+  }
+
+  function readFolderFile(p, rel) {
+    const rec = typeof p === 'string' ? getProject(p) : p;
+    if (!rec?.folder || rec.linked) return null;
+    try { return readFileSync(folderFull(rec, rel), 'utf8'); } catch { return null; }
+  }
+
+  function readProjectVaultFile(p, relPath) {
+    const rec = typeof p === 'string' ? getProject(p) : p;
+    if (!rec || rec.linked || !host.vaultRoot) return null;
+    const dirRel = projectVaultDir(rec);
+    if (!String(relPath || '').startsWith(`${dirRel}/`)) return null;
+    try { return readFileSync(projectVaultFull(rec, relPath.slice(dirRel.length + 1)).full, 'utf8'); } catch { return null; }
+  }
+
   return {
     host: hostName,
     getProject, listProjects, createProject, updateProject, applySettings, cleanSettings,
     proposeStage, applyStage, archiveProject, revertStage, undoCreate, appendLog, cleanActions,
     writeVaultPage, defaultDryRun, folderListing, readPage, readLog,
+    projectVaultDir, writeProjectVaultFiles, removeProjectVaultFiles, writeResearch, undoResearch,
+    readFolderFile, readProjectVaultFile,
   };
 }

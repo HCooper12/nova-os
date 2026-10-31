@@ -11,6 +11,7 @@ import { Verbs } from '../InboxSumVerbs.jsx';
 import { CountText } from '../CountUp.jsx';
 import { QuickCaptureCard } from '../QuickCapture.jsx';
 import { CodeShipDetail } from '../CodeShipDetail.jsx';
+import { LibraryFlag } from '../LibraryFlag.jsx';
 
 // THE SUMMARY INBOX (27 Sep 2026) — design/mockups/60-redesign-inbox-r2.html,
 // his pick ("Option A seems best and most clean/organised"), answering the
@@ -402,14 +403,16 @@ function FiledRow({ row }) {
           ? <TextAction onClick={row.action.busy ? undefined : row.action.run} disabled={row.action.busy}>{row.action.busy ? '…' : row.action.label}</TextAction>
           : <span className="st">{row.state}</span>}
       </div>
+      {row.library && <div className="nv-sum-ib-flib"><LibraryFlag flag={row.library} compact /></div>}
       <Disclose open={!!row.expanded}>
         <div className="nv-sum-ib-fdetail">
           {row.detail.line && <span className="dl">{row.detail.line}</span>}
           {row.detail.captured && <div><span className="k">You captured</span><span className="v">{row.detail.captured}</span></div>}
           {row.detail.full && <div><span className="k">{row.detail.fullLabel}</span><span className="v">{row.detail.full}</span></div>}
           <CodeShipDetail ship={row.detail.ship} />
-          {(row.detail.dismiss || row.detail.weave) && (
+          {(row.detail.dismiss || row.detail.weave || row.detail.tellMe) && (
             <div className="acts">
+              {row.detail.tellMe && <TextAction onClick={row.detail.tellMe}>Tell me</TextAction>}
               {row.detail.weave && <TextAction onClick={row.detail.weave.run} disabled={row.detail.weave.busy}>Deep weave</TextAction>}
               {row.detail.dismiss && <TextAction tone="warn" onClick={row.detail.dismiss.run} disabled={row.detail.dismiss.busy}>{row.detail.dismiss.busy ? '…' : 'Dismiss'}</TextAction>}
             </div>

@@ -8653,6 +8653,19 @@ export default class App extends Component {
     });
   }
 
+  // HIS TAP: a project's video Nova flagged, also into his library. Never
+  // optimistic (it writes his library): the tick turns green only when the
+  // server's new record is back; that record carries its own Undo.
+  fileProjectWatchToLibrary(id) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect to your Mac first'); return; }
+    const key = `lib:${id}`;
+    this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [key]: true } }));
+    api.inboxFileToLibrary(conn, id)
+      .then(({ record }) => { haptic('commit'); this.toastMsg(`In your library: ${record?.destination || 'filed'}`); })
+      .catch((e) => this.toastMsg(e.message || 'That did not file'))
+      .finally(() => { this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [key]: false } })); this.refreshInbox(); });
+  }
   inboxAction(id, kind, reason) {
     const conn = getConnection();
     if (!conn) return;

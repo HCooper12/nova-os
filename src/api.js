@@ -720,6 +720,8 @@ export const api = {
   // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)
   inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
+  // a project's video, also into his library: only ever from his tap (Projects phase 2)
+  inboxFileToLibrary: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/file-to-library`),
   // the tag on a capture: move it, or re-read it with a detail (mockup 103)
   inboxReroute: (conn, id, route, detail) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reroute`, { route: route || null, detail: detail || '' }),
   // his Notion Wishlist: the tap that answers an add's open question (id = the add's inbox record)

@@ -23,6 +23,8 @@ export const COACH_DECLINE_REASONS = ['Not now', 'Too aggressive', 'No equipment
 const SOURCE_LABEL = {
   // Projects phase 1 (29 Oct 2026)
   'project-brief': 'PROJECTS', 'project-stage': 'PROJECTS', 'project-settings': 'PROJECTS',
+  // phase 2 (1 Nov 2026): research for a project, and the videos it found
+  'project-research': 'PROJECT RESEARCH', 'project-watch-candidates': 'PROJECT RESEARCH',
   review: 'DAILY REVIEW', dispatch: 'DISPATCH', compost: 'COMPOST', guardian: 'GUARDIAN',
   cfo: 'CFO', 'money-import': 'CFO', money: 'CFO', 'money-write': 'MONEY', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
   calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
@@ -66,6 +68,10 @@ export const ROUTE_META = {
   'project-create': { label: 'NEW PROJECT', hue: '224,178,106' },
   'project-stage': { label: 'PROJECT STAGE', hue: '224,178,106' },
   'project-settings': { label: 'PROJECT SETTING', hue: '224,178,106' },
+  // phase 2: two files in the PROJECT's folder, never the library's
+  'project-watch-note': { label: 'PROJECT SOURCE', hue: '224,178,106' },
+  'project-research': { label: 'PROJECT RESEARCH', hue: '224,178,106' },
+  'project-watch-candidates': { label: 'VIDEOS TO WATCH', hue: '224,178,106' },
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
   journal: { label: 'JOURNAL', hue: '143,123,255' },
   todo: { label: 'TO-DO', hue: '89,230,255' },
@@ -395,6 +401,20 @@ export function inboxProviderNote(r) {
   return '';
 }
 
+// the "Also file to my library" line on a project watch's card, or null
+export function libraryFlagOf(r, items, app, st = {}) {
+  if (!r || r.kind !== 'video' || !r.projectId || r.status !== 'filed' || r.libraryWorthy?.yes !== true || !r.libraryWorthy.reason) return null;
+  const lib = r.libraryRecordId ? (items || []).find((x) => x.id === r.libraryRecordId) : null;
+  const done = !!(lib && lib.status === 'filed');
+  return {
+    reason: r.libraryWorthy.reason,
+    done,
+    where: done ? (lib.destination || 'your library') : '',
+    busy: !!(st.inboxActionBusy || {})[`lib:${r.id}`],
+    run: done ? null : () => app.fileProjectWatchToLibrary(r.id),
+  };
+}
+
 export function valsInbox(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline } = ctx;
@@ -580,7 +600,9 @@ export function valsInbox(app, ctx) {
       : null,
     // a briefing is READ or PLAYED, not skimmed in a card — the card is a door
     openBriefing: r.kind === 'briefing' && ['pending', 'filed', 'classifying'].includes(r.status) ? () => app.openBriefing(r.id) : null,
-    deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
+    // never for a project's video: the weave writes his LIBRARY, and a project
+    // watch reaches the library only through "Also file to my library"
+    deepAnalyse: r.kind === 'video' && !r.projectId && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
       ? () => app.startVideoDeepIngest(r.decision.payload.url)
       : null,
     // ANALYSED — the MARKER, which is not the same thing as deepAnalyse (that
@@ -590,6 +612,11 @@ export function valsInbox(app, ctx) {
     // valsMission carries this same expression, so the strip and the Home card
     // cannot drift into disagreeing about what "analysed" means.
     analysed: !!(r.analysed || (r.kind === 'video' && r.decision?.payload?.url)),
+    // PROJECTS phase 2: Nova's flag that a project's video would belong in his
+    // library too. Code decides it is shown (a filed project watch, a validated
+    // yes with a reason); only his tap files it, as its own record with its own undo.
+    libraryFlag: libraryFlagOf(r, items, app, st),
+
     // THE MODEL CHOICE GATE, scheduled-lane half — this card doesn't file
     // anything of its own, so it swaps the usual approve/discard for a model
     // tap (discard still works normally underneath — it's the generic

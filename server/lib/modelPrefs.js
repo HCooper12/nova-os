@@ -454,6 +454,14 @@ export const LANES = [
     off: 'Video watching is refused; nothing is written about a video Nova has not read.',
   },
   {
+    // PROJECTS phase 2 (1 Nov 2026, PROJECTS-PLAN §2, Q33): a project's design
+    // lens. The model runs inside the folder of frames the watch plugin sampled,
+    // with Read and nothing else, and says what the frames SHOW.
+    id: 'watcher-design', label: 'Watcher · design lens', group: 'research', def: 'sonnet', defEffort: 'medium',
+    hint: 'looks at frames from a video sent to a project: palette, materials, layout, light, storage, furniture',
+    off: 'A design-lens watch is refused with a plain message; the reference and claims lenses still work.',
+  },
+  {
     id: 'scout', label: 'Scout · people research', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'researches a person or a social account into a dossier your vault can weave',
     off: 'Researching a person is refused with a plain message; nothing already in your vault changes.',

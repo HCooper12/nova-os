@@ -348,7 +348,9 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   // PROJECTS (29 Oct 2026, PROJECTS-PLAN §1, §4): a brief he approved, a stage
   // move or a settings change he ticked. The kernel does the work; every
   // writer refuses a linked project (Science Atlas, Wren, Nova).
-  if (route === 'project-create' || route === 'project-stage' || route === 'project-settings') {
+  // …and a video watched FOR a project (phase 2): Projects/<Name>/Sources +
+  // Raw only, through the kernel's contained writer; never the library.
+  if (route === 'project-create' || route === 'project-stage' || route === 'project-settings' || route === 'project-watch-note') {
     const { fileProjectDecision } = await import('./novaProjects.js');
     return fileProjectDecision(vaultPath, route, payload);
   }
@@ -1335,7 +1337,8 @@ export async function undoFiling(vaultPath, undo) {
     const { restored } = await undoDistillJob(vaultPath, undo.jobId);
     return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-distillation state`;
   }
-  if (undo.route === 'project-create' || undo.route === 'project-stage' || undo.route === 'project-settings') {
+  if (undo.route === 'project-create' || undo.route === 'project-stage' || undo.route === 'project-settings'
+    || undo.route === 'project-watch-note' || undo.route === 'project-research') {
     const { undoProjectDecision } = await import('./novaProjects.js');
     return undoProjectDecision(vaultPath, undo);
   }
