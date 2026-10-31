@@ -244,6 +244,10 @@ export const api = {
   projectStage: (conn, id, to, reason) => post(conn, `/api/projects/${encodeURIComponent(id)}/stage`, { to, reason: reason || '' }),
   projectArchive: (conn, id) => post(conn, `/api/projects/${encodeURIComponent(id)}/archive`, {}),
   projectSettings: (conn, id, patch) => post(conn, `/api/projects/${encodeURIComponent(id)}/settings`, patch),
+  // phase 2: research for a project, a video for it, and his "Watch them" on found videos
+  projectResearch: (conn, id, question, model) => post(conn, `/api/projects/${encodeURIComponent(id)}/research`, { question, ...(model ? { model } : {}) }),
+  projectWatch: (conn, id, { url, lens, question } = {}) => post(conn, `/api/projects/${encodeURIComponent(id)}/watch`, { url, ...(lens ? { lens } : {}), ...(question ? { question } : {}) }),
+  projectCandidatesWatch: (conn, id, recordId, urls) => post(conn, `/api/projects/${encodeURIComponent(id)}/candidates/${encodeURIComponent(recordId)}/watch`, { urls }),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
   stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),

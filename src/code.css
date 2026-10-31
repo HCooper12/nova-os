@@ -452,3 +452,28 @@
 }
 .nv-pj-talk .nv-nt-thread { margin-top: 0; padding-top: 0; }
 .nv-pj-talk .nv-nt-say, .nv-pj-talk .nv-nt-you { font-size: 15px; }
+
+/* Projects phase 2: the research rail. A card is the house glass at a fixed
+   width so the next one peeks (closure); a running card carries a cyan
+   hairline that breathes once a second and a half, a failed one a warn edge.
+   Ticks on found videos: a crossed one strikes through and fades. */
+.nv-pj-rcard {
+  flex: 0 0 72%; max-width: 300px; min-width: 0; box-sizing: border-box;
+  scroll-snap-align: start; display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 14px 12px; border-radius: var(--nv-radius);
+  background: color-mix(in srgb, var(--nv-ink) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 9%, transparent);
+}
+.nv-pj-rcard[data-state="running"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-cy) 45%, transparent); }
+.nv-pj-rcard[data-state="error"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-warn) 40%, transparent); }
+.nv-pj-field {
+  flex: 1; min-width: 0; box-sizing: border-box; background: var(--nv-well); color: var(--nv-ink);
+  border: 1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent); border-radius: 10px;
+  padding: 10px 12px; font: 400 16px/1.3 var(--nv-font-ui); outline: none;
+}
+.nv-pj-field:focus { border-color: color-mix(in srgb, var(--nv-cy) 55%, transparent); }
+.nv-pj-cands { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.nv-pj-cands li { display: flex; gap: 10px; align-items: flex-start; min-width: 0; transition: opacity .2s ease; }
+.nv-pj-cands li[data-crossed] { opacity: .55; }
+.nv-pj-cands li[data-crossed] .h { text-decoration: line-through; }
+

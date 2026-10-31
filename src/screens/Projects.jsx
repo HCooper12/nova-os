@@ -4,6 +4,7 @@ import { ScreenHead, Eyebrow, Meta, Tag, Button, Chip, TextAction, Rail, Segment
 import { Group, GRow } from '../AppleLayout.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Line } from './NovaThread.jsx';
+import { LibraryFlag } from '../LibraryFlag.jsx';
 
 // PROJECTS (phase 1, 29 Oct 2026; design/PROJECTS-PLAN.md §4). Absorbs the
 // Code screen: the list is a rail of projects (the next tile peeks), a
@@ -150,6 +151,102 @@ function ProjectTalk({ c, name }) {
   );
 }
 
+// ---- PHASE 2: research and videos for the project ---------------------------
+//
+// The feed is a rail (the next card peeks: there is more), newest first; each
+// card is one line code wrote, the model and cost, and "Tell me". A running
+// job wears the cyan live dot and its real stage; a failed one says why in
+// warn and offers Retry. The two ways in sit under it: a question, and a
+// video with its lens. Colour means something: cyan is working now, gold is
+// his call, warn is a failure; everything else is ink.
+
+function ResearchCard({ c, i }) {
+  const tone = c.status === 'running' ? 'var(--nv-cy)' : c.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)';
+  return (
+    <article className="nv-pj-rcard nv-deck-rise" data-state={c.status} style={{ '--i': i }} aria-label={`${c.label}: ${c.title}`}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, color: tone, font: `600 11.5px ${UI}`, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+        {c.status === 'running' && <span className="nv-pj-live" />}
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
+        <span style={{ marginLeft: 'auto', flex: 'none', color: 'var(--nv-ink50)', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>{c.when}</span>
+      </div>
+      <Interactive as="div" onClick={c.open} base={{ cursor: 'pointer', minWidth: 0 }}>
+        <div style={{ font: `400 18px/1.25 ${S}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.title}</div>
+        <div style={{ marginTop: '6px', font: `400 13px/1.4 ${UI}`, color: c.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.line}</div>
+      </Interactive>
+      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', minWidth: 0 }}>
+        {c.tellMe && <Button compact onClick={c.tellMe}>Tell me</Button>}
+        {c.retry && <Button compact variant="quiet" tone="warn" onClick={c.retry}>Retry</Button>}
+        {c.receipt && <Meta>{c.receipt}</Meta>}
+      </div>
+      {c.library && <LibraryFlag flag={c.library} compact />}
+    </article>
+  );
+}
+
+function ResearchSection({ r, summary, name }) {
+  const v = r.video;
+  return (
+    <Section summary={summary} label="Research" trailing={r.feed.length ? <Meta>{r.feed.length} filed or running</Meta> : null}>
+      {r.feed.length ? (
+        <Rail gap="12px" ariaLabel={`Research for ${name}`} style={{ paddingBottom: '4px', alignItems: 'stretch' }}>
+          {r.feed.map((c, i) => <ResearchCard key={c.id} c={c} i={i} />)}
+        </Rail>
+      ) : <Meta>Nothing researched yet. Ask a question, or send Nova a video, below.</Meta>}
+
+      <div className="nv-pj-in" style={{ marginTop: '16px' }}>
+        <Eyebrow tone="cyan">Ask research</Eyebrow>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px', minWidth: 0 }}>
+          <input value={r.ask.text} onChange={r.ask.set} placeholder={`A question for ${name}`} aria-label={`A research question for ${name}`}
+            onKeyDown={(e) => { if (e.key === 'Enter') r.ask.send(); }} className="nv-pj-field" />
+          <Button onClick={r.ask.text.trim() && !r.ask.busy ? r.ask.send : undefined} disabled={!r.ask.text.trim() || r.ask.busy} style={{ flex: 'none' }}>{r.ask.busy ? 'Sending' : 'Research'}</Button>
+        </div>
+        {r.ask.error && <div style={{ marginTop: '6px', font: `400 13px ${UI}`, color: 'var(--nv-warn)' }}>{r.ask.error}</div>}
+      </div>
+
+      <div className="nv-pj-in" style={{ marginTop: '16px' }}>
+        <Eyebrow tone="gold">Send a video</Eyebrow>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px', minWidth: 0 }}>
+          <input value={v.url} onChange={v.set} inputMode="url" placeholder="Paste a YouTube, Instagram or TikTok link" aria-label="A video link for this project"
+            onKeyDown={(e) => { if (e.key === 'Enter') v.send(); }} className="nv-pj-field" />
+          <Button onClick={v.url.trim() && !v.busy ? v.send : undefined} disabled={!v.url.trim() || v.busy} style={{ flex: 'none' }}>{v.busy ? 'Sending' : 'Send'}</Button>
+        </div>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }} role="radiogroup" aria-label="Read it for">
+          {v.lenses.map((l) => <Chip key={l.id} active={v.lens === l.id} title={l.hint} onClick={() => v.setLens(l.id)}>{l.label}</Chip>)}
+        </div>
+        <div style={{ marginTop: '8px', font: `500 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>{v.note}</div>
+        {v.error && <div style={{ marginTop: '6px', font: `400 13px ${UI}`, color: 'var(--nv-warn)' }}>{v.error}</div>}
+      </div>
+    </Section>
+  );
+}
+
+// found videos, waiting on him: a light tick or cross on each, one "Watch them"
+function Candidates({ c, discard }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+      <ol className="nv-pj-cands">
+        {c.items.map((it, i) => (
+          <li key={it.url} className="nv-deck-rise" data-crossed={it.crossed ? '' : undefined} style={{ '--i': i }}>
+            <Interactive as="button" type="button" onClick={it.toggle} aria-pressed={!it.crossed} aria-label={`${it.crossed ? 'Keep' : 'Leave out'} ${it.host}`}
+              base={{ flex: 'none', width: '30px', height: '30px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'transparent', border: `1px solid color-mix(in srgb, ${it.crossed ? 'var(--nv-ink)' : 'var(--nv-gold)'} ${it.crossed ? 22 : 55}%, transparent)`, color: it.crossed ? 'var(--nv-ink50)' : 'var(--nv-gold)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d={it.crossed ? 'M6 6l12 12M18 6L6 18' : 'M5 12.5l4.5 4.5L19 7.5'} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </Interactive>
+            <div style={{ minWidth: 0 }}>
+              <div className="h" style={{ font: `600 13.5px ${UI}`, color: it.crossed ? 'var(--nv-ink50)' : 'var(--nv-ink)', overflowWrap: 'anywhere' }}>{it.host}</div>
+              {it.why && <div style={{ font: `400 12.5px/1.4 ${UI}`, color: 'var(--nv-ink60)', overflowWrap: 'anywhere' }}>{it.why}</div>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <Button compact onClick={c.watch && !c.busy ? c.watch : undefined} disabled={!c.watch || c.busy}>{c.busy ? 'Starting' : `Watch them${c.keptCount ? ` · ${c.keptCount}` : ''}`}</Button>
+        <Button compact variant="quiet" tone="quiet" onClick={discard}>Not these</Button>
+      </div>
+      {c.estimate && <Meta>{c.estimate}</Meta>}
+    </div>
+  );
+}
+
 const ALLOW_LABEL = { research: 'Research', draft: 'Draft', code: 'Write code', test: 'Run tests', commit: 'Commit', deploy: 'Deploy' };
 
 function Section({ summary, label, trailing, children }) {
@@ -186,15 +283,17 @@ function ProjectPage({ pg, summary }) {
             <div key={w.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 0', minWidth: 0 }}>
               <div style={{ font: `600 15px ${UI}`, color: 'var(--nv-gold)' }}>{w.title}</div>
               {w.reason && <div style={{ font: `400 13px/1.4 ${UI}`, color: 'var(--nv-ink60)' }}>{w.reason}</div>}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {w.candidates ? <Candidates c={w.candidates} discard={w.discard} /> : <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button compact onClick={w.approve}>{w.dryRun ? 'Yes · dry run' : 'Yes'}</Button>
                 <Button compact variant="quiet" tone="quiet" onClick={w.discard}>No</Button>
                 {w.dryRun && <Tag dashed>DRY RUN</Tag>}
-              </div>
+              </div>}
             </div>
           ))}
         </Section>
       )}
+
+      {pg.research && <ResearchSection r={pg.research} summary={summary} name={p.name} />}
 
       <Section summary={summary} label={`Talk to Nova about ${p.name}`}>
         <ProjectTalk c={pg.conversation} name={p.name} />
@@ -248,6 +347,12 @@ function ProjectPage({ pg, summary }) {
                 {Object.keys(ALLOW_LABEL).map((k) => (
                   <Chip key={k} active={!!c.allowances[k]} onClick={() => pg.actions.setSetting({ allowances: { [k]: !c.allowances[k] } })}>{ALLOW_LABEL[k]}</Chip>
                 ))}
+              </div>
+            </div>
+            <div>
+              <Eyebrow>Videos are read for</Eyebrow>
+              <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {c.lenses.map((l) => <Chip key={l.id} active={c.lens === l.id} title={l.hint} onClick={() => pg.actions.setSetting({ lens: l.id })}>{l.label}</Chip>)}
               </div>
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>

@@ -803,7 +803,7 @@ function InboxClassic({ v }) {
                   )}
                 </div>
                 {item.libraryFlag && (
-                  <div style={{ margin: '6px 0 2px', paddingLeft: 'min(86px, 18%)', minWidth: 0 }}><LibraryFlag flag={item.libraryFlag} compact /></div>
+                  <div style={{ margin: '6px 0 2px', minWidth: 0 }}><LibraryFlag flag={item.libraryFlag} compact /></div>
                 )}
                 {item.expanded && (
                   <div style={css("margin:8px 0 2px 88px;display:flex;flex-direction:column;gap:8px")}>

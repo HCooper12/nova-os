@@ -6819,6 +6819,47 @@ export default class App extends Component {
     // the state above lands before the ask reads it
     setTimeout(() => this.sendProjectAsk({ projectId, text: `Tell me ${what}: “${title}”.`, docRef: recordId }), 0);
   }
+  // PHASE 2: a question researched FOR the project. The record it returns is
+  // the job; it narrates on the wire and lands in the Research feed.
+  sendProjectResearch(projectId) {
+    const conn = getConnection();
+    const q = String(this.state.projectResearchText || '').trim();
+    if (!conn || !projectId || !q || this.state.projectResearchBusy) return;
+    this.setState({ projectResearchBusy: true, projectResearchError: null });
+    api.projectResearch(conn, projectId, q)
+      .then(() => { this.setState({ projectResearchText: '', projectResearchBusy: false }); haptic('commit'); this.refreshInbox(); })
+      .catch((e) => this.setState({ projectResearchBusy: false, projectResearchError: e.message || 'That did not start' }));
+  }
+  // a video for the project, through the lens he picked (the project's own by default)
+  sendProjectVideo(projectId) {
+    const conn = getConnection();
+    const url = String(this.state.projectVideoUrl || '').trim();
+    if (!conn || !projectId || !url || this.state.projectVideoBusy) return;
+    const pick = this.state.projectVideoLens;
+    const lens = pick && pick.id === projectId ? pick.lens : undefined;
+    this.setState({ projectVideoBusy: true, projectVideoError: null });
+    api.projectWatch(conn, projectId, { url, lens })
+      .then(() => { this.setState({ projectVideoUrl: '', projectVideoBusy: false }); haptic('commit'); this.refreshInbox(); })
+      .catch((e) => this.setState({ projectVideoBusy: false, projectVideoError: e.message || 'That did not start' }));
+  }
+  // a light tick or cross on one found video (kept on this device until he answers the card)
+  toggleProjectCandidate(recordId, url) {
+    this.setState((s) => {
+      const cur = { ...((s.projectCandidateCross || {})[recordId] || {}) };
+      if (cur[url]) delete cur[url]; else cur[url] = true;
+      return { projectCandidateCross: { ...(s.projectCandidateCross || {}), [recordId]: cur } };
+    });
+  }
+  // HIS "Watch them": the kept links, one after another, into the project only
+  watchProjectCandidates(projectId, recordId, urls) {
+    const conn = getConnection();
+    if (!conn || !urls?.length) return;
+    this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [recordId]: true } }));
+    api.projectCandidatesWatch(conn, projectId, recordId, urls)
+      .then(() => { haptic('commit'); this.toastMsg(`Watching ${urls.length} for the project, one at a time`); })
+      .catch((e) => this.toastMsg(e.message || 'That did not start'))
+      .finally(() => { this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [recordId]: false } })); this.refreshInbox(); if (this.state.projectOpen) this.loadProject(this.state.projectOpen); });
+  }
   setProjectSpeaking(projectId, on) {
     if (!on) this.resetTtsQueue();
     this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: !!on } }));
@@ -6907,7 +6948,8 @@ export default class App extends Component {
   // that finished while the app was closed is not re-narrated as news.
   narrateJobs(inbox) {
     if (this.state.demoMode) return;
-    const items = (inbox?.items || []).filter((r) => r.kind === 'research' && !r.parentPlanId);
+    // a project's research and its watches narrate too (src/jobBeats.js projectResearchStages)
+    const items = (inbox?.items || []).filter((r) => (r.kind === 'research' && !r.parentPlanId) || (r.projectId && (r.kind === 'project-research' || r.kind === 'video')));
     const seen = (this.jobSeen = this.jobSeen || new Map());
     const booting = !this.jobsBooted;
     this.jobsBooted = true;
