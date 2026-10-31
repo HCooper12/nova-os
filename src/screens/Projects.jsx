@@ -132,6 +132,14 @@ function ProjectTalk({ c, name }) {
           {c.lines.map((m, i) => <Line key={`${m.at}-${i}`} i={i} m={m} fresh={i === c.lines.length - 1} onHold={null} onOpen={() => {}} onReplay={() => {}} />)}
         </div>
       ) : <Meta>Ask anything about {name}. Nova answers from its brief, its log and the pages it may read.</Meta>}
+      {c.speaking && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+          <span style={{ font: `600 12px ${UI}`, color: c.voiceOff ? 'var(--nv-ink60)' : 'var(--nv-cy)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {!c.voiceOff && <span className="nv-pj-live" />}{c.voiceOff ? 'Voice is off in Settings, so Nova answers in text' : 'Nova speaks his answers here'}
+          </span>
+          <TextAction onClick={() => c.setSpeaking(false)}>{c.voiceOff ? 'Done' : 'Quiet'}</TextAction>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '8px', marginTop: '14px', minWidth: 0 }}>
         <textarea value={c.text} onChange={c.set} rows={1} placeholder={`Ask Nova about ${name}`} aria-label={`Ask Nova about ${name}`}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); c.send(); } }}

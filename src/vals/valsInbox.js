@@ -415,6 +415,13 @@ export function libraryFlagOf(r, items, app, st = {}) {
   };
 }
 
+// a filed project research or project watch card can be talked through
+export function tellMeOf(r, app) {
+  if (!r?.projectId || r.status !== 'filed') return null;
+  if (r.kind !== 'project-research' && !(r.kind === 'video' && r.decision?.route === 'project-watch-note')) return null;
+  return () => app.tellMeAbout(r.projectId, r.id);
+}
+
 export function valsInbox(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline } = ctx;
@@ -616,6 +623,8 @@ export function valsInbox(app, ctx) {
     // library too. Code decides it is shown (a filed project watch, a validated
     // yes with a reason); only his tap files it, as its own record with its own undo.
     libraryFlag: libraryFlagOf(r, items, app, st),
+    // "Tell me": the card's document into the project's thread, spoken (App.tellMeAbout)
+    tellMe: tellMeOf(r, app),
 
     // THE MODEL CHOICE GATE, scheduled-lane half — this card doesn't file
     // anything of its own, so it swaps the usual approve/discard for a model

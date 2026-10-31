@@ -659,7 +659,7 @@ export default class App extends Component {
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
     liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
-    projectThreads: {}, projectSessions: {}, projectAskText: '', projectAskBusy: false,
+    projectThreads: {}, projectSessions: {}, projectSpeaking: {}, projectAskText: '', projectAskBusy: false,
     projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
     liveWishlist: null, wishlistDemo: null, wishlistUi: null, wishlistError: null, wishlistAnswered: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
@@ -6747,10 +6747,16 @@ export default class App extends Component {
   // with projectId so the server appends the project's own context (code-read:
   // the brief, phases, log tail and its reads pages). The answer streams into
   // the page; both lines go to the conversation record carrying projectId.
-  sendProjectAsk() {
+  // `opts` (Projects phase 2, "Tell me"): { projectId, text, docRef }. A
+  // docRef seed starts its own conversation on the server with the card's
+  // document after the PROJECT section; the server keeps reflexes and other
+  // lanes out of it. While the project is in speaking mode (Tell me turned it
+  // on) the reply is SPOKEN through the one TTS FIFO the Nova thread uses
+  // (speakTtsSentence), sentence by sentence as it streams.
+  sendProjectAsk(opts = {}) {
     const conn = getConnection();
-    const id = this.state.projectOpen;
-    const text = String(this.state.projectAskText || '').trim();
+    const id = opts.projectId || this.state.projectOpen;
+    const text = String(opts.text ?? this.state.projectAskText ?? '').trim();
     if (!conn || !id || !text || this.state.projectAskBusy) return;
     const at = new Date().toISOString();
     const push = (turn) => this.setState((s) => ({ projectThreads: { ...s.projectThreads, [id]: [...(s.projectThreads[id] || []), turn] } }));
@@ -6762,27 +6768,60 @@ export default class App extends Component {
       return { projectThreads: { ...s.projectThreads, [id]: list } };
     });
     push({ who: 'you', text, at });
-    this.setState({ projectAskText: '', projectAskBusy: true });
-    const sid = (this.state.projectSessions || {})[id] || null;
+    this.setState(opts.text != null ? { projectAskBusy: true } : { projectAskText: '', projectAskBusy: true });
+    const sid = opts.docRef ? null : ((this.state.projectSessions || {})[id] || null);
+    const speaking = !!(this.state.voiceSpeak && (this.state.projectSpeaking || {})[id]);
+    const voice = { upTo: 0 };
+    const sayNew = (reply, final) => {
+      if (!speaking || this.state.projectOpen !== id) return;
+      const fresh = String(reply || '').slice(voice.upTo);
+      if (!fresh) return;
+      const m = final ? fresh.match(/[\s\S]+/) : fresh.match(/[\s\S]*[.!?](?=\s|$)/);
+      if (!m) return;
+      for (const piece of m[0].match(final ? /[^.!?]*[.!?]+\s*|[^.!?]+$/g : /[\s\S]*?[.!?](?=\s|$)\s*/g) || [m[0]]) {
+        const heard = lintSpoken(toSpokenProse(speakableText(piece, { final: true })));
+        if (heard.trim()) this.speakTtsSentence(heard);
+      }
+      voice.upTo += m[0].length;
+    };
     const done = (reply, sessionId) => {
       settle({ text: reply, streaming: false, typing: false });
+      sayNew(reply, true);
       this.setState((s) => ({ projectAskBusy: false, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
       api.saveConversation(conn, [{ who: 'you', text, at, via: 'app', projectId: id }, { who: 'nova', text: reply, at: new Date().toISOString(), via: 'app', projectId: id }]).catch(() => {});
     };
     const fail = (msg) => { settle({ who: 'system', text: msg, streaming: false }); this.setState({ projectAskBusy: false }); };
-    api.ask(conn, text, sid, { projectId: id })
+    api.ask(conn, text, sid, { projectId: id, ...(opts.docRef ? { docRef: opts.docRef } : {}), ...(speaking ? { spoken: true } : {}) })
       .then((resp) => {
         if (resp.text) { done(resp.text, resp.sessionId || sid); return; }
         if (!resp.jobId) { fail('Nova could not take that one. Try again.'); return; }
         push({ who: 'nova', text: '', at: new Date().toISOString(), streaming: true, typing: true });
         this.startPoll('projectAsk', () => api.claudeCodeJob(conn, resp.jobId), {
           timeoutMs: 120_000, intervalMs: 700,
-          onProgress: (job) => { if (job.partial) settle({ text: String(job.partial), streaming: true, typing: true }); },
+          onProgress: (job) => { if (job.partial) { settle({ text: String(job.partial), streaming: true, typing: true }); sayNew(String(job.partial), false); } },
           onReady: (job) => done(job.result?.text || 'Nothing came back for that.', job.result?.sessionId || job.sessionId || sid),
           onError: (msg) => fail(`That failed: ${msg}`),
         });
       })
       .catch((e) => fail(`That failed: ${e.message}`));
+  }
+  // "TELL ME" on a project's research or watch card: open the project, turn
+  // its thread's voice on, and send the seed turn that hands Nova the card's
+  // document (docRef). Unlocks audio inside his tap, the one moment iOS allows.
+  tellMeAbout(projectId, recordId) {
+    if (!projectId || !recordId) return;
+    const r = (this.state.liveInbox?.items || []).find((x) => x.id === recordId);
+    const title = r?.decision?.title || 'this';
+    const what = r?.kind === 'project-research' ? 'what this research found' : 'what this video shows';
+    if (this.state.projectOpen !== projectId) this.openProject(projectId);
+    if (this.state.voiceSpeak) this.primeSpeech();
+    this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: true } }));
+    // the state above lands before the ask reads it
+    setTimeout(() => this.sendProjectAsk({ projectId, text: `Tell me ${what}: “${title}”.`, docRef: recordId }), 0);
+  }
+  setProjectSpeaking(projectId, on) {
+    if (!on) this.resetTtsQueue();
+    this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: !!on } }));
   }
   refreshProjects() {
     const conn = getConnection();

@@ -138,6 +138,8 @@ export function voiceRouter(vaultPath) {
   // a project page's turn (Projects T7): an id the kernel or the linked list
   // could own; anything else is ignored, never trusted as a path
   const projectIdOf = (body) => (typeof body?.projectId === 'string' && /^([0-9a-f]{8}|repo|atlas|wren)$/.test(body.projectId) ? body.projectId : null);
+  // "Tell me" on a project's card (phase 2): the record id of the document
+  const docRefOf = (body) => (typeof body?.docRef === 'string' && /^[0-9a-f]{8}$/.test(body.docRef) ? body.docRef : null);
   const projectOpts = (pid, extra = {}) => (pid ? { ...extra, projectId: pid, repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') } : (Object.keys(extra).length ? extra : undefined));
 
   // PHOTOS AND VIDEOS WITH A QUESTION (lib/attachments.js): stored here,
@@ -189,7 +191,11 @@ export function voiceRouter(vaultPath) {
       // The Reflex Layer: a direct question the live record already answers
       // never reaches the model. Code answers in <1s; a miss falls through
       // silently to the normal ask. (lib/reflex.js; MORNING-SHOW-PLAN.md)
-      const reflex = attachmentPreamble ? null : await tryReflex(raw).catch(() => null);
+      // A "TELL ME" SEED (Projects phase 2) is Nova's turn about one document:
+      // no reflex, verb, plan amend or specialist lane may take it, and it
+      // starts its own conversation so the document is in its context
+      const docTurn = !!(projectIdOf(req.body) && docRefOf(req.body));
+      const reflex = attachmentPreamble || docTurn ? null : await tryReflex(raw).catch(() => null);
       if (reflex) {
         console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
@@ -197,7 +203,7 @@ export function voiceRouter(vaultPath) {
       }
       // STANDBY ("take five" / "I'm back", lib/standby.js): code sets or ends
       // it and says the line; no model. Strict: only a whole-utterance idiom.
-      const standby = attachmentPreamble ? null : await standbyAnswer(raw);
+      const standby = attachmentPreamble || docTurn ? null : await standbyAnswer(raw);
       if (standby) {
         console.log(`standby ${standby.standby.on ? 'on' : 'off'} q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('standby', standby.text)).catch(() => {});
@@ -221,7 +227,7 @@ export function voiceRouter(vaultPath) {
       // as the strict grammar's "tick the eggs off the list"; anything else
       // reaches tryCommand exactly as he said it
       const commandText = await expandIdiomsSafe(raw);
-      const command = attachmentPreamble ? null : await tryCommand(vaultPath, commandText, { fromMac: ctx.fromMac, deferJobs, forceConfirm: forceConfirmFor(ctx.where.place) }).catch(() => null);
+      const command = attachmentPreamble || docTurn ? null : await tryCommand(vaultPath, commandText, { fromMac: ctx.fromMac, deferJobs, forceConfirm: forceConfirmFor(ctx.where.place) }).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
@@ -235,7 +241,7 @@ export function voiceRouter(vaultPath) {
       const { routeIntent, followUpLane } = await import('../lib/intentRouter.js');
       // who spoke last rides with the ask; a plain follow-up stays with them
       const routed = followUpLane(routeIntent(raw).lane, raw, { lastAgent: req.body?.lastAgent, lastAgentAt: req.body?.lastAgentAt });
-      const lane = routed.lane;
+      const lane = docTurn ? 'ask' : routed.lane;
       if (routed.sticky) console.log(`ask → ${lane} (sticky: ${routed.why})`);
       if (attachmentPreamble) question = `${attachmentPreamble}\n\n${question}`;
       // A CORRECTION TO A PLAN HE HAS NOT YET APPROVED CHANGES THE PLAN.
@@ -248,7 +254,7 @@ export function voiceRouter(vaultPath) {
       let planLive = null;
       try {
         const { recentPlanContext, isAffirmativeOrNegative, describePlanForModel } = await import('../lib/planFollowUp.js');
-        planLive = await recentPlanContext();
+        planLive = docTurn ? null : await recentPlanContext();
         if (planLive?.phase === 'proposed' && !isAffirmativeOrNegative(raw) && !routed.sticky && (lane === 'ask' || lane === 'coach' || lane === 'research')) {
           const { amendPlan } = await import('../lib/planner.js');
           const amended = await amendPlan(vaultPath, planLive.record.id, raw);
@@ -320,7 +326,7 @@ export function voiceRouter(vaultPath) {
       // turns starts fresh — its deep context would be a snapshot of some
       // other day. The client persists whatever id comes back.
       const { guardAskSession } = await import('../lib/askSession.js');
-      const guard = guardAskSession(typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null);
+      const guard = guardAskSession(!docTurn && typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null);
       if (guard.reason) console.log(`ask: fresh session — ${guard.reason}`);
       const sessionId = guard.sessionId;
       // Resumed turns get the volatile refresh (today's numbers + the
@@ -335,7 +341,7 @@ export function voiceRouter(vaultPath) {
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const pid = projectIdOf(req.body);
-      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid)), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid, docTurn ? { docRef: docRefOf(req.body) } : {})), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
       watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });

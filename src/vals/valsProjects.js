@@ -102,6 +102,11 @@ export function valsProjects(app) {
         set: (e) => app.setState({ projectAskText: e.target.value }),
         send: () => app.sendProjectAsk(),
         busy: !!st.projectAskBusy,
+        // "Tell me" turns the thread's voice on (the Nova thread's own TTS
+        // queue); voice off in Settings means text only, and the page says so
+        speaking: !!(st.projectSpeaking || {})[p.id],
+        voiceOff: !st.voiceSpeak,
+        setSpeaking: (on) => app.setProjectSpeaking(p.id, on),
       },
       // what happened, in the project's own log (code-written)
       thread: p.linked ? (d?.commits || []).map((c) => ({ at: String(c.at || '').slice(0, 16).replace('T', ' '), dry: false, text: c.subject })) : logLines.slice(-12).reverse(),
