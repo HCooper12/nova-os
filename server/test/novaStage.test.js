@@ -39,7 +39,7 @@ test('mockup 106 is the contract: its numbers, its four words and their dots (31
   assert.deepEqual(stageState('listening'), { word: 'Listening', tone: 'vi' });
   assert.deepEqual(stageState('thinking'), { word: 'Thinking', tone: 'cy' });
   assert.deepEqual(stageState('speaking'), { word: 'Speaking', tone: STAGE_SPEAK });
-  assert.equal(STAGE_SPEAK, 'gold', 'mockup 106 (his speaking colour is being asked; jade is a one-line change)');
+  assert.equal(STAGE_SPEAK, 'jade', 'his call 31 Oct after seeing gold and jade side by side');
   assert.equal(stageState('speaking', { contest: true }).tone, 'contest');
   // the core grows while he talks, as the mockup's body does, and never travels in a turn
   assert.ok(stageScale('listening') > stageScale('turn'));
