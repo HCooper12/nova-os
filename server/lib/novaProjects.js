@@ -170,7 +170,8 @@ async function fileProjectWatchNote(vaultPath, payload) {
     transcript = await readFile(path.join(dataRoot(), 'watch', payload.transcriptRef), 'utf8').catch(() => null);
   }
   const rawBase = `${base}${suffix} (Transcript)`;
-  const date = new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; // his day, not UTC's
   const matter = (await import('gray-matter')).default;
   const front = {
     type: 'source',

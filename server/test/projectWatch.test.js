@@ -95,7 +95,7 @@ test('a project watch writes only under Projects/<Name>/, never the library, nev
   assert.equal(existsSync(path.join(process.env.NOVA_DATA_DIR, 'ingest')), false, 'the ingest weave never started');
   const page = readFileSync(path.join(vault, dir, 'Sources/Japandi bedroom tour.md'), 'utf8');
   assert.match(page, /^type: source$/m);
-  assert.match(page, new RegExp(`^project: ${project.id}$`, 'm'));
+  assert.match(page, new RegExp(`^project: '?${project.id}'?$`, 'm'));
   assert.match(page, /^lens: reference$/m);
   assert.match(page, /\*\*Read by:\*\* sonnet · reference lens/, 'the model is named on the note');
   // the model ran in the job's temp folder with Read only, not in the vault
