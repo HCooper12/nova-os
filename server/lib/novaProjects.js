@@ -6,6 +6,7 @@
 // stage and settings cards, and the dry-run lift proposal. Every project
 // action rides the inbox: kind, status, undoData.
 
+import { isProtectedPath } from './protectedRoots.js';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 
 export function novaKernel(vaultPath = process.env.VAULT_PATH) {
-  return makeKernel({ name: 'Nova', projectsRoot: PROJECTS_ROOT(), dataDir: dataRoot(), vaultRoot: vaultPath || null });
+  return makeKernel({ name: 'Nova', projectsRoot: PROJECTS_ROOT(), dataDir: dataRoot(), vaultRoot: vaultPath || null, isProtected: isProtectedPath });
 }
 
 const newId = () => randomUUID().replace(/-/g, '').slice(0, 8);

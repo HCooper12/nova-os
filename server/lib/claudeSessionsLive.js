@@ -311,6 +311,7 @@ export async function startSession({ cwd, text, name, execFn = runCommand } = {}
   const say = String(text || '').trim().slice(0, SAY_MAX);
   if (!say) throw new Error('Say what the session should do.');
   if (!cwd) throw new Error('Pick a workspace first.');
+  (await import('./protectedRoots.js')).assertNotProtected(cwd, 'start a session there');
   const args = ['--bg'];
   const label = String(name || '').replace(/[\r\n]/g, ' ').trim().slice(0, 60);
   if (label) args.push('--name', label);

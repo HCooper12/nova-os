@@ -4,6 +4,7 @@ import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { isProtectedPath } from './protectedRoots.js';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
@@ -368,12 +369,31 @@ What is his, not yours, in this lane (these commands are blocked): committing, p
 
 After your turn Nova runs the project's checks itself and a Breaker reviews your diff; anything they find comes back to you in this conversation. Your final reply: what you changed and why, what you ran and its result, and anything still uncertain. Plain words, short.`;
 
+/**
+ * Which tools a Code-lane turn gets, decided by FOLDER first. A protected
+ * folder (Science Atlas, its Mission Control, Wren) gets no Edit, no Write and
+ * no shell whatever the caller asked for; `readOnly` alone still allows Edit
+ * and Write (that is the vault's old lane), so it is not enough there.
+ */
+export function toolBoundaryFor(cwd, readOnly = false) {
+  if (isProtectedPath(cwd)) return { locked: true, allowed: 'Read Grep Glob', disallowed: `${DISALLOWED_TOOLS},Edit,Write` };
+  return { locked: false, allowed: readOnly ? ALLOWED_TOOLS : BUILDER_ALLOWED, disallowed: readOnly ? DISALLOWED_TOOLS : BUILDER_DISALLOWED };
+}
+
+
 // message: { text, sessionId?, model?, readOnly? } — sessionId absent starts a
 // new conversation; present continues it via --resume.
 // `onDone(job)` (ship mode, lib/codeShip.js): called once when the job ends,
 // ready or error, so the ship card is filed by code from the job's result.
 export function startMessage(cwd, { text, sessionId, model, readOnly = false, verify = true, onDone = null }) {
   assertLaneOn('code');
+  // Science Atlas, its Mission Control and Wren: Nova reads there and never
+  // writes (his rule, 1 Nov 2026). Decided here, by FOLDER, so no caller can
+  // ask for the Builder lane on them. `readOnly` alone is not enough: that lane
+  // still allows Edit and Write.
+  const boundary = toolBoundaryFor(cwd, readOnly);
+  const locked = boundary.locked;
+  if (locked) { readOnly = true; verify = false; }
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
   const effectiveSessionId = sessionId || randomUUID();
@@ -386,8 +406,8 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
       // turns, so a follow-up message skips the CLI boot
       '-p', '--input-format', 'stream-json',
       '--permission-mode', 'bypassPermissions',
-      '--allowedTools', readOnly ? ALLOWED_TOOLS : BUILDER_ALLOWED,
-      '--disallowedTools', readOnly ? DISALLOWED_TOOLS : BUILDER_DISALLOWED,
+      '--allowedTools', boundary.allowed,
+      '--disallowedTools', boundary.disallowed,
       '--strict-mcp-config',
       // Streaming here too: the Code tab renders the reply as it's written,
       // same contract as the Ask Nova path (job.partial via the shared poll).
@@ -395,7 +415,8 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
       '--include-partial-messages',
       '--verbose',
     ];
-    if (!readOnly) a.push('--append-system-prompt', BUILDER_BRIEF);
+    if (locked) a.push('--append-system-prompt', 'This folder belongs to Science Atlas or Wren. You may read and explain it. You cannot change anything here, and you must say so plainly if asked to.');
+    else if (!readOnly) a.push('--append-system-prompt', BUILDER_BRIEF);
     a.push(resume ? '--resume' : '--session-id', effectiveSessionId);
     // an explicit choice from the Code screen's picker always wins; absent
     // that, the lane's setting. modelFor never returns empty.

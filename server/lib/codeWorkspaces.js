@@ -20,6 +20,7 @@
 // runtime. Committing HIS ticked changes in that folder from this screen is
 // his act, through the same guards as Nova OS.
 
+import { isProtectedPath } from './protectedRoots.js';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -33,7 +34,7 @@ export const WORKSPACES_FILE = () => path.join(dataRoot(), 'code-workspaces.json
 export const BUILT_IN = ['repo', 'vault'];
 const KEY_RE = /^[a-z][a-z0-9-]{0,31}$/;
 
-const PROJECTS_DIR = () => path.join(os.homedir(), 'Desktop', 'Files', 'Claude Projects');
+const PROJECTS_DIR = () => path.join(os.homedir(), 'Projects');
 export const DEFAULT_WORKSPACES = () => [
   { key: 'atlas', title: 'Science Atlas', path: path.join(PROJECTS_DIR(), 'Atomic_Hub', 'P3_Draft3', 'Atlas_Progress_Map') },
   { key: 'wren', title: 'Wren', path: path.join(PROJECTS_DIR(), 'atlas-partner'), parent: 'atlas' },
@@ -111,6 +112,7 @@ async function writeRaw(list) {
 export async function addProjectWorkspace({ slug, title, path: dir }) {
   const key = projectWorkspaceKey(slug);
   if (!KEY_RE.test(key)) throw refuse('that project has no usable workspace key');
+  if (isProtectedPath(dir)) throw refuse('Nova never writes to Science Atlas or Wren, so that folder cannot be a project workspace');
   const list = await rawWorkspaces();
   if (list.some((w) => w?.key === key)) return { key, added: false };
   await writeRaw([...list, { key, title: String(title || slug).slice(0, 60), path: dir }]);

@@ -229,6 +229,7 @@ export function makeKernel(host) {
   // where a project's folder lives: <root>/<slug>, or <root>/<parent>/<slug>
   function folderFor(slug, parent) {
     const root = ensureRoot();
+    if (host.isProtected && host.isProtected(root)) throw refuse('that projects folder is one Nova never writes to', 'linked');
     if (!parent) return projectDir(slug, { root });
     const parentDir = projectDir(parent.slug, { root });
     if (!existsSync(parentDir)) throw refuse(`the parent project's folder is missing (${parent.slug})`);
