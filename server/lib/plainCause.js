@@ -12,6 +12,10 @@ const RULES = [
   [(e, m) => /timed out|ETIMEDOUT|SIGKILL/i.test(m), () => 'It took too long and was stopped'],
   [(e, m) => /ENOTFOUND|ECONNREFUSED|ECONNRESET|network|fetch failed/i.test(m), () => "The Mac couldn't reach the internet"],
   [(e, m) => /ENOSPC/.test(m), () => 'The Mac is out of disk space'],
+  // yt-dlp's own reasons (watcher.js passes its ERROR line through)
+  [(e, m) => /No video formats found|no video in|did not produce a video file/i.test(m), () => "That link has no video Nova could download (a photo or carousel post, or one Instagram won't hand over)"],
+  [(e, m) => /login required|log in|rate-limit reached|cookies|private|restricted|not available|unavailable/i.test(m), () => "The site wouldn't give Nova that post (it needs a login, is private, or was removed)"],
+  [(e, m) => /HTTP Error 4\d\d|Unsupported URL/i.test(m), () => "The site refused the download, or Nova doesn't support that kind of link"],
   [(e, m) => /came back empty|no JSON|unparseable|could not parse/i.test(m), () => "Claude answered, but not in a form Nova could read"],
 ];
 

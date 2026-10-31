@@ -15,7 +15,13 @@ test('known causes read plainly; a lane that is off says so in its own words', (
 });
 
 test('an unknown cause passes through as its own words, not a story', () => {
-  assert.equal(plainCause(new Error('yt-dlp did not produce a video file.')), 'Yt-dlp did not produce a video file');
+  assert.equal(plainCause(new Error('the toaster exploded.')), 'The toaster exploded');
   assert.equal(plainCause(null), 'It failed without saying why');
   assert.equal(keptBecause(new Error('boom'), 'Nova kept the link.'), 'Boom. Nova kept the link.');
+});
+
+test('yt-dlp reasons are said in plain words (31 Oct: an Instagram photo post said only a temp path)', () => {
+  assert.match(plainCause(new Error('No video formats found!; please report this issue on https://github.com/yt-dlp')), /no video/i);
+  assert.match(plainCause(new Error('yt-dlp did not produce a video file in /private/var/x (exit 1)')), /no video/i);
+  assert.match(plainCause(new Error('login required to view this post')), /needs a login/);
 });

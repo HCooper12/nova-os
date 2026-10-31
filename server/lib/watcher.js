@@ -145,7 +145,13 @@ export function fetchVideoTranscript(url, workDir) {
     child.on('close', (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        const line = stderr.trim().split('\n').pop() || `watch script exited with code ${code}`;
+        // the LAST stderr line is the script's own "yt-dlp did not produce a
+        // video file in <temp folder>"; the reason is yt-dlp's "ERROR:" line
+        // above it (31 Oct 2026: an Instagram photo post said nothing but a
+        // temp path). Keep that reason first.
+        const lines = stderr.trim().split('\n');
+        const why = [...lines].reverse().find((l) => /^ERROR:/i.test(l.trim()));
+        const line = (why ? why.replace(/^ERROR:\s*(\[[^\]]+\]\s*)?/i, '') : lines.pop()) || `watch script exited with code ${code}`;
         return reject(new Error(line.slice(0, 300)));
       }
       resolve(parseWatchReport(stdout));
