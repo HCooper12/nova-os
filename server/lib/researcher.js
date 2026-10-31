@@ -173,7 +173,9 @@ export async function retryResearch(vaultPath, record) {
 // stated once — a worker that quietly gained Write would be a hole in the
 // "web-read-only" promise the whole agent rests on. No working-session cap:
 // a worker runs to a real answer, however long that honestly takes.
-function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read', resume = null }) {
+// `lane` names whose run this is (a project's research is 'project-research',
+// so its spend and effort are its own); `tally.usd` adds up what each run cost.
+function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read', resume = null, lane = 'researcher', tally = null }) {
   return new Promise((resolve) => {
     let child;
     const sessionId = resume || randomUUID();
@@ -186,7 +188,7 @@ function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read'
         '--strict-mcp-config',
         '--output-format', 'json',
         '--model', model,
-        ...effortArgs('researcher'),
+        ...effortArgs(lane),
         resume ? '--resume' : '--session-id', sessionId,
       ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) { resolve({ error: e.message }); return; }
@@ -199,7 +201,8 @@ function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read'
     child.on('close', (code) => {
       let outer = null;
       try { outer = JSON.parse(stdout); } catch { /* not JSON — fall through to the error path */ }
-      if (outer) recordRun('researcher', fromEnvelope(outer));
+      if (outer) recordRun(lane, fromEnvelope(outer));
+      if (outer && tally && Number.isFinite(Number(outer.total_cost_usd))) tally.usd += Number(outer.total_cost_usd);
       if (!outer || outer.is_error || code !== 0) {
         resolve({ error: outer?.result || stderr.trim() || `claude exited with code ${code}` });
         return;
@@ -241,7 +244,8 @@ export async function planPanel(vaultPath, question) {
 // is one of two honest shapes:
 //   { title, body }          — the brief
 //   throws                   — a real failure, with the first reason attached
-async function runPanel(vaultPath, recordId, question, model, context, consultOpts = null) {
+async function runPanel(vaultPath, recordId, question, model, context, consultOpts = null, shape = null) {
+  if (shape) return runShapedPanel(vaultPath, recordId, question, model, context, shape);
   const { panel, planned } = await planPanel(vaultPath, question);
   const workers = panel.map((w) => ({ name: w.name, status: 'working', found: 0 }));
   const publish = (extra = {}) => updateRecord(recordId, { panel: { ...panelProgress(workers), planned, ...extra } }).catch(() => {});
@@ -343,6 +347,48 @@ async function runPanel(vaultPath, recordId, question, model, context, consultOp
     if (!fixed) throw new Error(`the merge failed its citation check (${gateErr.message}) and the repair returned no JSON`);
     return normalizeResearch(parseModelJson(fixed[0]));
   }
+}
+
+// THE SAME PANEL, A DIFFERENT ANSWER SHAPE (Projects phase 2). A project's
+// research needs per-claim sources code can check, not a markdown brief, so
+// the merge is told to write that shape (`shape.synthesisPrompt`) and code
+// validates it (`shape.normalize`). The workers, their web tools, the
+// planner and the progress on the record are the Researcher's own. No consult
+// round here: a project's material is handed in, never asked for mid-merge.
+async function runShapedPanel(vaultPath, recordId, question, model, context, shape) {
+  const lane = shape.lane || 'researcher';
+  const tally = shape.tally || null;
+  const { panel, planned } = await planPanel(vaultPath, question);
+  const workers = panel.map((w) => ({ name: w.name, status: 'working', found: 0 }));
+  const publish = (extra = {}) => updateRecord(recordId, { panel: { ...panelProgress(workers), planned, ...extra } }).catch(() => {});
+  await publish();
+  const reports = await Promise.all(panel.map(async (w, i) => {
+    const out = await askClaude(vaultPath, { prompt: buildWorkerPrompt(question, w, context), model: WORKER_MODEL, lane, tally });
+    if (out.error) {
+      workers[i] = { ...workers[i], status: 'error', found: 0 };
+      await publish();
+      return { name: w.name, error: out.error };
+    }
+    const json = firstBalancedObjectMatch(out.text);
+    const findings = json ? parseFindings(parseModelJson(json[0])) : [];
+    workers[i] = { ...workers[i], status: 'done', found: findings.length };
+    await publish();
+    return { name: w.name, findings };
+  }));
+  if (reports.every((r) => r.error)) throw new Error(`all ${reports.length} researchers failed — ${reports[0].error}`);
+  await publish({ merging: true });
+  const mergeModel = model || modelFor(lane);
+  const out = await askClaude(vaultPath, { prompt: shape.synthesisPrompt(question, reports, context), tools: 'Read', model: mergeModel, lane, tally });
+  if (out.error) throw new Error(`the merge failed — ${out.error}`);
+  const json = firstBalancedObjectMatch(out.text);
+  if (!json) throw new Error(out.text.slice(0, 200) || 'no JSON in the merge response');
+  return { ...shape.normalize(parseModelJson(json[0])), mergeModel, workerModel: WORKER_MODEL, workers: reports.length };
+}
+
+/** A Researcher panel whose merge writes `shape`'s answer (see runShapedPanel). */
+export function runResearchPanel(vaultPath, recordId, question, { model, context = '', shape }) {
+  if (!shape || typeof shape.synthesisPrompt !== 'function' || typeof shape.normalize !== 'function') throw new Error('a research shape needs synthesisPrompt and normalize');
+  return runPanel(vaultPath, recordId, question, model, context, null, shape);
 }
 
 // The run, shared by first attempts and retries. A panel of named researchers

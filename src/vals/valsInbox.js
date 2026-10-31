@@ -538,7 +538,7 @@ export function valsInbox(app, ctx) {
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
     // their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'project-research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'
       // his 31 Oct report: a failed Weave, recipe import or Wishlist add showed only Dismiss. The server retries each of these (inbox.js retryRecord).
       || (r.kind === 'ingest' && !!r.ingestRetry) || r.kind === 'recipe-video' || r.kind === 'recipe-scan' || r.kind === 'wishlist'),
     approve: () => app.inboxAction(r.id, 'approve'),

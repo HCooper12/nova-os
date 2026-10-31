@@ -1953,6 +1953,10 @@ export async function retryRecord(vaultPath, id) {
     const { retryResearch } = await import('./researcher.js');
     return retryResearch(vaultPath, record);
   }
+  if (record.kind === 'project-research') {
+    const { retryProjectResearch } = await import('./projectResearch.js');
+    return retryProjectResearch(vaultPath, record);
+  }
   if (record.kind === 'video') {
     const { retryWatch } = await import('./watcher.js');
     return retryWatch(vaultPath, record);
@@ -2047,6 +2051,12 @@ export async function approveRecord(vaultPath, id) {
   // A plan that failed its checks cannot be approved into running. Approving
   // one files the refusal as read — the blockers are the answer he wanted
   // ("that would need a new agent"), not a job to retry.
+  // VIDEOS A PROJECT'S RESEARCH FOUND (Projects phase 2): his yes is "watch
+  // them", one after another, into that project only (lib/projectResearch.js)
+  if (record.kind === 'project-watch-candidates') {
+    const { watchCandidates } = await import('./projectResearch.js');
+    return watchCandidates(vaultPath, id, null);
+  }
   if (record.kind === 'plan') {
     if (!record.planOk) {
       return updateRecord(id, { status: 'filed', filedAt: new Date().toISOString(), auto: false, error: null });

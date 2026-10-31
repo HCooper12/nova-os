@@ -462,6 +462,14 @@ export const LANES = [
     off: 'A design-lens watch is refused with a plain message; the reference and claims lenses still work.',
   },
   {
+    // PROJECTS phase 2: research FOR a project. The Researcher's panel (web,
+    // citation-required) with the merge writing per-claim sources, which code
+    // validates and writes into the project's research/ folder.
+    id: 'project-research', label: 'Project research', group: 'research', def: 'sonnet', defEffort: 'high',
+    hint: 'researches a question for one project; every claim must name its source, code drops the rest',
+    off: 'Asking a project to research is refused with a plain message; its research folder is unchanged.',
+  },
+  {
     id: 'scout', label: 'Scout · people research', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'researches a person or a social account into a dossier your vault can weave',
     off: 'Researching a person is refused with a plain message; nothing already in your vault changes.',
