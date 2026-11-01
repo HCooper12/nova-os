@@ -4765,6 +4765,8 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-nt-sthint { position: absolute; left: 0; right: 0; top: calc(var(--st-ctop, 762px) - 66px); margin: 0; display: flex; justify-content: center; align-items: center; gap: 6px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink40); transition: opacity var(--nv-dur-base) var(--nv-ease); }
 .nv-nt-sthint .nv-nt-ico { width: 15px; height: 15px; }
 .nv-nt-osec[data-state="listen"] .nv-nt-sthint, .nv-nt-osec[data-state="speak"] .nv-nt-sthint, .nv-nt-osec[data-crowded][data-state="idle"] .nv-nt-sthint { opacity: 0; }
+/* the "Tap to hear" strip (a reply he has not heard yet) takes the hint's place */
+.nv-nt:has(.nv-nt-strip) .nv-nt-sthint { opacity: 0; }
 
 /* the plate and its serif subtitles (mockup 106 .plate, .who, .pq, .pa, .w) */
 .nv-nt-stplate {
