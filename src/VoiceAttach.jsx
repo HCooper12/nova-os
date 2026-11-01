@@ -15,7 +15,8 @@ export function VoiceAttach({ a, where = 'mob' }) {
         title={a.intake ? 'Call it off; nothing is made' : 'Detach: Nova answers as usual'}>
         <span className="nm">{a.name}{a.doc && <span className="doc"> · {a.doc}</span>}</span><span aria-hidden="true" className="x">×</span>
       </Chip>
-      {a.open && <TextAction onClick={a.open}>Open</TextAction>}
+      {/* the phone's row is the document's: Open lives on the Mac and the classic screen */}
+      {a.open && where !== 'mob' && <TextAction onClick={a.open}>Open</TextAction>}
     </div>
   );
 }
