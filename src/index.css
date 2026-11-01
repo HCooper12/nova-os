@@ -4760,6 +4760,8 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-nt-stasks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .nv-nt-stheard { left: 28px; right: 28px; top: 446px; text-align: center; font: italic 400 22px/1.35 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; }
 .nv-nt-stheard small { display: block; margin-bottom: 6px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+/* a long question never runs into the hint (1 Nov 2026): four lines, then … */
+.nv-nt-sthw { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 .nv-nt-sthw .w { display: inline-block; white-space: pre; animation: nvStHw .28s var(--nv-ease) both; }
 @keyframes nvStHw { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
 .nv-nt-sthint { position: absolute; left: 0; right: 0; top: calc(var(--st-ctop, 762px) - 66px); margin: 0; display: flex; justify-content: center; align-items: center; gap: 6px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink40); transition: opacity var(--nv-dur-base) var(--nv-ease); }
