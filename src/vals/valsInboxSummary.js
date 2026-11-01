@@ -1,7 +1,7 @@
 import { sentLine } from '../videoDrop.js';
 import { quickCaptureModel } from './quickCapture.js';
 import { digestPending, subjectOf } from '../inboxDigest.js';
-import { isCoachSuggestion, buildSuggestion } from '../coachSuggestions.js';
+import { isCoachSuggestion, buildSuggestion, staleLine } from '../coachSuggestions.js';
 import { ROUTE_META } from './valsInbox.js';
 import {
   dayGroups, clockLabel, subjectCards, digestLine, deeperState, agoLabel, reportParts,
@@ -88,6 +88,7 @@ function destinationOf(r) {
   switch (route) {
     case 'routine-edit': return p.routineName ? `${p.routineName}, your program` : 'Your program';
     case 'schedule-edit': return 'Your training week';
+    case 'alert-tier': return 'How your alerts reach you';
     case 'train-today': return p.routineName ? `Today's ${p.routineName}` : "Today's session";
     case 'progression-tune': return p.exerciseName ? `${p.exerciseName}'s progression` : 'Your progression';
     case 'exercise-remap': return 'Your exercise library';
@@ -180,8 +181,25 @@ export function valsInboxSummary(app, ctx, v) {
   const pendingIds = new Set(pendingAll.map((i) => i.id));
   const folded = pendingAll.filter((i) => { const p = byId.get(i.id)?.parentId; return p && pendingIds.has(p); });
   const foldedIds = new Set(folded.map((i) => i.id));
-  const deck = pendingAll.filter((i) => !foldedIds.has(i.id));
-  const digest = digestPending(deck);
+  const deckFlat = pendingAll.filter((i) => !foldedIds.has(i.id));
+  // A COACH REBUILD IS ONE CARD (1 Nov 2026): its members leave the deck and
+  // the group stands where its first member stood (valsInbox inboxGroups)
+  const groups = v.inboxGroups || [];
+  const groupOf = new Map(groups.flatMap((g) => g.memberIds.map((id) => [id, g])));
+  const waitingMap = v.inboxWaiting || {};
+  const deck = [];
+  const placedGroups = new Set();
+  for (const i of deckFlat) {
+    const g = groupOf.get(i.id);
+    if (!g) { deck.push(i); continue; }
+    if (placedGroups.has(g.key)) continue;
+    placedGroups.add(g.key);
+    deck.push({ id: g.key, isGroup: true, group: g });
+  }
+  const digest = digestPending(deck.filter((i) => !i.isGroup));
+  const nGroups = placedGroups.size;
+  const groupBit = nGroups ? `${nGroups} program rebuild${nGroups === 1 ? '' : 's'}` : '';
+  const pileLine = () => [groupBit, digestLine(digest, deck.length - nGroups)].filter(Boolean).join(' · ');
 
   const decidedIds = (st.inboxSumDecided || []).filter((id) => !pendingIds.has(id));
   const setReceipt = (ids, verdict, title) => app.setState((s) => ({
@@ -195,6 +213,7 @@ export function valsInboxSummary(app, ctx, v) {
   const schedule = st.liveWorkoutSchedule || {};
   const buildCard = (item) => {
     if (!item) return null;
+    if (item.isGroup) return buildGroupCard(item.group);
     const r = byId.get(item.id) || { id: item.id, status: item.status };
     const sug = isCoachSuggestion(r) ? buildSuggestion(r, { routines, schedule, now }) : null;
     // "no longer in your program" is only true once the program has loaded;
@@ -219,7 +238,8 @@ export function valsInboxSummary(app, ctx, v) {
       dest || null,
       sug ? (sug.sets ? `${sug.sets.before} → ${sug.sets.after} sets` : sug.routine ? 'The set count stays the same' : null)
         : (approveWhat ? cap1(approveWhat) : item.previewShort || null),
-    ].filter(Boolean);
+    // a preview with no words in it (" — ") is not a line
+    ].filter((l) => l && /\w/.test(l));
     const willFull = [approveWhat ? `Approving will ${approveWhat.replace(/^\w/, (c) => c.toLowerCase())}` : '', item.full || ''].filter(Boolean).join('\n\n');
 
     const approveRun = () => { if (item.busy) return; setReceipt([item.id], 'approve', sentence); item.approve(); };
@@ -260,6 +280,18 @@ export function valsInboxSummary(app, ctx, v) {
           };
 
     const why = item.askingWhy ? whyHead(item.whyTitle) : null;
+    // WAITING ON ANOTHER CARD (1 Nov 2026): the server refuses this yes until
+    // the day it names exists, so the card says so, names the card that
+    // creates it, offers to go there, and its tick waits rather than vanishes
+    const w = waitingMap[item.id] || null;
+    const parentAt = w?.parentId ? (groupOf.get(w.parentId)?.key || w.parentId) : null;
+    const waiting = w ? {
+      name: w.name,
+      line: w.parentId
+        ? `${w.name} has to be created first. That is another card waiting here; say yes to it and this one can go in.`
+        : `${w.name} does not exist yet, and no card waiting here creates it. Clear this one with ✕, or talk about it.`,
+      go: parentAt ? () => app.setState({ inboxSumJump: parentAt, inboxSumFocus: null }) : null,
+    } : null;
     return {
       id: item.id,
       tile, kindLabel, where: whereLine, when: item.time, sentence,
@@ -267,12 +299,16 @@ export function valsInboxSummary(app, ctx, v) {
       tldr: item.tldr?.items?.length ? { items: item.tldr.items.slice(0, 3), more: (item.tldr.more || 0) + Math.max(0, item.tldr.items.length - 3) } : null,
       change,
       captured: item.captured && item.captured !== sentence ? item.captured : '',
+      // WHAT THIS MEANS (1 Nov 2026): code's plain sentence, opened in place
+      meaning: item.meaning || '',
       // his words where they are his; an agent's product says what started it
       capturedLabel: !r.source || ['voice', 'text', 'telegram', 'shortcut', 'typed'].includes(r.source) ? 'You captured' : 'What started it',
       will: { label: item.isModelChoice ? 'What it runs' : REPORT_KINDS.has(r.kind) ? 'Will be kept' : 'Will be filed', lines: willLines, full: willFull },
       // the reason, else (a Coach card) where the change came from
       reason: sug?.why || item.reason || sug?.source || '',
       stale,
+      // "waiting on another card" or "already changed", said as what it is
+      staleLine: waiting ? null : staleLine(stale),
       adjustments: item.adjustments || null,
       ship: item.ship || null,
       error: item.error || null,
@@ -285,8 +321,10 @@ export function valsInboxSummary(app, ctx, v) {
         autoSeenOnce.add(item.id);
         app.inboxSeen(item.id, true);
       },
+      waiting,
       verbs: {
-        yes: stale ? null : item.isModelChoice
+        yes: waiting ? { label: `Waiting on ${waiting.name}`, aria: `Waiting on ${waiting.name}: that card has to be filed first`, disabled: true, run: () => {} }
+          : stale ? null : item.isModelChoice
           ? { label: `Keep ${item.keepLabel || 'the usual model'}`, aria: `Keep ${item.keepLabel || 'the usual model'} for ${sentence}`, run: keepRun }
           : { label: item.ship ? 'Ship it' : sug ? yesLabel(sentence) : REPORT_KINDS.has(r.kind) ? 'Keep it' : 'File it', aria: `${item.approveLabel}: ${sentence}`, run: approveRun },
         // a pending plan with a failed step reruns just that step (valsInbox planCanRetry)
@@ -302,20 +340,41 @@ export function valsInboxSummary(app, ctx, v) {
       deeper,
       // right files (never a model choice: that needs his pick), left passes
       // a code ship goes out only on his tap of Ship it, never a swipe
-      swipe: { right: item.isModelChoice || stale || item.ship ? null : approveRun, left: discardRun },
+      swipe: { right: item.isModelChoice || stale || waiting || item.ship ? null : approveRun, left: discardRun },
     };
   };
 
+  // THE REBUILD AS ONE CARD: the summary, Apply all (two taps, in order), Discard
+  // all (one reason on every member), and each change one tap away
+  function buildGroupCard(g) {
+    return {
+      id: g.key, isGroup: true, group: g,
+      tile: { tone: 'train', glyph: 'dumbbell' },
+      kindLabel: 'Program rebuild',
+      where: 'From Coach',
+      when: g.time,
+      sentence: g.headline,
+      seen: true, markSeen: () => {},
+      leaving: null,
+      busy: g.running,
+      // right asks to apply (it never applies on a swipe), left asks why
+      swipe: { right: g.order.length && !g.running ? g.askApply : null, left: g.running ? null : g.askDiscard },
+      receiptFor: (kind) => setReceipt(kind === 'discard' ? g.memberIds : g.order, kind === 'discard' ? 'discard' : 'approve', g.title),
+    };
+  }
+
   // --------------------------------------------------------- the subjects --
-  const subjects = subjectCards(digest).map((s) => ({
+  const subjects = subjectCards(digest).map((s0) => ({ ...s0, fileable: s0.runnable.filter((m) => !waitingMap[m.id]).length })).map((s) => ({
     key: s.key, name: s.name, count: s.count, fileable: s.fileable, keep: s.keep,
     // the dot wears the subject's domain hue, as its cards' tiles do
     tone: s.key === 'routine' ? 'vault' : tileOf(byId.get(s.members[0]?.id)).tone,
     aria: s.keep ? `Keep the usual model for all ${s.fileable}` : `File all ${s.fileable} from ${s.name}`,
     open: () => app.setState({ inboxSumFocus: s.key }),
     all: s.fileable > 0 ? () => {
-      setReceipt(s.runnable.map((m) => m.id), s.keep ? 'keep' : 'approve', `${s.fileable} from ${s.name}`);
-      s.runnable.forEach((m) => (s.keep ? m.pickSonnet() : m.approve()));
+      // a card waiting on another card would only be refused, so it is left
+      const run = s.runnable.filter((m) => !waitingMap[m.id]);
+      setReceipt(run.map((m) => m.id), s.keep ? 'keep' : 'approve', `${run.length} from ${s.name}`);
+      run.forEach((m) => (s.keep ? m.pickSonnet() : m.approve()));
     } : null,
     busy: s.members.some((m) => m.busy),
   }));
@@ -323,7 +382,10 @@ export function valsInboxSummary(app, ctx, v) {
   const focusMembers = focusKey === 'routine' ? (digest?.routine || [])
     : focusKey ? deck.filter((i) => `s:${subjectOf(i)}` === focusKey) : [];
   const focusOn = !!(focusKey && focusMembers.length);
-  const shown = focusOn ? focusMembers : deck;
+  const shown0 = focusOn ? focusMembers : deck;
+  // "Go to that card": the card a waiting one names comes to the top
+  const jump = st.inboxSumJump;
+  const shown = jump && shown0.some((i) => i.id === jump) ? [shown0.find((i) => i.id === jump), ...shown0.filter((i) => i.id !== jump)] : shown0;
   const card = onInbox ? buildCard(shown[0]) : null;
   const rail = focusOn ? railMarks(0, shown.length) : railMarks(decidedIds.length, deck.length);
 
@@ -540,7 +602,7 @@ export function valsInboxSummary(app, ctx, v) {
     live: connected,
     waiting: {
       count: pendingAll.length,
-      line: digestLine(digest, deck.length),
+      line: pileLine(),
       open: () => app.navigate('inbox'),
     },
     proposals,
@@ -582,7 +644,7 @@ export function valsInboxSummary(app, ctx, v) {
       offline: !!v.isOffline,
       loading: !v.inboxLoaded && connected && !v.isOffline,
       count: pendingAll.length,
-      digestLine: [digestLine(digest, deck.length), folded.length ? `${plural(folded.length, 'report')} on ${folded.length === 1 ? 'its card' : 'their cards'}` : ''].filter(Boolean).join(' · '),
+      digestLine: [pileLine(), folded.length ? `${plural(folded.length, 'report')} on ${folded.length === 1 ? 'its card' : 'their cards'}` : ''].filter(Boolean).join(' · '),
       rail,
       position: shown.length ? (focusOn ? `1 of ${shown.length}` : `${decidedIds.length + 1} of ${decidedIds.length + deck.length}`) : '',
       subjects: focusOn ? [] : subjects,

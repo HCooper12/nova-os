@@ -2791,25 +2791,55 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-sum-ib-gauge .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--nv-sum-track); overflow: hidden; }
 .nv-sum-ib-gauge .bar > i { display: block; height: 100%; border-radius: 4px; background: var(--ib-wait); }
 
-/* the card's two quiet blocks: You captured, Will be filed */
-.nv-sum-ib-qb { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
-.nv-sum-ib-qb.one { grid-template-columns: minmax(0, 1fr); }
-.nv-sum-ib-blk {
-  display: block; width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 9px 12px 10px; border-radius: 14px;
-  background: color-mix(in srgb, var(--nv-ink) 6%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 11%, transparent), 0 1px 0 color-mix(in srgb, var(--nv-sum-card-hi) 60%, transparent) inset;
+/* Details: one quiet disclosure under the verbs (1 Nov 2026); closed by default */
+.nv-sum-ib-meanbox { margin-top: 2px; }
+.nv-sum-ib-meanb {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 2px; box-sizing: border-box;
+  font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); background: none; border: 0; border-top: 1px solid var(--ib-sep); border-radius: 0;
 }
+.nv-sum-ib-meanb .x { margin-left: auto; width: 15px; height: 15px; transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-sum-ib-meanb.open .x { transform: rotate(180deg); }
+.nv-sum-ib-meanbody { display: flex; flex-direction: column; gap: 12px; padding: 2px 2px 8px; }
+.nv-sum-ib-mrow { min-width: 0; }
+.nv-sum-ib-mean { margin: 0; font: 400 17px/1.45 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; overflow-wrap: anywhere; }
 .nv-sum-ib-bh { display: flex; align-items: center; gap: 6px; font: 600 13px/16px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; }
 .nv-sum-ib-bh .nv-sum-ib-ico { width: 14px; height: 14px; }
-.nv-sum-ib-bh .x { margin-left: auto; transition: transform var(--nv-dur-fast) var(--nv-ease); }
-.nv-sum-ib-blk.open .nv-sum-ib-bh .x { transform: rotate(180deg); }
-.nv-sum-ib-bt {
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
-  margin-top: 4px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--ib-ink2);
-}
-.nv-sum-ib-bt1 { display: block; min-width: 0; margin-top: 4px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nv-sum-ib-bt1 + .nv-sum-ib-bt1 { margin-top: 0; color: var(--ib-ink2); }
 .nv-sum-ib-full { display: block; margin-top: 6px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink); white-space: pre-wrap; overflow-wrap: anywhere; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; }
+
+/* waiting on another card: said first, in the not-yet-decided gold (1 Nov 2026) */
+.nv-sum-ib-waitnote {
+  margin-top: 12px; padding: 10px 12px 6px; border-radius: 14px;
+  background: color-mix(in srgb, var(--ib-wait) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-wait) 34%, transparent);
+}
+.nv-sum-ib-waitnote .h { display: block; font: 600 13px/1.3 var(--nv-font-ui); color: var(--ib-wait); }
+.nv-sum-ib-waitnote p { margin: 4px 0 0; font: 400 15px/1.4 var(--nv-font-ui); color: var(--nv-ink); text-wrap: pretty; }
+.nv-sum-ib-yes[aria-disabled="true"] {
+  color: var(--ib-wait); background: color-mix(in srgb, var(--ib-wait) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-wait) 34%, transparent);
+}
+
+/* the Coach's rebuild as one card: its week, its sentence, each change */
+.nv-sum-ib-gn { font-variant-numeric: tabular-nums; }
+.nv-sum-ib-gweek .l { font-weight: 500; color: var(--ib-ink3); }
+.nv-sum-ib-gweek .a { white-space: normal; text-align: center; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.nv-sum-ib-gweek > div { animation: fadeUp var(--nv-dur-base) var(--nv-spring-smooth, var(--nv-ease)) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.nv-sum-ib-gsum { margin: 10px 0 0; font: 400 15px/1.45 var(--nv-font-ui); color: var(--ib-ink2); text-wrap: pretty; }
+.nv-sum-ib-glist { list-style: none; margin: 0; padding: 0; }
+.nv-sum-ib-glist > li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: start; padding: 10px 0; border-top: 1px solid var(--ib-sep);
+  animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; animation-delay: calc(var(--i, 0) * 30ms);
+}
+.nv-sum-ib-glist .t { min-width: 0; padding-top: 12px; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); overflow-wrap: anywhere; }
+.nv-sum-ib-glist .acts { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 4px; }
+.nv-sum-ib-glist .m { grid-column: 1; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-ink2); text-wrap: pretty; }
+.nv-sum-ib-glist .w { grid-column: 1 / -1; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-wait); }
+.nv-sum-ib-glist .ask { grid-column: 1 / -1; }
+.nv-sum-ib-mtick, .nv-sum-ib-mx { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
+.nv-sum-ib-mtick { color: var(--ib-filed); background: color-mix(in srgb, var(--ib-filed) 13%, transparent); }
+.nv-sum-ib-mtick[aria-disabled="true"] { color: var(--ib-wait); background: color-mix(in srgb, var(--ib-wait) 9%, transparent); }
+.nv-sum-ib-mx { color: var(--ib-ink2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 15%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .nv-sum-ib-gweek > div, .nv-sum-ib-glist > li { animation: fadeIn 160ms ease both; animation-delay: 0ms; }
+}
 
 /* a daily review's adjustments, each marked done or not today */
 .nv-sum-ib-adj { list-style: none; margin: 12px 0 0; padding: 0; }

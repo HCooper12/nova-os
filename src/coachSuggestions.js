@@ -158,15 +158,18 @@ function routineChange(p, routines) {
 }
 
 function scheduleChange(p, routines, schedule) {
-  const label = (id) => (!id ? 'Rest' : id === 'active-rest' ? 'Active rest' : routines.find((r) => r.id === id)?.name || 'Rest');
+  // a day given to a training day the same reply creates (`new:` id) is named
+  // by the card; it used to read "Rest" and draw his Friday as a rest day
+  const label = (id, name) => (!id ? 'Rest' : id === 'active-rest' ? 'Active rest'
+    : routines.find((r) => r.id === id)?.name || (String(id).startsWith('new:') && name ? name : 'Rest'));
   const week = WEEK.map((d) => ({
     day: SHORT_DAY[d],
     before: label(schedule?.[d]),
-    after: d === p.day ? label(p.routineId) : label(schedule?.[d]),
+    after: d === p.day ? label(p.routineId, p.routineName) : label(schedule?.[d]),
     changes: d === p.day,
   }));
   const Day = cap(p.day);
-  const to = label(p.routineId);
+  const to = label(p.routineId, p.routineName);
   return {
     headline: !p.routineId ? `Make ${Day} a rest day` : p.routineId === 'active-rest' ? `Make ${Day} an active-rest day` : `Train ${to} on ${Day}`,
     diff: { type: 'schedule', week },
@@ -283,6 +286,17 @@ export function staleReason(p, routines) {
   if (p.action === 'add') return has(routine, p.addExerciseId, p.addName) ? `${p.addName} is already in ${routine.name}` : null;
   if (['remove', 'targets', 'reorder', 'swap'].includes(p.action) && !has(routine, p.removeExerciseId, p.removeName)) return `${p.removeName} is no longer in ${routine.name}`;
   return null;
+}
+
+// WHAT A STALE LINE IS (1 Nov 2026). "Already changed: Needs Upper C created
+// first" read as though something had happened; it means the opposite, that
+// this card waits on another one. The lead word says which it is.
+export function staleLine(stale) {
+  const t = String(stale || '').trim();
+  if (!t) return null;
+  const m = /^Needs (.+) created first/.exec(t);
+  if (m) return { waiting: true, lead: 'Waiting on another card', text: `${m[1]} has to be created first. Say yes to that card` };
+  return { waiting: false, lead: 'Already changed', text: t };
 }
 
 export function buildSuggestion(r, { routines = [], schedule = {}, now = Date.now() } = {}) {

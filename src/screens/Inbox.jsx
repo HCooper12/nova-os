@@ -63,6 +63,76 @@ export function Inbox({ v }) {
   return <InboxClassic v={v} />;
 }
 
+// THE COACH'S PROGRAM REBUILD AS ONE CARD, cupertino idiom (1 Nov 2026):
+// the same view model as the summary card (valsInbox inboxGroups) in this
+// page's own controls. Apply all asks once; Discard all asks why once.
+function RebuildCardClassic({ g }) {
+  const [why, setWhy] = useState('');
+  return (
+    <div className="nv-pane nv-deck-rise" style={{ marginTop: '10px', padding: '14px 18px' }}>
+      <div style={css("display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap")}>
+        <Tag hue="89,230,255">Program rebuild</Tag>
+        <Meta tone="faint">{g.time} · Coach</Meta>
+      </div>
+      <div style={css(`margin-top:9px;font:400 19px/1.3 ${S};text-wrap:balance`)}>{g.headline}</div>
+      <div style={css(`margin-top:6px;font:500 13.5px/1.5 ${R};color:var(--nv-ink60)`)}>{g.summary}</div>
+      {g.runLine && <div role="status" style={css(`margin-top:6px;font:500 13px/1.5 ${R};color:${g.failed ? 'var(--nv-gold)' : 'var(--nv-ink60)'}`)}>{g.runLine}</div>}
+      {g.confirm === 'apply' ? (
+        <div style={css("margin-top:10px;padding:12px 14px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent)")}>
+          <div style={css(`font:600 14px/1.45 ${R}`)}>{g.confirmQ}</div>
+          <Meta as="div" tone="quiet" style={{ marginTop: '4px' }}>{g.orderNote}</Meta>
+          <div style={css("display:flex;gap:10px;margin-top:10px;flex-wrap:wrap")}>
+            <Button compact onClick={g.apply}>{g.applyLabel}</Button>
+            <TextAction compact tone="quiet" onClick={g.cancel}>Not yet</TextAction>
+          </div>
+        </div>
+      ) : g.confirm === 'discard' ? (
+        <div style={css("margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px")}>
+          <Eyebrow tone="gold" style={{ marginBottom: '9px' }}>Why pass? The Coach learns from this</Eyebrow>
+          <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px")}>
+            {g.reasons.map((c) => <Chip key={c} onClick={() => g.discard(c)}>{c}</Chip>)}
+          </div>
+          <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+            <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Or say it in your own words…" aria-label="Your reason, in your own words"
+              style={css(`flex:1;min-width:0;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:8px;padding:8px 11px;font:400 16px ${R};color:var(--nv-ink)`)} />
+            <Button compact onClick={() => g.discard(why.trim())}>{why.trim() ? 'Discard all with reason' : `Discard all ${g.count}`}</Button>
+            <TextAction compact tone="quiet" onClick={g.cancel}>Keep them</TextAction>
+          </div>
+        </div>
+      ) : (
+        <div style={css("margin-top:10px;display:flex;gap:10px;flex-wrap:wrap")}>
+          {g.order.length > 0 && <TextAction compact tone="good" disabled={g.running} onClick={g.running ? undefined : g.askApply} haptic="tick">{g.running ? '… Working' : `✓ ${g.applyLabel}`}</TextAction>}
+          <TextAction compact tone="warn" disabled={g.running} onClick={g.running ? undefined : g.askDiscard}>{`✕ Discard all ${g.count}`}</TextAction>
+        </div>
+      )}
+      <TextAction compact tone="cyan" onClick={g.toggleOpen} style={{ marginTop: '8px' }}>{g.open ? '▾ Hide the changes' : `▸ See each change · ${g.count}`}</TextAction>
+      {g.open && (
+        <div style={css("margin-top:6px;display:flex;flex-direction:column")}>
+          {g.members.map((m, i) => m.item && (
+            <div key={m.id} style={css(`padding:9px 0;${i ? 'border-top:1px solid color-mix(in srgb, var(--nv-ink) 9%, transparent)' : ''}`)}>
+              <div style={css("display:flex;gap:10px;align-items:baseline")}>
+                <span style={css(`flex:1 1 auto;min-width:0;font:600 14px/1.4 ${R}`)}>{m.title}</span>
+                {m.blocked || m.waiting
+                  ? <TextAction compact tone="gold" disabled>{`Waiting on ${(m.waiting || m.blocked).name}`}</TextAction>
+                  : <TextAction compact tone="good" disabled={m.item.busy} onClick={m.item.busy ? undefined : m.item.approve} ariaLabel={`File: ${m.title}`} haptic="commit">✓</TextAction>}
+                <TextAction compact tone="warn" disabled={m.item.busy} onClick={m.item.busy ? undefined : m.item.discard} ariaLabel={`Discard: ${m.title}`}>✕</TextAction>
+              </div>
+              {m.meaning && <div style={css(`margin-top:2px;font:500 12.5px/1.5 ${R};color:var(--nv-ink60)`)}>{m.meaning}</div>}
+              {m.item.askingWhy && (
+                <div style={css("margin-top:6px;display:flex;gap:7px;flex-wrap:wrap;align-items:center")}>
+                  {(m.item.whyChips || []).map((c) => <Chip key={c} onClick={() => m.item.submitWhy(c)}>{c}</Chip>)}
+                  <TextAction compact tone="warn" onClick={() => m.item.submitWhy()}>Discard anyway</TextAction>
+                  <TextAction compact tone="quiet" onClick={m.item.cancelWhy}>Keep it</TextAction>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InboxClassic({ v }) {
   const dict = useDictation(
     () => v.inboxInput,
@@ -82,8 +152,16 @@ function InboxClassic({ v }) {
   // one card at a time between unrelated ones. Session-only; a focus that
   // outlived the items would be a filter on nothing.
   const [focus, setFocus] = useState(null);
-  const focused = focus ? v.inboxPending.filter((i) => subjectOf(i) === focus) : null;
-  const shown = focused && focused.length ? focused : (deck ? v.inboxPending.slice(0, 1) : v.inboxPending);
+  // A COACH REBUILD IS ONE CARD (1 Nov 2026, valsInbox inboxGroups): its
+  // members leave the deck; "Go to that card" brings a waited-on card up
+  const groups = v.inboxGroups || [];
+  const grouped = new Set(groups.flatMap((g) => g.memberIds));
+  const waitingOf = v.inboxWaiting || {};
+  const [jumpId, setJumpId] = useState(null);
+  const loose0 = v.inboxPending.filter((i) => !grouped.has(i.id));
+  const loose = jumpId && loose0.some((i) => i.id === jumpId) ? [loose0.find((i) => i.id === jumpId), ...loose0.filter((i) => i.id !== jumpId)] : loose0;
+  const focused = focus ? loose.filter((i) => subjectOf(i) === focus) : null;
+  const shown = focused && focused.length ? focused : (deck ? loose.slice(0, 1) : loose);
   const showingFocus = !!(focused && focused.length);
   // THE SPRING STACK (15 Oct, mockup #s3): flipping Deck / List fans the pile
   // and springs each card to its row; back to Deck gathers them. Measured in
@@ -310,10 +388,11 @@ function InboxClassic({ v }) {
               each, so the depth of the queue is visible without being
               readable — what is left, not what it says. Filing or discarding
               removes the record, the next one rises, no state to manage. */}
+          {!showingFocus && groups.map((g) => <RebuildCardClassic key={g.key} g={g} />)}
           <div style={css(`margin-top:10px;position:relative;${pile ? 'padding-top:18px' : ''}`)}>
           <div ref={stackRef} className="nv-stack-col" style={css("position:relative;display:flex;flex-direction:column;gap:10px")}>
-            {pile && v.inboxPending.length > 1 && <div aria-hidden="true" className="nv-pane nv-stack-sheet s1" />}
-            {pile && v.inboxPending.length > 2 && <div aria-hidden="true" className="nv-pane nv-stack-sheet s2" />}
+            {pile && loose.length > 1 && <div aria-hidden="true" className="nv-pane nv-stack-sheet s1" />}
+            {pile && loose.length > 2 && <div aria-hidden="true" className="nv-pane nv-stack-sheet s2" />}
             {shown.map((item) => (
               /* SWIPE: right approves, left discards — additive, the buttons
                  below are untouched. A model-choice card has no single
@@ -375,62 +454,23 @@ function InboxClassic({ v }) {
                   <div style={css(`margin-top:9px;font:600 15px ${R};display:-webkit-box;-webkit-line-clamp:${item.expanded ? 'unset' : '2'};-webkit-box-orient:vertical;overflow:hidden`)}>
                     {item.title}
                   </div>
-                  {/* The bare ▸ said nothing about what tapping would do, and
-                      a report is not "what gets filed" — it says which long
-                      thing is behind it. stopPropagation because the whole
-                      title block toggles too, and two toggles is no toggle. */}
-                  {item.canExpand && (
-                    <TextAction compact tone="cyan" onClick={(e) => { e?.stopPropagation?.(); item.toggleExpand(); }} style={{ marginTop: '5px' }}>
-                      {item.expanded ? '▾ Show less' : `▸ ${item.expandLabel}`}
-                    </TextAction>
-                  )}
-                  {/* a plan or a report is pages long — the 220-character
-                      dribble of it under the title told him nothing and
-                      buried the two lines that did */}
-                  {!item.expanded && !item.longForm && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
-                  {item.expanded && (
-                    <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
-                      {item.captured && (
-                        <div>
-                          <Eyebrow>You captured</Eyebrow>
-                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
-                        </div>
-                      )}
-                      {item.full && (
-                        <div>
-                          <Eyebrow tone="gold">Will be filed</Eyebrow>
-                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-                {/* The reason is the densest text in the product — 40-60 words
-                    on every card, nine cards deep. Italic serif is Nova's
-                    speaking voice and earns one or two lines; at this length
-                    it was the slowest possible setting for the text he has to
-                    read most. Same colour and weight, UI face, wider leading. */}
-                {item.reason && <div style={css(`margin-top:7px;font:400 13px/1.55 ${R};color:color-mix(in srgb, var(--nv-ink) 62%, transparent)`)}>{item.reason}</div>}
-                {item.adjustments && (
-                  <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
-                    {item.adjustments.map((a, i) => (
-                      <div key={i} style={css(`display:flex;gap:10px;align-items:baseline;padding:7px 0${i < item.adjustments.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
-                        <span style={{ font: `600 12px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
-                        <span style={{ minWidth: 0, flex: '1 1 auto', opacity: a.outcome ? 0.55 : 1 }}>
-                          <span style={{ display: 'block', font: `500 13.5px/1.45 ${R}`, textDecoration: a.outcome === 'done' ? 'line-through' : 'none' }}>{a.text}</span>
-                          {a.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{a.why}</span>}
-                        </span>
-                        <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
-                          <TextAction compact tone={a.outcome === 'done' ? 'good' : 'quiet'} onClick={() => a.mark('done')}>Done</TextAction>
-                          <TextAction compact tone={a.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => a.mark('skipped')}>Not today</TextAction>
-                        </span>
-                      </div>
-                    ))}
+                {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
+                {waitingOf[item.id] && (
+                  <div role="note" style={css(`margin-top:8px;font:500 13px/1.5 ${R};color:var(--nv-gold)`)}>
+                    Waiting on another card: {waitingOf[item.id].name} has to be created first.{waitingOf[item.id].parentId ? ' Say yes to that card and this one can go in.' : ' No card waiting here creates it.'}
+                    {waitingOf[item.id].parentId && (() => {
+                      const pid = waitingOf[item.id].parentId;
+                      const g = groups.find((x) => x.memberIds.includes(pid));
+                      return g ? null : <TextAction compact tone="cyan" onClick={() => { setFocus(null); setJumpId(pid); }} style={{ marginLeft: '6px' }}>Go to that card</TextAction>;
+                    })()}
                   </div>
                 )}
-                <CodeShipDetail ship={item.ship} />
-                {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
-                <div style={css("margin-top:12px;display:flex;gap:10px;flex-wrap:wrap")}>
+                {/* THE DECISION FIRST (1 Nov 2026, his recording of the other
+                    idiom's card): the verbs sit under the title, and what he
+                    may read before deciding (the filing in full, the reason)
+                    follows them instead of standing in front of them. */}
+                <div style={css("margin-top:10px;display:flex;gap:10px;flex-wrap:wrap")}>
                   {/* THE MODEL CHOICE GATE — this card files nothing itself,
                       so it gets a model tap instead of approve/file. Discard
                       (below, unchanged) still skips the week normally. */}
@@ -446,8 +486,10 @@ function InboxClassic({ v }) {
                        the verdict is one mark in its colour; the label still
                        says what approving does. Do-all lives at the group head,
                        and arguing is the composer, not a third button. */
-                    <TextAction compact tone="good" onClick={item.busy ? undefined : item.approve} disabled={item.busy} haptic="commit"
-                      ariaLabel={item.approveLabel}>{item.busy ? '… Working' : `✓ ${item.approveLabel}`}</TextAction>
+                    waitingOf[item.id]
+                      ? <TextAction compact tone="gold" disabled ariaLabel={`Waiting on ${waitingOf[item.id].name}`}>{`Waiting on ${waitingOf[item.id].name}`}</TextAction>
+                      : <TextAction compact tone="good" onClick={item.busy ? undefined : item.approve} disabled={item.busy} haptic="commit"
+                        ariaLabel={item.approveLabel}>{item.busy ? '… Working' : `✓ ${item.approveLabel}`}</TextAction>
                   )}
                   <TextAction compact tone="warn" onClick={item.busy ? undefined : item.discard} disabled={item.busy}
                     ariaLabel={item.isModelChoice ? 'Skip this week' : item.discardLabel}>{`✕ ${item.isModelChoice ? 'Skip this week' : item.discardLabel}`}</TextAction>
@@ -512,19 +554,81 @@ function InboxClassic({ v }) {
                     >Research the books</Interactive>
                   )}
                 </div>
+                <div>
+                  {/* The bare ▸ said nothing about what tapping would do, and
+                      a report is not "what gets filed" — it says which long
+                      thing is behind it. stopPropagation because the whole
+                      title block toggles too, and two toggles is no toggle. */}
+                  {item.canExpand && (
+                    <TextAction compact tone="cyan" onClick={(e) => { e?.stopPropagation?.(); item.toggleExpand(); }} style={{ marginTop: '5px' }}>
+                      {item.expanded ? '▾ Show less' : `▸ ${item.expandLabel}`}
+                    </TextAction>
+                  )}
+                  {/* a plan or a report is pages long — the 220-character
+                      dribble of it under the title told him nothing and
+                      buried the two lines that did */}
+                  {!item.expanded && !item.longForm && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
+                  {item.expanded && (
+                    <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
+                      {/* WHAT THIS MEANS (1 Nov 2026): code's plain sentence first */}
+                      {item.meaning && (
+                        <div>
+                          <Eyebrow tone="cyan">What this means</Eyebrow>
+                          <div style={css(`margin-top:3px;font:400 15px/1.5 ${S};color:var(--nv-ink);text-wrap:pretty`)}>{item.meaning}</div>
+                        </div>
+                      )}
+                      {item.captured && (
+                        <div>
+                          <Eyebrow>You captured</Eyebrow>
+                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
+                        </div>
+                      )}
+                      {item.full && (
+                        <div>
+                          <Eyebrow tone="gold">Will be filed</Eyebrow>
+                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* The reason is the densest text in the product — 40-60 words
+                    on every card, nine cards deep. Italic serif is Nova's
+                    speaking voice and earns one or two lines; at this length
+                    it was the slowest possible setting for the text he has to
+                    read most. Same colour and weight, UI face, wider leading. */}
+                {item.reason && <div style={css(`margin-top:7px;font:400 13px/1.55 ${R};color:color-mix(in srgb, var(--nv-ink) 62%, transparent)`)}>{item.reason}</div>}
+                {item.adjustments && (
+                  <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
+                    {item.adjustments.map((a, i) => (
+                      <div key={i} style={css(`display:flex;gap:10px;align-items:baseline;padding:7px 0${i < item.adjustments.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
+                        <span style={{ font: `600 12px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
+                        <span style={{ minWidth: 0, flex: '1 1 auto', opacity: a.outcome ? 0.55 : 1 }}>
+                          <span style={{ display: 'block', font: `500 13.5px/1.45 ${R}`, textDecoration: a.outcome === 'done' ? 'line-through' : 'none' }}>{a.text}</span>
+                          {a.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{a.why}</span>}
+                        </span>
+                        <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
+                          <TextAction compact tone={a.outcome === 'done' ? 'good' : 'quiet'} onClick={() => a.mark('done')}>Done</TextAction>
+                          <TextAction compact tone={a.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => a.mark('skipped')}>Not today</TextAction>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <CodeShipDetail ship={item.ship} />
               </div>
               </SwipeRow>
               </div>
             ))}
           </div>
-          {deck && !showingFocus && (
+          {deck && !showingFocus && loose.length > 0 && (
             <Meta as="div" tone="faint" style={{ marginTop: '10px', textAlign: 'center' }}>
               {/* a model-choice card has no right swipe — it needs a model picked —
                   so the footer must not promise one. Nor does a paused one
                   FILE anything: swiping it right spends money and resumes
                   work, and the footer has to say that out loud. */}
-              1 of {v.inboxPending.length} · {v.inboxPending[0]?.isModelChoice ? 'pick a model above'
-                : v.inboxPending[0]?.isContinue ? 'swipe right to continue it' : 'swipe right to file'} · left to {v.inboxPending[0]?.isContinue ? 'stop here' : 'discard'}{v.inboxPending.length > 1 ? ' · the next rises' : ''}
+              1 of {loose.length} · {loose[0]?.isModelChoice ? 'pick a model above'
+                : loose[0]?.isContinue ? 'swipe right to continue it' : 'swipe right to file'} · left to {loose[0]?.isContinue ? 'stop here' : 'discard'}{loose.length > 1 ? ' · the next rises' : ''}
             </Meta>
           )}
           </div>

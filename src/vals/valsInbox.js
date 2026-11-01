@@ -1,4 +1,7 @@
 import { tldrFor } from '../tldr.js';
+import { plainMeaning } from '../plainMeaning.js';
+import { rebuildGroups, applyOrder, groupSummary, waitingOn, filedDayNames, memberTitle, groupRunLine } from '../inboxGroups.js';
+import { runInboxGroup } from '../inboxGroupRun.js';
 import { quickCaptureModel } from './quickCapture.js';
 // Nova Inbox domain: the capture composer, filing-mode trust ladder, pending
 // approvals, history with undo, and the "proposed rule" nudge (Nova notices
@@ -102,6 +105,9 @@ export const ROUTE_META = {
   recipe: { label: 'RECIPE BANK', hue: '95,232,168' },
   stash: { label: 'STASH', hue: '224,178,106' },
   'routine-edit': { label: 'TRAIN EDIT', hue: '89,230,255' },
+  // which day a training day falls on; unnamed here it wore a NOTE badge
+  // (cupertino) and "A route Nova does not name" (summary) — 1 Nov 2026
+  'schedule-edit': { label: 'TRAIN WEEK', hue: '89,230,255' },
   'progression-tune': { label: 'COACH TUNE', hue: '224,178,106' },
   'train-today': { label: 'TODAY ONLY', hue: '224,178,106' },
   'exercise-remap': { label: 'RE-FILED', hue: '89,230,255' },
@@ -431,6 +437,27 @@ export function tellMeOf(r, app) {
   return () => app.tellMeAbout(r.projectId, r.id);
 }
 
+// THE REBUILD'S WEEK, as the group card draws it: each day, what it holds
+// after the rebuild, how many lifts the rebuild puts in it, and whether the
+// rebuild changes it. Unchanged days read from his schedule; unknown says
+// nothing rather than "Rest".
+const WEEKDAY = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+export function rebuildWeek(members = [], schedule = {}, routines = []) {
+  const k = (x) => String(x || '').trim().toLowerCase();
+  const p = (r) => r?.decision?.payload || {};
+  const lifts = new Map();
+  for (const r of members) if (r?.decision?.route === 'routine-edit' && p(r).action === 'add') lifts.set(k(p(r).routineName), (lifts.get(k(p(r).routineName)) || 0) + 1);
+  const known = Array.isArray(routines) && routines.length > 0;
+  return WEEKDAY.map((d) => {
+    const ch = members.find((r) => r?.decision?.route === 'schedule-edit' && k(p(r).day) === d);
+    const id = schedule?.[d];
+    const now = !known ? '' : !id ? 'Rest' : id === 'active-rest' ? 'Active rest' : (routines.find((x) => x.id === id)?.name || '');
+    const after = ch ? (!p(ch).routineId ? 'Rest' : p(ch).routineId === 'active-rest' ? 'Active rest' : p(ch).routineName || '') : now;
+    const n = lifts.get(k(after)) || 0;
+    return { day: d.slice(0, 1).toUpperCase() + d.slice(1, 3), after, before: ch ? (p(ch).beforeName || now) : '', changes: !!ch, lifts: n };
+  });
+}
+
 export function valsInbox(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline } = ctx;
@@ -481,12 +508,18 @@ export function valsInbox(app, ctx) {
     // tap-to-expand: collapsed shows a clamped preview; expanded shows what
     // he actually captured AND exactly what approving will file
     expanded,
-    canExpand: !!(full || r.text),
+    // a pending card always opens: its plain meaning is never blank (1 Nov 2026)
+    canExpand: !!(full || r.text) || r.status === 'pending',
+    // WHAT THIS MEANS, in plain words, written by code from the record's own
+    // fields (src/plainMeaning.js), for every card in both idioms
+    meaning: plainMeaning(r),
     full,
     captured: r.text || '',
     previewShort: preview.length > PREVIEW_CLAMP ? `${preview.slice(0, PREVIEW_CLAMP)}…` : preview,
     toggleExpand: () => app.toggleInboxExpand(r.id),
-    source: SOURCE_LABEL[r.kind] || (r.source === 'voice' ? 'VOICE' : 'TYPED'),
+    // a Coach card carries no kind of its own, only source 'coach'; it used to
+    // fall through to TYPED and read "You typed it" on his phone (1 Nov 2026)
+    source: SOURCE_LABEL[r.kind] || (r.source === 'coach' ? 'COACH' : r.source === 'voice' ? 'VOICE' : 'TYPED'),
     // HONESTY: a record a lane ran on this Mac says so, in the meta line. The
     // server stamps provider 'local' (and fallback when Claude was out of usage).
     // Since 27 Oct (local first), a record Claude sorted because this Mac could
@@ -525,7 +558,7 @@ export function valsInbox(app, ctx) {
     } : null,
     discardLabel: isContinue ? 'Stop here' : 'Discard',
     // the disclosure's own words: "see what gets filed" is wrong for a report
-    expandLabel: longForm || 'See what gets filed',
+    expandLabel: longForm || (r.status === 'pending' ? 'What this means' : 'See what gets filed'),
     // …and a long body does not also get dumped as a 220-character preview
     longForm: !!longForm,
     // a daily review's 1–3 adjustments as markable rows — done / not today
@@ -673,6 +706,73 @@ export function valsInbox(app, ctx) {
   }
   const pendingItems = mapped.pending;
   const historyItems = mapped.history;
+
+  // WHAT WAITS ON WHAT, AND THE COACH'S REBUILDS AS ONE DECISION (1 Nov 2026,
+  // src/inboxGroups.js). A change aimed at a training day another card
+  // creates waits for that card; it is only judged once his program has
+  // loaded (before that nothing is claimed). A rebuild's cards are one group
+  // card in both idioms, applied or discarded through the per-record routes.
+  const routinesKnown = Array.isArray(st.liveWorkoutRoutines) && st.liveWorkoutRoutines.length > 0;
+  const dayNames = [...(st.liveWorkoutRoutines || []).map((r) => r.name), ...filedDayNames(items)];
+  const inboxWaiting = {};
+  if (routinesKnown) {
+    for (const r of items) {
+      const w = r.status === 'pending' ? waitingOn(r, { routineNames: dayNames, records: items }) : null;
+      if (w) inboxWaiting[r.id] = w;
+    }
+  }
+  const pendingById = new Map(pendingItems.map((i) => [i.id, i]));
+  const inboxGroups = rebuildGroups(items).map((g) => {
+    const { order, blocked } = applyOrder(g.members, routinesKnown ? dayNames : g.members.filter((r) => r.decision?.payload?.action === 'create').map((r) => r.decision.payload.routineName));
+    const titleOf = (id) => memberTitle(g.members.find((r) => r.id === id));
+    const run = (st.inboxGroupRun || {})[g.key] || null;
+    const confirm = st.inboxGroupConfirm?.key === g.key ? st.inboxGroupConfirm.kind : null;
+    const n = g.ids.length;
+    const setConfirm = (kind) => app.setState({ inboxGroupConfirm: kind ? { key: g.key, kind } : null });
+    const after = (r) => { if (r) app.toastMsg?.(groupRunLine(r, titleOf)); };
+    const blockedIds = new Set(blocked.map((b) => b.id));
+    return {
+      key: g.key,
+      count: n,
+      memberIds: g.ids,
+      title: "Coach's program rebuild",
+      headline: `Coach's program rebuild · ${n} change${n === 1 ? '' : 's'}`,
+      summary: groupSummary(g.members),
+      captured: g.text,
+      time: pendingById.get(g.ids[0])?.time || '',
+      at: g.members[0]?.createdAt || null,
+      week: rebuildWeek(g.members, st.liveWorkoutSchedule, st.liveWorkoutRoutines),
+      members: [...order, ...blocked.map((b) => b.id)].map((id) => {
+        const it = pendingById.get(id);
+        return {
+          id, title: titleOf(id), meaning: it?.meaning || '',
+          // handled alone, a lift still waits for its day's card (filed first by Apply all)
+          waiting: inboxWaiting[id] || null,
+          blocked: blockedIds.has(id) ? blocked.find((b) => b.id === id) : null,
+          item: it || null,
+        };
+      }),
+      order,
+      blocked,
+      open: !!(st.inboxGroupOpen || {})[g.key],
+      toggleOpen: () => app.setState((s) => ({ inboxGroupOpen: { ...(s.inboxGroupOpen || {}), [g.key]: !(s.inboxGroupOpen || {})[g.key] } })),
+      confirm,
+      applyLabel: blocked.length ? `Apply ${order.length} of ${n}` : `Apply all ${n}`,
+      confirmQ: blocked.length
+        ? `Apply ${order.length} of the ${n} changes to your program? ${blocked.length} cannot go in: ${blocked.map((b) => titleOf(b.id)).join('; ')}.`
+        : `Apply all ${n} changes to your program?`,
+      orderNote: 'New days first, then the week, then the lifts. Each one can be undone on its own in Filed.',
+      askApply: () => setConfirm('apply'),
+      askDiscard: () => setConfirm('discard'),
+      cancel: () => setConfirm(null),
+      apply: () => { setConfirm(null); return runInboxGroup(app, { key: g.key, ids: order, kind: 'approve' }).then(after); },
+      reasons: COACH_DECLINE_REASONS,
+      discard: (reason) => { setConfirm(null); return runInboxGroup(app, { key: g.key, ids: g.ids, kind: 'discard', reason: reason || undefined }).then(after); },
+      running: !!run?.running,
+      runLine: run && (run.running || run.failed) ? groupRunLine(run, titleOf) : '',
+      failed: !!run?.failed,
+    };
+  });
 
   // proposed rules (video-2 trust ladder: Nova proposes, you ratify) — the
   // generalized engine covers inbox, dispatch, and compost nudges
@@ -854,18 +954,24 @@ export function valsInbox(app, ctx) {
     })),
     inboxProposals,
     inboxPending: pendingItems,
+    inboxGroups,
+    inboxWaiting,
     // A3 — Nova triages first. Deterministic grouping of what is waiting
     // (src/inboxDigest.js): routine filings clear in one tap, a repeating
     // subject is shown as one pattern, the rest are decided one at a time.
     // null when there is nothing to triage (fewer than two items).
     inboxDigest: (() => {
-      const d = digestPending(pendingItems);
+      // a rebuild's cards are one group card, never "routine" filings that a
+      // one-tap File all would send in any order (1 Nov 2026)
+      const grouped = new Set(inboxGroups.flatMap((g) => g.memberIds));
+      const d = digestPending(pendingItems.filter((i) => !grouped.has(i.id)));
       if (!d) return null;
       return {
         ...d,
         // every routine filing goes through the same approve path as a
         // swipe — same rails, same undo, nothing new can write
-        fileRoutine: () => d.routine.forEach((i) => i.approve && i.approve()),
+        // a card waiting on another card would only be refused; it is left
+        fileRoutine: () => d.routine.forEach((i) => !inboxWaiting[i.id] && i.approve && i.approve()),
         routineBusy: d.routine.some((i) => i.busy),
         // one "do all" per repeating subject (§2b r8): every member goes
         // through the same approve path as a swipe — same rails, same undo
