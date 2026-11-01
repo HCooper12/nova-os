@@ -19,6 +19,8 @@ process.stdout.write(JSON.stringify({ type: 'result', is_error: false, result: '
 chmodSync(stubBin, 0o755);
 process.env.CLAUDE_BIN = stubBin;
 process.env.NOVA_DATA_DIR = mkdtempSync(path.join(tmpdir(), 'nova-planstatus-data-'));
+// a retried build step makes its project folder: never in his real ~/Projects
+process.env.NOVA_PROJECTS_DIR = mkdtempSync(path.join(tmpdir(), 'nova-planstatus-projects-'));
 process.env.NOVA_VAULT_GRACE_MS = '0';
 process.env.NOVA_PLAN_POLL_MS = '40';
 delete process.env.ELEVENLABS_API_KEY;
