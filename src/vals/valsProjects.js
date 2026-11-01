@@ -114,6 +114,84 @@ export function candidatesCard(r, app, st = {}) {
   };
 }
 
+// PHASE 3: THE QUEUE as the page draws it. A job's state is the queue's,
+// except that a running job's record on the live wire is fresher (its stage
+// as code writes it, and the moment it files). Open jobs first in queue
+// order, then the last finished; the rest behind "Show all". Pure.
+export const JOB_KINDS = [
+  { id: 'research', label: 'Research', allow: 'research', placeholder: 'What to find out' },
+  { id: 'draft', label: 'Draft', allow: 'draft', placeholder: 'What to write' },
+  { id: 'code', label: 'Code', allow: 'code', placeholder: 'What to build or change' },
+  { id: 'test', label: 'Run checks', allow: 'test', placeholder: 'Runs its lint, build and tests' },
+];
+const JOB_WORD = { research: 'Research', draft: 'Draft', code: 'Code', test: 'Checks' };
+const FINISHED_SHOWN = 3;
+
+export function queueOf(queue, p, items, app, st = {}, now = Date.now()) {
+  const jobs = Array.isArray(queue?.jobs) ? queue.jobs : [];
+  const recs = new Map((items || []).map((r) => [r.id, r]));
+  const rows = jobs.map((j) => {
+    const r = j.recordId ? recs.get(j.recordId) : null;
+    let state = j.status;
+    if (state === 'running' && r && r.status === 'filed') state = 'done';
+    if (state === 'running' && r && r.status === 'error') state = 'failed';
+    const line = state === 'running' ? (r?.stage && r.stage !== 'Starting' ? r.stage : r?.panel?.label ? `Researching · ${r.panel.label}` : 'Running')
+      : state === 'queued' ? ((j.needs || []).length ? 'Queued · after the job before it' : j.answer ? `Queued · with your answer: ${j.answer}` : 'Queued')
+        : state === 'waiting' ? `Waiting on you · ${j.ask?.question || 'a question'}`
+          : state === 'done' ? (r?.destination || 'Done')
+            : state === 'failed' ? (j.error || r?.error || 'It failed')
+              : 'Called off';
+    return {
+      id: j.id, kind: j.kind, label: JOB_WORD[j.kind] || j.kind, input: j.input, state, line,
+      when: ago(j.endedAt || j.startedAt || j.queuedAt, now),
+      open: r ? () => app.openCapture(r.id) : null,
+      cancel: state === 'queued' || state === 'waiting' ? () => app.cancelProjectJob(p.id, j.id) : null,
+      retry: state === 'failed' && j.status === 'failed' ? () => app.retryProjectJob(p.id, j.id) : null,
+      endedMs: Date.parse(j.endedAt || '') || (state === 'done' || state === 'failed' ? now : 0),
+      answer: state === 'waiting' && !j.ask?.fable ? {
+        text: (st.projectJobAnswer || {})[j.id] || '',
+        set: (e) => app.setState((s) => ({ projectJobAnswer: { ...(s.projectJobAnswer || {}), [j.id]: e.target.value } })),
+        send: () => app.answerProjectJob(p.id, j.id),
+      } : null,
+    };
+  });
+  const open = rows.filter((x) => ['running', 'queued', 'waiting'].includes(x.state));
+  // newest finish first; a job its live record has just settled counts as now
+  const finished = rows.filter((x) => !['running', 'queued', 'waiting'].includes(x.state)).sort((a, b) => b.endedMs - a.endedMs);
+  const all = !!(st.projectQueueAll && st.projectQueueAll === p.id);
+  const shown = [...open, ...(all ? finished : finished.slice(0, FINISHED_SHOWN))];
+  const hidden = all ? 0 : Math.max(0, finished.length - FINISHED_SHOWN);
+  const allowed = JOB_KINDS.filter((k) => p.allowances?.[k.allow]);
+  const pick = st.projectJobKind && st.projectJobKind.id === p.id ? st.projectJobKind.kind : null;
+  const kind = allowed.find((k) => k.id === pick) || allowed[0] || null;
+  const ready = jobs.some((j) => j.status === 'queued');
+  const w = p.quiet || { from: '22:00', to: '07:00' };
+  const note = st.projectQueueNote && st.projectQueueNote.id === p.id ? st.projectQueueNote.text : null;
+  return {
+    rows: shown,
+    showAll: hidden ? { label: `Show all · ${hidden} more`, run: () => app.setState({ projectQueueAll: p.id }) } : null,
+    // when it runs, said once, from the record: the window, or dry run's rule
+    when: p.dryRun ? 'Dry run: queued work waits for you to press Run now.' : `Runs on its own overnight, ${w.from} to ${w.to}. Run now starts it any time.`,
+    note,
+    run: ready && !st.projectQueueBusy ? () => app.runProjectQueue(p.id) : null,
+    running: !!st.projectQueueBusy,
+    add: kind ? {
+      kinds: allowed.map((k) => ({ id: k.id, label: k.label, active: k.id === kind.id, pick: () => app.setState({ projectJobKind: { id: p.id, kind: k.id } }) })),
+      kind: kind.id,
+      placeholder: kind.placeholder,
+      needsText: kind.id !== 'test',
+      text: st.projectJobText || '',
+      set: (e) => app.setState({ projectJobText: e.target.value }),
+      tonight: () => app.queueProjectJob(p.id, { now: false }),
+      now: () => app.queueProjectJob(p.id, { now: true }),
+      busy: !!st.projectJobBusy,
+      error: st.projectJobError || null,
+    } : null,
+    // nothing it may do alone: say which switch, never a dead box
+    off: kind ? null : 'It may not do anything on its own yet. Turn on Research, Draft, Write code or Run tests in Controls.',
+  };
+}
+
 export function listProjects(st) {
   const pic = st.liveMacSessions || null;
   const waitingBy = new Map();
@@ -193,7 +271,7 @@ export function valsProjects(app) {
       files: (d?.files || []).slice(0, 40),
       // the live inbox first (it follows the wire), the page's read as a fallback
       waiting: (inboxItems(st.liveInbox).some((r) => r.projectId === p.id) ? inboxItems(st.liveInbox).filter((r) => r.projectId === p.id && r.status === 'pending') : (d?.cards || [])).map((r) => ({
-        id: r.id, title: r.decision?.title || r.text, reason: r.decision?.reason || '', kind: r.kind, dryRun: !!r.dryRun,
+        id: r.id, title: r.decision?.title || r.text, reason: r.decision?.reason || '', kind: r.kind, dryRun: !!r.dryRun, fable: r.decision?.payload?.fable === true,
         approve: () => app.decideProjectCard(r.id, 'approve'), discard: () => app.decideProjectCard(r.id, 'discard'),
         candidates: r.kind === 'project-watch-candidates' ? candidatesCard(r, app, st) : null,
       })),
@@ -219,12 +297,14 @@ export function valsProjects(app) {
           note: 'Goes only into this project. Not your library.',
         },
       },
+      queue: p.linked ? null : queueOf(d?.queue, p, inboxItems(st.liveInbox), app, st),
       sessions: d?.sessions || null,
       cost: d ? { usd: d.cost?.usd ?? 0, known: !!d.cost?.costKnown } : { usd: 0, known: false },
       controls: p.linked ? null : {
         dryRun: !!p.dryRun,
         allowances: p.allowances || {},
         quiet: p.quiet || null,
+        // the window's meaning since phase 3: when queued work may start on its own
         modelOverride: p.modelOverride || null,
         lens: p.lens || 'reference',
         lenses: LENSES,

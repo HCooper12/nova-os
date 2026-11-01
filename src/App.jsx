@@ -6841,6 +6841,61 @@ export default class App extends Component {
       .then(() => { this.setState({ projectResearchText: '', projectResearchBusy: false }); haptic('commit'); this.refreshInbox(); })
       .catch((e) => this.setState({ projectResearchBusy: false, projectResearchError: e.message || 'That did not start' }));
   }
+  // PHASE 3, THE QUEUE: a job tonight or now, his press on the queue, calling
+  // a job off, and his own answer to one that stopped to ask. Each is a server
+  // call whose answer the page re-reads (loadProject).
+  queueProjectJob(projectId, { now = false } = {}) {
+    const conn = getConnection();
+    const input = String(this.state.projectJobText || '').trim();
+    const pick = this.state.projectJobKind;
+    const kind = pick && pick.id === projectId ? pick.kind : null;
+    if (!conn || !projectId || !kind || (kind !== 'test' && !input) || this.state.projectJobBusy) return;
+    this.setState({ projectJobBusy: true, projectJobError: null });
+    api.projectJob(conn, projectId, { kind, input, now })
+      .then((r) => {
+        this.setState({ projectJobText: '', projectJobBusy: false, projectQueueNote: { id: projectId, text: now ? (r.started ? 'Started.' : `Queued, not started: ${r.held}.`) : 'Queued for tonight.' } });
+        haptic('commit');
+        this.loadProject(projectId);
+        this.refreshInbox();
+      })
+      .catch((e) => this.setState({ projectJobBusy: false, projectJobError: e.message || 'That was not queued' }));
+  }
+  runProjectQueue(projectId) {
+    const conn = getConnection();
+    if (!conn || !projectId || this.state.projectQueueBusy) return;
+    this.setState({ projectQueueBusy: true, projectJobError: null });
+    api.projectQueueRun(conn, projectId)
+      .then((r) => {
+        const held = (r.held || []).find((h) => h.projectId === projectId);
+        this.setState({ projectQueueBusy: false, projectQueueNote: { id: projectId, text: r.started?.length ? `Started ${r.started.map((x) => x.kind).join(' and ')}.` : held ? `Nothing started: ${held.why}.` : 'Nothing is ready to start.' } });
+        if (r.started?.length) haptic('commit');
+        this.loadProject(projectId);
+        this.refreshInbox();
+      })
+      .catch((e) => this.setState({ projectQueueBusy: false, projectJobError: e.message || 'The queue did not run' }));
+  }
+  retryProjectJob(projectId, jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.projectJobRetry(conn, projectId, jobId)
+      .then((r) => { this.setState({ projectQueueNote: { id: projectId, text: r.started ? 'Running again.' : `Back in the queue: ${r.held || 'it starts when there is room'}.` } }); this.loadProject(projectId); this.refreshInbox(); })
+      .catch((e) => this.setState({ projectJobError: e.message || 'That job could not run again' }));
+  }
+  cancelProjectJob(projectId, jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.projectJobCancel(conn, projectId, jobId)
+      .then(() => this.loadProject(projectId))
+      .catch((e) => this.setState({ projectJobError: e.message || 'That job could not be called off' }));
+  }
+  answerProjectJob(projectId, jobId) {
+    const conn = getConnection();
+    const answer = String((this.state.projectJobAnswer || {})[jobId] || '').trim();
+    if (!conn || !answer) return;
+    api.projectJobAnswer(conn, projectId, jobId, answer)
+      .then(() => { this.setState((s) => ({ projectJobAnswer: { ...(s.projectJobAnswer || {}), [jobId]: '' } })); haptic('commit'); this.loadProject(projectId); this.refreshInbox(); })
+      .catch((e) => this.setState({ projectJobError: e.message || 'The answer did not reach it' }));
+  }
   // a video for the project, through the lens he picked (the project's own by default)
   sendProjectVideo(projectId) {
     const conn = getConnection();

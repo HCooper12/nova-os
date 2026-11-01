@@ -249,6 +249,7 @@ export const api = {
   projectWatch: (conn, id, { url, lens, question } = {}) => post(conn, `/api/projects/${encodeURIComponent(id)}/watch`, { url, ...(lens ? { lens } : {}), ...(question ? { question } : {}) }),
   // phase 3: the queue. `now` is his yes; projectQueueRun is his press (one project, or all)
   projectJob: (conn, id, { kind, input, now = false, origin = 'button' } = {}) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs`, { kind, input, now, origin }),
+  projectJobRetry: (conn, id, jobId) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/retry`, {}),
   projectJobCancel: (conn, id, jobId) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/cancel`, {}),
   projectJobAnswer: (conn, id, jobId, answer) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/answer`, { answer }),
   projectQueueRun: (conn, projectId = null) => post(conn, '/api/projects/queue/run', projectId ? { projectId } : {}),

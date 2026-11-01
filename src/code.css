@@ -472,6 +472,31 @@
   padding: 10px 12px; font: 400 16px/1.3 var(--nv-font-ui); outline: none;
 }
 .nv-pj-field:focus { border-color: color-mix(in srgb, var(--nv-cy) 55%, transparent); }
+/* PROJECTS phase 3: the queue, a joined path like Phases */
+.nv-pj-jobs { list-style: none; margin: 12px 0 0; padding: 0; position: relative; }
+.nv-pj-jobs li { position: relative; display: flex; gap: 12px; padding-bottom: 14px; min-width: 0; --jc: color-mix(in srgb, var(--nv-ink) 28%, transparent); }
+.nv-pj-jobs li:last-child { padding-bottom: 0; }
+.nv-pj-jobs li[data-state="running"] { --jc: var(--nv-cy); }
+.nv-pj-jobs li[data-state="waiting"] { --jc: var(--nv-gold); }
+.nv-pj-jobs li[data-state="done"] { --jc: var(--nv-good); }
+.nv-pj-jobs li[data-state="failed"] { --jc: var(--nv-warn); }
+.nv-pj-jline { position: absolute; left: 7px; top: 18px; bottom: 0; width: 2px; background: color-mix(in srgb, var(--nv-ink) 16%, transparent); }
+.nv-pj-jobs li[data-state="done"] .nv-pj-jline { background: var(--nv-good); }
+.nv-pj-jnode { flex: none; width: 16px; height: 16px; margin-top: 2px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--jc); display: inline-flex; align-items: center; justify-content: center; color: var(--nv-void); }
+.nv-pj-jnode .nv-pj-live { width: 6px; height: 6px; }
+.nv-pj-jobs li[data-state="done"] .nv-pj-jnode { background: var(--nv-good); animation: nvPjDone var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; }
+.nv-pj-jobs li[data-state="done"] .nv-pj-jnode path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: nvPjTick 250ms ease-out 180ms forwards; }
+.nv-pj-jstate { color: var(--nv-ink60); }
+.nv-pj-jobs li[data-state="running"] .nv-pj-jstate { color: var(--nv-cy); }
+.nv-pj-jobs li[data-state="waiting"] .nv-pj-jstate { color: var(--nv-gold); }
+.nv-pj-jobs li[data-state="failed"] .nv-pj-jstate { color: var(--nv-warn); }
+.nv-pj-jobs li[data-state="cancelled"] { opacity: .55; }
+@keyframes nvPjDone { from { transform: scale(.6); } to { transform: scale(1); } }
+@keyframes nvPjTick { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .nv-pj-jobs li[data-state="done"] .nv-pj-jnode { animation: none; }
+  .nv-pj-jobs li[data-state="done"] .nv-pj-jnode path { animation: none; stroke-dashoffset: 0; }
+}
 .nv-pj-cands { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .nv-pj-cands li { display: flex; gap: 10px; align-items: flex-start; min-width: 0; transition: opacity .2s ease; }
 .nv-pj-cands li[data-crossed] { opacity: .55; }

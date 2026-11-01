@@ -1,4 +1,6 @@
 import '../code.css';
+import { useRef } from 'react';
+import { useFlipList } from '../useFlipList.js';
 import { Interactive } from '../Interactive.jsx';
 import { ScreenHead, Eyebrow, Meta, Tag, Button, Chip, TextAction, Rail, Segmented } from '../Controls.jsx';
 import { Group, GRow } from '../AppleLayout.jsx';
@@ -246,6 +248,77 @@ function Candidates({ c, discard }) {
   );
 }
 
+// PHASE 3, THE QUEUE: the project's jobs as one joined path (uniform
+// connectedness, the way Phases reads), each node coloured by what it means:
+// cyan running, gold waiting on him, green done, warn failed. The one hero
+// motion: a node that finishes fills and draws its tick (code.css
+// .nv-pj-jnode). Then a way to add one, tonight or now, and his press.
+function QueueSection({ q, summary, name }) {
+  const listRef = useRef(null);
+  // a job that finishes leaves the open jobs for the finished: it glides there
+  useFlipList(listRef, q.rows.map((j) => `${j.id}:${j.state}`).join('|'));
+  return (
+    <Section summary={summary} label="Queue" trailing={q.run ? <Button compact onClick={q.run}>{q.running ? 'Starting' : 'Run now'}</Button> : null}>
+      <div style={{ font: `500 12.5px/1.4 ${UI}`, color: 'var(--nv-ink60)' }}>{q.when}</div>
+      {q.note && <div style={{ marginTop: '6px', font: `500 13px ${UI}`, color: 'var(--nv-ink)' }}>{q.note}</div>}
+      {q.rows.length ? (
+        <ol ref={listRef} className="nv-pj-jobs" aria-label={`Work queued for ${name}`}>
+          {q.rows.map((j, i) => (
+            <li key={j.id} data-flip={j.id} className="nv-deck-rise" data-state={j.state} style={{ '--i': i }}>
+              {i < q.rows.length - 1 && <span className="nv-pj-jline" aria-hidden="true" />}
+              <span className="nv-pj-jnode" aria-hidden="true">
+                {j.state === 'running' && <span className="nv-pj-live" />}
+                {j.state === 'done' && <svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" pathLength="1" /></svg>}
+              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <Interactive as="div" onClick={j.open || undefined} base={{ cursor: j.open ? 'pointer' : 'default', minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', minWidth: 0 }}>
+                    <span style={{ flex: 'none', font: `600 11px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink50)' }}>{j.label}</span>
+                    <span style={{ font: `600 14px/1.35 ${UI}`, color: 'var(--nv-ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{j.input}</span>
+                  </div>
+                  <div className="nv-pj-jstate" style={{ marginTop: '2px', font: `400 13px/1.4 ${UI}`, overflowWrap: 'anywhere' }}>{j.line}{j.when ? <span style={{ color: 'var(--nv-ink50)' }}> · {j.when}</span> : null}</div>
+                </Interactive>
+                {j.answer && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', minWidth: 0 }}>
+                    <input value={j.answer.text} onChange={j.answer.set} placeholder="Your answer" aria-label={`Your answer for ${j.input}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter') j.answer.send(); }} className="nv-pj-field" />
+                    <Button compact onClick={j.answer.text.trim() ? j.answer.send : undefined} disabled={!j.answer.text.trim()} style={{ flex: 'none' }}>Answer</Button>
+                  </div>
+                )}
+                {(j.retry || j.cancel) && (
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '6px', alignItems: 'center' }}>
+                    {j.retry && <Button compact variant="quiet" tone="warn" onClick={j.retry}>Retry</Button>}
+                    {j.cancel && <TextAction tone="quiet" onClick={j.cancel}>Call it off</TextAction>}
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : <div style={{ marginTop: '10px' }}><Meta>Nothing queued.</Meta></div>}
+      {q.showAll && <div style={{ marginTop: '8px' }}><TextAction onClick={q.showAll.run}>{q.showAll.label}</TextAction></div>}
+
+      {q.add ? (
+        <div className="nv-pj-in" style={{ marginTop: '16px' }}>
+          <Eyebrow tone="cyan">Add to the queue</Eyebrow>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }} role="radiogroup" aria-label="Kind of work">
+            {q.add.kinds.map((k) => <Chip key={k.id} active={k.active} onClick={k.pick}>{k.label}</Chip>)}
+          </div>
+          {q.add.needsText && (
+            <input value={q.add.text} onChange={q.add.set} placeholder={q.add.placeholder} aria-label={q.add.placeholder}
+              onKeyDown={(e) => { if (e.key === 'Enter') q.add.tonight(); }} className="nv-pj-field" style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box' }} />
+          )}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+            <Button compact onClick={!q.add.busy && (!q.add.needsText || q.add.text.trim()) ? q.add.tonight : undefined} disabled={q.add.busy || (q.add.needsText && !q.add.text.trim())}>Tonight</Button>
+            <Button compact variant="quiet" onClick={!q.add.busy && (!q.add.needsText || q.add.text.trim()) ? q.add.now : undefined} disabled={q.add.busy || (q.add.needsText && !q.add.text.trim())}>Start now</Button>
+          </div>
+          {q.add.error && <div style={{ marginTop: '6px', font: `400 13px ${UI}`, color: 'var(--nv-warn)' }}>{q.add.error}</div>}
+        </div>
+      ) : <div style={{ marginTop: '12px' }}><Meta>{q.off}</Meta></div>}
+    </Section>
+  );
+}
+
 const ALLOW_LABEL = { research: 'Research', draft: 'Draft', code: 'Write code', test: 'Run tests', commit: 'Commit', deploy: 'Deploy' };
 
 function Section({ summary, label, trailing, children }) {
@@ -283,7 +356,7 @@ function ProjectPage({ pg, summary }) {
               <div style={{ font: `600 15px ${UI}`, color: 'var(--nv-gold)' }}>{w.title}</div>
               {w.reason && <div style={{ font: `400 13px/1.4 ${UI}`, color: 'var(--nv-ink60)' }}>{w.reason}</div>}
               {w.candidates ? <Candidates c={w.candidates} discard={w.discard} /> : <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <Button compact onClick={w.approve}>{w.dryRun ? 'Yes · dry run' : 'Yes'}</Button>
+                <Button compact onClick={w.approve}>{w.kind === 'project-needs-you' ? (w.fable ? 'Run on Fable' : 'Go with my pick') : w.dryRun ? 'Yes · dry run' : 'Yes'}</Button>
                 <Button compact variant="quiet" tone="quiet" onClick={w.discard}>No</Button>
                 {w.dryRun && <Tag dashed>DRY RUN</Tag>}
               </div>}
@@ -292,7 +365,9 @@ function ProjectPage({ pg, summary }) {
         </Section>
       )}
 
-      {pg.research && <ResearchSection r={pg.research} summary={summary} name={p.name} />}
+      {pg.queue && <QueueSection q={pg.queue} summary={summary} name={p.name} />}
+
+            {pg.research && <ResearchSection r={pg.research} summary={summary} name={p.name} />}
 
       <Section summary={summary} label={`Talk to Nova about ${p.name}`}>
         <ProjectTalk c={pg.conversation} name={p.name} />
@@ -355,7 +430,7 @@ function ProjectPage({ pg, summary }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <Meta>Quiet {c.quiet ? `${c.quiet.from}–${c.quiet.to}` : 'not set'}</Meta>
+              <Meta>Works overnight {c.quiet ? `${c.quiet.from}–${c.quiet.to}` : '22:00–07:00'}</Meta>
               <Meta>Model {c.modelOverride || 'Nova picks by task'}</Meta>
             </div>
             {pg.nextStages.length > 0 && (
