@@ -124,6 +124,8 @@ export async function writeArtifactFile(vaultPath, { title, kind, summary, tags,
   }
   const id = randomUUID().slice(0, 8);
   const created = now.toISOString();
+  // his clock, for any model that reads the file: `created` is UTC (sorting reads it)
+  const createdLocal = now.toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   const cleanSummary = String(summary || '').slice(0, 280);
   const cleanQuestion = question ? String(question).trim().slice(0, 300) : null;
   const cleanTags = (Array.isArray(tags) ? tags : []).map(String).slice(0, 6);
@@ -134,6 +136,7 @@ export async function writeArtifactFile(vaultPath, { title, kind, summary, tags,
     kind,
     agent,
     created,
+    created_local: createdLocal,
     summary: cleanSummary,
     tags: cleanTags,
     pinned: false,
