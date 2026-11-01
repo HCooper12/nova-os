@@ -3,7 +3,7 @@ import { mkdir, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLACES } from '../../src/where.js';
-import { TRIGGERS, ENDED_BY } from '../../src/listenRules.js';
+import { TRIGGERS, ENDED_BY, SURFACES as LISTEN_SURFACES } from '../../src/listenRules.js';
 
 // ---------------------------------------------------------------------------
 // WHY HIS TURN ENDED — the receipt, not analytics.
@@ -46,7 +46,8 @@ export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 
 // 'ask' (15 Oct 2026): one row per question sent, carrying how long he waited
 // for the ack, the first words and the first sound (scripts/voice-latency.mjs
 // reads them back). Its `reason` is 'unknown': an ask is not a turn ending.
-const SURFACES = new Set(['voice', 'presence', 'barge', 'ask']);
+// 'project' (1 Nov 2026): a project page's microphone. One list, src/listenRules.js.
+const SURFACES = new Set(LISTEN_SURFACES);
 // what the level meter thought, for a turn heard by Nova's own ears (vad.js)
 const VAD_STATES = new Set(['heard', 'silent', 'blind']);
 
