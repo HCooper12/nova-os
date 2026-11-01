@@ -344,6 +344,57 @@ workout), not this one.
    Claude. Measured against Claude's real past answers with a code grounding
    check (every number traced to a tool result). Build started 27 Oct.
 
+
+## 4d. Other brains and other hands, measured 1 Nov 2026
+
+His two questions: can Nova use the tools already on the Mac (Chrome) to
+browse and search instead of spending Claude, and can it piggyback free
+models (Siri, Gemini)?
+
+**Chrome as the hand, the local model as the reader.** Nova already drives
+his own Chrome (156) read-only through puppeteer-core and the `~/.nova-browser`
+profile (lib/browserResearch.js: Instagram/X/LinkedIn text, yt-dlp for video;
+lib/browse.js is the Claude-driven browser hand). A keyless search from plain
+code does NOT work: DuckDuckGo's HTML and lite endpoints answered a bot-check
+page (measured). So a Claude-free research lane is: code opens a search in
+Nova's Chrome profile, reads the result list, fetches the top pages, extracts
+readable text (lib/recipeFromPage.js readableText already does this), and the
+local model summarises WITH the URLs it was given, never from memory. Good
+for lookups and "what does this page say"; weak for synthesis across many
+sources, which stays Claude's. Every page read is logged (the Wi-Fi-off drill
+idea from the prompt pack) and the answer names its sources or says it found
+none.
+
+**Apple's on-device model (the honest "Siri").** Siri itself is not
+programmable, but the model behind Apple Intelligence is: the FoundationModels
+framework (macOS 26+; this Mac is 27.0, Apple Intelligence on). Measured from
+a 25-line Swift command-line tool (scratchpad afm.swift): availability
+`available`; a guided-generation sort ("call mum about Sunday lunch" → route
+task, title) correct in 3.9–4.4 s; a one-sentence prose answer in 0.94–1.0 s;
+**hard context limit 4,096 tokens** (a ~4.2k-token prompt was refused with
+"exceeds the maximum allowed context size"). Free, private, no download, and
+it does NOT use Ollama's memory, so it answers when the Mac is too full to
+load the 4B (as it was all of 1 Nov: 3.6 GB free, guard refusing). Fit:
+the short text lanes (classify, calendar, shopping, greeting, journal prompt)
+and a typed-JSON fallback tier; not Ask/Coach (their prompts are 2–9k
+tokens). Build: a tiny Swift helper CLI (`server/apple-llm/`) speaking JSON on
+stdin/stdout, registered as a third backend in lib/localModel.js, measured
+with the classifier harness before any lane moves.
+
+**Gemini's free tier.** Programmable with an AI Studio key; third-party
+guides put the free limits around 10–15 requests a minute and 250–1,500 a
+day for the Flash models (unverified against Google's own page). Google's
+terms say free-tier prompts and outputs are used to improve its products and
+may be read by human reviewers; the paid tier is not. So it is a free CLOUD
+brain, not a private one: fine for research-shaped questions that carry no
+vault text, wrong for anything that reads his notes, health or training.
+If he wants it, it is a fourth provider with a "no vault text" boundary
+enforced by code. ChatGPT free, Grok and Siri as apps remain not programmable.
+
+Order: Apple model as backend 3 (cheap to build, measured already), then the
+Chrome-read research lane, then Gemini only if he wants a free cloud brain
+for public questions.
+
 ## 5. Order of work
 
 1. Ollama backend + Qwen3.5 4B default + thinking policy + memory guard
