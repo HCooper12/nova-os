@@ -51,10 +51,17 @@ const CORRECTION = /\b(?:you said (?:that )?you|i can'?t (?:actually )?(?:see|fi
 
 /** Why a question should go straight to Claude, or null when the model on
  *  this Mac may take it (with the agents agentsFor names). Pure. */
+// WHETHER HIS CHANGES WERE MADE (1 Nov 2026, 21:02: "just make sure the
+// changes have been made" went to the model on this Mac, which cannot see the
+// cards). A question about whether something was done is a question about
+// the records: Claude's Nova reads them and can file what is missing.
+const ACTION_STATUS = /\b(?:make sure (?:the |that |those |these )?(?:changes?|it|that|they|this) (?:ha(?:s|ve) been|(?:is|are) (?:made|done|applied))|(?:has|have) (?:the |that |it |they |those |these )?(?:changes? )?(?:actually )?been (?:made|applied|done|saved|filed)|did (?:you|it|that|they) (?:actually )?(?:apply|save|file|make|go through))\b/;
+
 export function needsClaude(question) {
   const q = norm(question);
   if (!q) return null;
   if (CORRECTION.test(q)) return 'you corrected the last answer';
+  if (ACTION_STATUS.test(q)) return 'it is about whether a change was made';
   if (/\b(?:ask|use|get) claude\b/.test(q)) return 'you asked for Claude';
   return null;
 }

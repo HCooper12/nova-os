@@ -91,3 +91,8 @@ test('a local reply that claims an action is fiction, handed to Claude like a gi
   assert.equal(gaveUp('Your front delts get 5 sets a week: the shoulder press and half of the chest press.'), false);
   assert.equal(needsClaude("You said that you have applied the change and made the proposal, but I can't actually read it or see it anywhere. Where do I find it?"), 'you corrected the last answer');
 });
+
+test('whether a change was made goes to Claude before the local model answers (1 Nov, 21:02)', () => {
+  for (const q of ['No worries, just make sure the changes have been made', 'Has it actually been applied?', 'Did you save that?']) assert.ok(needsClaude(q), q);
+  for (const q of ['How many sets of chest this week?', 'Make me a smoothie recipe']) assert.equal(needsClaude(q), null, q);
+});
