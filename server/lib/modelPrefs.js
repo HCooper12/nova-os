@@ -197,19 +197,15 @@ export const LANES = [
     // (lib/coachTurn.js). His call, 27 Oct 2026. `standIn: false`: when
     // Claude's Coach fails, this Mac does not stand in (that rail is Ask
     // Nova's and the text lanes'), so the board's fallback list leaves it out.
-    // `localFirst: false`: built, but NOT local by default. Benched the same
-    // day on 17 of his real questions (design/audits/2026-10-27-local-coach-
-    // bench.md) the 4B was fast (9.1 s median) and confidently wrong where
-    // it mattered: an inverted form cue on the overhead extension, an
-    // invented session count, an answer that broke off mid-thought, and 0
-    // hand-ups to Claude in 34 turns. "Never fiction" was not lifted, so the
-    // Coach stays on Claude until a bench passes; he can still pick This Mac.
-    // 1 Nov: the hand-up rules are built in code (lib/coachRoute.js: form,
-    // reviews, experts, pain, counts across weeks, comparisons and whys go to
-    // Claude; a give-up, a self-contradiction or a broken-off reply is handed
-    // up). The rerun on the 4B is owed (the Mac had no headroom that day), so
-    // this stays false until that bench passes.
-    id: 'coach', label: 'Ask Coach', group: 'coach', local: true, localFirst: false, standIn: false, def: 'opus', defEffort: 'medium',
+    // LOCAL BY DEFAULT SINCE 2 NOV 2026, behind the code hand-ups. The 27 Oct
+    // bench had the 4B confidently wrong and never handing itself up, so the
+    // lane sat on Claude. lib/coachRoute.js now sends form cues, reviews,
+    // named experts, pain, why/comparison, open advice and exercise choices
+    // to Claude before the model runs; the 1 Nov rerun left 4 of his 17 real
+    // questions on this Mac, all four grounded, 13 to Claude by code in 0.5 s.
+    // So the Mac answers the lookups it can and nothing it cannot. One setting
+    // (his pick or local-first off) puts it back on Claude.
+    id: 'coach', label: 'Ask Coach', group: 'coach', local: true, standIn: false, def: 'opus', defEffort: 'medium',
     hint: 'the Train screen’s chat — reasoning-heavy, and the lane that proposes program changes',
     off: 'Coach chat is refused with a plain message. Your program, history and analytics are untouched.',
   },

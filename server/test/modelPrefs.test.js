@@ -327,9 +327,9 @@ test('getModelPrefs carries the local model and the fallback on the board', asyn
   assert.deepEqual([...board.fallback.lanes].sort(),
     ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
   for (const lane of board.lanes) {
-    // the RESOLVED provider: local first puts every local lane on this Mac,
-    // except one benched not good enough yet (the Coach, 27 Oct: localFirst false)
-    const expected = lane.canRunLocal && lane.id !== 'coach' ? 'local' : 'claude';
+    // the RESOLVED provider: local first puts every local lane on this Mac
+    // (the Coach too since 2 Nov, behind lib/coachRoute.js's hand-ups)
+    const expected = lane.canRunLocal ? 'local' : 'claude';
     assert.equal(lane.provider, expected, lane.id);
     assert.equal(lane.defaultProvider, expected, lane.id);
     assert.equal(lane.customised, false, `${lane.id} untouched is not customised`);

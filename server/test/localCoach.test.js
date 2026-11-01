@@ -347,14 +347,15 @@ test('a session the local Coach opened goes to Claude fresh, carrying what was s
   assert.doesNotMatch(turn.argv, new RegExp(`--resume ${sid}`));
 });
 
-test('the coach lane stays on Claude by default even under local first, and runs here only when he picks This Mac (27 Oct bench)', async () => {
+test('the coach lane resolves to this Mac under local first (2 Nov, behind the code hand-ups), to Claude when he pins it or turns local first off', async () => {
   await resetLanePref('coach');
-  assert.equal(providerFor('coach'), 'claude', 'localFirst: false on the lane: built, not the default');
-  await setLanePref('coach', { provider: 'local' });
-  assert.equal(providerFor('coach'), 'local', 'his own pick wins');
+  assert.equal(providerFor('coach'), 'local');
+  await setLanePref('coach', { provider: 'claude' });
+  assert.equal(providerFor('coach'), 'claude', 'his own pick wins');
   await resetLanePref('coach');
-  assert.equal(providerFor('coach'), 'claude', 'a reset goes back to Claude, never quietly to the Mac');
-  await setLanePref('coach', { provider: 'local' }); // the rest of this suite drives the local path
+  await setLocalPrefs({ first: false });
+  assert.equal(providerFor('coach'), 'claude');
+  await setLocalPrefs({ first: true });
   await refreshLocalStatus().catch(() => {});
 });
 

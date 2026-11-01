@@ -54,6 +54,14 @@ const RULES = [
   // the exercise work. A wrong cue can hurt him.
   [/\b(?:form|technique|cues?|cueing|common mistakes?|mistakes? (?:i|people) make|am i (?:doing|performing) (?:[\w'-]+ ){0,4}(?:right|correctly|properly|wrong)|(?:doing|performing) (?:it|this|that) (?:right|correctly|properly|wrong)|(?:talk|walk) me through (?!what\b|my (?:program|plan|week|split)\b|the plan\b)|how (?:do|should) i (?:perform|execute|brace|grip|set up for)|range of motion)\b/,
     'form cues go to Claude'],
+  // CHOOSING OR REPLACING AN EXERCISE (2 Nov 2026). The first rules run
+  // showed the 4B answering "a better alternative to face pulls" with cable
+  // lateral raises "for the same muscles": side delts for rear delts and
+  // external rotators, a wrong muscle map said with confidence. Picking a
+  // substitute needs the anatomy the Claude Coach holds; his library and the
+  // anatomy tool do not stop a small model mis-pairing them.
+  [/\b(?:alternatives?|replacements?|substitutes?|substitution|swap (?:out|for|in)|replace|replacing|in place of|beneficial to add|worth adding|what (?:should|could|can) i (?:do|use|try) instead)\b/,
+    'choosing or replacing an exercise goes to Claude'],
   // COUNTING ACROSS TIME. Bench #9 invented "18 sessions in four weeks". Only
   // the clear across-time phrasings: "how many" or "how often" with a span of
   // weeks or months. "How many sets today" stays a lookup.

@@ -12,10 +12,10 @@ import { coachNeedsClaude, coachGaveUp } from '../lib/coachRoute.js';
 // is a review by the brief's own rule (and its local answer was wrong: a
 // five-day plan he does not have). #11 is a why question.
 const BENCH = [
-  ['What would be a better alternative exercise than face pulls?', null],
-  ['Are face pulls or an alternative actually work keeping in my program while working for increasing muscle size?', null],
+  ['What would be a better alternative exercise than face pulls?', 'choosing or replacing an exercise goes to Claude'],
+  ['Are face pulls or an alternative actually work keeping in my program while working for increasing muscle size?', 'choosing or replacing an exercise goes to Claude'],
   ["Why is my Cable Flys Low Position (per arm weight) stalled, and what's the fix?", 'a why question goes to Claude'],
-  ['I want to be performing the best cable exercise for my triceps. Currently I’m doing a standing tricep push down single arm. Facing the machine. Is this the best for tricep growth? If not, what should I try instead?', null],
+  ['I want to be performing the best cable exercise for my triceps. Currently I’m doing a standing tricep push down single arm. Facing the machine. Is this the best for tricep growth? If not, what should I try instead?', 'choosing or replacing an exercise goes to Claude'],
   ['Should I have all 3 of the chest exercises for this one workout? Or should I drop it back to 2? If I drop it back to 2 then which should I remove and why?', 'a comparison or a choice goes to Claude'],
   ['Mid-session — talk me through Cable Overhead Tricep Extension: cues, common mistakes, and what matters most for my goals.', 'form cues go to Claude'],
   ['What is the optimal pre workout snack or meal?', null],
@@ -26,7 +26,7 @@ const BENCH = [
   ['What change could be made to my upper body workout without losing volume needed across the week for muscle growth, so that the session is closer to an hour instead of an hour and a half? I am happy to try reshuffling an exercise to another session if that’ll help', null],
   ['My weekly sets for Biceps, Triceps, Shoulders are under target for my goal — how should I add volume?', null],
   ['What would a version of my refined workout plan look like if it was changed to 4 days instead of five but with the same overall goals? Also keeping in mind that I want to maximise the amount of optimal sets that I complete for the main muscle groups that I want to grow for an aesthetic strong appearance. I don’t need you to change it but I just want to know what this would look like so give me a detailed report showing before workout days and the exercise exercises and focus of them all also provide me with a theoretical breakdown of how many times each muscle group is worked across the week for this four day plan', 'a review of your program goes to Claude'],
-  ['Would an adductor/abductor machine exercise be beneficial to add? If so, should I replace Bulgarian split squats since I already am doing hack squats?', null],
+  ['Would an adductor/abductor machine exercise be beneficial to add? If so, should I replace Bulgarian split squats since I already am doing hack squats?', 'choosing or replacing an exercise goes to Claude'],
   ['How many sets does Andrew huberman and other experts say are needed for optimising muscle growth per week?', 'what an expert or the research says goes to Claude'],
   ['Walk me through what the plan found, the way Jarvis would: the two or three things that matter, then the concrete changes you would make to my program and why. As you go, put each muscle you judge on the glass with a body panel, then the routine it comes from as a program panel with the exercise you would drop and the one the evidence protects, and finish with the numbered changes as steps I can tick.', 'a review of your program goes to Claude'],
 ];
