@@ -119,3 +119,11 @@ test('only the specialists are sticky; Nova himself, and garbage, are not', () =
   assert.deepEqual(followUpLane('ask', 'and then?', {}, now), { lane: 'ask', sticky: false });
   assert.equal(followUpLane('ask', 'and then?', { lastAgent: 'coach', lastAgentAt: now - 30_000 }, now).lane, 'coach');
 });
+
+// 1 Nov 2026, 20:56: "Just make the changes and implement them ready for
+// tomorrow" went to the Code screen; a plan's rep ranges went to Nova alone
+test('"implement them" is not code, and a plan\'s rep ranges are the Coach\'s', () => {
+  assert.notEqual(routeIntent('All right, cool. Just make the changes and implement them ready for tomorrow to begin as the new week.').lane, 'code');
+  assert.equal(routeIntent('implement a feature in nova that counts my steps').lane, 'code');
+  assert.equal(routeIntent("In the new workout plan you just developed, change the focus so it is somewhere between 6 to 12 repetitions per exercise.").lane, 'coach');
+});

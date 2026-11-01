@@ -64,7 +64,10 @@ const PLAY_RE = /\b(pull up|put on|play|open|bring up|start)\b[\s\S]{0,60}\b(vid
 // tied to practising it.
 const REPERTOIRE_RE = /\b(?:teach me|learn(?: how)?|practi[sc]e|master|pick up|get good at)\b[\s\S]{0,80}?\b(?:techniques?|tricks?|tactics?|skills?|moves?|this|these|it|them)\b|\b(?:other|similar|more|related|like this)\s+(?:psychological\s+)?(?:techniques?|tricks?|tactics?|skills?|moves?)\b|\b(?:techniques?|tricks?|tactics?)\b[\s\S]{0,60}?\b(?:i can (?:learn|use|practi[sc]e)|to (?:learn|practi[sc]e|use)|daily|every day|one a day)\b/i;
 
-const CODE_RE = /\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
+// "implement" on its own is not code (1 Nov 2026: "just make the changes and
+// implement them ready for tomorrow" went to the Code screen): it needs a
+// code-shaped object or Nova's own repo in the sentence
+const CODE_RE = /\b(build|implement (?:a |an |the )?(?:feature|fix|change (?:in|to) nova|it in nova)|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
 // SOMETHING TO MAKE, versus something to change IN NOVA. CODE_RE already owns
 // the word "build", and it has to keep owning it for "build this into Nova" —
 // so the Builder only takes a request that names an ARTEFACT to produce, and
@@ -84,7 +87,7 @@ const BRIEF_RE = /\b(?:brief me|briefing) (?:on|about)\b|\b(?:synthesi[sz]e|writ
 // before the creator 'study' lane and before research: "study" here is a noun.
 const PAPER_RE = /\b(?:(?:this|that|the|a) (?:study|paper|article|trial|meta[- ]analysis|research)\b[\s\S]{0,80}?\b(?:my|his) (?:program|programme|training|block|plan|routine|split)\b|\b(?:apply|bring|take|use) (?:this|that|the) (?:study|paper|article|findings?)\b[\s\S]{0,40}?\b(?:program|programme|training|block|plan|routine)\b|\bwhat (?:would|does|should) (?:this|that|it) (?:change|mean)\b[\s\S]{0,40}?\b(?:my )?(?:program|programme|training|block|plan|routine)\b)/i;
 const RESEARCH_RE = /\b(research|look up|find out|dig into|what does the (evidence|science) say|sources? on)\b/i;
-const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein|sleep|recovery|hrv)|should i (train|deload|lift|eat)|why (is|am) (my|i) .*(stalled|tired|sore|plateau)|reps?|sets?|rpe|deload|hypertrophy|cutting|bulking)\b/i;
+const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein|sleep|recovery|hrv)|(?:workout|training) plan|rep ranges?|repetitions|should i (train|deload|lift|eat)|why (is|am) (my|i) .*(stalled|tired|sore|plateau)|reps?|sets?|rpe|deload|hypertrophy|cutting|bulking)\b/i;
 // The Leader — leadership as a daily practice. Tight on purpose: "delegate"
 // alone is a word he uses about Nova; the lane wants the org in the sentence.
 const LEADER_RE = /\b(my (team|staff|people|reports?)|direct reports?|one[- ]on[- ]ones?|1:1s?|as a (leader|manager)|leadership|team meeting|performance review|difficult conversation|the leader\b)/i;
