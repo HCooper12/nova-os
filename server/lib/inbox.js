@@ -1342,6 +1342,10 @@ export async function undoFiling(vaultPath, undo) {
     const { undoProjectDecision } = await import('./novaProjects.js');
     return undoProjectDecision(vaultPath, undo);
   }
+  if (undo.route === 'recipe-products') {
+    const { undoLink } = await import('./products.js');
+    return undoLink(vaultPath, undo);
+  }
   if (undo.route === 'build') {
     const { undoBuild } = await import('./builder.js');
     return undoBuild(undo.slug);

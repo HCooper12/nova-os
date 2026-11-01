@@ -20,6 +20,7 @@ import { startLeaderScheduler } from './lib/leader.js';
 import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
 import { recipesRouter } from './routes/recipes.js';
+import { productsRouter } from './routes/products.js';
 import { shoppingListRouter } from './routes/shoppingList.js';
 import { shoppingRouter } from './routes/shopping.js';
 import { workoutsRouter } from './routes/workouts.js';
@@ -230,6 +231,7 @@ async function main() {
   app.use('/api', calendarRouter(process.env.VAULT_PATH));
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
   app.use('/api', recipesRouter(process.env.VAULT_PATH));
+  app.use('/api', productsRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingRouter(process.env.VAULT_PATH)); // prices read politely from the chains, rewards offers from his saved emails, logos (mockup 92)
   app.use('/api', stashRouter(process.env.VAULT_PATH));

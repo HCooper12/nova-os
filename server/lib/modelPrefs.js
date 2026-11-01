@@ -306,6 +306,13 @@ export const LANES = [
     off: 'Statement scanning is refused; the CSV import path is unaffected.',
   },
   {
+    // HIS PRODUCTS (1 Nov 2026): once per recipe, how many grams each line is
+    // and a database food name; code does every sum (lib/products.js)
+    id: 'recipe-lines', label: 'Recipe lines', group: 'capture', def: 'sonnet', defEffort: 'low',
+    hint: 'how many grams each ingredient line is, so your products can be counted exactly',
+    off: 'Linking a product to a recipe line is refused with a plain message; the recipe keeps its numbers.',
+  },
+  {
     id: 'tweak-recipe', label: 'Recipe tweak', group: 'capture', def: 'sonnet', defEffort: 'low',
     hint: '“make it higher protein” into a real alternate version',
     off: 'Tweaks are refused; the original recipe and its saved alternates stay as they are.',
