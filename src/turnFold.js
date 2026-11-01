@@ -74,11 +74,13 @@ export function spokenBudget(question) {
 // the receipt lines code writes under a Coach reply (server/lib/coachProposals.js
 // receiptLines): shared format, so a change to their wording changes this too
 export const RECEIPT_RE = /^\s*(?:Done: |Not done yet: |Not on a card, so nothing changed: |Replaced the card that was waiting)/;
-const UNIT_RE = /[^\n.!?]*(?:[.!?]+(?=\s|$)["'”’)]*|\n|$)/g;
+// a sentence ends at a stop FOLLOWED BY a space or the end: "node-status.json:12" and
+// "9.5 kg" are inside one
+const UNIT_RE = /[\s\S]*?(?:[.!?]+["'”’)\]]*(?=\s|$)|\n|$)/g;
 const wordsIn = (t) => {
   if (MACHINE_RE.test(t) || VIS_RE.test(t)) return 0;
   const w = t.replace(/\[\[artifact:[^\]]*\]\]/gi, '').trim();
-  return w ? w.split(/\s+/).length : 0;
+  return w ? w.split(/\s+/).filter((x) => /[\p{L}\p{N}]/u.test(x)).length : 0;
 };
 // finished sentences and lines, with where each ends; an unfinished tail is not one
 function unitsOf(s) {
