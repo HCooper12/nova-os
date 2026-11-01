@@ -660,6 +660,10 @@ export default class App extends Component {
     foodLogDate: null, liveFoodLogView: null,
     liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
     projectThreads: {}, projectSessions: {}, projectSpeaking: {}, projectAskText: '', projectAskBusy: false,
+    // THE VOICE CONVERSATION'S PROJECT (1 Nov 2026): {id, name} while one is
+    // attached (every Voice ask carries its projectId), and {sessionId} while a
+    // project is being set up by voice (every Voice ask is the intake's turn)
+    voiceProject: null, voiceIntake: null,
     projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
     liveWishlist: null, wishlistDemo: null, wishlistUi: null, wishlistError: null, wishlistAnswered: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
@@ -6770,9 +6774,7 @@ export default class App extends Component {
     push({ who: 'you', text, at });
     this.setState(opts.text != null ? { projectAskBusy: true } : { projectAskText: '', projectAskBusy: true });
     const sid = opts.docRef ? null : ((this.state.projectSessions || {})[id] || null);
-    // a SPOKEN turn (the page's microphone) is answered aloud, like Tell me
-    if (opts.spoken) this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [id]: true } }));
-    const speaking = !!(this.state.voiceSpeak && ((this.state.projectSpeaking || {})[id] || opts.spoken));
+    const speaking = !!(this.state.voiceSpeak && (this.state.projectSpeaking || {})[id]);
     const voice = { upTo: 0 };
     const sayNew = (reply, final) => {
       if (!speaking || this.state.projectOpen !== id) return;
@@ -6789,12 +6791,11 @@ export default class App extends Component {
     const done = (reply, sessionId) => {
       settle({ text: reply, streaming: false, typing: false });
       sayNew(reply, true);
-      // answerSeq: Keep talking reopens the mic once per finished answer
-      this.setState((s) => ({ projectAskBusy: false, projectAnswerSeq: { ...(s.projectAnswerSeq || {}), [id]: ((s.projectAnswerSeq || {})[id] || 0) + 1 }, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
+      this.setState((s) => ({ projectAskBusy: false, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
       api.saveConversation(conn, [{ who: 'you', text, at, via: 'app', projectId: id }, { who: 'nova', text: reply, at: new Date().toISOString(), via: 'app', projectId: id }]).catch(() => {});
     };
     const fail = (msg) => { settle({ who: 'system', text: msg, streaming: false }); this.setState({ projectAskBusy: false }); };
-    api.ask(conn, text, sid, { projectId: id, ...(opts.docRef ? { docRef: opts.docRef } : {}), ...(speaking || opts.spoken ? { spoken: true } : {}) })
+    api.ask(conn, text, sid, { projectId: id, ...(opts.docRef ? { docRef: opts.docRef } : {}), ...(speaking ? { spoken: true } : {}) })
       .then((resp) => {
         if (resp.text) { done(resp.text, resp.sessionId || sid); return; }
         if (!resp.jobId) { fail('Nova could not take that one. Try again.'); return; }
@@ -6863,13 +6864,14 @@ export default class App extends Component {
       .catch((e) => this.toastMsg(e.message || 'That did not start'))
       .finally(() => { this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [recordId]: false } })); this.refreshInbox(); if (this.state.projectOpen) this.loadProject(this.state.projectOpen); });
   }
-  // KEEP TALKING (T6): the project page's microphone reopens after each answer
-  setProjectKeepTalking(projectId, on) {
-    if (on && this.state.voiceSpeak) this.primeSpeech();
-    this.setState((s) => ({
-      projectKeepTalking: { ...(s.projectKeepTalking || {}), [projectId]: !!on },
-      ...(on ? { projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: true } } : {}),
-    }));
+  // "Talk about this": the Voice conversation, with the project attached
+  talkAboutProject(p) {
+    if (!p?.id) return;
+    this.attachVoiceProject({ id: p.id, name: p.name || 'this project' });
+    this.navigate('voice');
+  }
+  attachVoiceProject(p) {
+    this.setState({ voiceProject: p ? { id: p.id, name: String(p.name || '').slice(0, 60) } : null });
   }
   setProjectSpeaking(projectId, on) {
     if (!on) this.resetTtsQueue();
