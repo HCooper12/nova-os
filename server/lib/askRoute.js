@@ -27,17 +27,24 @@ const norm = (s) => String(s || '').toLowerCase().replace(/[’‘]/g, "'").repl
 // a comparison with his own past ("compared to last week", "better than
 // yesterday") is a lookup in his log, not a question for the evidence
 const OWN_PAST = /\b(?:compared?|comparison|better|worse|more|less|up|down|vs\.?|versus)\s+(?:than\s+|to\s+|with\s+|on\s+)?(?:the\s+|my\s+)?(?:last|yesterday|before|previous|prior|earlier)\b(?:\s+(?:week|month|time|session|year|one|workout))?/g;
-const subject = (s) => norm(s).replace(OWN_PAST, ' ');
+export const subject = (s) => norm(s).replace(OWN_PAST, ' ');
+
+// Shared with lib/coachRoute.js (1 Nov 2026): the Coach's router reads a
+// comparison and a why question in these same words rather than a second
+// vocabulary of its own.
+export const COMPARISON_RE = /\b(?:versus|vs\.?|compared? (?:to|with)|comparison|difference between)\b/;
+export const BETTER_THAN_RE = /\bbetter (?:for|than)\b|\bworse than\b|\bmore effective\b|\bmost effective\b/;
+export const WHY_RE = /\bwhy (?:do|does|did|is|are|would|should|can't|cannot|won't)\b|^why\b|\band why\b/;
 
 // a question the evidence, a coach or a judgement settles, not a lookup
 const KNOWLEDGE = [
   [/\b(?:which|what)(?:'s| is| are| would be)? (?:the )?(?:better|best|most effective|more effective|optimal|ideal|right)\b/, 'a question the evidence settles'],
   [/\b(?:is|are|would|will) (?:it|that|this|they|a|an|the)\b.{0,40}\b(?:better|worse|more effective|worth it|worth doing|bad for|good for|safe|okay|ok)\b/, 'a question the evidence settles'],
-  [/\bbetter (?:for|than)\b|\bworse than\b|\bmore effective\b|\bmost effective\b/, 'a question the evidence settles'],
-  [/\b(?:versus|vs\.?|compared? (?:to|with)|comparison|difference between)\b/, 'a comparison'],
+  [BETTER_THAN_RE, 'a question the evidence settles'],
+  [COMPARISON_RE, 'a comparison'],
   [/\bdoes (?:it|that|this) (?:really |actually )?matter\b/, 'a question the evidence settles'],
   [/\b(?:should i|do i need to|is it worth)\b/, 'advice'],
-  [/\bwhy (?:do|does|did|is|are|would|should|can't|cannot|won't)\b|^why\b|\band why\b/, 'a why question'],
+  [WHY_RE, 'a why question'],
   [/\bhow (?:do|does|should|can|would) (?:i|you|we|it|they|one|a|an|the)\b/, 'a how-to question'],
   [/\b(?:research|evidence|studies|study|science|scientific|literature|meta-analysis)\b/, 'a question for research'],
   [/\b(?:explain|teach me|what does .{1,40} (?:mean|say)|what is the point of)\b/, 'an explanation'],

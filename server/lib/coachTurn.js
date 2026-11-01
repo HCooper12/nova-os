@@ -25,7 +25,8 @@ import { preferencesContext } from './learning.js';
 import { localDateISO } from './localDate.js';
 import { providerFor } from './modelPrefs.js';
 import { startCoachLocal, wantsChange } from './localCoach.js';
-import { holdForEscalation, becomeViewOf, failCarrier } from './askDispatch.js';
+import { coachNeedsClaude } from './coachRoute.js';
+import { holdForEscalation, becomeViewOf, failCarrier, labelRouted } from './askDispatch.js';
 import { isLocalOnlySession, sessionTurns, localTurnsSinceClaude, transcriptOf, recordAskTurn } from './localAsk.js';
 
 // ------------------------------ session hygiene ------------------------------
@@ -186,10 +187,20 @@ async function escalateCoach(carrier, vaultPath, opts, localError, reason) {
   });
 }
 
+// THE HAND-UP RULES (1 Nov 2026, his decision after the 27 Oct bench): with
+// the lane on this Mac and no order to change anything, code still sends a
+// question of a kind the 4B got wrong with confidence (form cues, a review,
+// what an expert says, pain, a count across weeks, a comparison or a why) to
+// Claude before the model on this Mac runs (lib/coachRoute.js). Claude's
+// answer carries `provider: 'claude', escalated: true, reason`, the same
+// "asked Claude · why" line Ask Nova's routing shows (askDispatch.js).
 // Returns the job id of the Coach's answer, whoever gives it.
 export async function startCoachTurn(vaultPath, opts = {}) {
   const { question, consulted = null, claudeOnly = false } = opts;
-  if (!consulted && !claudeOnly && providerFor('coach') === 'local' && !wantsChange(question)) {
+  const mayBeLocal = !consulted && !claudeOnly && providerFor('coach') === 'local' && !wantsChange(question);
+  const routed = mayBeLocal ? coachNeedsClaude(question, { liveSession: opts.liveSession || null }) : null;
+  if (routed?.claude) console.log(`coach: ${routed.why}; Claude answers (the model on this Mac is not asked)`);
+  if (mayBeLocal && !routed.claude) {
     // the lane guard, as Claude's path has it: another lane's id is never the Coach's
     let sessionId = opts.sessionId || null;
     if (sessionId) {
@@ -204,6 +215,7 @@ export async function startCoachTurn(vaultPath, opts = {}) {
   }
   const claudeOpts = consulted ? opts : withLocalHistory(opts);
   const jobId = await startClaudeCoachTurn(vaultPath, claudeOpts);
+  if (routed?.claude) { const job = getMessageJob(jobId); if (job) labelRouted(job, routed.why); }
   if (!consulted && opts.sessionId && sessionTurns(opts.sessionId).length) remember(jobId, opts.sessionId, question);
   return jobId;
 }

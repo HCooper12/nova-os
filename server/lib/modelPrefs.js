@@ -203,6 +203,11 @@ export const LANES = [
     // invented session count, an answer that broke off mid-thought, and 0
     // hand-ups to Claude in 34 turns. "Never fiction" was not lifted, so the
     // Coach stays on Claude until a bench passes; he can still pick This Mac.
+    // 1 Nov: the hand-up rules are built in code (lib/coachRoute.js: form,
+    // reviews, experts, pain, counts across weeks, comparisons and whys go to
+    // Claude; a give-up, a self-contradiction or a broken-off reply is handed
+    // up). The rerun on the 4B is owed (the Mac had no headroom that day), so
+    // this stays false until that bench passes.
     id: 'coach', label: 'Ask Coach', group: 'coach', local: true, localFirst: false, standIn: false, def: 'opus', defEffort: 'medium',
     hint: 'the Train screen’s chat — reasoning-heavy, and the lane that proposes program changes',
     off: 'Coach chat is refused with a plain message. Your program, history and analytics are untouched.',

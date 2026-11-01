@@ -38,6 +38,7 @@ import { registerAskJob, coachPanelFor } from './claudeCode.js';
 import { whereLine } from './register.js';
 import { talkPrefsBlock } from './talk.js';
 import { localDateISO } from './localDate.js';
+import { coachGaveUp } from './coachRoute.js';
 import {
   vaultSearch, vaultRead, readToolCalls, sessionTurns, isLocalOnlySession, localTurnsSinceClaude, recordAskTurn,
 } from './localAsk.js';
@@ -702,6 +703,17 @@ export function startCoachLocal(vaultPath, { question, sessionId = null, liveSes
     if (read.escalate) {
       console.log(`local coach: handed up (${read.reason}) after ${turn.rounds} round(s)`);
       fail(read.reason.replace(/^the model on this Mac handed it up: /, 'it handed the question up: '), read.reason);
+      return;
+    }
+    // A GIVE-UP IS A HAND-UP (1 Nov 2026, lib/coachRoute.js coachGaveUp): a
+    // reply that says it cannot answer, claims a change it cannot make,
+    // argues with itself ("Wait, that's not right", bench #5) or breaks off
+    // mid-sentence is never shown; Claude answers on the same job with why.
+    const gave = coachGaveUp(read.text);
+    if (gave) {
+      console.log(`local coach: ${gave} after ${turn.rounds} round(s) ("${read.text.slice(0, 80)}"); handed to Claude`);
+      trace.gaveUp = gave;
+      fail(`it gave up (${gave})`, gave);
       return;
     }
     // THE SETTLE, Claude's Coach's own (claudeCode.js startAskCoach

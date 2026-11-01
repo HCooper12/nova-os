@@ -303,6 +303,29 @@ test('a change request never reaches this Mac: Claude answers, unlabelled, as to
   assert.equal(job.result.escalated, undefined);
 });
 
+test('a question the hand-up rules catch never reaches this Mac: Claude answers, labelled with the rule (1 Nov)', async () => {
+  reply = () => ({ content: 'Keep your elbows low.' });
+  const job = await settle(await startCoachTurn(vault, { question: 'Talk me through the cable overhead tricep extension: cues and common mistakes.' }));
+  assert.equal(job.status, 'ready', job.error);
+  assert.equal(seen.length, 0, 'the local model was not asked');
+  assert.equal(job.result.text, 'Claude coach answered.');
+  assert.equal(job.result.provider, 'claude');
+  assert.equal(job.result.escalated, true);
+  assert.equal(job.result.reason, 'form cues go to Claude');
+});
+
+test('a local reply that argues with itself is never shown: Claude answers on the same job (bench #5)', async () => {
+  reply = () => ({ content: "You have three chest exercises on Monday. Remove the shoulder press. Wait, that's not right. Let me re-read your question." });
+  const jobId = await startCoachTurn(vault, { question: 'How is my chest volume looking this week?' });
+  const job = await settle(jobId);
+  assert.equal(job.id, jobId);
+  assert.equal(job.status, 'ready', job.error);
+  assert.equal(seen.length, 1, 'the local model answered first');
+  assert.equal(job.result.text, 'Claude coach answered.');
+  assert.equal(job.result.escalated, true);
+  assert.equal(job.result.reason, 'the answer on this Mac contradicted itself');
+});
+
 test('a consult and the planner stay on Claude', async () => {
   const consult = await settle(await startCoachTurn(vault, { question: 'How is his bench going?', consulted: { by: 'nova', question: 'How is my bench going?', chain: [] } }));
   assert.notEqual(consult.status, 'running');

@@ -127,6 +127,25 @@ export function holdForEscalation(job, { lane, escalate }) {
   });
 }
 
+/** A Claude job code sent past the model on this Mac (a routed question,
+ *  lib/coachRoute.js, 1 Nov 2026): when it settles ready, its result says so,
+ *  provider 'claude', escalated and why, the same "asked Claude · why" line
+ *  Ask Nova's routing writes in holdForStandIn below. Chains any status
+ *  accessor already on the job. */
+export function labelRouted(job, reason) {
+  const prior = Object.getOwnPropertyDescriptor(job, 'status');
+  let status = job.status;
+  Object.defineProperty(job, 'status', {
+    enumerable: true,
+    configurable: true,
+    get: () => (prior?.get ? prior.get() : status),
+    set: (v) => {
+      if (v === 'ready' && job.result?.text) job.result = { ...job.result, provider: 'claude', escalated: true, reason };
+      if (prior?.set) prior.set(v); else status = v;
+    },
+  });
+}
+
 /** A carrier that could not reach Claude at all: a plain error, said once. */
 export function failCarrier(carrier, message) {
   Object.defineProperty(carrier, 'error', { value: message, writable: true, enumerable: true, configurable: true });

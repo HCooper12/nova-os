@@ -5,7 +5,15 @@
 // (lib/coachTurn.js startCoachTurn, the coach lane on this Mac), and a
 // code-computed grounding check on every number the local answer says.
 //
-//   node server/scripts/benchLocalCoach.mjs [--vault "$VAULT_PATH"] [--out design/audits/2026-10-27-local-coach-bench.md] [--model qwen3.5:4b]
+//   node server/scripts/benchLocalCoach.mjs [--vault "$VAULT_PATH"] [--out design/audits/2026-11-01-local-coach-bench-rules.md] [--model qwen3.5:4b]
+//
+// THE HAND-UP RULES (1 Nov 2026): since lib/coachRoute.js, code sends some
+// questions to Claude before the model runs (coachNeedsClaude) and hands up
+// a local reply that gives up, contradicts itself or breaks off
+// (coachGaveUp). Each row now says which happened: routed by code (and the
+// rule's why), answered by the model, given up, handed up by the model, or
+// failed. The default --out is the rules run's file, so a rerun never
+// overwrites the 27 Oct sheet.
 //
 // WHERE THE QUESTIONS COME FROM. The Coach's Claude Code session journals
 // (~/.claude/projects/<vault slug>/*.jsonl, the ones whose first prompt is the
@@ -45,7 +53,7 @@ function envVault() {
   } catch { return ''; }
 }
 const VAULT = arg('vault', process.env.VAULT_PATH || envVault());
-const OUT = path.resolve(arg('out', path.join(REPO, 'design', 'audits', '2026-10-27-local-coach-bench.md')));
+const OUT = path.resolve(arg('out', path.join(REPO, 'design', 'audits', '2026-11-01-local-coach-bench-rules.md')));
 const MODEL = arg('model', 'qwen3.5:4b');
 const REAL_DATA = path.join(SERVER_DIR, 'data');
 if (!VAULT || !existsSync(VAULT)) { console.error('--vault (or VAULT_PATH in server/.env) must name his vault'); process.exit(2); }
@@ -172,6 +180,7 @@ const { cleanTurnText, projectSlug } = await import('../lib/agentSessions.js');
 const { startCoachTurn } = await import('../lib/coachTurn.js');
 const { getMessageJob, _dropAllWarm } = await import('../lib/claudeCode.js');
 const { traceOf, wantsChange } = await import('../lib/localCoach.js');
+const { coachNeedsClaude } = await import('../lib/coachRoute.js');
 const { setLocalPrefs, setLanePref, providerFor } = await import('../lib/modelPrefs.js');
 await setLocalPrefs({ first: true });
 // the Coach is Claude by default since the first bench (lane localFirst:
@@ -253,6 +262,14 @@ for (const [i, r] of asks.entries()) {
   const secs = (Date.now() - t0) / 1000;
   const trace = jobId ? traceOf(jobId) : null;
   const escalated = job.result?.escalated === true || job.escalated === true;
+  // who decided: code before the model (no trace: the model never ran), code
+  // after it (coachGaveUp wrote trace.gaveUp), the model's own ESCALATE, or
+  // nobody (the model answered)
+  const routed = coachNeedsClaude(r.q);
+  const route = routed.claude && !trace ? 'code, before the model'
+    : trace?.gaveUp ? 'code, after the model (gave up)'
+      : escalated ? 'the model handed up'
+        : job.status === 'ready' ? 'answered on this Mac' : 'failed';
   const local = !escalated && job.status === 'ready' && job.result?.provider === 'local' ? job.result.text : null;
   let ungrounded = null;
   if (local && trace) {
@@ -262,12 +279,12 @@ for (const [i, r] of asks.entries()) {
   }
   const row = {
     n: i + 1, at: r.at, question: r.q, claude: cleanTurnText(r.a) || r.a, local, secs,
-    status: job.status, escalated, reason: job.result?.reason || job.reason || null, error: job.error || null,
+    status: job.status, escalated, route, routeWhy: routed.why || null, reason: job.result?.reason || job.reason || null, error: job.error || null,
     tools: (trace?.results || []).map((x) => `${x.name}(${Object.entries(x.args || {}).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ')})`),
     rounds: trace?.rounds ?? null, ungrounded, localReply: trace?.reply || null,
   };
   results.push(row);
-  console.log(`${row.n}/${asks.length} ${secs.toFixed(1)} s ${escalated ? `ESCALATED (${row.reason})` : row.status} tools=${row.tools.length}${ungrounded?.length ? ` ungrounded=${ungrounded.join(',')}` : ''}`);
+  console.log(`${row.n}/${asks.length} ${secs.toFixed(1)} s [${route}] ${escalated ? `ESCALATED (${row.reason})` : row.status} tools=${row.tools.length}${ungrounded?.length ? ` ungrounded=${ungrounded.join(',')}` : ''}`);
 }
 _dropAllWarm();
 
@@ -287,19 +304,28 @@ const quote = (s) => String(s || '').split('\n').map((l) => `> ${l}`).join('\n')
 
 const md = [];
 md.push('# The local Coach, benched on his real questions', '');
-md.push(`27 Oct 2026. Written by \`server/scripts/benchLocalCoach.mjs\` (model \`${MODEL}\` on Ollama, this Mac; Claude stubbed, nothing spent; a scratch copy of server/data). Every number in the summary is computed by the script from the rows below.`, '');
+md.push(`${new Date().toISOString().slice(0, 10)}. Written by \`server/scripts/benchLocalCoach.mjs\` (model \`${MODEL}\` on Ollama, this Mac; Claude stubbed, nothing spent; a scratch copy of server/data). Every number in the summary is computed by the script from the rows below.`, '');
 md.push('## Summary', '');
 md.push(`- **His Coach traffic:** ${turns.length} turns of his in ${new Set(turns.map((t) => t.at?.slice(0, 10))).size} days of Coach journals; ${rows.length} distinct after retries. ${changes.length} were orders to change his program or records (or turns inside a change he was making), ${asks.length} were questions, ${rows.length - changes.length - asks.length} were not his own words (plan steps, automations, the 18 Oct speed-audit prompts).`);
 md.push(`- **Escalation rate on real traffic:** ${changes.length} of ${changes.length + asks.length} (${pct(changes.length, changes.length + asks.length)}) of his turns ask for a change, and every one goes to Claude. Code's gate (wantsChange) catches ${gateCaught.length} of those ${changes.length} before the local model runs; the other ${changes.length - gateCaught.length} rely on the model's ESCALATE line. It flags ${gateFalse.length} of his ${asks.length} questions as changes (false positives).`);
 md.push(`- **Of the ${asks.length} questions:** ${answered.length} answered on this Mac, ${localEscalated.length} handed to Claude (${pct(localEscalated.length, asks.length)}), ${results.filter((r) => !r.local && !r.escalated).length} failed outright.`);
+const byRoute = (name) => results.filter((r) => r.route === name).length;
+md.push(`- **Who decided (since the 1 Nov hand-up rules):** ${byRoute('code, before the model')} routed to Claude by code before the model ran, ${byRoute('code, after the model (gave up)')} handed up by code after the model gave up, ${byRoute('the model handed up')} handed up by the model itself, ${byRoute('answered on this Mac')} answered on this Mac, ${byRoute('failed')} failed.`);
 md.push(`- **Time (whole turn, question to settled job):** median ${q(secs, 0.5)?.toFixed(1)} s, p90 ${q(secs, 0.9)?.toFixed(1)} s, slowest ${Math.max(...secs).toFixed(1)} s.`);
 md.push(`- **Lookup rounds:** median ${q(roundsList, 0.5) ?? 'n/a'}, most ${roundsList.length ? Math.max(...roundsList) : 'n/a'} (cap 4).`);
 md.push(`- **Grounded answers:** ${grounded.length} of ${answered.length} local answers (${pct(grounded.length, answered.length)}) say no number that is absent from the question, the prompt's facts or a tool result this turn.`);
 md.push('');
 md.push('How to read it. Claude answered each question THEN, inside a running conversation with his data of that day; the local Coach answers it NOW, fresh, on today\'s data. So the two answers are compared for kind (does it answer, is it his numbers, is it plain), not word for word. The grounding check is code: every digit-string in the local answer that is not in the question must appear in what the model was shown (the system prompt\'s FACTS block or a tool result). It cannot tell a right number from a wrong one that happens to appear in the context; it only catches invented ones.', '');
 md.push('## His orders, and the gate', '');
-md.push('| his words (first 90 characters) | wantsChange |', '|---|---|');
-for (const r of changes) md.push(`| ${r.q.replace(/\s+/g, ' ').replace(/\|/g, '/').slice(0, 90)} | ${wantsChange(r.q) ? 'change (Claude, before the model)' : 'not caught (the model must hand up)'} |`);
+md.push('| his words (first 90 characters) | wantsChange | coachNeedsClaude |', '|---|---|---|');
+for (const r of changes) {
+  const routed = coachNeedsClaude(r.q);
+  md.push(`| ${r.q.replace(/\s+/g, ' ').replace(/\|/g, '/').slice(0, 90)} | ${wantsChange(r.q) ? 'change (Claude, before the model)' : 'not caught'} | ${routed.claude ? routed.why : 'not caught'} |`);
+}
+md.push('');
+md.push('## The questions, routed', '');
+md.push('| # | his words (first 70 characters) | who decided | why |', '|---|---|---|---|');
+for (const r of results) md.push(`| ${r.n} | ${r.question.replace(/\s+/g, ' ').replace(/\|/g, '/').slice(0, 70)} | ${r.route} | ${r.route === 'answered on this Mac' ? '' : String(r.reason || r.routeWhy || r.error || '').replace(/\|/g, '/')} |`);
 md.push('');
 md.push('## The questions', '');
 for (const r of results) {
@@ -310,6 +336,7 @@ for (const r of results) {
   else if (r.escalated) md.push(`**Local now:** handed to Claude after ${r.secs.toFixed(1)} s (${r.reason}).${r.localReply ? ' What the model wrote:' : ''}`, '', ...(r.localReply ? [quote(clipTo(r.localReply, 600)), ''] : []));
   else md.push(`**Local now:** failed after ${r.secs.toFixed(1)} s: ${r.error || r.status}.`, '');
   md.push(`- Tools called: ${r.tools.length ? r.tools.join('; ') : 'none'}`);
+  md.push(`- Who decided: ${r.route}${r.routeWhy && r.route === 'code, before the model' ? ` (${r.routeWhy})` : ''}`);
   md.push(`- Escalated: ${r.escalated ? `yes, ${r.reason}` : 'no'}`);
   if (r.local) md.push(`- Grounding: ${r.ungrounded?.length ? `UNGROUNDED ${r.ungrounded.join(', ')}` : 'every number traced to the question, the facts or a tool result'}`);
   md.push('');
