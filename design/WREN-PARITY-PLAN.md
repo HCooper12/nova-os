@@ -17,6 +17,17 @@ reading of the code and should be re-checked before building.
   Proven on the live Wren server; the browser speaker is not yet seen on
   his phone.
 
+## Ported the same evening (1 Nov, atlas-partner f751846..00cf5ad)
+
+- Gap 1 (listening): turnSense hold extension, blind-meter clip reads,
+  frozen-page time, the warm microphone. Gap 5: quiet hours (22:00-07:00,
+  needs-you/needs-fix/stopped/never-started pass; no setting yet, only
+  ~/.atlas/wren/quiet-hours.json). The interruption contract (lib/
+  interruptTurn.mjs, same note as Nova's src/interruptTurn.js). The ear
+  while Wren speaks (lib/bargeIn.mjs, lib/bargeListen.mjs). The boundary
+  wording. None of it seen on his phone; receipts (`barge`, micReused,
+  `interrupted`) are the proof to read.
+
 ## Deliberate differences (not gaps)
 
 - Wren never marks a Science Atlas node done; green is his tap alone.
@@ -30,11 +41,11 @@ reading of the code and should be re-checked before building.
 
 | # | Gap | Nova has | Wren today | Size |
 |---|-----|----------|-----------|------|
-| 1 | Listening reliability: a sentence ending on "and"/"the" holds the turn; speech after send joins it; "no, I said" corrects; a blind meter reads the clip for words; frozen-page time is not a timeout; warm mic in a conversation | src/turnSense.js, src/listenRules.js, src/warmMic.js (23842fb8, a8622d43, 40e49fd9) | a blind meter waits for his tap; a fresh mic every turn; no correction path | M |
+| ~~1~~ | DONE 1 Nov · Listening reliability: a sentence ending on "and"/"the" holds the turn; speech after send joins it; "no, I said" corrects; a blind meter reads the clip for words; frozen-page time is not a timeout; warm mic in a conversation | src/turnSense.js, src/listenRules.js, src/warmMic.js (23842fb8, a8622d43, 40e49fd9) | a blind meter waits for his tap; a fresh mic every turn; no correction path | M |
 | 2 | Safe restart: a reload that waits for running work | scripts/reload-server.mjs, jobRegistry.js | README documents the raw `kickstart -k` (checked); builds are child processes of the server (no `detached`, checked), so a restart kills them | S |
 | 3 | Mission Control's live state in every answer: what is running, waiting on him, failed overnight; reflexes that answer those for free | fleetContext.js, orgContext.js, reflex.js | only Briefing mode sees notices; six reflexes | S-M |
 | 4 | The conversation survives a reload and a device change | conversationLog.js (append-only, ids, read back) | per-day transcript; the dock does not reload past turns (checked); "go on" state is in memory only | M |
-| 5 | Quiet hours and a push policy | quietHours.js, notifyPolicy.js | push.mjs has no quiet logic (checked); work-state pushes at any hour | S |
+| ~~5~~ | DONE 1 Nov · Quiet hours and a push policy | quietHours.js, notifyPolicy.js | push.mjs has no quiet logic (checked); work-state pushes at any hour | S |
 | 6 | Documents he can open (weekly status, plan check, ideas report) | artifacts.js, artifactBlocks.js, the stage card (22a4debf) | none | M |
 | 7 | Undo for Wren's own writes (memory rules, profile, Notion saves) | inbox rails, undoData | receipts.log only | M |
 | 8 | Alert tiers and act-rate receipts | alerts.js | client-side alerts only | M |
