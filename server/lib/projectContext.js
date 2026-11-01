@@ -36,7 +36,7 @@ export function renderProjectSection({ project, brief = '', log = '', pages = []
   const p = project;
   const lines = [
     `PROJECT — ${p.name} (this conversation is about this project: answer for it, from what is below; he is on its page in Nova).`,
-    `Kind ${p.kind} · stage ${p.stage}${p.linked ? ' · LINKED: Nova only reads about it and never writes to it' : ''}${p.dryRun ? ' · dry run (nothing it does is real yet)' : ''}.`,
+    `Kind ${p.kind} · stage ${p.stage}${p.linked ? ' · LINKED: Nova only reads about it and never writes to it' : ''}${p.dryRun ? ' · dry run (no background work starts on its own yet; anything he asks for, such as research or a video, runs for real and lands in the project)' : ''}.`,
   ];
   if (p.linked) {
     lines.push('', 'RECENT COMMITS (git log, newest first):', ...(commits.length ? commits.map((c) => `- ${String(c.at || '').slice(0, 10)} ${c.subject}`) : ['- (none readable)']));
