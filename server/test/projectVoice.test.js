@@ -3,7 +3,7 @@
 // line after his yes. Pure; no I/O.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { voiceAskExtras, intakeAfter, afterApproval, isResearchMove, voiceAttachOf } from '../../src/projectVoice.js';
+import { voiceAskExtras, intakeAfter, afterApproval, isResearchMove, moveKind, voiceAttachOf } from '../../src/projectVoice.js';
 
 const PID = 'a1b2c3d4';
 const SID = '11111111-2222-3333-4444-555555555555';
@@ -34,16 +34,29 @@ test('the intake state follows the reply: continued, called off, failed; untouch
 test('after his yes: where it lives and the first move, from the record; the offer only for research it may do', () => {
   const research = afterApproval({ id: PID, name: 'Garden shed', firstMoves: ['Research shed kits under 2 metres.'], allowances: { research: true } });
   assert.equal(research.say, "It's in Projects, as Garden shed. First move: Research shed kits under 2 metres. Shall I start with that?");
-  assert.deepEqual(research.offer, { kind: 'project-first-move', projectId: PID, question: 'Research shed kits under 2 metres' });
+  assert.deepEqual(research.offer, { kind: 'project-first-move', projectId: PID, question: 'Research shed kits under 2 metres', jobKind: 'research' });
   const off = afterApproval({ id: PID, name: 'Shed', firstMoves: ['Find three kits'], allowances: { research: false } });
   assert.equal(off.offer, null);
-  assert.match(off.say, /may not research on its own yet/);
+  assert.match(off.say, /may not do that on its own yet; turn Research on/);
   const other = afterApproval({ id: PID, name: 'Shed', firstMoves: ['Measure the corner'], allowances: { research: true } });
   assert.equal(other.offer, null, 'not research: never claimed, never run');
   assert.match(other.say, /That one is on its page for you to start\.$/);
   assert.deepEqual(afterApproval({ id: PID, name: 'Shed', firstMoves: [] }), { say: "It's in Projects, as Shed.", offer: null });
   assert.ok(isResearchMove('look into flooring options'));
   assert.ok(!isResearchMove('buy timber'));
+});
+
+test('phase 3: a draft or code first move is offered on the same spoken yes, inside its allowance', () => {
+  const draft = afterApproval({ id: PID, name: 'Shed', firstMoves: ['Draft a one-page plan'], allowances: { draft: true } });
+  assert.equal(draft.offer.jobKind, 'draft');
+  assert.match(draft.say, /Shall I start with that\?$/);
+  const code = afterApproval({ id: PID, name: 'Site', firstMoves: ['Build a landing page'], allowances: { code: true } });
+  assert.equal(code.offer.jobKind, 'code');
+  const noCode = afterApproval({ id: PID, name: 'Site', firstMoves: ['Build a landing page'], allowances: { draft: true } });
+  assert.equal(noCode.offer, null);
+  assert.match(noCode.say, /turn Write code on/);
+  assert.equal(moveKind('buy timber'), null);
+  assert.equal(moveKind('Write the brief for the builder'), 'draft');
 });
 
 test('the chip: attached shows the name and detaches; a setup is called off; nothing otherwise', () => {

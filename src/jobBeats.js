@@ -166,9 +166,35 @@ export function projectResearchStages(record) {
   return out;
 }
 
+// PROJECTS phase 3: a queued draft, code or checks job. The record carries
+// only its CURRENT stage (code writes it as the job moves: "Writing the
+// code", "Running the checks", "The Breaker is reading the change"…), so each
+// one is narrated as it is seen and the seen-set keeps the order.
+const JOB_WORD = { draft: 'Writing it', code: 'Building it', test: 'Running its checks' };
+export function projectJobStages(record) {
+  if (record?.kind !== 'project-job' || !record.projectId) return [];
+  const what = String(record.text || '').replace(/^\w+:\s*/, '').slice(0, 120);
+  const out = [{
+    key: 'go',
+    say: `${JOB_WORD[record.jobKind] || 'Working on it'} for the project.`,
+    card: { kind: 'key', tone: 'cy', label: 'PROJECT WORK', caption: what, foot: null },
+  }];
+  const status = String(record.status || '');
+  if (status === 'classifying' && record.stage && record.stage !== 'Starting') {
+    out.push({ key: `stage:${record.stage}`, say: `${record.stage}.`, card: { kind: 'key', tone: 'cy', label: 'PROJECT WORK', caption: record.stage, foot: what } });
+  }
+  if (status === 'error') {
+    out.push({ key: 'error', say: `It failed${record.error ? `: ${String(record.error).slice(0, 160)}` : ''}.`, card: { kind: 'key', tone: 'warn', label: 'FAILED', caption: String(record.error || 'no reason recorded').slice(0, 200), foot: 'Retry from the Inbox' } });
+  } else if (status === 'filed' && record.decision?.title) {
+    out.push({ key: 'ready', say: `${record.decision.title}.`, card: { kind: 'key', tone: 'good', label: 'DONE', caption: record.decision.title, foot: record.destination || null } });
+  }
+  return out;
+}
+
 // which stages a record narrates: the Researcher's, or a project job's
 export function stagesFor(record) {
   if (record?.kind === 'research') return researchStages(record);
+  if (record?.kind === 'project-job') return projectJobStages(record);
   return projectResearchStages(record);
 }
 

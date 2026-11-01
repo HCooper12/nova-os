@@ -9,7 +9,8 @@
 //   intakeAfter       the intake state after a reply
 //   afterApproval     Nova's one code-written line once his yes made it, and
 //                     the "Shall I start with that?" offer when the first move
-//                     is research the project may do; never a claim it ran
+//                     is research, a draft or code the project may do; never
+//                     a claim it ran
 
 /** The extra fields one Voice ask sends. Nothing at all when neither is set. */
 // A document Tell me attached (T8) rides the FIRST turn as docRef and every
@@ -45,15 +46,30 @@ export const isResearchMove = (text) => RESEARCH_MOVE.test(String(text || '').tr
  * What Nova says once the project exists, from the real record only.
  * Returns { say, offer|null }.
  */
+// PHASE 3 (his call, 1 Nov 2026): a first move that writes something (a
+// draft) or builds something (code) is offered too, inside the project's
+// allowances, by the same spoken yes.
+const CODE_MOVE = /^(?:build|code|implement|prototype|scaffold|set up the (?:app|site|repo|code)|make (?:the|a|an) (?:app|site|website|tool|script|prototype))\b/i;
+const DRAFT_MOVE = /^(?:draft|write|outline|sketch out|plan out|list|summari[sz]e|make (?:a|the) (?:list|plan|brief|outline|shortlist|budget)|put together)\b/i;
+export function moveKind(text) {
+  const t = String(text || '').trim();
+  if (isResearchMove(t)) return 'research';
+  if (CODE_MOVE.test(t)) return 'code';
+  if (DRAFT_MOVE.test(t)) return 'draft';
+  return null;
+}
+const SWITCH = { research: 'Research', draft: 'Draft', code: 'Write code' };
+
 export function afterApproval(project) {
   const name = String(project?.name || 'the project');
   const move = String(project?.firstMoves?.[0] || '').trim().replace(/[.\s]+$/, '');
   const where = `It's in Projects, as ${name}.`;
   if (!move) return { say: where, offer: null };
-  if (isResearchMove(move) && project?.allowances?.research) {
-    return { say: `${where} First move: ${move}. Shall I start with that?`, offer: { kind: 'project-first-move', projectId: project.id, question: move } };
+  const kind = moveKind(move);
+  if (kind && project?.allowances?.[kind]) {
+    return { say: `${where} First move: ${move}. Shall I start with that?`, offer: { kind: 'project-first-move', projectId: project.id, question: move, jobKind: kind } };
   }
-  if (isResearchMove(move)) return { say: `${where} First move: ${move}. It may not research on its own yet; turn Research on in its Controls.`, offer: null };
+  if (kind) return { say: `${where} First move: ${move}. It may not do that on its own yet; turn ${SWITCH[kind]} on in its Controls.`, offer: null };
   return { say: `${where} First move: ${move}. That one is on its page for you to start.`, offer: null };
 }
 

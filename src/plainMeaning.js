@@ -125,6 +125,8 @@ function project(route, p, r) {
     case 'project-watch-note': return `Saves the notes from this video into ${name ? `the ${name} project` : 'the project'}, and nowhere else.`;
     case 'project-research': return `Keeps this research in ${name ? `the ${name} project` : 'the project'}'s folder.`;
     case 'project-watch-candidates': return `Watches the videos it found, one after another, for ${name || 'the project'} only.`;
+    case 'project-job': return `Work a queued job did in ${name ? `the ${name} project` : 'the project'}'s own folder. Undo takes back only what that job changed.`;
+    case 'project-answer': return p.fable ? `Lets this one job run on Fable, as ${name || 'the project'} is set to.` : `Sends your answer${p.answer ? ` ("${clean(p.answer)}")` : ''} to the job that stopped to ask, and it carries on.`;
     default: return r.decision?.title ? stop(unprefix(r.decision.title)) : '';
   }
 }

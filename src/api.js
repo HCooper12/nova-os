@@ -247,6 +247,11 @@ export const api = {
   // phase 2: research for a project, a video for it, and his "Watch them" on found videos
   projectResearch: (conn, id, question, model) => post(conn, `/api/projects/${encodeURIComponent(id)}/research`, { question, ...(model ? { model } : {}) }),
   projectWatch: (conn, id, { url, lens, question } = {}) => post(conn, `/api/projects/${encodeURIComponent(id)}/watch`, { url, ...(lens ? { lens } : {}), ...(question ? { question } : {}) }),
+  // phase 3: the queue. `now` is his yes; projectQueueRun is his press (one project, or all)
+  projectJob: (conn, id, { kind, input, now = false, origin = 'button' } = {}) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs`, { kind, input, now, origin }),
+  projectJobCancel: (conn, id, jobId) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/cancel`, {}),
+  projectJobAnswer: (conn, id, jobId, answer) => post(conn, `/api/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/answer`, { answer }),
+  projectQueueRun: (conn, projectId = null) => post(conn, '/api/projects/queue/run', projectId ? { projectId } : {}),
   projectCandidatesWatch: (conn, id, recordId, urls) => post(conn, `/api/projects/${encodeURIComponent(id)}/candidates/${encodeURIComponent(recordId)}/watch`, { urls }),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),

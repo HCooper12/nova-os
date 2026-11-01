@@ -28,6 +28,8 @@ const SOURCE_LABEL = {
   'project-brief': 'PROJECTS', 'project-stage': 'PROJECTS', 'project-settings': 'PROJECTS',
   // phase 2 (1 Nov 2026): research for a project, and the videos it found
   'project-research': 'PROJECT RESEARCH', 'project-watch-candidates': 'PROJECT RESEARCH',
+  // phase 3: a queued job's receipt, and a job that stopped to ask him
+  'project-job': 'PROJECT WORK', 'project-needs-you': 'PROJECT QUESTION',
   review: 'DAILY REVIEW', dispatch: 'DISPATCH', compost: 'COMPOST', guardian: 'GUARDIAN',
   cfo: 'CFO', 'money-import': 'CFO', money: 'CFO', 'money-write': 'MONEY', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
   calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
@@ -84,6 +86,9 @@ export const ROUTE_META = {
   'project-watch-note': { label: 'PROJECT SOURCE', hue: '224,178,106' },
   'project-research': { label: 'PROJECT RESEARCH', hue: '224,178,106' },
   'project-watch-candidates': { label: 'VIDEOS TO WATCH', hue: '224,178,106' },
+  // phase 3: what a queued job made in the project's folder, and his answer to one that asked
+  'project-job': { label: 'PROJECT WORK', hue: '224,178,106' },
+  'project-answer': { label: 'PROJECT QUESTION', hue: '224,178,106' },
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
   journal: { label: 'JOURNAL', hue: '143,123,255' },
   todo: { label: 'TO-DO', hue: '89,230,255' },
@@ -587,7 +592,7 @@ export function valsInbox(app, ctx) {
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
     // their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'project-research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'project-research' || r.kind === 'project-job' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'
       // his 31 Oct report: a failed Weave, recipe import or Wishlist add showed only Dismiss. The server retries each of these (inbox.js retryRecord).
       || (r.kind === 'ingest' && !!r.ingestRetry) || r.kind === 'recipe-video' || r.kind === 'recipe-scan' || r.kind === 'wishlist'
       // a failed build carries its whole brief (server/lib/builder.js retryBuild)

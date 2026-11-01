@@ -6965,7 +6965,7 @@ export default class App extends Component {
   narrateJobs(inbox) {
     if (this.state.demoMode) return;
     // a project's research and its watches narrate too (src/jobBeats.js projectResearchStages)
-    const items = (inbox?.items || []).filter((r) => (r.kind === 'research' && !r.parentPlanId) || (r.projectId && (r.kind === 'project-research' || r.kind === 'video')));
+    const items = (inbox?.items || []).filter((r) => (r.kind === 'research' && !r.parentPlanId) || (r.projectId && (r.kind === 'project-research' || r.kind === 'video' || r.kind === 'project-job')));
     const seen = (this.jobSeen = this.jobSeen || new Map());
     const booting = !this.jobsBooted;
     this.jobsBooted = true;
@@ -12137,14 +12137,19 @@ export default class App extends Component {
       if (this.state.voiceSpeak) this.speak(line);
     });
   }
-  // "Shall I start with that?" — yes: the first move, as research for the
-  // project, by the same door the project page's Research box uses
+  // "Shall I start with that?" — yes: the first move. Research by the door the
+  // project page's Research box uses; a draft or code (phase 3) as a job in
+  // the project's queue, started now because his yes is his press.
   startProjectFirstMove(offer) {
     const conn = getConnection();
     if (!conn) return;
-    api.projectResearch(conn, offer.projectId, offer.question)
-      .then(() => {
-        const line = 'Researching it now. It lands on the project page.';
+    const kind = offer.jobKind || 'research';
+    const go = kind === 'research'
+      ? api.projectResearch(conn, offer.projectId, offer.question).then(() => 'Researching it now. It lands on the project page.')
+      : api.projectJob(conn, offer.projectId, { kind, input: offer.question, now: true, origin: 'spoken' })
+        .then((r) => (r.started ? `${kind === 'code' ? 'Building' : 'Writing'} it now. It lands on the project page.` : `It is queued, not started yet: ${r.held || 'another job goes first'}.`));
+    go
+      .then((line) => {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
         if (this.state.voiceSpeak) this.speak(line);
         this.refreshInbox();
