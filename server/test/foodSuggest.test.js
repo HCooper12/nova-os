@@ -114,7 +114,7 @@ test('a dismissed food asks once more only after 60 days AND a doubled habit —
   await day('2026-07-25', ['New Snack']);
   const res = await runFoodSuggestions(vault, { now: t0 + 61 * DAY });
   assert.equal(res.proposed, 1, 'a doubled habit earns exactly one more ask');
-  assert.match(res.records[0].decision.reason, /You passed on this on \d{1,2} \w{3,4} \("a snack, not a recipe"\); the number behind it has moved from 3 to 6, so asking once more/);
+  assert.match(res.records[0].decision.reason, /You passed on this on \d{1,2} \w{3,4}(?: \d{4})? \("a snack, not a recipe"\); the number behind it has moved from 3 to 6, so asking once more/);
   assert.equal(res.records[0].decision.payload.count, 6);
 
   // he says no again → a standing no, however often he eats it

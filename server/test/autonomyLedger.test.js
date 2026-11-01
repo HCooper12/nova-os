@@ -110,7 +110,7 @@ test('a declined autonomy proposal stays quiet for 60 days, then returns only on
   for (let i = 0; i < 4; i++) await createRecord(mkRec('dispatch', 'discarded', { slot: 'morning', expired: true }));
   const back = (await proposeEarnedAutonomy({ now: t0 + 61 * day })).find((p) => p.decision.payload.target === 'dispatch-morning');
   assert.ok(back, 'materially more evidence re-proposes');
-  assert.match(back.decision.reason, /You passed on this on \d{1,2} \w{3,4} \("I read them, I just don't tap"\); the number behind it has moved from 16 to 20\./);
+  assert.match(back.decision.reason, /You passed on this on \d{1,2} \w{3,4}(?: \d{4})? \("I read them, I just don't tap"\); the number behind it has moved from 16 to 20\./);
   assert.equal((await listRecords()).filter((r) => r.kind === 'autonomy' && r.decision?.payload?.target === 'dispatch-morning').length, 2);
 });
 

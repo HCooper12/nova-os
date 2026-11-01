@@ -16,7 +16,7 @@ const { buildMoneyView, moneyMoment } = await import('../../src/moneyModel.js');
 const { demoMoneyState, demoSummary } = await import('../../src/moneyDemo.js');
 
 test('the live server\'s current shape (no new fields, an empty month) draws the empty state, not a zero', () => {
-  const old = { month: '2026-10', prevMonth: '2026-09', spent: 0, prevSpent: 0, income: 0, count: 0, byCategory: [], transactions: [], subscriptions: [], months: ['2026-10'], categories: [], importsDir: 'Money/Imports' };
+  const old = { today: '2026-10-15', month: '2026-10', prevMonth: '2026-09', spent: 0, prevSpent: 0, income: 0, count: 0, byCategory: [], transactions: [], subscriptions: [], months: ['2026-10'], categories: [], importsDir: 'Money/Imports' };
   const v = buildMoneyView({ money: old });
   assert.equal(v.state, 'empty');
   assert.equal(v.news[0].text, 'Nothing filed for October yet.');
