@@ -115,6 +115,18 @@ export function budgetCut(text, budget = SPOKEN_WORDS) {
   return words > budget ? cut : -1;
 }
 
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+/** Code's receipts as one spoken line, and the full list to hold. Pure. */
+export function summariseReceipts(receipts = []) {
+  if (receipts.length <= 1) return { line: receipts[0] || '', list: '' };
+  const done = receipts.filter((r) => /^\s*Done: /.test(r)).length;
+  const missed = receipts.length - done;
+  const parts = [];
+  if (done) parts.push(`Done: ${plural(done, 'change')} to your program.`);
+  if (missed) parts.push(`${plural(missed, 'change')} did not land; the list says why.`);
+  return { line: parts.join(' '), list: receipts.join('\n') };
+}
+
 /** Fold a reply the model did not fold: the budget said, a later question moved last, the rest held. Pure. */
 export function budgetFold(text, budget = SPOKEN_WORDS) {
   const s = String(text ?? '');
@@ -131,7 +143,11 @@ export function budgetFold(text, budget = SPOKEN_WORDS) {
   // that did not land, is always said, whatever the budget
   const receipts = [];
   const kept = [];
-  for (const line of prose) (RECEIPT_RE.test(line) ? receipts : kept).push(line.trim());
+  // receipts may share a line ("Done: a. Done: b."): each is its own
+  for (const line of prose) {
+    if (RECEIPT_RE.test(line)) receipts.push(...line.trim().split(/(?<=[.!?])\s+(?=Done: |Not done yet: |Not on a card, so nothing changed: |Replaced the card)/));
+    else kept.push(line.trim());
+  }
   let rest = kept.join('\n');
   if (!rest.trim()) return { said: s, held: null };
   // the last question he is asked, wherever it sat, ends the spoken turn
@@ -142,10 +158,15 @@ export function budgetFold(text, budget = SPOKEN_WORDS) {
     ask = q.text.trim();
     rest = rest.slice(0, q.start) + rest.slice(q.end);
   }
+  // MANY RECEIPTS ARE ONE LINE (1 Nov 2026, his "done blah blah blah done blah blah blah"): a
+  // program rebuild writes a receipt per change, and all of them were said. Said: the count;
+  // held: the list, first in the rest.
+  const said1 = summariseReceipts(receipts);
+  if (said1.list) rest = `${said1.list}\n\n${rest}`;
   const held = rest.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || null;
   if (!held) return { said: s, held: null };
   const close = ask || (/\?\s*$/.test(before) ? '' : 'Want the rest?');
-  const turn = [before, receipts.join(' '), close].filter(Boolean).join('\n\n');
+  const turn = [before, said1.line, close].filter(Boolean).join('\n\n');
   return { said: [turn, ...machine].join('\n'), held };
 }
 
