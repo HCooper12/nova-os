@@ -37,6 +37,21 @@ any screen: the dock's Undo row, the "quiet alerts" count, document cards and
 sheet, chat hydration. Owed: Wren console.html's ask loop does not strip
 document bodies; the Undo for an idea answer has no UI (Mission Control html).
 
+## Round 4, the same night (atlas-partner 9c2d02e..7cd2736, pushed, live)
+
+Gap 9: lib/localModel.mjs for classify and Delegator segmentation, MEASURED
+on his record first: classify is rules-only and only 14 of 28 sampled
+messages fall through; the 4B agreed with the rules on 4 of his 7 real
+questions (57 %), 54 % overall, median 913 ms warm, 8.6 s cold; segmentation
+1 of 3 usable at 7-34 s. Shipped OFF (lib/models.mjs localEnabled; /api/model
+{local, on}). Gap 10: an Audit mode ("audit X", "review ... across") on the
+deep lane, read-only, whose reply is a cited document with a 60-word spoken
+turn; the checker refuses an uncited or missing-file claim inside it. Owed
+items closed: console strips document bodies; idea answers get the dock's
+Undo row; stray tracked copies gone. Nova took the audit's "copy from Wren"
+items the same night (0270b30c first-line faults, 25aa14dd a spec per build);
+"one list of everything running" waits for a mockup he approves.
+
 ## Deliberate differences (not gaps)
 
 - Wren never marks a Science Atlas node done; green is his tap alone.
@@ -58,8 +73,8 @@ document bodies; the Undo for an idea answer has no UI (Mission Control html).
 | ~~6~~ | DONE 1 Nov · Documents he can open (weekly status, plan check, ideas report) | artifacts.js, artifactBlocks.js, the stage card (22a4debf) | none | M |
 | ~~7~~ | DONE 1 Nov · Undo for Wren's own writes (memory rules, profile, Notion saves) | inbox rails, undoData | receipts.log only | M |
 | ~~8~~ | DONE 1 Nov · Alert tiers and act-rate receipts | alerts.js | client-side alerts only | M |
-| 9 | Local model for cheap lanes (classify, Delegator) | localModel.js, askRoute.js | every turn is a Claude spawn | L, last |
-| 10 | Agents consulting each other | consult.js | one mind with lanes | L, defer |
+| ~~9~~ | DONE 1 Nov, shipped OFF · Local model for cheap lanes (classify, Delegator) | localModel.js, askRoute.js | every turn is a Claude spawn | L, last |
+| ~~10~~ | DONE 1 Nov as Audit mode · Agents consulting each other | consult.js | one mind with lanes | L, defer |
 
 Also, small and first: "walk me through" in an Advisor turn gets Wren's
 60-word budget; Nova lengthens it by his words (src/turnFold.js DEPTH_RE).
