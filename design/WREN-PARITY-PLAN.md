@@ -31,7 +31,7 @@ reading of the code and should be re-checked before building.
 ## Rounds 2-3, same evening (atlas-partner dfe7576..4925fed, pushed, live)
 
 Gaps 2, 3, 4, 6, 7, 8 and the Advisor depth fix. Restart Wren ONLY with
- now (first real run 1 Nov 18:39, nothing in
+`node tools/reload-wren.mjs` now (first real run 1 Nov 18:39, nothing in
 flight). Left: 9 (local model, do last) and 10 (consult, defer). Unseen on
 any screen: the dock's Undo row, the "quiet alerts" count, document cards and
 sheet, chat hydration. Owed: Wren console.html's ask loop does not strip
