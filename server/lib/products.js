@@ -32,6 +32,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, effortArgs, laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
+import { lineKey, leadingCount } from '../../src/productKey.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -136,7 +137,6 @@ export async function searchProducts(q, { fetchImpl = fetch } = {}) {
 
 // ---- a recipe's lines --------------------------------------------------------
 
-const lineKey = (line) => norm(line);
 const linesFile = (id) => {
   if (!/^[a-z0-9-]{1,120}$/.test(String(id))) throw Object.assign(new Error('not a recipe id'), { code: 'recipe' });
   return path.join(LINES_DIR(), `${id}.json`);
@@ -206,11 +206,29 @@ export async function ensureLines(recipe) {
         ? { per100: { p: round1(fact.per100g.p), c: round1(fact.per100g.c), f: round1(fact.per100g.f), kcal: Math.round(fact.per100g.p * 4 + fact.per100g.c * 4 + fact.per100g.f * 9) }, source: `USDA: ${fact.matched}` }
         : cleanPer100(g.per100) ? { per100: cleanPer100(g.per100), source: 'Nova\'s estimate (no database match)' } : null;
       const prev = store.lines[lineKey(t)] || {};
-      store.lines[lineKey(t)] = { ...prev, text: t, grams, food: g.food || null, estimate: est };
+      store.lines[lineKey(t)] = { ...prev, text: t, grams, count: gramsOnLine(t) == null ? leadingCount(t) : null, food: g.food || null, estimate: est };
     }
     store.at = new Date().toISOString();
-    await writeJson(linesFile(recipe.id), store);
   }
+  // THE RECIPE'S OWN NUMBERS ARE THE REFERENCE (1 Nov 2026, the first real
+  // run: linking one lean mince took the muffin from 421 to 465 kcal, because
+  // the other ten lines were re-estimated from US data). Taken once, before
+  // any product is linked: the estimates of the lines that are not his are
+  // scaled so that, with nothing linked, the recipe says exactly what it said.
+  // Linking a product then changes only its own share; all lines his = exact.
+  if (!store.calibration && recipe.macros && !Object.values(store.lines).some((l) => l.productId)) {
+    const est = computeRecipe(recipe, store, [], { calibration: null });
+    if (!est.unresolved.length) {
+      const n = Number(recipe.servings) > 0 ? Number(recipe.servings) : 1;
+      store.calibration = {};
+      for (const k of ['p', 'c', 'f', 'kcal']) {
+        const raw = est.raw[k];
+        const want = Number(recipe.macros[k]) * n;
+        store.calibration[k] = raw > 0 && Number.isFinite(want) ? want / raw : 1;
+      }
+    }
+  }
+  if (missing.length || store.calibration) await writeJson(linesFile(recipe.id), store);
   return store;
 }
 
@@ -218,26 +236,33 @@ export async function ensureLines(recipe) {
  * The recipe's macros per serving, from its lines: his product where linked,
  * the estimate otherwise. Pure. → { perServing, linked, total, unresolved:[] }
  */
-export function computeRecipe(recipe, store, products) {
+export function computeRecipe(recipe, store, products, { calibration = store.calibration || null } = {}) {
   const byId = new Map((products || []).map((p) => [p.id, p]));
   const texts = recipe.ingredients.filter((i) => !i.group).map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name));
   const sum = { p: 0, c: 0, f: 0, kcal: 0 };
+  const raw = { p: 0, c: 0, f: 0, kcal: 0 };
   let linked = 0;
   const unresolved = [];
   const rows = texts.map((t) => {
     const s = store.lines[lineKey(t)] || {};
     const product = s.productId ? byId.get(s.productId) : null;
-    const grams = gramsOnLine(t) ?? s.grams;
+    // the weight: on the line itself, else the breakdown's, moved with the count
+    const nowCount = leadingCount(t);
+    const grams = gramsOnLine(t) ?? (s.grams > 0 && s.count && nowCount ? s.grams * (nowCount / s.count) : s.grams);
     const per100 = product ? product.per100 : s.estimate?.per100;
     if (!per100 || !(grams > 0)) { unresolved.push(t); return { text: t, product: product?.name || null }; }
     if (product) linked += 1;
     const k = grams / 100;
-    for (const key of ['p', 'c', 'f', 'kcal']) sum[key] += per100[key] * k;
+    for (const key of ['p', 'c', 'f', 'kcal']) {
+      const v = per100[key] * k;
+      raw[key] += v;
+      sum[key] += product ? v : v * (calibration?.[key] ?? 1);
+    }
     return { text: t, grams, product: product?.name || null };
   });
   const n = Number(recipe.servings) > 0 ? Number(recipe.servings) : 1;
   const perServing = { p: Math.round(sum.p / n), c: Math.round(sum.c / n), f: Math.round(sum.f / n), kcal: Math.round(sum.kcal / n) };
-  return { perServing, linked, total: texts.length, unresolved, rows };
+  return { perServing, linked, total: texts.length, unresolved, rows, raw };
 }
 
 /** The line state the page draws: which lines carry his product, by line text. */

@@ -1,7 +1,7 @@
 // HIS PRODUCTS IN HIS RECIPES (1 Nov 2026, mockup 109): code does every sum,
 // his product is the truth for its line, a line it cannot work out leaves the
 // recipe as it was, and Undo puts the numbers back. No model, no network.
-import { mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -20,6 +20,7 @@ const muffin = () => ({
 let written = [];
 function stub(recipe = muffin()) {
   written = [];
+  rmSync(path.join(process.env.NOVA_DATA_DIR, 'recipe-lines'), { recursive: true, force: true });
   P._setProductDepsForTest({
     breakdown: async () => ({ lines: [{ n: 1, grams: 999, food: 'beef', per100: { p: 20, c: 0, f: 10, kcal: 170 } }, { n: 2, grams: 150, food: 'egg', per100: { p: 13, c: 1, f: 10, kcal: 143 } }] }),
     lookup: async () => null,
@@ -43,16 +44,26 @@ test('a product needs all four per-100 g values, and they must be sane', async (
   assert.deepEqual(P.matchProducts(await P.listProducts(), '3 eggs'), []);
 });
 
-test('linking his product recomputes the recipe by code, writes it, and Undo puts it back', async () => {
+test('nothing linked, the recipe computes to exactly its own numbers (the estimates are scaled to it)', async () => {
   const recipe = muffin();
   stub(recipe);
+  const store = await P.ensureLines(recipe);
+  assert.deepEqual(P.computeRecipe(recipe, store, []).perServing, { p: 42, c: 33, f: 14, kcal: 421 });
+});
+
+test('linking his product changes only its own share, writes it, and Undo puts it back', async () => {
+  const recipe = muffin();
+  stub(recipe);
+  await P.ensureLines(recipe);
   const mince = (await P.listProducts())[0];
   const out = await P.linkProduct('/vault', recipe.id, '400g extra lean beef mince', mince.id);
-  // (400 g × 22 + 150 g × 13) / 6 = 17.9 → 18 g protein; (400×133/100 + 150×143/100)/6 = 124.4 → 124 kcal
-  assert.deepEqual(out.macros, { p: 18, c: 0, f: 6, kcal: 124 });
+  // the eggs' share is untouched: (estimate × calibration) as before; the mince is his label, exactly
+  const store = await P.readLines(recipe.id);
+  const k = store.calibration;
+  const eggsP = 150 * 0.13 * k.p;
+  assert.equal(out.macros.p, Math.round((400 * 0.22 + eggsP) / 6));
   assert.deepEqual(out.was, { p: 42, c: 33, f: 14, kcal: 421 });
   assert.equal(out.linked, 1);
-  assert.equal(out.total, 2);
   assert.deepEqual(written.at(-1), out.macros);
   const said = await P.undoLink('/vault', out.undo);
   assert.match(said, /42 g protein, 421 kcal/);
@@ -60,14 +71,20 @@ test('linking his product recomputes the recipe by code, writes it, and Undo put
   assert.deepEqual(await P.lineState(recipe), {});
 });
 
-test('500 g instead of 400 g changes the numbers: the grams on the line are read every time', async () => {
+test('500 g instead of 400 g: his product stays linked and the numbers go up', async () => {
   const recipe = muffin();
   stub(recipe);
   const mince = (await P.listProducts())[0];
   const a = await P.linkProduct('/vault', recipe.id, '400g extra lean beef mince', mince.id);
   recipe.ingredients[0].name = '500g extra lean beef mince';
-  const b = await P.linkProduct('/vault', recipe.id, '500g extra lean beef mince', mince.id);
-  assert.ok(b.macros.p > a.macros.p && b.macros.kcal > a.macros.kcal);
+  const store = await P.ensureLines(recipe);
+  const b = P.computeRecipe(recipe, store, await P.listProducts());
+  assert.equal(b.linked, 1, 'the link follows the ingredient, not the amount');
+  assert.ok(b.perServing.p > a.macros.p && b.perServing.kcal > a.macros.kcal);
+  // a count line moves with its count: 3 eggs → 4 eggs is a third more egg
+  recipe.ingredients[1].name = '4 eggs';
+  const c = P.computeRecipe(recipe, await P.ensureLines(recipe), await P.listProducts());
+  assert.ok(c.perServing.p > b.perServing.p);
 });
 
 test('a line it cannot work out leaves the recipe exactly as it was', async () => {
