@@ -845,7 +845,7 @@ async function finishConsulted(cwd, replyText, turnJob, { question, ctl, session
 // rails. `ctl` is the turn's consult controller (lib/consult.js openConsult);
 // a lane that consults no one passes none. `extra` rides on the result
 // (provider, fallback, reason for a local answer); Claude passes none.
-export async function settleAskReply(cwd, replyText, turnJob, { question, noGlass = false, direct = false, place = 'unknown', ctl = null, sessionId: effectiveSessionId = null, extra = null } = {}) {
+export async function settleAskReply(cwd, replyText, turnJob, { question, noGlass = false, direct = false, place = 'unknown', ctl = null, sessionId: effectiveSessionId = null, extra = null, projectId = null } = {}) {
   if (!ctl) ctl = { finalText: (t) => t, roster: [] };
   try {
     // THE DOCUMENTS, FIRST — before anything else parses this reply, so a
@@ -934,7 +934,7 @@ export async function settleAskReply(cwd, replyText, turnJob, { question, noGlas
     if (actParsed.act) {
       text = actParsed.cleanText;
       try {
-        const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct, forceConfirm: forceConfirmFor(place, { oneShot: direct }) });
+        const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct, forceConfirm: forceConfirmFor(place, { oneShot: direct }), ...(projectId ? { projectId } : {}) });
         if (out.gated) { actGated = out.gated; text = `${text} ${out.said}`.trim(); }
         else if (out.acted) acted = out.acted;
         else if (out.proposal && !proposal) proposal = out.proposal;
@@ -1098,7 +1098,7 @@ function consultedResumeText(consulted, question, { canPropose = false } = {}) {
 // `dryRun` (server/scripts/benchLocalAsk.mjs only): the reply comes back
 // as the model wrote it, with no consult run and nothing settled, so a bench
 // over his real vault can never file, act or write.
-export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false }) {
+export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false, projectId = null }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
   const claim = consulted?.claim || null;
@@ -1136,7 +1136,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     return settleAsk(step.text, turnJob);
   };
 
-  const settleAsk = (replyText, turnJob) => settleAskReply(cwd, replyText, turnJob, { question, noGlass, direct, place, ctl, sessionId: effectiveSessionId });
+  const settleAsk = (replyText, turnJob) => settleAskReply(cwd, replyText, turnJob, { question, noGlass, direct, place, ctl, sessionId: effectiveSessionId, ...(projectId ? { projectId } : {}) });
 
   warmTurn({
     kind,
