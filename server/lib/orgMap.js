@@ -55,7 +55,7 @@ export const BEING_MEMBERS = {
   commander: ['dispatch', 'plan-today', 'reminders', 'followups', 'todoist', 'calendar-watch', 'brief-warm', 'commitments'],
   coach: ['coach', 'weekly-debrief', 'training-check', 'week-plan', 'healthinsight', 'coach-cadence', 'coach-reflection', 'exercise-videos', 'exercise-research', 'patterns-weekly'],
   cfo: ['money', 'cfo'],
-  guardian: ['guardian', 'health-drops', 'compost', 'telegram', 'health-mirror', 'pattern-scout', 'autonomy', 'model-watch', 'forge', 'overnight', 'alerts'],
+  guardian: ['guardian', 'health-drops', 'compost', 'telegram', 'health-mirror', 'pattern-scout', 'autonomy', 'model-watch', 'forge', 'overnight', 'projects', 'alerts'],
   researcher: ['researcher', 'pulse', 'study', 'scout', 'repertoire-topup'],
   watcher: ['watcher'],
   librarian: ['embeddings', 'distill', 'brain-week', 'read-next'],
@@ -101,7 +101,7 @@ export const KIND_BEING = {
 // Kinds with no being yet, said out loud rather than hidden: the Builder and
 // the Studio will stand on the Projects district when it is built.
 // A commit he made on the Code screen stands with the Builder's work.
-export const UNFILED_KINDS = ['build', 'studio', 'code-commit', 'code-ship', 'project-brief', 'project-stage', 'project-settings'];
+export const UNFILED_KINDS = ['build', 'studio', 'code-commit', 'code-ship', 'project-brief', 'project-stage', 'project-settings', 'project-job', 'project-needs-you'];
 
 const FRESH_RANK = { today: 3, recent: 2, stale: 1, never: 0 };
 

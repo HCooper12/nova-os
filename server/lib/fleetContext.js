@@ -63,6 +63,8 @@ export const KIND_AGENT = {
   'project-brief': 'Projects', 'project-stage': 'Projects', 'project-settings': 'Projects',
   // phase 2: research for a project, and the videos it found
   'project-research': 'Researcher', 'project-watch-candidates': 'Researcher',
+  // phase 3: a queued job's receipt, and a job that stopped to ask him
+  'project-job': 'Projects', 'project-needs-you': 'Projects',
   // the Repertoire (15 Sep): a clip read for its technique, researched
   // outward, and taught back one a day — the other agents can say so
   repertoire: 'Repertoire',

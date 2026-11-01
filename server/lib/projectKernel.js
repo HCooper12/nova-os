@@ -855,7 +855,7 @@ export function makeKernel(host) {
     const i = q.jobs.findIndex((j) => j.id === jobId);
     if (i < 0) throw refuse('no such job in this project', 'missing');
     if (patch.status && !JOB_STATES.includes(patch.status)) throw refuse(`unknown job state "${patch.status}"`, 'job');
-    const keep = ['status', 'startedAt', 'endedAt', 'recordId', 'error', 'attempts', 'ask', 'answer', 'result'];
+    const keep = ['status', 'startedAt', 'endedAt', 'recordId', 'error', 'attempts', 'ask', 'answer', 'result', 'fableOk'];
     const next = { ...q.jobs[i] };
     for (const k of keep) if (k in (patch || {})) next[k] = patch[k];
     q.jobs[i] = next;
@@ -874,16 +874,119 @@ export function makeKernel(host) {
   }
 
   /** His answer to a job that stopped to ask: it goes back in the queue with it. */
-  function answerJob(p, jobId, answer) {
+  function answerJob(p, jobId, answer, { fableOk = false } = {}) {
     const rec = resolve(p);
     const job = readQueue(rec).jobs.find((j) => j.id === jobId);
     if (!job) throw refuse('no such job in this project', 'missing');
     if (job.status !== 'waiting') throw refuse(`that job is ${job.status}, not waiting on you`, 'job');
     const text = String(answer || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
     if (!text) throw refuse('an answer is needed', 'job');
-    const next = updateJob(rec, jobId, { status: 'queued', answer: text });
+    // his yes to Fable is not an answer to the job's work: it only lets it run
+    const next = updateJob(rec, jobId, fableOk ? { status: 'queued', fableOk: true } : { status: 'queued', answer: text });
     appendLog(rec, `answered (${job.kind}): ${text.slice(0, 160)}`, { action: 'queue' });
     return next;
+  }
+
+  // ---- PHASE 3: what a job leaves in the folder -----------------------------
+  // The job's own model writes the files (inside the sandbox); code, not the
+  // model, decides whether they become a commit, and undo takes back exactly
+  // what that job did.
+
+  // LOG.md is code's own record and is committed on its own, never as part of
+  // a job: a job's revert must not take the log's lines back with it.
+  const OWN_FILES = new Set(['LOG.md']);
+
+  /** The working tree's changes, as paths relative to the folder. */
+  function folderChanges(p) {
+    const rec = resolve(p);
+    try {
+      return git(rec.folder, ['status', '--porcelain', '-z', '-uall']).split('\0').filter(Boolean)
+        .map((l) => ({ code: l.slice(0, 2), path: l.slice(3) }));
+    } catch { return null; }
+  }
+
+  /**
+   * What is already changed before a job runs, with each file's hash, so the
+   * job is answerable only for what IT changed (an earlier uncommitted job's
+   * files are not this one's).
+   */
+  function changeSnapshot(p) {
+    const rec = resolve(p);
+    const out = {};
+    for (const c of folderChanges(rec) || []) {
+      try { out[c.path] = sha(readFileSync(path.join(rec.folder, c.path))); } catch { out[c.path] = 'gone'; }
+    }
+    return out;
+  }
+
+  function jobFiles(rec, before = {}) {
+    return (folderChanges(rec) || []).map((c) => c.path).filter((f) => {
+      if (OWN_FILES.has(f)) return false;
+      if (!(f in before)) return true;
+      let now = 'gone';
+      try { now = sha(readFileSync(path.join(rec.folder, f))); } catch { /* deleted */ }
+      return now !== before[f];
+    });
+  }
+
+  function commitLog(rec) {
+    try {
+      if (!git(rec.folder, ['status', '--porcelain', '--', 'LOG.md']).trim()) return;
+      git(rec.folder, ['add', '--', 'LOG.md']);
+      git(rec.folder, ['commit', '-q', '-m', 'chore: log', '--', 'LOG.md']);
+    } catch { /* the log is on disk either way */ }
+  }
+
+  /**
+   * Commit what a job made, when Commit is on. Returns { commit, files } or
+   * { commit:null, files, reason }. Never pushes: there is no push here at all.
+   */
+  function commitJob(p, job, { allowed, before = {} } = {}) {
+    const rec = resolve(p);
+    const files = jobFiles(rec, before);
+    if (!files.length) return { commit: null, files, reason: 'nothing changed' };
+    if (!allowed) {
+      appendLog(rec, `${job.kind} job ${job.id} left ${files.length} change${files.length === 1 ? '' : 's'} uncommitted (Commit is off)`, { action: 'job' });
+      return { commit: null, files, reason: 'Commit is off for this project' };
+    }
+    git(rec.folder, ['add', '-A', '--', ...files]);
+    const subject = `${job.kind === 'code' ? 'feat' : job.kind === 'draft' ? 'docs' : 'chore'}: ${job.input.slice(0, 60)}`;
+    git(rec.folder, ['commit', '-q', '-m', `${subject}\n\n${hostName} job ${job.id} (${job.kind}), ${job.origin}`, '--', ...files]);
+    const commit = git(rec.folder, ['rev-parse', 'HEAD']).trim();
+    appendLog(rec, `${job.kind} job ${job.id} committed ${commit.slice(0, 8)} (${files.length} file${files.length === 1 ? '' : 's'})`, { action: 'job' });
+    commitLog(rec);
+    return { commit, files };
+  }
+
+  /**
+   * The undo of a job. A commit is reverted (a new commit, so history keeps
+   * both); uncommitted files go to .nova/undone/ and a changed tracked file is
+   * put back from HEAD. Nothing is deleted.
+   */
+  function undoJob(p, undo) {
+    const rec = resolve(p);
+    if (undo.commit) {
+      try { git(rec.folder, ['revert', '--no-edit', undo.commit]); } catch (e) {
+        throw refuse(`could not revert ${String(undo.commit).slice(0, 8)}: a later change touches the same lines. Undo the later job first. (${String(e.stderr || e.message).split('\n')[0]})`, 'changed');
+      }
+      appendLog(rec, `job ${undo.jobId} undone: reverted ${undo.commit.slice(0, 8)}`, { action: 'undo' });
+      commitLog(rec);
+      return `reverted the job's commit ${undo.commit.slice(0, 8)}; both stay in the project's history`;
+    }
+    const bin = folderFull(rec, `.nova/undone/${new Date().toISOString().replace(/[:.]/g, '-')}-${undo.jobId}`);
+    let moved = 0;
+    for (const rel of undo.files || []) {
+      const full = folderFull(rec, rel);
+      if (!existsSync(full)) continue;
+      const dest = path.join(bin, rel);
+      mkdirSync(path.dirname(dest), { recursive: true });
+      let tracked = false;
+      try { git(rec.folder, ['cat-file', '-e', `HEAD:${rel}`]); tracked = true; } catch { tracked = false; }
+      if (tracked) { writeFileSync(dest, readFileSync(full)); git(rec.folder, ['checkout', 'HEAD', '--', rel]); } else renameSync(full, dest);
+      moved++;
+    }
+    appendLog(rec, `job ${undo.jobId} undone: ${moved} file${moved === 1 ? '' : 's'} moved to .nova/undone`, { action: 'undo' });
+    return `moved ${moved} file${moved === 1 ? '' : 's'} the job made to the project's .nova/undone`;
   }
 
   function readFolderFile(p, rel) {
@@ -908,5 +1011,6 @@ export function makeKernel(host) {
     projectVaultDir, writeProjectVaultFiles, removeProjectVaultFiles, writeResearch, undoResearch,
     readFolderFile, readProjectVaultFile,
     readQueue, enqueueJob, updateJob, cancelJob, answerJob,
+    folderChanges, changeSnapshot, commitJob, undoJob,
   };
 }

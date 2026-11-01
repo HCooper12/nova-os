@@ -514,7 +514,7 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
 // The Breaker's read of the Builder's diff, waited for. Null when it could not
 // run; { found, count, text } otherwise. "Found nothing" is its own report
 // format (startBreaker's prompt): a verdict line and no numbered list.
-async function breakerPass(cwd, ask, diff) {
+export async function breakerPass(cwd, ask, diff) {
   let id;
   try {
     id = startBreaker(cwd, { focus: `He asked the Builder: "${String(ask).slice(0, 1500)}". Review ONLY the Builder's uncommitted change for that ask: is it complete (every reader of anything renamed or added), correct, and tested? The diff:\n${diff}` });

@@ -506,6 +506,19 @@ export const LANES = [
     off: 'Build requests are refused with a plain message; nothing half-made is left in the projects folder.',
   },
   {
+    // PROJECTS phase 3 (1 Nov 2026): the queued jobs a project runs while he
+    // sleeps. Both run behind the sandbox in the project's folder with tools
+    // from its allowances (lib/projectJobs.js); code commits, never the model.
+    id: 'project-draft', label: 'Project drafts', group: 'build', def: 'sonnet', defEffort: 'high',
+    hint: 'writes a project’s documents into its deliverables folder, from its brief and research',
+    off: 'A project’s draft jobs fail with a plain message (Retry runs them again); nothing in its folder changes.',
+  },
+  {
+    id: 'project-build', label: 'Project code', group: 'build', def: 'opus', defEffort: 'high',
+    hint: 'writes a project’s code in its own folder, then its checks and the Breaker run',
+    off: 'A project’s code jobs fail with a plain message (Retry runs them again); nothing in its folder changes.',
+  },
+  {
     id: 'code', label: 'Code tab · Builder', group: 'build', def: 'sonnet', defEffort: 'high',
     hint: 'the one lane that can edit real files. The Code screen’s own picker overrides this per message.',
     off: 'The Code tab refuses to send. Nothing can be edited from the phone while it is off.',
