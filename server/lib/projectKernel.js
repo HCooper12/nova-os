@@ -34,6 +34,44 @@ export const DRY_RUN_PROJECTS = 3;
 export const LENSES = ['reference', 'claims', 'design'];
 export const lensOf = (rec) => (LENSES.includes(rec?.lens) ? rec.lens : 'reference');
 
+// ---- PHASE 3: THE QUEUE (PROJECTS-PLAN §5, settled 1 Nov 2026) ------------
+// A job is one piece of work the project does without him watching. Each kind
+// needs its allowance on; `test` runs the project's own checks and no model.
+export const JOB_KINDS = ['research', 'draft', 'code', 'test'];
+export const JOB_ALLOWANCE = { research: 'research', draft: 'draft', code: 'code', test: 'test' };
+// queued → running → done | failed; running → waiting (stopped to ask him) →
+// queued again on his answer; queued | waiting → cancelled
+export const JOB_STATES = ['queued', 'running', 'waiting', 'done', 'failed', 'cancelled'];
+const JOB_OPEN = new Set(['queued', 'running', 'waiting']);
+const MAX_OPEN_JOBS = 20;
+
+/** The jobs that may start now: queued, and every job they need is done. Pure. */
+export function runnableJobs(queue) {
+  const jobs = Array.isArray(queue?.jobs) ? queue.jobs : [];
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  return jobs.filter((j) => j.status === 'queued' && (j.needs || []).every((n) => byId.get(n)?.status === 'done'));
+}
+
+/** A job whose need failed or was cancelled can never start: name it. Pure. */
+export function blockedJobs(queue) {
+  const jobs = Array.isArray(queue?.jobs) ? queue.jobs : [];
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  return jobs.filter((j) => j.status === 'queued' && (j.needs || []).some((n) => ['failed', 'cancelled'].includes(byId.get(n)?.status) || !byId.has(n)));
+}
+
+/**
+ * Is `minutes` (minutes past local midnight) inside a project's window? The
+ * window may cross midnight (22:00–07:00). Pure; the host supplies the clock.
+ */
+export function inWindow(quiet, minutes) {
+  const q = quiet && HHMM.test(quiet.from) && HHMM.test(quiet.to) ? quiet : { from: '22:00', to: '07:00' };
+  const m = (s) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3));
+  const from = m(q.from);
+  const to = m(q.to);
+  if (from === to) return false;
+  return from < to ? minutes >= from && minutes < to : minutes >= from || minutes < to;
+}
+
 // the moves Nova may propose. archived is reachable from anywhere (it is the
 // one way a project leaves the list); nothing comes back from archived here.
 const MOVES = {
@@ -759,6 +797,95 @@ export function makeKernel(host) {
     return said.join('; ');
   }
 
+  // ---- PHASE 3: the queue, one file per project ----------------------------
+  // data/projects/<id>/queue.json. Operational, like the record. Every writer
+  // runs the guard, and a job kind whose allowance is off is refused here, so
+  // no caller (a verb, a route, a card) can queue what he has not allowed.
+  const queuePath = (id) => path.join(recordsDir(), String(id), 'queue.json');
+
+  function readQueue(p) {
+    const rec = typeof p === 'string' ? getProject(p) : p;
+    if (!rec || rec.linked) return { jobs: [] };
+    try {
+      const q = JSON.parse(readFileSync(queuePath(rec.id), 'utf8'));
+      return { jobs: Array.isArray(q.jobs) ? q.jobs : [] };
+    } catch { return { jobs: [] }; }
+  }
+
+  function saveQueue(rec, q) {
+    mkdirSync(path.dirname(queuePath(rec.id)), { recursive: true });
+    const tmp = `${queuePath(rec.id)}.tmp`;
+    writeFileSync(tmp, JSON.stringify({ jobs: q.jobs }, null, 2));
+    renameSync(tmp, queuePath(rec.id));
+    return q;
+  }
+
+  /** Queue a job. { kind, input, needs?, origin? } → the job. */
+  function enqueueJob(p, { kind, input, needs = [], origin = 'nova' } = {}) {
+    const rec = resolve(p);
+    if (rec.stage === 'archived') throw refuse(`${rec.name} is archived; bring it back before queueing work for it`, 'stage');
+    if (!JOB_KINDS.includes(kind)) throw refuse(`unknown job kind "${kind}" (one of ${JOB_KINDS.join(', ')})`, 'job');
+    const allowance = JOB_ALLOWANCE[kind];
+    if (!rec.allowances?.[allowance]) throw refuse(`${rec.name} is not allowed to ${kind === 'test' ? 'run its tests' : kind} on its own; turn ${allowance[0].toUpperCase()}${allowance.slice(1)} on in its Controls first`, 'allowance');
+    const text = String(input || '').replace(/\s+/g, ' ').trim();
+    if (kind !== 'test' && !text) throw refuse('say what the job is', 'job');
+    if (text.length > 2000) throw refuse('keep a job under 2000 characters', 'job');
+    const q = readQueue(rec);
+    if (q.jobs.filter((j) => JOB_OPEN.has(j.status)).length >= MAX_OPEN_JOBS) throw refuse(`${rec.name} already has ${MAX_OPEN_JOBS} jobs waiting; let some finish first`, 'job');
+    const ids = new Set(q.jobs.map((j) => j.id));
+    const want = (Array.isArray(needs) ? needs : []).map(String);
+    for (const n of want) if (!ids.has(n)) throw refuse(`a job it needs (${n}) is not in this queue`, 'job');
+    let id;
+    do { id = randomBytes(4).toString('hex'); } while (ids.has(id));
+    const job = {
+      id, kind, input: text || 'run the checks', needs: want, origin: String(origin).slice(0, 40),
+      status: 'queued', queuedAt: now().toISOString(), startedAt: null, endedAt: null,
+      recordId: null, error: null, attempts: 0, ask: null, answer: null,
+    };
+    q.jobs.push(job);
+    saveQueue(rec, q);
+    appendLog(rec, `queued ${kind}: ${job.input.slice(0, 160)}`, { action: 'queue' });
+    return job;
+  }
+
+  /** Change one job. Code's only door into a job's state. */
+  function updateJob(p, jobId, patch) {
+    const rec = resolve(p);
+    const q = readQueue(rec);
+    const i = q.jobs.findIndex((j) => j.id === jobId);
+    if (i < 0) throw refuse('no such job in this project', 'missing');
+    if (patch.status && !JOB_STATES.includes(patch.status)) throw refuse(`unknown job state "${patch.status}"`, 'job');
+    const keep = ['status', 'startedAt', 'endedAt', 'recordId', 'error', 'attempts', 'ask', 'answer', 'result'];
+    const next = { ...q.jobs[i] };
+    for (const k of keep) if (k in (patch || {})) next[k] = patch[k];
+    q.jobs[i] = next;
+    saveQueue(rec, q);
+    return next;
+  }
+
+  function cancelJob(p, jobId) {
+    const rec = resolve(p);
+    const job = readQueue(rec).jobs.find((j) => j.id === jobId);
+    if (!job) throw refuse('no such job in this project', 'missing');
+    if (!['queued', 'waiting'].includes(job.status)) throw refuse(`that job is ${job.status}; only a queued or waiting job can be called off`, 'job');
+    const next = updateJob(rec, jobId, { status: 'cancelled', endedAt: now().toISOString() });
+    appendLog(rec, `cancelled ${job.kind}: ${job.input.slice(0, 120)}`, { action: 'queue' });
+    return next;
+  }
+
+  /** His answer to a job that stopped to ask: it goes back in the queue with it. */
+  function answerJob(p, jobId, answer) {
+    const rec = resolve(p);
+    const job = readQueue(rec).jobs.find((j) => j.id === jobId);
+    if (!job) throw refuse('no such job in this project', 'missing');
+    if (job.status !== 'waiting') throw refuse(`that job is ${job.status}, not waiting on you`, 'job');
+    const text = String(answer || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+    if (!text) throw refuse('an answer is needed', 'job');
+    const next = updateJob(rec, jobId, { status: 'queued', answer: text });
+    appendLog(rec, `answered (${job.kind}): ${text.slice(0, 160)}`, { action: 'queue' });
+    return next;
+  }
+
   function readFolderFile(p, rel) {
     const rec = typeof p === 'string' ? getProject(p) : p;
     if (!rec?.folder || rec.linked) return null;
@@ -780,5 +907,6 @@ export function makeKernel(host) {
     writeVaultPage, defaultDryRun, folderListing, readPage, readLog,
     projectVaultDir, writeProjectVaultFiles, removeProjectVaultFiles, writeResearch, undoResearch,
     readFolderFile, readProjectVaultFile,
+    readQueue, enqueueJob, updateJob, cancelJob, answerJob,
   };
 }
