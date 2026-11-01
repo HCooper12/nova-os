@@ -1295,6 +1295,85 @@ verb({
   async undo() { return null; },
 });
 
+// WHICH BRAIN (27 Oct 2026 board; the "switch to your local brain" idiom of
+// design/LOCAL-NOVA-PLAN.md Phase B, his 2 Nov ask): he can say where Nova
+// thinks. "Go local" turns the board's local-first on and drops any pin to
+// Claude on the conversation lanes, so the next turn runs on this Mac; "back
+// to Claude" turns it off; "which brain" only reads. Settings, not his data:
+// act-tier, each with its inverse as undo. Nothing is claimed that the board
+// does not say (honest degradation): no local model, no switch.
+const BRAIN_LANES = ['ask-nova', 'greeting', 'coach'];
+const brainLib = async () => {
+  const [prefs, local] = await Promise.all([import('./modelPrefs.js'), import('./localModel.js')]);
+  return { ...prefs, localModelLabel: local.localModelLabel };
+};
+
+verb({
+  id: 'brain.local', tier: 'act',
+  describe: 'switch Nova to the local brain, answering on this Mac — "switch to your local brain", "go local", "use the Mac", "run on the Mac"; Claude is only the fallback',
+  args: {},
+  async run() {
+    const b = await brainLib();
+    const board = b.localBoard();
+    if (!board.configured) {
+      return { destination: 'Brain — unchanged', said: "I can’t go local, sir: there’s no local model set up on this Mac. Staying as I was.", undo: null, receipt: false };
+    }
+    const before = b.getModelPrefs();
+    const was = { first: b.localFirst(), pinned: before.lanes.filter((l) => BRAIN_LANES.includes(l.id) && l.provider !== l.defaultProvider && l.provider === 'claude').map((l) => l.id) };
+    await b.setLocalPrefs({ first: true });
+    for (const id of BRAIN_LANES) await b.resetLanePref(id);
+    return {
+      destination: `Brain — local (${board.label})`,
+      said: `On this Mac now, sir: ${b.localModelLabel(board.model).replace(/ on this Mac$/, '')}. Claude only when I cannot answer.`,
+      undo: { was },
+    };
+  },
+  async undo(vaultPath, u) {
+    const b = await brainLib();
+    await b.setLocalPrefs({ first: !!u.was.first });
+    for (const id of u.was.pinned || []) await b.setLanePref(id, { provider: 'claude' });
+    return u.was.first ? 'still on the local brain' : 'back on Claude';
+  },
+});
+
+verb({
+  id: 'brain.claude', tier: 'act',
+  describe: 'switch Nova back to Claude instead of the local brain — "switch to Claude", "back to Claude", "use Claude"',
+  args: {},
+  async run() {
+    const b = await brainLib();
+    const was = b.localFirst();
+    await b.setLocalPrefs({ first: false });
+    return { destination: 'Brain — Claude', said: 'Back on Claude, sir.', undo: { was } };
+  },
+  async undo(vaultPath, u) {
+    const b = await brainLib();
+    await b.setLocalPrefs({ first: !!u.was });
+    return u.was ? 'local first again' : 'still on Claude';
+  },
+});
+
+verb({
+  id: 'brain.which', tier: 'act', receipt: false,
+  describe: 'read-only — which brain is answering, Claude or the local model on this Mac: "which brain are you on", "who is answering", "are you local"',
+  args: {},
+  async run() {
+    const b = await brainLib();
+    const board = b.localBoard();
+    const name = b.localModelLabel(board.model).replace(/ on this Mac$/, '');
+    const ask = b.providerFor('ask-nova');
+    const coach = b.providerFor('coach');
+    const where = (p) => (p === 'local' ? `this Mac (${name})` : 'Claude');
+    const loaded = !board.configured ? 'No local model is set up here.'
+      : board.ready ? `${name} is loaded.` : `${name} is not loaded right now.`;
+    const said = ask === coach
+      ? `Both I and the Coach answer on ${where(ask)}. ${loaded}`
+      : `I answer on ${where(ask)}; the Coach on ${where(coach)}. ${loaded}`;
+    return { destination: 'Brain — which', said, undo: null, receipt: false };
+  },
+  async undo() { return null; },
+});
+
 // ASK THE BUILDER (27 Oct 2026, his yes to "let Nova ship his own changes"):
 // "change Nova so…", "make Nova…", "fix Nova's…", "build into Nova…" starts
 // a ship-mode Builder job in its own worktree (lib/codeShip.js). Nothing
@@ -1524,6 +1603,10 @@ export function parseCommand(text, ctx = {}) {
   // below) and a stray remark that happens to start with "check" both fall
   // through rather than erroring, because resolveAny() returns null for a
   // fallthrough candidate that fits nothing real.
+  // WHICH BRAIN: exact phrasings only; anything looser reaches the model's ACT
+  if (/^(?:please\s+)?(?:switch|go|change|move)\s+(?:over\s+)?(?:to\s+)?(?:your\s+|the\s+)?local(?:\s+brain)?$|^use\s+(?:the\s+mac|your\s+local\s+brain)$/.test(q)) return { verb: 'brain.local', args: {} };
+  if (/^(?:please\s+)?(?:switch|go|come|change)\s+(?:back\s+)?(?:over\s+)?to\s+claude$|^use\s+claude$|^back\s+to\s+claude$/.test(q)) return { verb: 'brain.claude', args: {} };
+  if (/^(?:which|what)\s+brain\s+(?:are\s+you\s+(?:on|using)|is\s+(?:this|answering))$|^who(?:s| is)\s+answering$/.test(q)) return { verb: 'brain.which', args: {} };
   if (/^(?:run checks?|systems check|check everything|check all systems|check my systems)$/.test(q)) {
     return { verb: 'check.systems', args: {} };
   }
