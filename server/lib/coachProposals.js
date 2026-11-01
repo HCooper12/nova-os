@@ -180,8 +180,17 @@ export function receiptLines({ filed = [], refused = [], withdrawn = [], announc
     else if (announce && !was.length) lines.push(`On a card for your yes on the Coach tab: ${plain(f.title)}.`);
     else if (announce) lines.push('The new card is waiting for your yes on the Coach tab.');
   }
+  // A CARD TAKEN BACK IS SILENT (1 Nov 2026). This line used to ride the
+  // Coach's reply, so after his answer had finished Nova read out "Taken off
+  // the Coach tab: Spider Curl — remove from Pull (3 sets); You have flagged
+  // your own form on Barbell Bench Press 2 times across your recent sessions
+  // …": a card's whole body, spoken as conversation, after the Coach had
+  // already said in its own words that it was taking both back. In his own
+  // chat it is now a quiet receipt (withdrawnNote, under the reply, never
+  // spoken). Only a CONSULTED Coach still writes it into its answer, because
+  // the agent that asked cannot see the Coach tab and must not re-propose it.
   const back = withdrawn.filter((w) => w.ok);
-  if (back.length) lines.push(`Taken off the Coach tab: ${back.map((w) => plain(w.title)).join('; ')}.`);
+  if (back.length && announce) lines.push(`Taken off the Coach tab: ${back.map((w) => plain(w.title)).join('; ')}.`);
   // only what still failed after the Coach's own repair reaches him. A reason
   // of substance is his business (it breaks his split, it is already there);
   // a wording fault is ours, and naming the JSON field would be noise.
@@ -193,6 +202,21 @@ export function receiptLines({ filed = [], refused = [], withdrawn = [], announc
     lines.push(why ? `Not on a card, so nothing changed: ${what}. ${why.charAt(0).toUpperCase()}${why.slice(1)}.` : `Not on a card, so nothing changed: ${what}. Ask Coach again and it will re-send it.`);
   }
   return lines;
+}
+
+// The quiet receipt for cards the Coach took back: short, for the small meta
+// line under the reply. A card's title can be its whole body (a form-flag card
+// is one long sentence), so each is cut at a word near 40 characters.
+export function withdrawnNote(withdrawn = []) {
+  const back = (withdrawn || []).filter((w) => w?.ok);
+  if (!back.length) return null;
+  const short = (t) => {
+    const s = plain(t).replace(/[.\s]+$/, '');
+    if (s.length <= 40) return s;
+    const cut = s.slice(0, 40);
+    return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 24)).replace(/[\s,;:—–-]+$/, '')}…`;
+  };
+  return `took back ${back.length === 1 ? 'a card' : `${back.length} cards`}: ${back.map((w) => short(w.title)).join('; ')}`;
 }
 
 // A refused proposal, named for him from its own fields.
@@ -483,5 +507,7 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
   const withdrawn = ids.length ? await withdrawCards(ids, { store: deps.store }) : [];
   const filed = await fileChanges(vaultPath, { question, ok, deps, loose: consulted });
   const receipts = receiptLines({ filed, refused, withdrawn, announce: consulted });
-  return { text: [text, ...receipts].filter(Boolean).join('\n\n'), filed, refused, withdrawn, rounds };
+  // `quiet`: what code did that he reads under the reply but never hears
+  const quiet = consulted ? null : withdrawnNote(withdrawn);
+  return { text: [text, ...receipts].filter(Boolean).join('\n\n'), filed, refused, withdrawn, rounds, quiet };
 }

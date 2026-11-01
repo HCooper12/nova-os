@@ -203,6 +203,53 @@ export function voiceRouter(vaultPath) {
       // talking, and it exists only so a runaway client cannot post a
       // megabyte into a prompt. Nothing he could say reaches it.
       if (question.length > 200_000) return res.status(400).json({ error: 'that payload is far larger than anything spoken — it looks like a client fault' });
+      // WHERE HAS THE PLAN GOT TO? (1 Nov 2026) "I still can't see the plan
+      // yet" was caught below as a CORRECTION, re-planned with his complaint as
+      // the instruction, and answered with the same canned line as five
+      // minutes before. A status question about a plan inside the follow-up
+      // window is answered from the record, by code, before anything else can
+      // take it; "retry" on a plan with a failed step runs that step again.
+      if (!attachmentPreamble) {
+        try {
+          const fu = await import('../lib/planFollowUp.js');
+          const asksStatus = fu.isPlanStatusQuestion(raw);
+          const asksRetry = !asksStatus && fu.isPlanRetryRequest(raw);
+          // "retry" reaches back a day: the report that named the failed step
+          // says "say retry", and he may answer it after the follow-up window
+          const pl = asksStatus ? await fu.recentPlanContext({ phases: fu.STATUS_PHASES })
+            : asksRetry ? await fu.recentPlanContext({ phases: ['finished'], windowMs: fu.RETRY_WINDOW_MS }) : null;
+          if (pl && asksStatus) {
+            const { plainCause } = await import('../lib/plainCause.js');
+            const text = fu.planStatusLine(pl.record, { cause: plainCause });
+            console.log(`ask → plan status (${pl.record.id}, ${pl.phase}) q=${JSON.stringify(raw.slice(0, 80))}`);
+            return res.json({
+              text,
+              reflex: true,
+              // the client re-attaches its watch: the proposal is drawn again
+              // (it may never have been, if his phone slept through the first
+              // watch), a run is followed to its report
+              plan: { recordId: pl.record.id, status: pl.phase, ...(pl.phase === 'proposed' ? { show: true } : {}), ...(pl.phase === 'running' ? { run: true } : {}) },
+            });
+          }
+          if (pl && asksRetry && pl.phase === 'finished') {
+            const { failedSteps, retryFailedSteps } = await import('../lib/planner.js');
+            const failed = failedSteps(pl.record);
+            if (failed.length) {
+              await retryFailedSteps(vaultPath, pl.record.id);
+              const { CAPABILITIES } = await import('../lib/capabilities.js');
+              const who = [...new Set(failed.map((s) => CAPABILITIES[s.capability]?.agent || s.capability))].join(' and ');
+              console.log(`ask → plan retry (${pl.record.id}: ${failed.map((s) => s.id).join(',')})`);
+              return res.json({
+                text: `Running the ${who} step${failed.length === 1 ? '' : 's'} again, sir. The new report comes back here.`,
+                reflex: true,
+                plan: { recordId: pl.record.id, status: 'running', run: true },
+              });
+            }
+          }
+        } catch (e) {
+          console.log(`ask: plan status skipped (${e.message})`);
+        }
+      }
       // The Reflex Layer: a direct question the live record already answers
       // never reaches the model. Code answers in <1s; a miss falls through
       // silently to the normal ask. (lib/reflex.js; MORNING-SHOW-PLAN.md)
@@ -282,10 +329,16 @@ export function voiceRouter(vaultPath) {
         planLive = docTurn ? null : await recentPlanContext();
         if (planLive?.phase === 'proposed' && !isAffirmativeOrNegative(raw) && !routed.sticky && (lane === 'ask' || lane === 'coach' || lane === 'research')) {
           const { amendPlan } = await import('../lib/planner.js');
+          const { amendReplyLine } = await import('../lib/planFollowUp.js');
+          // how many corrections this plan already carries: the reply names
+          // the count, so a second correction never hears the first's line
+          const { getRecord } = await import('../lib/inboxStore.js');
+          let depth = 0;
+          for (let r = planLive.record; r?.amends && depth < 10; depth += 1) r = await getRecord(r.amends).catch(() => null);
           const amended = await amendPlan(vaultPath, planLive.record.id, raw);
           console.log(`ask → plan amended (${planLive.record.id} → ${amended.id}) q=${JSON.stringify(raw.slice(0, 80))}`);
           return res.json({
-            text: 'Understood — re-planning with that. The revised plan is on its way; say yes when it is on screen.',
+            text: amendReplyLine(depth),
             reflex: true,
             plan: { recordId: amended.id, replaces: planLive.record.id },
           });

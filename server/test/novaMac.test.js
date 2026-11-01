@@ -1,5 +1,7 @@
 // ONE NOVA ON THE MAC (1 Nov 2026, design/mockups/108-one-nova-mac.html,
 // approved): src/NovaMac.jsx and its pure facts, src/novaMacFacts.js.
+// the panel formats in the device's own timezone (right on his Mac and phone), so pin one for CI, which runs in UTC
+process.env.TZ = 'Australia/Sydney';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -27,6 +27,7 @@ import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './d
 import { css } from './css.js';
 import { api, getConnection, setConnection, testConnection, OFFLINE_MESSAGE } from './api.js';
 import { pollJob } from './jobPoller.js';
+import { replyOnReturn, pendingWorthResuming, unheardRest } from './replyReturn.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
@@ -122,6 +123,7 @@ import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult, answeredBy } from './conversationSync.js';
+import { firstThingFits } from './firstThingFit.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -1019,13 +1021,18 @@ export default class App extends Component {
     try {
       const pending = JSON.parse(localStorage.getItem('novaos.askJob') || 'null');
       const conn = getConnection();
-      if (pending?.jobId && conn && Date.now() - (pending.askedAt || 0) < 10 * 60_000) {
+      // A DAY, NOT TEN MINUTES (1 Nov 2026): iOS can hold the app closed far
+      // longer than that, and the Mac keeps a settled answer on disk; the
+      // reply comes back to the chat on the next launch (src/replyReturn.js)
+      if (conn && pendingWorthResuming(pending, Date.now())) {
         this.setState({ voiceBusy: true });
         // THE LANE RIDES WITH THE JOB (18 Oct 2026 audit): a Coach answer picked
         // up after a reclaim was re-attached with no agent, so its session id
         // was saved as Nova's and three later Nova turns ran inside the Coach's
         // session (184k and 239k cold tokens, $3.30 and $7.63).
-        this.attachAskPoll(conn, pending.jobId, { agent: pending.agent || null });
+        // It was last known running when he asked: found finished later than
+        // a minute on, it is shown, not spoken
+        this.attachAskPoll(conn, pending.jobId, { agent: pending.agent || null, lastRunningAt: pending.askedAt });
       } else if (pending) {
         localStorage.removeItem('novaos.askJob');
       }
@@ -1039,6 +1046,16 @@ export default class App extends Component {
         this.watchPlanRun(pendingPlan.recordId);
       } else if (pendingPlan) {
         localStorage.removeItem('novaos.planRun');
+      }
+    } catch { /* best-effort */ }
+    // and a quick session the Coach was still building (1 Nov 2026)
+    try {
+      const pendingQuick = JSON.parse(localStorage.getItem('novaos.quickJob') || 'null');
+      if (getConnection() && pendingWorthResuming(pendingQuick, Date.now())) {
+        this.setState({ quickBusy: true });
+        this.attachQuickPoll(getConnection(), pendingQuick.jobId);
+      } else if (pendingQuick) {
+        localStorage.removeItem('novaos.quickJob');
       }
     } catch { /* best-effort */ }
     // same reclaim, for a food scan/describe that was mid-flight — see
@@ -1090,7 +1107,10 @@ export default class App extends Component {
     };
     document.addEventListener('visibilitychange', this.visH);
     // an answer in flight is looked at the instant he is back (attachAskPoll)
-    this.askVisH = () => { if (document.visibilityState === 'visible') this.pollAskNow(); };
+    // and the conversation record too (1 Nov 2026): a reply another door
+    // finished, or one this phone committed before iOS froze it, is in the
+    // thread the moment he is back (a GET; mergeRecord keeps what is here)
+    this.askVisH = () => { if (document.visibilityState === 'visible') { this.pollAskNow(); this.loadConversationRecord(); } };
     document.addEventListener('visibilitychange', this.askVisH);
     window.addEventListener('pageshow', this.askVisH);
     // HE IS HERE (src/greetDue.js): a touch, a key, or the page coming into
@@ -8037,7 +8057,11 @@ export default class App extends Component {
   // eat the in-flight answer along with the poll.
   // `turn`: the receipt this ask is stamping (askNova), so the wait he sat
   // through is measured where it happens; absent on a re-attach after boot.
-  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null } = {}) {
+  // `lastRunningAt`: when the job was last known to be running (a re-attach
+  // after a relaunch passes when he asked); a reply found finished more than
+  // a minute after that is shown at once and offered, never spoken
+  // (src/replyReturn.js, 1 Nov 2026).
+  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null, lastRunningAt = Date.now() } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
     // he can barge in, which left nothing saying "more sentences are coming":
@@ -8052,7 +8076,7 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     // `stances`: where this reply pushes back (the latest parse), so each
     // sentence queued for the voice can carry its own (glassBeats.stanceOfSpan)
-    const stream = { spokenUpTo: 0, stances: [] };
+    const stream = { spokenUpTo: 0, stances: [], lastRunningAt };
     this.resetGlass();   // last turn's panels do not belong to this one
     beginReply();        // …nor do its captions (the full-screen Nova, speechClock.js)
     const elevenPath = this.ttsUsable();
@@ -8180,7 +8204,12 @@ export default class App extends Component {
     // rule): the poll gives up only when the server says done or error, or
     // when the Mac has been unreachable for more than 60 s in a row.
     let failingSince = 0;
-    const fetchAskJob = () => api.claudeCodeJob(conn, jobId).then((job) => { failingSince = 0; return job; }, (e) => {
+    const fetchAskJob = () => api.claudeCodeJob(conn, jobId).then((job) => {
+      failingSince = 0;
+      // seen still running, with him in front of it: the reply lands after this
+      if (job?.status === 'running' && (typeof document === 'undefined' || document.visibilityState !== 'hidden')) stream.lastRunningAt = Date.now();
+      return job;
+    }, (e) => {
       if (e?.status !== 404) {
         const now = Date.now();
         if (!failingSince) failingSince = now;
@@ -8315,9 +8344,10 @@ export default class App extends Component {
             const more = job.result.more || undefined;
             // the Researcher's briefs this answer was built on, for the Mac's
             // brief panel ("Open the brief"); kept on the line only, never
-            // in the conversation record
+            // in the conversation record. A card the Coach took back is a
+            // quiet receipt under the reply, never spoken (coachProposals.js)
             const briefIds = (Array.isArray(job.result.consult) ? job.result.consult : []).filter((a) => a?.agent === 'researcher' && a.recordId).map((a) => a.recordId);
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...via, ...(meta || {}) };
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -8363,6 +8393,24 @@ export default class App extends Component {
             });
           }
         };
+        // FOUND FINISHED ON HIS RETURN (1 Nov 2026, his report: the reply
+        // was not in the chat until much later, or never). On the spoken path
+        // the words reached the screen only as their audio played, and iOS
+        // had frozen the audio with the page. A reply that landed while he
+        // was away is put in the chat NOW, whole, and not spoken: one tap on
+        // the strip plays what he has not heard (src/replyReturn.js).
+        const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
+        if (replyOnReturn({ now: Date.now(), lastRunningAt: stream.lastRunningAt, visible }) === 'show') {
+          if (this.replyStreaming === jobId) this.replyStreaming = null;
+          // what this reply had queued before he left is stale now
+          if (stream.spokenUpTo > 0 && (this.speechActive || 0) > 0) this.stopSpeaking();
+          this.setState({ voiceBusy: false });
+          commit();
+          const rest = this.state.voiceSpeak ? lintSpoken(toSpokenProse(speakableText(unheardRest(spokenText, stream.spokenUpTo), { final: true }))) : '';
+          if (rest.trim()) this.noteSpeechUnavailable([rest], 'you were away when it arrived');
+          postTurn();
+          return;
+        }
         if (this.replyStreaming === jobId) this.replyStreaming = null; // every sentence is now queued or spoken
         this.setState({ voiceBusy: false }, () => {
           // The last sentence may already have been spoken from a partial
@@ -8812,7 +8860,12 @@ export default class App extends Component {
       }));
       if (kind === 'approve') this.toastMsg('Filed ✓ — ' + record.destination);
       else if (kind === 'discard') { /* the card leaving is the receipt — no toast */ }
-      else if (kind === 'retry') this.toastMsg('Retrying — Nova is running this again…');
+      else if (kind === 'retry') {
+        this.toastMsg('Retrying — Nova is running this again…');
+        // a plan's failed step running again: its new report comes back to
+        // the conversation, as the first run's did
+        if (record?.kind === 'plan') this.watchPlanRun(id);
+      }
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
       // Put the row back exactly where it was — an optimistic approve that
@@ -10880,17 +10933,32 @@ export default class App extends Component {
   // the record until it is pending, then put the plan itself in the
   // transcript with the same yes/no chip a proposal carries — so "yes"
   // (spoken or typed) approves it, and nothing runs before he has read it.
-  watchPlanProposal(recordId) {
+  //
+  // THE WATCH COUNTS ITS OWN POLLS, NOT THE CLOCK (1 Nov 2026). It gave up
+  // four minutes after it began by wall time; his phone slept from 00:00:28 to
+  // 00:04:25 while the revised plan was drawn, the first tick after waking was
+  // past the deadline, and the plan never came up. Timers do not run while iOS
+  // has the page frozen, so a tick budget only spends time he was here for.
+  // `quiet`: the line he just heard (a status answer) already said it is on
+  // screen. `redraw`: he said he cannot see it, so it is drawn even if an
+  // earlier line already holds it.
+  watchPlanProposal(recordId, { quiet = false, redraw = false } = {}) {
     const conn = getConnection();
     if (!conn) return;
-    const started = Date.now();
+    if (!redraw && this.planProposalWatch === recordId) return; // already on it
+    this.planProposalWatch = recordId;
+    let ticks = 0;
     const tick = async () => {
-      if (Date.now() - started > 4 * 60_000) return;
+      if (this.planProposalWatch !== recordId) return; // a newer plan took over
+      if ((ticks += 1) > 120) { this.planProposalWatch = null; return; }
       let rec = null;
       try { rec = await api.inboxItem(conn, recordId); } catch { /* keep polling */ }
       rec = rec?.record || rec;
       if (!rec || rec.status === 'classifying') { setTimeout(tick, 2000); return; }
+      this.planProposalWatch = null;
       if (rec.status !== 'pending') return; // errored: the Inbox says why
+      // never two copies of one plan, unless he asked to see it again
+      if (!redraw && (this.state.voiceChat || []).some((m) => m.proposal?.recordId === recordId)) return;
       const title = rec.decision?.title || 'The plan';
       const body = rec.decision?.body || '';
       const proposal = rec.planOk ? { recordId, title, status: 'pending', kind: 'plan' } : undefined;
@@ -10898,9 +10966,9 @@ export default class App extends Component {
         voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: body ? `${title}\n${body}` : title, proposal }],
         voicePendingProposal: proposal ? { recordId, title } : s.voicePendingProposal,
       }));
-      if (this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
+      if (!quiet && this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
     };
-    setTimeout(tick, 1500);
+    setTimeout(tick, redraw ? 0 : 1500);
   }
   // THE REPORT COMES BACK TO THE CONVERSATION.
   //
@@ -10952,7 +11020,11 @@ export default class App extends Component {
       if (rec.finishedAt) {
         stop();
         const opening = reportOpening(rec.decision?.payload?.body || '');
-        say(['The report is back.', opening].filter(Boolean).join('\n'), { recordId, status: 'open' });
+        // a step that failed can run again, and he is told how in one line
+        // (server/routes/voice.js: "retry" on a finished plan)
+        const failed = (rec.plan?.steps || []).filter((s) => s.status === 'failed' || s.status === 'skipped').length;
+        const retryLine = failed ? `Say retry to run the failed step${failed === 1 ? '' : 's'} again.` : '';
+        say(['The report is back.', opening, retryLine].filter(Boolean).join('\n'), { recordId, status: 'open' });
         if (this.state.voiceSpeak) this.speakTtsSentence('The report is back, sir — say the word and I will walk you through it.');
         return;
       }
@@ -11827,7 +11899,7 @@ export default class App extends Component {
     // THE ACK COMES FIRST (his call, 29 Oct 2026): a "one thing first" line is
     // said after Nova has acknowledged him (speakAckLine), or after the fast
     // reply when there is no ack, never ahead of either
-    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; }
+    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; this.firstThingWords = question; }
     asked.then((resp) => {
       if (askSeq !== this.askSeq) return;   // dropped for a continuation or a correction
       if (resp.text) {
@@ -11857,7 +11929,15 @@ export default class App extends Component {
               ? { ...m, proposal: { ...m.proposal, status: 'dismissed', replaced: true } } : m)),
             voicePendingProposal: s.voicePendingProposal?.recordId === replaces ? null : s.voicePendingProposal,
           }));
-          this.watchPlanProposal(resp.plan.recordId);
+          // HIS QUESTION ABOUT THE PLAN (server/lib/planFollowUp.js
+          // planStatusLine) re-attaches the watch his phone may have slept
+          // through: a run is followed to its report; a proposal is drawn
+          // (again, when he says he cannot see it), and the status line he
+          // just heard already said it is on screen
+          if (resp.plan.run) this.watchPlanRun(resp.plan.recordId);
+          else if (resp.plan.status !== 'finished' && resp.plan.status !== 'failed' && resp.plan.status !== 'refused') {
+            this.watchPlanProposal(resp.plan.recordId, { quiet: !!resp.plan.status, redraw: !!resp.plan.show });
+          }
         }
         const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
         const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
@@ -13182,10 +13262,12 @@ export default class App extends Component {
   sayFirstThingAfter(seq) {
     if (this.firstThingDue !== seq) return;
     this.firstThingDue = null;
-    this.sayFirstThing();
+    this.sayFirstThing(this.firstThingWords || '');
   }
-  sayFirstThing() {
-    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false);
+  // a reading of his body (HRV) is said only into a turn about his body; it
+  // stays a card otherwise (src/firstThingFit.js, 1 Nov)
+  sayFirstThing(hisWords = '') {
+    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false && firstThingFits(x, hisWords));
     if (!a || !this.state.voiceSpeak || this.standbyOn()) return;
     a.spokenAt = new Date().toISOString();
     this.speakTtsSentence(a.firstThing, null);
@@ -13412,25 +13494,34 @@ export default class App extends Component {
     if (!conn || this.state.quickBusy) return;
     this.setState({ quickBusy: true, quickPlan: null });
     api.quickSession(conn, Number(this.state.quickMinutes), this.state.quickNote.trim()).then(({ jobId }) => {
-      this.startPoll('quick', () => api.claudeCodeJob(conn, jobId), {
-        timeoutMs: 3 * 60_000,
-        onReady: (job) => {
-          api.quickSessionPrepare(conn, job.result.plan).then(({ session }) => {
-            this.setState({ quickBusy: false, quickPlan: session });
-            this.announceAway({ here: this.state.screen === 'workouts', title: 'Your quick session is ready', text: session.name || '', go: () => this.navigate('workouts') });
-          }).catch((e) => {
-            this.setState({ quickBusy: false });
-            this.toastMsg('Plan came back unusable: ' + e.message);
-          });
-        },
-        onError: (msg) => {
-          this.setState({ quickBusy: false });
-          this.toastMsg('Coach could not build the session: ' + msg);
-        },
-      });
+      // kept on the phone until it lands (1 Nov 2026): iOS closing the app
+      // mid-build no longer loses the session; boot picks it up again
+      try { localStorage.setItem('novaos.quickJob', JSON.stringify({ jobId, startedAt: Date.now() })); } catch { /* best-effort */ }
+      this.attachQuickPoll(conn, jobId);
     }).catch((e) => {
       this.setState({ quickBusy: false });
       this.toastMsg('Quick session failed: ' + e.message);
+    });
+  }
+  attachQuickPoll(conn, jobId) {
+    const clearJob = () => { try { localStorage.removeItem('novaos.quickJob'); } catch { /* best-effort */ } };
+    this.startPoll('quick', () => api.claudeCodeJob(conn, jobId), {
+      timeoutMs: 3 * 60_000,
+      onReady: (job) => {
+        clearJob();
+        api.quickSessionPrepare(conn, job.result.plan).then(({ session }) => {
+          this.setState({ quickBusy: false, quickPlan: session });
+          this.announceAway({ here: this.state.screen === 'workouts', title: 'Your quick session is ready', text: session.name || '', go: () => this.navigate('workouts') });
+        }).catch((e) => {
+          this.setState({ quickBusy: false });
+          this.toastMsg('Plan came back unusable: ' + e.message);
+        });
+      },
+      onError: (msg) => {
+        clearJob();
+        this.setState({ quickBusy: false });
+        this.toastMsg('Coach could not build the session: ' + msg);
+      },
     });
   }
   startQuickPlanSession() {

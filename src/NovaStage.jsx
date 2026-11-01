@@ -6,7 +6,7 @@ import { audioLevel } from './audioLevel.js';
 import { onSpeech, spokenSentences } from './speechClock.js';
 import { Captions } from './NovaFocus.jsx';
 import { speakerOf, focusAsks, focusPours, lastYours, WORD_LOOK } from './novaFocusFacts.js';
-import { lastExchange, canvasProgress, stageState, stageScale, TRAVEL_PX, STAGE, PRESENTER, PRESENTER_RATIO, ONE_NOVA_CHROME, STAGE_SPEAK, STAGE_SPEAK_VAR } from './novaStageFacts.js';
+import { lastExchange, canvasProgress, stageState, stageScale, panelFit, cleanCuts, TRAVEL_PX, STAGE, PRESENTER, PRESENTER_RATIO, ONE_NOVA_CHROME, STAGE_SPEAK, STAGE_SPEAK_VAR } from './novaStageFacts.js';
 
 // ONE NOVA, ONE CANVAS (29 Oct 2026) — design/mockups/106-one-nova.html,
 // option A, his approval: "Option A looks excellent. Just make sure that nova
@@ -156,6 +156,85 @@ export function HeardWords({ text, live }) {
   );
 }
 
+// THE PANEL ON THE PLATE, WHOLE (1 Nov 2026, his recording: the body panel
+// was a sliver of its figure, a program's rows were cut mid-row). The plate
+// keeps two lines for Nova's words first; the panel takes what is left, and
+// what it shows of its card is whole (src/novaStageFacts.js panelFit): the
+// card entire, or its first whole rows with the rest in the sheet a tap
+// opens, or the card entire drawn smaller. A figure is drawn at its compact
+// size here (the sheet has the large one). Measured on layout and whenever
+// the card or the plate changes size, never per frame.
+const UNCUT = new Set(['IMG', 'CANVAS', 'SVG', 'VIDEO', 'PICTURE']);
+function piecesOf(inner) {
+  // LAYOUT boxes (offsets, never the painted rects): the dock's entrance and
+  // each row's own arrival move them by transform while this measures
+  const out = [];
+  for (const el of inner.querySelectorAll('*')) {
+    if (!(el instanceof HTMLElement) || el.offsetHeight <= 0) continue;
+    let top = 0;
+    let p = el;
+    while (p && p !== inner) { top += p.offsetTop; p = p.offsetParent; }
+    if (p !== inner) continue;
+    const cs = getComputedStyle(el);
+    const filled = (cs.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor)) || cs.backgroundImage !== 'none' || cs.boxShadow !== 'none';
+    out.push({ top, bottom: top + el.offsetHeight, leaf: el.children.length === 0 || UNCUT.has(el.tagName.toUpperCase()) || !!el.querySelector('canvas,svg,img,video') || filled });
+  }
+  return out;
+}
+function PlatePanel({ dock, live, onOpen }) {
+  const boxRef = useRef(null);
+  const innerRef = useRef(null);
+  const [fit, setFit] = useState(null);
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const inner = innerRef.current;
+    const plate = box?.closest('.nv-nt-stplate');
+    const dockEl = box?.closest('.nv-fx-dock');
+    const panel = box?.closest('.nv-fx-panel');
+    if (!box || !inner || !plate || !dockEl || !panel) return undefined;
+    const px = (v) => parseFloat(v) || 0;
+    const run = () => {
+      const ps = getComputedStyle(plate);
+      let used = px(ps.paddingTop) + px(ps.paddingBottom);
+      for (const ch of plate.children) {
+        if (ch === dockEl) continue;
+        const cs = getComputedStyle(ch);
+        used += (ch.classList.contains('nv-fx-pbody') ? px(cs.minHeight) : ch.offsetHeight) + px(cs.marginTop) + px(cs.marginBottom);
+      }
+      const ds = getComputedStyle(dockEl);
+      const chrome = panel.offsetHeight - box.offsetHeight;
+      const room = Math.floor(plate.clientHeight - used - px(ds.marginTop) - px(ds.marginBottom) - chrome);
+      const natural = inner.offsetHeight;
+      const next = panelFit({ natural, room, cuts: cleanCuts(piecesOf(inner)) });
+      setFit((f) => (f && f.mode === next.mode && Math.abs(f.height - next.height) < 1 && Math.abs(f.scale - next.scale) < 0.005 ? f : next));
+    };
+    run();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(run);
+    ro?.observe(inner);
+    ro?.observe(plate);
+    return () => ro?.disconnect();
+  }, []);
+  const hero = dock.hero;
+  const counted = dock.total > 1 && dock.n > 0;
+  return (
+    <div className={`nv-fx-dock${live ? '' : ' out'}`} aria-hidden={live ? undefined : true}>
+      <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(hero, e.currentTarget)} tabIndex={live ? 0 : -1}
+        aria-label={`${dock.mark?.name || hero.label || 'This panel'}${counted ? `, ${dock.n} of ${dock.total}` : ''}. Tap to open full width`}>
+        <span className="nv-fx-ptag">
+          <Ico name="stage" />{dock.finder ? <b className="nv-fx-finder" style={{ '--h': dock.finder.hue }}>{dock.finder.words}</b> : 'Showing now'}
+          {dock.mark && <b className="nv-fx-litname" style={{ '--h': dock.mark.hue }}>{dock.mark.name}</b>}
+          {counted ? <span>{dock.n} of {dock.total}</span> : null}
+        </span>
+        <span ref={boxRef} className="nv-fx-card" data-fit={fit?.mode || 'whole'} style={fit && fit.mode !== 'whole' ? { height: `${fit.height}px` } : undefined}>
+          <span ref={innerRef} className="nv-fx-cardin" style={fit?.mode === 'scale' ? { transform: `scale(${fit.scale.toFixed(4)})` } : undefined}>
+            <SafeVisual what="nova-stage-panel" resetKey={dock.key}><StageCard card={hero} face="summary" size={hero.kind === 'body' ? 'mini' : 'full'} /></SafeVisual>
+          </span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
 export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, close = null, apiRef = null, chrome = ONE_NOVA_CHROME }) {
   const secRef = useRef(null);
   const coreRef = useRef(null);
@@ -216,25 +295,38 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     const main = d.main;
     const root = sec?.parentElement;
     if (!sec || !main || !root) return;
-    const mr = main.getBoundingClientRect();
+    // THE FIXED LAYERS' OWN COORDINATES (1 Nov 2026, his black, core-less
+    // listening screen). While the keyboard is up iOS scrolls the DOCUMENT
+    // itself, even this 100dvh page, and every in-flow rect is read that far
+    // up; the fixed layers do not move with it. Measured then (the mic opens
+    // as the keyboard goes), the core was placed 396 px above the screen and
+    // the sky ended 396 px short, and nothing measured again once iOS
+    // scrolled back. So in-flow rects are taken back to the page's own place
+    // (plus the document's scroll), the ground and the pour fill the screen
+    // by CSS (only their sides follow <main>), and a document scroll, a
+    // keyboard leaving and a return to the page all measure again.
+    const sx = window.scrollX || 0;
+    const sy = window.scrollY || 0;
+    const m0 = main.getBoundingClientRect();
+    const mr = { left: m0.left + sx, top: m0.top + sy, width: m0.width, bottom: m0.bottom + sy };
     const foot = parseFloat(getComputedStyle(root).paddingBottom) || 0;
     sec.style.setProperty('--oc-vh', `${Math.round(main.clientHeight)}px`);
     sec.style.setProperty('--oc-foot', `${Math.round(foot)}px`);
     for (const el of [groundRef.current, pourCanvasRef.current]) {
       if (!el) continue;
-      el.style.left = `${mr.left}px`; el.style.top = `${mr.top}px`; el.style.width = `${mr.width}px`; el.style.height = `${mr.height}px`;
+      el.style.left = `${mr.left}px`; el.style.width = `${mr.width}px`;
     }
     if (headRef.current) { headRef.current.style.left = `${mr.left}px`; headRef.current.style.width = `${mr.width}px`; headRef.current.style.top = `${mr.top}px`; }
     d.max = Math.max(0, main.scrollHeight - main.clientHeight);
     const off = main.scrollTop - d.max; // where the stage sits once he is at the foot
-    const top = sec.getBoundingClientRect().top + off;
+    const top = sec.getBoundingClientRect().top + sy + off;
     const composer = root.querySelector('.nv-nt-composer');
     const ctop = composer ? composer.getBoundingClientRect().top : mr.bottom - 82;
     sec.style.setProperty('--st-ctop', `${Math.round(ctop - top)}px`);
     // a short screen (Safari's toolbar, a small phone): the hint never sits
     // over the last exchange; it gives way instead
     const exb = sec.querySelector('.nv-nt-stexch')?.getBoundingClientRect();
-    sec.toggleAttribute('data-crowded', !!exb && exb.height > 0 && exb.bottom + off > ctop - 66 - 8);
+    sec.toggleAttribute('data-crowded', !!exb && exb.height > 0 && exb.bottom + sy + off > ctop - 66 - 8);
     d.g = {
       fx: mr.left + mr.width / 2,
       fy: top + STAGE.coreY,
@@ -300,6 +392,21 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     ro?.observe(main);
     const onResize = () => measureRef.current();
     window.addEventListener('resize', onResize);
+    // the keyboard coming and going (iOS scrolls the document, the visual
+    // viewport shrinks) and a return to the page: measure again, once a frame
+    let again = 0;
+    const remeasure = () => {
+      if (again) return;
+      again = requestAnimationFrame(() => { again = 0; measureRef.current(); progress(); });
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') remeasure(); };
+    const vv = typeof window.visualViewport === 'object' ? window.visualViewport : null;
+    window.addEventListener('scroll', remeasure, { passive: true });
+    window.addEventListener('pageshow', remeasure);
+    document.addEventListener('focusout', remeasure);
+    document.addEventListener('visibilitychange', onVisible);
+    vv?.addEventListener('resize', remeasure);
+    vv?.addEventListener('scroll', remeasure);
     // A BACK SWIPE ONTO THIS PAGE (src/edgeBack.js) moves <main> for its
     // first frames, before this page has rendered its fixed layers, then lets
     // go of it: anything measured meanwhile was measured off a moved page
@@ -313,6 +420,13 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
       main.removeEventListener('touchstart', mine);
       main.removeEventListener('wheel', mine);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', remeasure);
+      window.removeEventListener('pageshow', remeasure);
+      document.removeEventListener('focusout', remeasure);
+      document.removeEventListener('visibilitychange', onVisible);
+      vv?.removeEventListener('resize', remeasure);
+      vv?.removeEventListener('scroll', remeasure);
+      cancelAnimationFrame(again);
       ro?.disconnect();
       cancelAnimationFrame(d.raf);
       cancelAnimationFrame(d.kr);
@@ -465,25 +579,16 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         </div>
 
         {/* Speaking: the glass plate and the subtitles */}
-        <section className="nv-nt-stplate" aria-live="polite" aria-hidden={!speaking} aria-label={`${speaker.name}, speaking`}>
+        <section className="nv-nt-stplate" data-panel={dock ? "" : undefined} aria-live="polite" aria-hidden={!speaking} aria-label={`${speaker.name}, speaking`}>
           {plateOn && (
             <Captions said={said} on={captions} speaker={stageSpeaker} pour={pours ? pour : null} look={WORD_LOOK.stage}
               markHue={stage?.mark?.hue || null}
               lead={(
                 <>
-                  {dock && (
-                    <div className={`nv-fx-dock${stage ? '' : ' out'}`} key={dock.key} aria-hidden={stage ? undefined : true}>
-                      <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(dock.hero, e.currentTarget)} tabIndex={stage ? 0 : -1}
-                        aria-label={`${dock.mark?.name || dock.hero.label || 'This panel'}${dock.total > 1 && dock.n > 0 ? `, ${dock.n} of ${dock.total}` : ''}. Tap to open full width`}>
-                        <span className="nv-fx-ptag"><Ico name="stage" />{dock.finder ? <b className="nv-fx-finder" style={{ '--h': dock.finder.hue }}>{dock.finder.words}</b> : 'Showing now'}{dock.total > 1 && dock.n > 0 ? <span>{dock.n} of {dock.total}</span> : null}</span>
-                        {dock.mark && <span className="nv-fx-litname" style={{ '--h': dock.mark.hue }}>{dock.mark.name}</span>}
-                        <span className="nv-fx-card">
-                          <SafeVisual what="nova-stage-panel" resetKey={dock.key}><StageCard card={dock.hero} face="summary" /></SafeVisual>
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                  {asked && <p className="nv-nt-stasked"><b>You</b>{asked}</p>}
+                  {/* mockup 106's order: "You" and his question on one line, then
+                      what is showing, then Nova's words */}
+                  {asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
+                  {dock && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
                 </>
               )}
               offNote="Subtitles are off. Turn them on in Nova’s status and settings." />

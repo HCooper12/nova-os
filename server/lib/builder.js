@@ -35,8 +35,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, effortArgs } from './modelPrefs.js';
-import { createProjectDir, undoProject } from './projects.js';
-import { createRecord } from './inboxStore.js';
+import { existsSync } from 'node:fs';
+import { createProjectDir, projectDir, undoProject } from './projects.js';
+import { createRecord, updateRecord } from './inboxStore.js';
 import { sandboxed, sandboxAvailable, sandboxUnavailable } from './sandbox.js';
 import { registerJobMap } from './jobRegistry.js';
 
@@ -111,7 +112,16 @@ export function buildInvocation(brief, slug, dir, model, { shell: force } = {}) 
 
 // Start a build. Returns a job id immediately — this runs for minutes, which
 // is the entire point of the lane.
-export function startBuild(brief, { name, model } = {}) {
+//
+// `recordId`: a record the CALLER already filed (status classifying) that the
+// receipt lands ON, instead of a fresh one. A plan step waits on a record id
+// (planner.awaitRecord); this function returns a JOB id, and the receipt used
+// to file under a new random id only when the build ended. So the plan looked
+// up the job id as a record, found nothing, and failed the step at once with
+// "the record vanished", while the build ran on and filed at 00:19:59 to
+// nobody (his plan 0ae72205, 1 Nov 2026). Now the record exists from the
+// start and the end of the build settles it.
+export function startBuild(brief, { name, model, recordId = null } = {}) {
   const text = String(brief || '').trim();
   if (!text) throw new Error('a build needs a brief');
   const { dir, existed, slug } = createProjectDir(name || text.slice(0, 50));
@@ -151,8 +161,7 @@ export function startBuild(brief, { name, model } = {}) {
     // A build always leaves a receipt, finished or not — he walked away, and
     // "it failed and here is why" is the thing he most needs to come back to.
     try {
-      await createRecord({
-        id: randomUUID().slice(0, 8),
+      const receipt = {
         kind: 'build',
         text: job.status === 'done' ? `Built "${slug}"` : `The build of "${slug}" failed`,
         source: 'nova',
@@ -167,15 +176,56 @@ export function startBuild(brief, { name, model } = {}) {
           confidence: 'high',
           title: slug,
           reason: (job.status === 'done' ? summary : job.error || '').slice(0, 300),
-          payload: { slug, dir, shell: job.shell, brief: text.slice(0, 2000) }, // `shell` alone was undefined here: the receipt threw into the catch below and never filed (found by no-undef, 31 Oct)
+          // `body`: what the builder said it made, so a plan step that waits on
+          // this record hands the next step (and the report) its own words
+          payload: { slug, dir, shell: job.shell, brief: text.slice(0, 2000), body: job.status === 'done' ? `${summary}\n\nThe files are in ${dir}.` : '' }, // `shell` alone was undefined here: the receipt threw into the catch below and never filed (found by no-undef, 31 Oct)
         },
+        // the whole brief and name ride the record, so Retry can run it again
+        buildBrief: text,
+        buildName: name || null,
         // moved aside, never deleted — see projects.undoProject
         undoData: { route: 'build', slug },
-      });
+      };
+      if (recordId) {
+        // the record keeps the time it was asked for; it gains the time it settled
+        const { createdAt: settledAt, ...rest } = receipt;
+        await updateRecord(recordId, { ...rest, error: job.error || null, settledAt });
+      } else await createRecord({ id: randomUUID().slice(0, 8), ...receipt });
     } catch { /* the work is on disk either way; a receipt that fails must not lose it */ }
   });
 
   return jobId;
+}
+
+// RETRY A FAILED BUILD, on the same record (inbox.js retryRecord). The brief
+// rides the record whole; the project folder gets a fresh name, because the
+// failed attempt's folder is still there and a build never writes into a
+// folder it did not make.
+// A folder name no earlier build holds: the name itself, else "<name> 2", "3"…
+// (the name is cut first so the number survives the 60-character slug). A
+// plan re-run, or two plans with the same step, must not collide on a folder.
+export function freeProjectName(name) {
+  const base = String(name || '').trim() || 'build';
+  if (!existsSync(projectDir(base))) return base;
+  for (let n = 2; n < 100; n += 1) {
+    const candidate = `${base.slice(0, 50)} ${n}`;
+    if (!existsSync(projectDir(candidate))) return candidate;
+  }
+  return `${base.slice(0, 40)} ${randomUUID().slice(0, 8)}`;
+}
+
+export async function retryBuild(record) {
+  const brief = String(record?.buildBrief || '').trim();
+  if (!brief) throw new Error('this build record does not carry its brief, so it cannot be run again; ask for it again');
+  const n = (Number(record.buildAttempt) || 1) + 1;
+  const name = freeProjectName(record.buildName || brief.slice(0, 50));
+  const again = await updateRecord(record.id, { status: 'classifying', error: null, buildAttempt: n });
+  try {
+    startBuild(brief, { name, recordId: record.id });
+  } catch (e) {
+    return updateRecord(record.id, { status: 'error', error: e.message });
+  }
+  return again;
 }
 
 export async function undoBuild(slug) {

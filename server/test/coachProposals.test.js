@@ -129,7 +129,10 @@ test('Coach takes its own card back; a card already waiting is reused, not twinn
   assert.equal((await listRecords()).length, before, 'and no second push to his phone');
   const back = await settleCoachChanges(vault, { question: 'q', replyText: `Scratch that one.\nWITHDRAW {"ids":["${waiting.id}"]}` });
   assert.equal((await getRecord(waiting.id)).status, 'withdrawn', 'not "declined": nothing learns from it as his answer');
-  assert.match(back.text, /^Scratch that one\.\n\nTaken off the Coach tab: add Face Pull to Pull\.$/);
+  // a card taken back is silent: never in the text he hears, a quiet receipt
+  // under it instead (1 Nov 2026: the withdrawn cards' bodies were read aloud)
+  assert.equal(back.text, 'Scratch that one.');
+  assert.equal(back.quiet, 'took back a card: add Face Pull to Pull');
   assert.deepEqual(parseWithdraw('WITHDRAW {"ids":["abc12345","not an id!"]}').ids, ['abc12345']);
 });
 

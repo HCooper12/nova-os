@@ -107,3 +107,33 @@ export function lastExchange(lines) {
   }
   return { you, nova };
 }
+
+// THE PANEL ON THE PLATE, WHOLE (1 Nov 2026, his recording: the body panel
+// showed as a sliver of its figure and a program's rows were cut mid-row).
+// Mockup 106 draws no panel; whatever the plate holds of one is whole: the
+// card entire, or its first whole pieces with the rest in the sheet a tap
+// opens, or (when no whole piece fits) the card entire, drawn smaller.
+//   natural  the card's own height
+//   room     the height the plate can give it
+//   cuts     heights at which the card divides cleanly (cleanCuts)
+// A cut is taken only when it keeps at least `minShare` of the room;
+// otherwise the whole card is scaled into the room.
+export function panelFit({ natural, room, cuts = [], minShare = 0.5 }) {
+  const n = Number(natural) || 0;
+  const r = Number(room) || 0;
+  if (n <= 0 || r <= 0 || n <= r + 0.5) return { mode: 'whole', height: n, scale: 1 };
+  const cut = cuts.filter((y) => y > 0 && y <= r + 0.5).sort((a, b) => b - a)[0];
+  if (cut && cut >= r * minShare) return { mode: 'cut', height: cut, scale: 1 };
+  return { mode: 'scale', height: r, scale: r / n };
+}
+
+// Where a card divides cleanly: the boxes of its pieces, each { top, bottom,
+// leaf } in the card's own coordinates (a leaf is a piece that must never be
+// cut: text, a picture, a figure, a row with its own fill). A height is clean
+// when no leaf crosses it; the candidates are the pieces' own feet.
+export function cleanCuts(boxes) {
+  const list = Array.isArray(boxes) ? boxes : [];
+  const leaves = list.filter((b) => b && b.leaf);
+  const ys = [...new Set(list.map((b) => Math.round(Number(b?.bottom) || 0)).filter((y) => y > 0))];
+  return ys.filter((y) => !leaves.some((b) => b.top < y - 0.5 && b.bottom > y + 0.5)).sort((a, b) => a - b);
+}
