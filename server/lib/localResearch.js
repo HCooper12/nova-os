@@ -56,6 +56,9 @@ const SOURCES_BUDGET = 14_000;
  *  profile, so every test hands in its own seams. */
 export function webCanRun() {
   if (process.env.NODE_TEST_CONTEXT && !process.env.NOVA_RESEARCH_IN_TESTS) return false;
+  // a Brave key alone is enough to search; reads still prefer a plain fetch
+  // and only need Chrome for the pages that want it
+  if (braveKey()) return true;
   return browserAvailable() && profileExists();
 }
 
@@ -68,9 +71,20 @@ export function webCanRun() {
 // only; a test's seam never trips it.
 const REST_MS = () => Number(process.env.NOVA_RESEARCH_REST_MS || 20 * 60_000);
 let resting = { until: 0, reason: '' };
+const restFor = (ms, reason) => { resting = { until: Date.now() + ms, reason }; };
 /** The reason the search is resting, or null when it may be tried. */
 export function searchResting(now = Date.now()) { return now < resting.until ? resting.reason : null; }
 export function _resetSearchRest() { resting = { until: 0, reason: '' }; }
+
+// BRAVE SEARCH (his decision, 1 Nov 2026). Every free engine refuses headless
+// Chrome or serves junk (measured the same day), so he chose Brave's search
+// API with a key he adds himself as BRAVE_SEARCH_KEY in server/.env. Only the
+// search words leave this Mac (his notes never do), and the key is read per
+// call, sent only as a header, and never written to a log or an error.
+const BRAVE_URL = 'https://api.search.brave.com/res/v1/web/search';
+const BRAVE_HOST = 'api.search.brave.com';
+const braveKey = () => String(process.env.BRAVE_SEARCH_KEY || '').trim();
+const BRAVE_RATE_REST_MS = 60_000;
 
 export const searchUrl = (query) => `https://www.bing.com/search?q=${encodeURIComponent(String(query || '').trim())}`;
 
@@ -158,6 +172,7 @@ export function relevantResults(results, query) {
 export async function webSearch(query, { max = 6, timeoutMs = SEARCH_TIMEOUT_MS(), deps = {} } = {}) {
   const q = String(query || '').trim();
   if (!q) throw new Error('there was nothing to search for');
+  if (braveKey() && !deps.withPage) return braveSearch(q, { max, deps });
   const open = deps.withPage || withPage;
   if (!deps.withPage) {
     if (!browserAvailable()) throw new Error('Chrome is not installed where Nova expects it');
@@ -201,6 +216,61 @@ export async function webSearch(query, { max = 6, timeoutMs = SEARCH_TIMEOUT_MS(
     throw rest(`${host} showed ${listed.length} results, none of them about the question`);
   }
   return { results, ms, host, offTopic: listed.length - results.length };
+}
+
+/** The Brave Search API: web.results[] mapped to the same {title, url,
+ *  snippet} the Bing parser returns, then the same relevance filter. A refused
+ *  key rests the search 20 minutes, a rate limit 60 s. `deps.fetchImpl` is the
+ *  test seam. */
+async function braveSearch(q, { max, deps }) {
+  const key = braveKey();
+  const fetchImpl = deps.fetchImpl || fetch;
+  const restingFor = searchResting();
+  if (restingFor) throw new Error(`the web search is resting after: ${restingFor}`);
+  const url = `${BRAVE_URL}?${new URLSearchParams({ q, count: String(Math.min(20, Math.max(max, 10))), country: 'AU', search_lang: 'en' })}`;
+  const t0 = Date.now();
+  let res;
+  try {
+    res = await fetchImpl(url, { headers: { Accept: 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': key }, signal: AbortSignal.timeout(10_000) });
+  } catch (e) {
+    const why = String(e.message || e).split(key).join('[key]').slice(0, 120);
+    console.log(`research search ${BRAVE_HOST} via brave ${Date.now() - t0}ms failed: ${why}`);
+    throw new Error(`the Brave search could not be reached (${why})`);
+  }
+  const ms = Date.now() - t0;
+  console.log(`research search ${BRAVE_HOST} via brave ${ms}ms`);
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      const reason = `Brave Search answered ${res.status}: the key was refused`;
+      restFor(REST_MS(), reason);
+      throw new Error(reason);
+    }
+    if (res.status === 429) {
+      const reason = 'Brave Search answered 429: rate limited';
+      restFor(BRAVE_RATE_REST_MS, reason);
+      throw new Error(reason);
+    }
+    throw new Error(`Brave Search answered ${res.status}`);
+  }
+  let body;
+  try { body = await res.json(); } catch { throw new Error('Brave Search answered with something unreadable'); }
+  const seen = new Set();
+  const listed = [];
+  for (const r of Array.isArray(body?.web?.results) ? body.web.results : []) {
+    const u = /^https?:\/\//i.test(String(r?.url || '')) ? String(r.url) : null;
+    if (!u) continue;
+    const k = u.replace(/#.*$/, '').replace(/\/$/, '');
+    if (seen.has(k)) continue;
+    seen.add(k);
+    listed.push({ title: textOf(r.title || '') || hostOf(u), url: u, snippet: textOf(r.description || '') });
+  }
+  if (!listed.length) throw new Error(`${BRAVE_HOST} showed no results for that`);
+  const results = relevantResults(listed, q).slice(0, max);
+  if (!results.length) {
+    console.log(`research search ${BRAVE_HOST}: ${listed.length} result(s), none about "${q.slice(0, 80)}"`);
+    throw new Error(`${BRAVE_HOST} showed ${listed.length} results, none of them about the question`);
+  }
+  return { results, ms, host: BRAVE_HOST, offTopic: listed.length - results.length };
 }
 
 const clipText = (text, maxChars) => {
@@ -331,7 +401,7 @@ export async function gatherWeb(query, { max = 4, searchMax = 6, maxChars = 6000
   } catch (e) {
     // the engine was still asked (unless the search is resting): receipt it
     const why = String(e.message || e);
-    if (!deps.search && !/resting|not installed|does not exist|test runner|nothing to search/.test(why)) hostsRead.push(hostOf(searchUrl(query)));
+    if (!deps.search && !/resting|not installed|does not exist|test runner|nothing to search/.test(why)) hostsRead.push(braveKey() ? BRAVE_HOST : hostOf(searchUrl(query)));
     timings.search = Date.now() - ts;
     return { sources: [], misses: [], hostsRead, timings, searchError: why };
   }

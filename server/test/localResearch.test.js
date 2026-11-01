@@ -257,3 +257,91 @@ test('a parseable list of the wrong thing is not results: only pages about the q
   const ok = await webSearch('protein intake for muscle gain', { deps: { withPage: fakeWithPage(FIXTURE) } });
   assert.ok(ok.results.every((r) => /protein/i.test(`${r.title} ${r.snippet} ${r.url}`)));
 });
+
+// BRAVE SEARCH (1 Nov 2026): the key-backed backend, behind the fetch seam.
+const KEY = 'BSA-secret-key-123';
+const braveBody = (results) => ({ ok: true, status: 200, json: async () => ({ web: { results } }) });
+const braveRes = [
+  { title: 'How Much <strong>Protein</strong> Per Day', url: 'https://www.healthline.com/nutrition/protein-per-day', description: 'Aim for 1.6 g per kg for <strong>muscle</strong> gain.' },
+  { title: 'Electric current', url: 'https://en.wikipedia.org/wiki/Electric_current', description: 'Flow of charge.' },
+  { title: 'Dup', url: 'https://www.healthline.com/nutrition/protein-per-day/', description: 'protein muscle' },
+];
+const captureLogs = async (fn) => {
+  const lines = []; const orig = console.log;
+  console.log = (...a) => { lines.push(a.join(' ')); };
+  try { await fn(); } finally { console.log = orig; }
+  return lines;
+};
+
+test('Brave: with a key the API is used, results are mapped and filtered, the host is logged and receipted, the key is a header only', async () => {
+  const { _resetSearchRest } = await import('../lib/localResearch.js');
+  _resetSearchRest();
+  process.env.BRAVE_SEARCH_KEY = KEY;
+  try {
+    let seen;
+    const fetchImpl = async (url, init) => { seen = { url, init }; return braveBody(braveRes); };
+    let got;
+    const logs = await captureLogs(async () => { got = await webSearch('protein muscle gain', { deps: { fetchImpl } }); });
+    const u = new URL(seen.url);
+    assert.equal(u.origin + u.pathname, 'https://api.search.brave.com/res/v1/web/search');
+    assert.equal(u.searchParams.get('q'), 'protein muscle gain');
+    assert.equal(u.searchParams.get('country'), 'AU');
+    assert.equal(u.searchParams.get('search_lang'), 'en');
+    assert.equal(seen.init.headers['X-Subscription-Token'], KEY);
+    assert.equal(seen.init.headers.Accept, 'application/json');
+    assert.ok(!seen.url.includes(KEY), 'the key is never in the address');
+    assert.equal(got.host, 'api.search.brave.com');
+    assert.deepEqual(got.results, [{ title: 'How Much Protein Per Day', url: 'https://www.healthline.com/nutrition/protein-per-day', snippet: 'Aim for 1.6 g per kg for muscle gain.' }]);
+    assert.ok(logs.some((l) => /^research search api\.search\.brave\.com via brave \d+ms$/.test(l)), logs.join('|'));
+    assert.ok(!logs.join('\n').includes(KEY));
+    assert.equal(webCanRun(), false, 'the test-runner guard still holds, key or not');
+    process.env.NOVA_RESEARCH_IN_TESTS = '1';
+    try { assert.equal(webCanRun(), true, 'the key alone is enough, Chrome or not'); } finally { delete process.env.NOVA_RESEARCH_IN_TESTS; }
+  } finally { delete process.env.BRAVE_SEARCH_KEY; _resetSearchRest(); }
+});
+
+test('Brave: with no key the Chrome path is used and the API is never called', async () => {
+  delete process.env.BRAVE_SEARCH_KEY;
+  const fetchImpl = async () => { throw new Error('Brave must not be called without a key'); };
+  const got = await webSearch('protein per kg', { deps: { withPage: fakeWithPage(FIXTURE), fetchImpl } });
+  assert.equal(got.host, 'www.bing.com');
+  assert.equal(webCanRun(), false);
+});
+
+test('Brave: a refused key names the status, never the key, and rests the search 20 minutes', async () => {
+  const { _resetSearchRest } = await import('../lib/localResearch.js');
+  _resetSearchRest();
+  process.env.BRAVE_SEARCH_KEY = KEY;
+  try {
+    let calls = 0;
+    const fetchImpl = async () => { calls++; return { ok: false, status: 401, json: async () => ({}) }; };
+    let err;
+    const logs = await captureLogs(async () => { err = await webSearch('protein muscle', { deps: { fetchImpl } }).catch((e) => e); });
+    assert.match(err.message, /Brave Search answered 401: the key was refused/);
+    assert.ok(!err.message.includes(KEY) && !logs.join('\n').includes(KEY));
+    const r = searchResting();
+    assert.match(r, /401/);
+    await assert.rejects(webSearch('protein muscle', { deps: { fetchImpl } }), /resting/);
+    assert.equal(calls, 1, 'a resting search does not call the API again');
+    const left = Date.now() + 19 * 60_000;
+    assert.ok(searchResting(left), 'still resting at 19 minutes');
+    assert.equal(searchResting(Date.now() + 21 * 60_000), null, 'free after 20');
+  } finally { delete process.env.BRAVE_SEARCH_KEY; _resetSearchRest(); }
+});
+
+test('Brave: a rate limit rests the search for 60 s only', async () => {
+  const { _resetSearchRest } = await import('../lib/localResearch.js');
+  _resetSearchRest();
+  process.env.BRAVE_SEARCH_KEY = KEY;
+  try {
+    const fetchImpl = async () => ({ ok: false, status: 429, json: async () => ({}) });
+    await assert.rejects(webSearch('protein muscle', { deps: { fetchImpl } }), /Brave Search answered 429: rate limited/);
+    assert.match(searchResting(), /429/);
+    assert.ok(searchResting(Date.now() + 30_000), 'resting at 30 s');
+    assert.equal(searchResting(Date.now() + 61_000), null, 'free after 60 s');
+    _resetSearchRest();
+    await assert.rejects(webSearch('protein muscle', { deps: { fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }) } }), /Brave Search answered 500/);
+    assert.equal(searchResting(), null, 'a server error does not rest it');
+    await assert.rejects(webSearch('protein muscle', { deps: { fetchImpl: async () => { throw new Error(`boom ${KEY}`); } } }), (e) => !e.message.includes(KEY) && /could not be reached/.test(e.message));
+  } finally { delete process.env.BRAVE_SEARCH_KEY; _resetSearchRest(); }
+});
