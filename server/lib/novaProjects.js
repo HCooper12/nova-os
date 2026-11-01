@@ -321,18 +321,24 @@ export async function allProjects({ vaultPath, repoRoot } = {}) {
  * starts now (his press). Each run files its own record, so this one is
  * withdrawn with a note saying where the next run is.
  */
-export async function retryProjectJob(vaultPath, record) {
+/** A failed job back in the queue, started now (his press). Any kind. */
+export async function retryJob(vaultPath, projectId, jobId) {
   const k = novaKernel(vaultPath);
-  const p = assertWritable(k.getProject(record.projectId));
-  const job = k.readQueue(p).jobs.find((j) => j.id === record.jobId);
+  const p = assertWritable(k.getProject(projectId));
+  const job = k.readQueue(p).jobs.find((j) => j.id === jobId);
   if (!job) throw refuse('that job is no longer in the project\'s queue', 'missing');
   if (job.status !== 'failed') throw refuse(`that job is ${job.status}, not failed`, 'job');
   k.updateJob(p, job.id, { status: 'queued', error: null, attempts: 0, endedAt: null });
   k.appendLog(p, `${job.kind} job ${job.id} queued again (Retry)`, { action: 'queue' });
   const { runProjectQueues } = await import('./projectScheduler.js');
   const run = await runProjectQueues(vaultPath, { force: true, projectId: p.id });
+  return { project: p, job, run, started: run.started.some((s) => s.jobId === job.id) };
+}
+
+export async function retryProjectJob(vaultPath, record) {
+  const { project: p, run, started } = await retryJob(vaultPath, record.projectId, record.jobId);
   const { updateRecord } = await import('./inboxStore.js');
-  const again = run.started.find((s) => s.jobId === job.id);
+  const again = started;
   return updateRecord(record.id, { status: 'withdrawn', withdrawnAt: new Date().toISOString(), destination: again ? 'Running again: the new run files its own card' : `Back in ${p.name}'s queue (${run.held[0]?.why || 'it starts when there is room'})` });
 }
 

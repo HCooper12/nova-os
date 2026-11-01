@@ -132,6 +132,17 @@ export function projectsRouter({ vaultPath, repoRoot, sessions } = {}) {
     } catch (e) { fail(res, e); }
   });
 
+  // Retry on a failed job of any kind: back in the queue, started now
+  router.post('/projects/:id/jobs/:jobId/retry', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      const { retryJob } = await import('../lib/novaProjects.js');
+      const { job, started, run } = await retryJob(vaultPath, p.id, req.params.jobId);
+      res.json({ jobId: job.id, started, held: started ? null : (run.held.find((h) => h.projectId === p.id)?.why || null) });
+    } catch (e) { fail(res, e); }
+  });
+
   // his own answer to a job that stopped to ask; the card is settled with it
   router.post('/projects/:id/jobs/:jobId/answer', async (req, res) => {
     try {
