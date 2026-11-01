@@ -15,11 +15,11 @@ import { parseVisualStream } from './visualBeats.js';
 import { lintSpoken } from './spokenLint.js';
 import { voiceAskExtras, intakeAfter, afterApproval, tellMeLine } from './projectVoice.js';
 import { stanceOfSpan } from './glassBeats.js';
-import { speakableText } from './artifactBlocks.js';
+import { speakableText, parseArtifactBlocks } from './artifactBlocks.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
-import { cutHeld, asksForRest, HELD_UNHEARD_LINE } from './turnFold.js';
+import { cutHeld, asksForRest, HELD_UNHEARD_LINE, budgetCut, spokenBudget } from './turnFold.js';
 import { greetDue, standsDown, notePresence } from './greetDue.js';
-import { firstClauseCut, artifactOpenerLine, ttsFetchesToStart, ttsFailureAction } from './voicePacing.js';
+import { firstClauseCut, artifactOpenerLine, ttsFetchesToStart, ttsFailureAction, resumeAt } from './voicePacing.js';
 import { toSpokenProse } from './spokenProse.js';
 import { UNDO_KEY, stashOf, usableUndo } from './chatUndo.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
@@ -8044,7 +8044,7 @@ export default class App extends Component {
   // (src/replyReturn.js, 1 Nov 2026).
   // `projectId`: the project this turn was about; the reply's line carries it,
   // so the conversation record files it to that project's transcript
-  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null, lastRunningAt = Date.now(), projectId = null } = {}) {
+  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null, lastRunningAt = Date.now(), projectId = null, question = '' } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
     // he can barge in, which left nothing saying "more sentences are coming":
@@ -8059,7 +8059,7 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     // `stances`: where this reply pushes back (the latest parse), so each
     // sentence queued for the voice can carry its own (glassBeats.stanceOfSpan)
-    const stream = { spokenUpTo: 0, stances: [], lastRunningAt };
+    const stream = { spokenUpTo: 0, saidText: '', stances: [], lastRunningAt };
     this.resetGlass();   // last turn's panels do not belong to this one
     beginReply();        // …nor do its captions (the full-screen Nova, speechClock.js)
     const elevenPath = this.ttsUsable();
@@ -8256,7 +8256,15 @@ export default class App extends Component {
         if (!shown) return;
         if (turn && !turn.firstSpeakableAt && speakableText(shown, { final: false }).trim()) turn.firstSpeakableAt = Date.now();
         if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
-        speakNewSentences(shown, false);
+        // THE SPOKEN BUDGET (src/turnFold.js): nothing past the cut the server
+        // will fold at is spoken while the reply arrives; the turn's question
+        // and receipts come with the finished reply
+        const cap = budgetCut(shown, spokenBudget(question));
+        const speakable = cap === -1 ? shown : shown.slice(0, cap);
+        // a rewrite replaced the answer: carry on from the first new sentence
+        stream.spokenUpTo = resumeAt(stream.saidText, speakable, stream.spokenUpTo);
+        speakNewSentences(speakable, false);
+        stream.saidText = speakable.slice(0, stream.spokenUpTo);
       },
       onReady: (job) => {
         if (turn && !turn.firstTextAt) turn.firstTextAt = Date.now();
@@ -8266,7 +8274,9 @@ export default class App extends Component {
         // the speech path measured the streamed text with "[[artifact:pending]]"
         // where the finished reply has a real id of another length; measure the
         // finished one the same way, or the tail would be sliced off-by-some
-        const spokenText = sameWidthTokens(text);
+        // a document body is never spoken, even one the server failed to file
+        const spokenText = sameWidthTokens(parseArtifactBlocks(text, { final: true }).text);
+        stream.spokenUpTo = resumeAt(stream.saidText, spokenText, stream.spokenUpTo);
         // the conversation continues across turns AND app restarts — the
         // specialist's session is its own thread, kept under its own key
         if (job.result.sessionId) {
@@ -11998,7 +12008,7 @@ export default class App extends Component {
       // route sends one code-written line to speak after the ack, so the
       // longer think is announced, never a silence.
       if (deepLine && this.state.voiceSpeak) this.speakTtsSentence(deepLine, null, { stance: 'ack', ack: true });
-      this.attachAskPoll(conn, jobId, { agent, meta, turn, projectId: this.askProjectId || null });
+      this.attachAskPoll(conn, jobId, { agent, meta, turn, projectId: this.askProjectId || null, question });
     }).catch((e) => {
       if (askSeq !== this.askSeq) return;
       this.endAnswer(turn);

@@ -15,7 +15,7 @@ import { localModelConfigured } from './localModel.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
-import { foldReply } from '../../src/turnFold.js';
+import { foldReply, spokenBudget } from '../../src/turnFold.js';
 import { TURN_TAKING, talkPrefsBlock } from './talk.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
@@ -856,7 +856,8 @@ export async function settleAskReply(cwd, replyText, turnJob, { question, noGlas
     // held for "go on", so it is folded off before any directive is read.
     // The hands-free one-shot has no next turn to ask in: there the rest is
     // simply not said.
-    const fold = foldReply(filed.text);
+    // a reply the model did not fold is folded by code at the spoken budget
+    const fold = foldReply(filed.text, { budget: spokenBudget(question) });
     filed.text = fold.said;
     const held = direct ? null : fold.held;
     // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
@@ -1597,6 +1598,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
       // his standing grant, and code, not the model, says what happened
       // (coachProposals.js, after his 25 Sep chat).
       const { settleCoachChanges } = await import('./coachProposals.js');
+      const rewriteArtifacts = [];
       const settled = await settleCoachChanges(cwd, {
         question: asked || question,
         replyText,
@@ -1611,19 +1613,37 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
           // turn resolves null, so he still gets the first answer and plain
           // words about what did not land, never a dead job.
           const side = sideJob(rewrite ? turnJob : null, () => resolve(null));
-          warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: side, finishTurn: (t) => resolve(t) });
+          // THE REWRITE'S DOCUMENTS, FILED TOO (1 Nov 2026). A rewrite replaces
+          // the answer, and it used to skip fileArtifacts: his program page
+          // reached the chat as raw HTML and Nova read its script aloud
+          // ("Press",3,"3 × 8–12 · 2 min rest",{"Front …). Filed here, before
+          // the settle reads it, so a PROPOSE inside a document is never a card.
+          const fileRewrite = async (t) => {
+            if (!t) return t;
+            try {
+              const again = await fileArtifacts(cwd, t, { agent: 'coach', question: asked || question });
+              rewriteArtifacts.push(...again.artifacts);
+              return again.text;
+            } catch { return speakableText(t, { final: true }); }
+          };
+          warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: side, finishTurn: (t) => { fileRewrite(t).then(resolve, () => resolve(null)); } });
         }),
       });
       // the code-written line of who the Coach asked opens the reply
       // a rewrite replaced the answer: its own mark, if it wrote one, wins
-      const refold = foldReply(settled.text);
-      const coachHeld = refold.held ?? (settled.text.includes(fold.said.slice(0, 40)) ? fold.held : null);
+      const refold0 = foldReply(settled.text);
+      const modelHeld = refold0.held ?? (settled.text.includes(fold.said.slice(0, 40)) ? fold.held : null);
+      // THE SPOKEN BUDGET (src/turnFold.js budgetFold): a Coach reply the
+      // model did not fold is folded by code, after the receipts are in, so
+      // a change made is always said and a question always ends the turn
+      const refold = modelHeld ? { said: refold0.said, held: modelHeld } : foldReply(refold0.said, { budget: spokenBudget(asked || question) });
+      const coachHeld = refold.held;
       const text = ctl.finalText(refold.said);
       const proposalsOut = settled.filed.map((f) => ({ recordId: f.recordId, title: f.title, ...(f.status ? { status: f.status } : {}), destination: f.destination || null }));
       const withdrawn = settled.withdrawn.filter((w) => w.ok).map((w) => w.id);
       const proposalOut = proposalsOut[0] || null;
       const coachPanel = await coachPanelFor(cwd, question);
-      turnJob.result = { text, more: coachHeld, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, ...(settled.quiet ? { receipt: settled.quiet } : {}), panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
+      turnJob.result = { text, more: coachHeld, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, ...(settled.quiet ? { receipt: settled.quiet } : {}), panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: [...filed.artifacts, ...rewriteArtifacts].filter((a, i, all) => all.findIndex((b) => b.id === a.id) === i), ...(rolled ? { sessionRolled: true } : {}) };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
@@ -1762,7 +1782,7 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
       // THE DOCUMENTS, FIRST — before REFLECT ever sees this text.
       const filed = await fileArtifacts(cwd, replyText, { agent: 'leader', question });
       const { parseLeaderReflect, applyLeaderReflection } = await import('./leader.js');
-      const fold = foldReply(filed.text);
+      const fold = foldReply(filed.text, { budget: spokenBudget(question) });
       const { cleanText, reflect, parseError } = parseLeaderReflect(fold.said);
       let text = cleanText;
       let reflected = null;

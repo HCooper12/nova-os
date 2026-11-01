@@ -101,3 +101,25 @@ export function ttsFailureAction(err, tries) {
   if (status) return 'give-up'; // a 401 or a 409 is not going to change in a second
   return 'retry-now'; // no status: the request itself dropped (a cellular blip)
 }
+
+/**
+ * WHERE TO CARRY ON SPEAKING when the text under the voice changed (1 Nov
+ * 2026). The speech path counts characters it has said; a Coach rewrite
+ * REPLACES the answer mid-stream, and the old count then pointed into the
+ * middle of a different text: Nova said fragments, repeated phrases, and
+ * once read a document's script. `said` is what was spoken (a prefix of the
+ * old text), `next` the new text. Unchanged prefix → the same count; else
+ * back to the last sentence end both texts share, so the first sentence
+ * that differs is said whole and nothing already said is said again. Pure.
+ */
+export function resumeAt(said, next, spokenUpTo = String(said || '').length) {
+  const a = String(said || '');
+  const b = String(next || '');
+  if (!a || b.startsWith(a)) return spokenUpTo;
+  let n = 0;
+  while (n < a.length && n < b.length && a[n] === b[n]) n += 1;
+  const head = b.slice(0, n);
+  let cut = 0;
+  for (const m of head.matchAll(/[.!?]["'”’)]*\s+|\n/g)) cut = m.index + m[0].length;
+  return cut;
+}

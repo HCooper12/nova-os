@@ -42,7 +42,7 @@ import {
   vaultSearch, vaultRead, readToolCalls, sessionTurns, isLocalOnlySession, localTurnsSinceClaude, recordAskTurn,
 } from './localAsk.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
-import { foldReply } from '../../src/turnFold.js';
+import { foldReply, spokenBudget } from '../../src/turnFold.js';
 
 export const MAX_ROUNDS = 4;               // tool rounds a turn, then a forced answer
 export const TOOL_RESULT_CHARS = 2500;     // any one tool result, after its own narrowing
@@ -714,7 +714,7 @@ export function startCoachLocal(vaultPath, { question, sessionId = null, liveSes
     // handed up above), the consult step (the local Coach asks no one), and
     // onReady (the skipped-work cooldown is stamped only by the turn that
     // was shown that block, which is Claude's assembly).
-    const fold = foldReply(read.text);
+    const fold = foldReply(read.text, { budget: spokenBudget(question) });
     const panel = await coachPanelFor(vaultPath, question);
     const ms = Date.now() - started;
     recordRun('coach', {

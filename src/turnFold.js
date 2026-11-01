@@ -32,10 +32,10 @@ const VIS_RE = /^\s*VIS\s*\{/;
  * → { said, held }  held is null when there is no mark, or nothing after it.
  * A mark with nothing before it is not a fold: the whole reply is said.
  */
-export function foldReply(text) {
+export function foldReply(text, { budget = null } = {}) {
   const s = String(text ?? '');
   const m = MARK_RE.exec(s);
-  if (!m) return { said: s, held: null };
+  if (!m) return budget ? budgetFold(s, budget) : { said: s, held: null };
   const before = s.slice(0, m.index).replace(/\s+$/, '');
   const machine = [];
   const prose = [];
@@ -49,6 +49,102 @@ export function foldReply(text) {
     return { said: [held, ...machine].filter(Boolean).join('\n'), held: null };
   }
   return { said: [before, ...machine].join('\n'), held };
+}
+
+// ---------------------------------------------------------------------------
+// THE SPOKEN BUDGET (1 Nov 2026, his report: "speaking for way too long",
+// "asking me questions but then didn't give me a chance to respond because
+// then it moved onto the next thing"). The MORE line asks the model to hold
+// its detail; the Coach almost never did: its spoken replies since 28 Oct ran
+// median 242 words, max 519, and 2 in 9 buried a question mid-reply. So CODE
+// ends the turn when the model does not: the leading sentences up to the
+// budget are said, a question further down is moved to the end of the turn
+// (the last thing he hears is what he must answer), and the rest is held for
+// "go on", exactly as a MORE line holds it. The client's stream cuts at the
+// same place (budgetCut is prefix-stable: it only counts finished sentences),
+// so nothing past the budget is spoken while the reply is still arriving.
+export const SPOKEN_WORDS = 60;
+export const DEPTH_WORDS = 150;
+const DEPTH_RE = /\b(?:walk me through|talk me through|run me through|explain|in detail|all of it|everything|full (?:breakdown|rundown|picture)|go through|tell me all)\b/i;
+/** The spoken budget for a turn answering these words. Pure. */
+export function spokenBudget(question) {
+  return DEPTH_RE.test(String(question || '')) ? DEPTH_WORDS : SPOKEN_WORDS;
+}
+
+// the receipt lines code writes under a Coach reply (server/lib/coachProposals.js
+// receiptLines): shared format, so a change to their wording changes this too
+export const RECEIPT_RE = /^\s*(?:Done: |Not done yet: |Not on a card, so nothing changed: |Replaced the card that was waiting)/;
+const UNIT_RE = /[^\n.!?]*(?:[.!?]+(?=\s|$)["'”’)]*|\n|$)/g;
+const wordsIn = (t) => {
+  if (MACHINE_RE.test(t) || VIS_RE.test(t)) return 0;
+  const w = t.replace(/\[\[artifact:[^\]]*\]\]/gi, '').trim();
+  return w ? w.split(/\s+/).length : 0;
+};
+// finished sentences and lines, with where each ends; an unfinished tail is not one
+function unitsOf(s) {
+  const out = [];
+  let m;
+  UNIT_RE.lastIndex = 0;
+  while ((m = UNIT_RE.exec(s)) && m[0] !== '') {
+    const end = m.index + m[0].length;
+    const done = /[.!?]["'”’)]*$/.test(m[0]) || m[0].endsWith('\n');
+    if (!done && end >= s.length) break;
+    out.push({ start: m.index, end, text: m[0] });
+  }
+  return out;
+}
+
+/**
+ * Where a spoken turn of `budget` words ends: the end of the last finished
+ * sentence that fits (always at least the first). -1 when all of it fits.
+ * Pure, and stable as the text grows.
+ */
+export function budgetCut(text, budget = SPOKEN_WORDS) {
+  const s = String(text ?? '');
+  let words = 0;
+  let cut = -1;
+  for (const u of unitsOf(s)) {
+    const w = wordsIn(u.text);
+    if (w && words && words + w > budget) return cut;
+    words += w;
+    cut = u.end;
+  }
+  // everything finished fits; an unfinished tail may yet push it over
+  return words > budget ? cut : -1;
+}
+
+/** Fold a reply the model did not fold: the budget said, a later question moved last, the rest held. Pure. */
+export function budgetFold(text, budget = SPOKEN_WORDS) {
+  const s = String(text ?? '');
+  const cut = budgetCut(s, budget);
+  if (cut === -1) return { said: s, held: null };
+  const before = s.slice(0, cut).replace(/\s+$/, '');
+  const machine = [];
+  const prose = [];
+  for (const line of s.slice(cut).split('\n')) {
+    if (MACHINE_RE.test(line)) machine.push(line.trim());
+    else if (!VIS_RE.test(line)) prose.push(line);
+  }
+  // code's own receipts (coachProposals.receiptLines): a change made, or one
+  // that did not land, is always said, whatever the budget
+  const receipts = [];
+  const kept = [];
+  for (const line of prose) (RECEIPT_RE.test(line) ? receipts : kept).push(line.trim());
+  let rest = kept.join('\n');
+  if (!rest.trim()) return { said: s, held: null };
+  // the last question he is asked, wherever it sat, ends the spoken turn
+  const qs = unitsOf(rest).filter((u) => /\?["'”’)]*\s*$/.test(u.text.trim()));
+  const q = qs[qs.length - 1];
+  let ask = '';
+  if (q) {
+    ask = q.text.trim();
+    rest = rest.slice(0, q.start) + rest.slice(q.end);
+  }
+  const held = rest.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || null;
+  if (!held) return { said: s, held: null };
+  const close = ask || (/\?\s*$/.test(before) ? '' : 'Want the rest?');
+  const turn = [before, receipts.join(' '), close].filter(Boolean).join('\n\n');
+  return { said: [turn, ...machine].join('\n'), held };
 }
 
 /** What a reply still arriving may show or speak: everything before the mark. */
