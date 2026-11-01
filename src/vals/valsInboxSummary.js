@@ -289,6 +289,8 @@ export function valsInboxSummary(app, ctx, v) {
         yes: stale ? null : item.isModelChoice
           ? { label: `Keep ${item.keepLabel || 'the usual model'}`, aria: `Keep ${item.keepLabel || 'the usual model'} for ${sentence}`, run: keepRun }
           : { label: item.ship ? 'Ship it' : sug ? yesLabel(sentence) : REPORT_KINDS.has(r.kind) ? 'Keep it' : 'File it', aria: `${item.approveLabel}: ${sentence}`, run: approveRun },
+        // a pending plan with a failed step reruns just that step (valsInbox planCanRetry)
+        retry: item.canRetry && item.retry ? { label: 'Retry', aria: `Retry: ${sentence}`, run: item.retry } : null,
         talk,
         no: { label: item.isModelChoice ? 'Skip this week' : stale ? 'Clear it' : 'Discard', run: discardRun },
       },

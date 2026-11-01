@@ -4,12 +4,17 @@ import { Ico } from './InboxSumIcons.jsx';
 // ✓ · Talk about it · ✕ — the card's, and the report sheet's (on the parent)
 export function Verbs({ verbs, busy, tight, talkOn }) {
   if (!verbs) return null;
-  const { yes, talk, no } = verbs;
+  const { yes, talk, no, retry } = verbs;
   return (
     <div className={`nv-sum-ib-answer${tight ? ' tight' : ''}`}>
       {yes && (
         <Interactive as="button" className="nv-sum-ib-yes" onClick={busy ? undefined : yes.run} aria-label={yes.aria} haptic="commit" base={{ cursor: 'pointer' }}>
           <Ico name="check" /><span className="lbl">{busy ? 'Working…' : yes.label}</span>
+        </Interactive>
+      )}
+      {retry && (
+        <Interactive as="button" className="nv-sum-ib-talk" onClick={busy ? undefined : retry.run} aria-label={retry.aria} haptic="tick" base={{ cursor: 'pointer' }}>
+          <Ico name="loop" />{retry.label}
         </Interactive>
       )}
       {talk && (
