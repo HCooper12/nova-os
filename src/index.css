@@ -4765,11 +4765,15 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-nt-stasks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .nv-nt-stheard { left: 28px; right: 28px; top: 446px; text-align: center; font: italic 400 22px/1.35 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; }
 .nv-nt-stheard small { display: block; margin-bottom: 6px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+/* a long question never runs into the hint (1 Nov 2026): four lines, then … */
+.nv-nt-sthw { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 .nv-nt-sthw .w { display: inline-block; white-space: pre; animation: nvStHw .28s var(--nv-ease) both; }
 @keyframes nvStHw { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
 .nv-nt-sthint { position: absolute; left: 0; right: 0; top: calc(var(--st-ctop, 762px) - 66px); margin: 0; display: flex; justify-content: center; align-items: center; gap: 6px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink40); transition: opacity var(--nv-dur-base) var(--nv-ease); }
 .nv-nt-sthint .nv-nt-ico { width: 15px; height: 15px; }
 .nv-nt-osec[data-state="listen"] .nv-nt-sthint, .nv-nt-osec[data-state="speak"] .nv-nt-sthint, .nv-nt-osec[data-crowded][data-state="idle"] .nv-nt-sthint { opacity: 0; }
+/* the "Tap to hear" strip (a reply he has not heard yet) takes the hint's place */
+.nv-nt:has(.nv-nt-strip) .nv-nt-sthint { opacity: 0; }
 
 /* the plate and its serif subtitles (mockup 106 .plate, .who, .pq, .pa, .w) */
 .nv-nt-stplate {
@@ -4785,11 +4789,25 @@ button.nv-ts-cd[disabled] { cursor: default; }
   background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-hue) 45%, transparent);
 }
 .nv-nt-stplate .nv-fx-who .dot { width: 12px; height: 12px; background: var(--fx-hue); box-shadow: none; }
-.nv-nt-stasked { flex: none; margin: 0 0 10px; font: italic 400 15px/1.35 var(--nv-font-serif); color: var(--nv-ink50); }
+/* HIS QUESTION, ONE LINE (1 Nov 2026, his recording: a long question filled
+   the plate and Nova's words were never seen). Mockup 106's .pq is one line
+   over .pa; a longer question is cut with an ellipsis, never wrapped */
+.nv-nt-stasked { flex: none; margin: 0 0 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: italic 400 15px/1.35 var(--nv-font-serif); color: var(--nv-ink50); }
 .nv-nt-stasked b { margin-right: 7px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
-.nv-nt-stplate .nv-fx-dock { flex: none; max-height: 45%; margin-bottom: 10px; }
-.nv-nt-stplate .nv-fx-pbody { margin-top: 0; -webkit-mask-image: none; mask-image: none; }
-.nv-nt-stplate .nv-fx-pbody[data-scrolled] { -webkit-mask-image: linear-gradient(transparent 0, #000 28px); mask-image: linear-gradient(transparent 0, #000 28px); }
+/* A PANEL ON THE PLATE (1 Nov 2026): the plate reaches down to 12 px over the
+   composer while one is up (the hint it would leave room for is hidden while
+   Nova speaks), the panel's tag is one line with the lit part's name in it,
+   and the card is fitted whole by the driver (NovaStage PlatePanel) */
+.nv-nt-stplate[data-panel] { height: calc(var(--st-ctop, 762px) - 12px - 426px); }
+.nv-nt-stplate .nv-fx-dock { flex: 0 1 auto; min-height: 0; margin-bottom: 10px; }
+.nv-nt-stplate .nv-fx-panel { padding: 8px 12px 10px; }
+.nv-nt-stplate .nv-fx-ptag { min-width: 0; white-space: nowrap; }
+.nv-nt-stplate .nv-fx-litname { display: inline; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; }
+.nv-nt-stplate .nv-fx-card { display: block; margin-top: 6px; overflow: hidden; zoom: 1; }
+.nv-nt-stplate .nv-fx-cardin { position: relative; display: block; transform-origin: 50% 0; }
+/* Nova's words always keep two lines of the plate (25 px serif at 1.3, and
+   the underline's 4 px): whatever else the plate holds gives way first */
+.nv-nt-stplate .nv-fx-pbody { flex: 1 0 auto; min-height: calc(2 * (25px * 1.3 + 4px) + 9px); margin-top: 0; -webkit-mask-image: none; mask-image: none; }
 .nv-nt-stplate .nv-fx-pcol { top: 0; left: 0; right: 0; margin: 0; font: 400 25px/1.3 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
 .nv-nt-stplate .nv-fx-pcol p, .nv-nt-stplate .nv-fx-pcol p.earlier { display: inline; margin: 0; font: inherit; color: inherit; }
 .nv-nt-stplate .nv-fx-w { color: var(--nv-ink); transition: color var(--nv-dur-base) var(--nv-ease); }

@@ -315,7 +315,7 @@ test('App wires it: the poll keeps the stances, every piece carries its own, bot
   const app = read('src/App.jsx');
   assert.match(app, /import \{ stanceOfSpan \} from '\.\/glassBeats\.js';/);
   assert.match(app, /const seen = parseVisualStream\(streamShown\(job\.partial\)\);\n\s*this\.setGlassBeats\(seen\.beats\);\n(?:\s*\/\/[^\n]*\n)*\s*stream\.stances = seen\.stances;\n(?:\s*\/\/[^\n]*\n)*\s*const shown = stripShow\(cutHeld\(seen\.text\)\);/);
-  assert.match(app, /const stream = \{ spokenUpTo: 0, stances: \[\] \};/);
+  assert.match(app, /const stream = \{ spokenUpTo: 0, stances: \[\](, lastRunningAt)? \};/);
   // both splitters, exactly as streamPieces above models them
   assert.match(app, /const pieces = fresh\.match\(\/\[\^\.!\?\]\*\[\.!\?\]\+\[\\s\]\*\|\[\^\.!\?\]\+\$\/g\) \|\| \[fresh\];\n\s*let off = startedAt;\n\s*for \(const p of pieces\) \{ if \(p\.trim\(\)\) say\(p, off, stanceOfSpan\(stream\.stances, text, off, off \+ p\.length\)\); off \+= p\.length; \}/);
   assert.match(app, /for \(const p of m\[0\]\.match\(\/\[\\s\\S\]\*\?\[\.!\?\]\(\?=\\s\|\$\)\\s\*\/g\) \|\| \[m\[0\]\]\) \{ if \(p\.trim\(\)\) say\(p, off, stanceOfSpan\(stream\.stances, text, off, off \+ p\.length\)\); off \+= p\.length; \}/);

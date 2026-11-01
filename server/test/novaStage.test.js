@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasProgress, lastExchange, stageState, stageScale, TRAVEL_PX, PRESENTER_RATIO, STAGE, PRESENTER, ONE_NOVA_CHROME, STAGE_SPEAK } from '../../src/novaStageFacts.js';
+import { canvasProgress, lastExchange, stageState, stageScale, panelFit, cleanCuts, TRAVEL_PX, PRESENTER_RATIO, STAGE, PRESENTER, ONE_NOVA_CHROME, STAGE_SPEAK } from '../../src/novaStageFacts.js';
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
@@ -101,4 +101,60 @@ test('a turn that starts while he is up in the history brings him down to the st
   const src = read('src/NovaStage.jsx');
   assert.match(src, /if \(turning && !wasTurning\.current && drive\.current\.sp > 0\.02\) toStageRef\.current\(true\);/);
   assert.match(src, /if \(d\.pinned\) main\.scrollTop = main\.scrollHeight;\n\s*else if \(d\.seeking\) toStageRef\.current\(true\);/);
+});
+
+test('speaking (1 Nov, his recording): his question is one line, Nova\'s words keep two whole lines, and they move by whole lines', () => {
+  const css = read('src/index.css');
+  const block = css.slice(css.indexOf('ONE NOVA STAGE (31 Oct 2026)'), css.indexOf('/* end of the One Nova stage */'));
+  assert.match(block, /\.nv-nt-stasked \{[^}]*white-space: nowrap; text-overflow: ellipsis;/, 'a long question never fills the plate');
+  assert.match(block, /\.nv-nt-stplate \.nv-fx-pbody \{ flex: 1 0 auto; min-height: calc\(2 \* \(25px \* 1\.3 \+ 4px\) \+ 9px\);/);
+  assert.match(block, /\.nv-nt-stplate \.nv-fx-dock \{[^}]*flex: 0 1 auto; min-height: 0;/, 'the panel gives way, never the words');
+  const src = read('src/NovaStage.jsx');
+  assert.ok(src.indexOf('className="nv-nt-stasked"') < src.indexOf('<PlatePanel key'), 'mockup 106 order: You, then what is showing, then the words');
+  assert.match(read('src/NovaFocus.jsx'), /const top = lineTops\.find\(\(t\) => t >= -y - 0\.5\);/, 'the first line in view is never cut in half');
+});
+
+test('the panel on the plate is whole (1 Nov, his recording): the card entire, whole rows, or the card drawn smaller', () => {
+  // a card that fits is shown as it is
+  assert.deepEqual(panelFit({ natural: 90, room: 100, cuts: [] }), { mode: 'whole', height: 90, scale: 1 });
+  // a program: a label, then rows of 33; room for the label and two rows
+  const rows = [
+    { top: 0, bottom: 17, leaf: true },                       // the label
+    { top: 27, bottom: 225, leaf: false },                    // the list
+    ...[0, 1, 2, 3, 4, 5].map((i) => ({ top: 27 + i * 33, bottom: 27 + i * 33 + 28, leaf: true })), // filled rows
+  ];
+  const cuts = cleanCuts(rows);
+  assert.ok(!cuts.some((y) => y > 27 && y < 55), 'never inside the first row');
+  const f = panelFit({ natural: 225, room: 100, cuts });
+  assert.equal(f.mode, 'cut');
+  assert.equal(f.height, 88, 'the foot of the second row: two whole rows, the rest in the sheet');
+  // a figure is one piece: nothing whole fits, so the whole of it is drawn smaller
+  const fig = cleanCuts([{ top: 0, bottom: 17, leaf: true }, { top: 23, bottom: 273, leaf: true }]);
+  const g = panelFit({ natural: 273, room: 91, cuts: fig });
+  assert.equal(g.mode, 'scale');
+  assert.equal(g.height, 91);
+  assert.ok(Math.abs(g.scale - 91 / 273) < 1e-9);
+  // nothing measured yet: as it is
+  assert.equal(panelFit({ natural: 0, room: 80 }).mode, 'whole');
+  const src = read('src/NovaStage.jsx');
+  assert.match(src, /const next = panelFit\(\{ natural, room, cuts: cleanCuts\(piecesOf\(inner\)\) \}\);/);
+  assert.match(src, /while \(p && p !== inner\) \{ top \+= p\.offsetTop; p = p\.offsetParent; \}/, 'layout boxes, never painted rects (rows arrive by transform)');
+  assert.doesNotMatch(read('src/index.css').slice(read('src/index.css').indexOf('ONE NOVA STAGE (31 Oct 2026)')), /\.nv-nt-stplate \.nv-fx-dock \{[^}]*max-height: 45%/, 'no clip box that cuts the card mid-row');
+});
+
+test('listening after the keyboard (1 Nov, his black, core-less screen): the fixed layers never take a rect read while iOS has the document scrolled', () => {
+  const src = read('src/NovaStage.jsx');
+  const m = src.slice(src.indexOf('const measure = () => {'), src.indexOf('const measureRef = useRef(measure);'));
+  // in-flow rects are put back by the document's own scroll
+  assert.match(m, /const sy = window\.scrollY \|\| 0;/);
+  assert.match(m, /const mr = \{ left: m0\.left \+ sx, top: m0\.top \+ sy,/);
+  assert.match(m, /const top = sec\.getBoundingClientRect\(\)\.top \+ sy \+ off;/);
+  // the ground fills the screen by CSS: only its sides follow <main>
+  assert.match(m, /el\.style\.left = `\$\{mr\.left\}px`; el\.style\.width = `\$\{mr\.width\}px`;\n/);
+  assert.doesNotMatch(m, /el\.style\.height = /);
+  // and a document scroll, the keyboard leaving, a return to the page measure again
+  for (const re of [/window\.addEventListener\('scroll', remeasure, \{ passive: true \}\);/, /window\.addEventListener\('pageshow', remeasure\);/,
+    /document\.addEventListener\('focusout', remeasure\);/, /vv\?\.addEventListener\('resize', remeasure\);/, /document\.addEventListener\('visibilitychange', onVisible\);/]) assert.match(src, re);
+  const css = read('src/index.css');
+  assert.match(css, /\.nv-nt-ground \{ position: fixed; z-index: 0; left: 0; top: 0; width: 100vw; height: 100dvh;/);
 });

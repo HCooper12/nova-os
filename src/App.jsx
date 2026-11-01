@@ -27,6 +27,7 @@ import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './d
 import { css } from './css.js';
 import { api, getConnection, setConnection, testConnection, OFFLINE_MESSAGE } from './api.js';
 import { pollJob } from './jobPoller.js';
+import { replyOnReturn, pendingWorthResuming, unheardRest } from './replyReturn.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
@@ -1016,13 +1017,18 @@ export default class App extends Component {
     try {
       const pending = JSON.parse(localStorage.getItem('novaos.askJob') || 'null');
       const conn = getConnection();
-      if (pending?.jobId && conn && Date.now() - (pending.askedAt || 0) < 10 * 60_000) {
+      // A DAY, NOT TEN MINUTES (1 Nov 2026): iOS can hold the app closed far
+      // longer than that, and the Mac keeps a settled answer on disk; the
+      // reply comes back to the chat on the next launch (src/replyReturn.js)
+      if (conn && pendingWorthResuming(pending, Date.now())) {
         this.setState({ voiceBusy: true });
         // THE LANE RIDES WITH THE JOB (18 Oct 2026 audit): a Coach answer picked
         // up after a reclaim was re-attached with no agent, so its session id
         // was saved as Nova's and three later Nova turns ran inside the Coach's
         // session (184k and 239k cold tokens, $3.30 and $7.63).
-        this.attachAskPoll(conn, pending.jobId, { agent: pending.agent || null });
+        // It was last known running when he asked: found finished later than
+        // a minute on, it is shown, not spoken
+        this.attachAskPoll(conn, pending.jobId, { agent: pending.agent || null, lastRunningAt: pending.askedAt });
       } else if (pending) {
         localStorage.removeItem('novaos.askJob');
       }
@@ -1036,6 +1042,16 @@ export default class App extends Component {
         this.watchPlanRun(pendingPlan.recordId);
       } else if (pendingPlan) {
         localStorage.removeItem('novaos.planRun');
+      }
+    } catch { /* best-effort */ }
+    // and a quick session the Coach was still building (1 Nov 2026)
+    try {
+      const pendingQuick = JSON.parse(localStorage.getItem('novaos.quickJob') || 'null');
+      if (getConnection() && pendingWorthResuming(pendingQuick, Date.now())) {
+        this.setState({ quickBusy: true });
+        this.attachQuickPoll(getConnection(), pendingQuick.jobId);
+      } else if (pendingQuick) {
+        localStorage.removeItem('novaos.quickJob');
       }
     } catch { /* best-effort */ }
     // same reclaim, for a food scan/describe that was mid-flight — see
@@ -1087,7 +1103,10 @@ export default class App extends Component {
     };
     document.addEventListener('visibilitychange', this.visH);
     // an answer in flight is looked at the instant he is back (attachAskPoll)
-    this.askVisH = () => { if (document.visibilityState === 'visible') this.pollAskNow(); };
+    // and the conversation record too (1 Nov 2026): a reply another door
+    // finished, or one this phone committed before iOS froze it, is in the
+    // thread the moment he is back (a GET; mergeRecord keeps what is here)
+    this.askVisH = () => { if (document.visibilityState === 'visible') { this.pollAskNow(); this.loadConversationRecord(); } };
     document.addEventListener('visibilitychange', this.askVisH);
     window.addEventListener('pageshow', this.askVisH);
     // HE IS HERE (src/greetDue.js): a touch, a key, or the page coming into
@@ -8036,7 +8055,11 @@ export default class App extends Component {
   // eat the in-flight answer along with the poll.
   // `turn`: the receipt this ask is stamping (askNova), so the wait he sat
   // through is measured where it happens; absent on a re-attach after boot.
-  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null } = {}) {
+  // `lastRunningAt`: when the job was last known to be running (a re-attach
+  // after a relaunch passes when he asked); a reply found finished more than
+  // a minute after that is shown at once and offered, never spoken
+  // (src/replyReturn.js, 1 Nov 2026).
+  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null, lastRunningAt = Date.now() } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
     // he can barge in, which left nothing saying "more sentences are coming":
@@ -8051,7 +8074,7 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     // `stances`: where this reply pushes back (the latest parse), so each
     // sentence queued for the voice can carry its own (glassBeats.stanceOfSpan)
-    const stream = { spokenUpTo: 0, stances: [] };
+    const stream = { spokenUpTo: 0, stances: [], lastRunningAt };
     this.resetGlass();   // last turn's panels do not belong to this one
     beginReply();        // …nor do its captions (the full-screen Nova, speechClock.js)
     const elevenPath = this.ttsUsable();
@@ -8179,7 +8202,12 @@ export default class App extends Component {
     // rule): the poll gives up only when the server says done or error, or
     // when the Mac has been unreachable for more than 60 s in a row.
     let failingSince = 0;
-    const fetchAskJob = () => api.claudeCodeJob(conn, jobId).then((job) => { failingSince = 0; return job; }, (e) => {
+    const fetchAskJob = () => api.claudeCodeJob(conn, jobId).then((job) => {
+      failingSince = 0;
+      // seen still running, with him in front of it: the reply lands after this
+      if (job?.status === 'running' && (typeof document === 'undefined' || document.visibilityState !== 'hidden')) stream.lastRunningAt = Date.now();
+      return job;
+    }, (e) => {
       if (e?.status !== 404) {
         const now = Date.now();
         if (!failingSince) failingSince = now;
@@ -8363,6 +8391,24 @@ export default class App extends Component {
             });
           }
         };
+        // FOUND FINISHED ON HIS RETURN (1 Nov 2026, his report: the reply
+        // was not in the chat until much later, or never). On the spoken path
+        // the words reached the screen only as their audio played, and iOS
+        // had frozen the audio with the page. A reply that landed while he
+        // was away is put in the chat NOW, whole, and not spoken: one tap on
+        // the strip plays what he has not heard (src/replyReturn.js).
+        const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
+        if (replyOnReturn({ now: Date.now(), lastRunningAt: stream.lastRunningAt, visible }) === 'show') {
+          if (this.replyStreaming === jobId) this.replyStreaming = null;
+          // what this reply had queued before he left is stale now
+          if (stream.spokenUpTo > 0 && (this.speechActive || 0) > 0) this.stopSpeaking();
+          this.setState({ voiceBusy: false });
+          commit();
+          const rest = this.state.voiceSpeak ? lintSpoken(toSpokenProse(speakableText(unheardRest(spokenText, stream.spokenUpTo), { final: true }))) : '';
+          if (rest.trim()) this.noteSpeechUnavailable([rest], 'you were away when it arrived');
+          postTurn();
+          return;
+        }
         if (this.replyStreaming === jobId) this.replyStreaming = null; // every sentence is now queued or spoken
         this.setState({ voiceBusy: false }, () => {
           // The last sentence may already have been spoken from a partial
@@ -13446,25 +13492,34 @@ export default class App extends Component {
     if (!conn || this.state.quickBusy) return;
     this.setState({ quickBusy: true, quickPlan: null });
     api.quickSession(conn, Number(this.state.quickMinutes), this.state.quickNote.trim()).then(({ jobId }) => {
-      this.startPoll('quick', () => api.claudeCodeJob(conn, jobId), {
-        timeoutMs: 3 * 60_000,
-        onReady: (job) => {
-          api.quickSessionPrepare(conn, job.result.plan).then(({ session }) => {
-            this.setState({ quickBusy: false, quickPlan: session });
-            this.announceAway({ here: this.state.screen === 'workouts', title: 'Your quick session is ready', text: session.name || '', go: () => this.navigate('workouts') });
-          }).catch((e) => {
-            this.setState({ quickBusy: false });
-            this.toastMsg('Plan came back unusable: ' + e.message);
-          });
-        },
-        onError: (msg) => {
-          this.setState({ quickBusy: false });
-          this.toastMsg('Coach could not build the session: ' + msg);
-        },
-      });
+      // kept on the phone until it lands (1 Nov 2026): iOS closing the app
+      // mid-build no longer loses the session; boot picks it up again
+      try { localStorage.setItem('novaos.quickJob', JSON.stringify({ jobId, startedAt: Date.now() })); } catch { /* best-effort */ }
+      this.attachQuickPoll(conn, jobId);
     }).catch((e) => {
       this.setState({ quickBusy: false });
       this.toastMsg('Quick session failed: ' + e.message);
+    });
+  }
+  attachQuickPoll(conn, jobId) {
+    const clearJob = () => { try { localStorage.removeItem('novaos.quickJob'); } catch { /* best-effort */ } };
+    this.startPoll('quick', () => api.claudeCodeJob(conn, jobId), {
+      timeoutMs: 3 * 60_000,
+      onReady: (job) => {
+        clearJob();
+        api.quickSessionPrepare(conn, job.result.plan).then(({ session }) => {
+          this.setState({ quickBusy: false, quickPlan: session });
+          this.announceAway({ here: this.state.screen === 'workouts', title: 'Your quick session is ready', text: session.name || '', go: () => this.navigate('workouts') });
+        }).catch((e) => {
+          this.setState({ quickBusy: false });
+          this.toastMsg('Plan came back unusable: ' + e.message);
+        });
+      },
+      onError: (msg) => {
+        clearJob();
+        this.setState({ quickBusy: false });
+        this.toastMsg('Coach could not build the session: ' + msg);
+      },
     });
   }
   startQuickPlanSession() {

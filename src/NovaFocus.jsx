@@ -474,6 +474,8 @@ export function Captions({ said, on, speaker, markHue = null, pour = null, look 
     let lastCi = -2;
     let lastY = null;
     let lastMark = null;
+    let lineTops = [];
+    let lineKey = -1;
     let raf = 0;
     // a word pours once; words already said when the screen opens never do
     const poured = new Set();
@@ -527,7 +529,15 @@ export function Captions({ said, on, speaker, markHue = null, pour = null, look 
         // would pass the plate's foot
         const j = Math.max(0, Math.min(paced[ci].spans.length - 1, wordAt(paced[ci].spans, t)));
         const w = words[ci]?.[j];
-        if (w) y = Math.round(Math.min(0, body.clientHeight - 8 - col.offsetTop - (w.offsetTop + w.offsetHeight)));
+        if (w) y = Math.min(0, body.clientHeight - 8 - col.offsetTop - (w.offsetTop + w.offsetHeight));
+        // by whole lines (1 Nov 2026): the column moves to the top of a
+        // line, so the first line in view is never cut in half
+        if (y < 0) {
+          if (lineKey !== col.offsetHeight) { lineKey = col.offsetHeight; lineTops = [...new Set(words.flat().map((x) => x.offsetTop))].sort((a, b) => a - b); }
+          const top = lineTops.find((t) => t >= -y - 0.5);
+          if (Number.isFinite(top)) y = -top;
+        }
+        y = Math.round(y);
         if (y !== lastY) body.toggleAttribute('data-scrolled', y < 0);
       } else if (p) {
         const top = col.offsetTop;
