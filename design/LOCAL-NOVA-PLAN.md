@@ -394,6 +394,27 @@ enforced by code. ChatGPT free, Grok and Siri as apps remain not programmable.
 Order: Apple model as backend 3 (cheap to build, measured already), then the
 Chrome-read research lane, then Gemini only if he wants a free cloud brain
 for public questions.
+**Built the same evening (1 Nov), both measured:**
+
+- *Apple's on-device model* (2d89db6a): `server/apple-llm/main.swift`, backend
+  `apple` in lib/localModel.js, runtime JSON schemas work (GenerationSchema is
+  Codable). On the 40-capture inbox harness: 35/40 parsed, 37 % route agreement
+  with Haiku (the 4B: 39/40, 51 %), 4.1 s median, warm short sort 1.4 s; never
+  picks `note`, over-picks `idea`, three guardrail refusals on one harmless
+  capture. Verdict: the stand-in when the Mac has no room to load the 4B
+  (`NOVA_LOCAL_APPLE_STANDIN=0` turns it off), not the default. Re-measure once
+  a lane passes it a schema.
+- *The Chrome-read research lane* (2fbd9132): lib/localResearch.js + the
+  `web_research` tool on the local Ask loop + askRoute `webLookup`. Reads work
+  (four pages in 1.45 s, one local summary, citations checked by code). The
+  search half does NOT: every engine refuses headless Chrome (DuckDuckGo and
+  Brave captcha, Google /sorry, Startpage denied, Mojeek 403, Ecosia
+  Cloudflare) and Bing returns parseable junk for most queries. Nova never
+  gets round a refusal; a lookup fails honestly in 3–5 s and goes to Claude.
+  His call: a keyed search API (Brave: the free 2,000/month plan may have
+  become $5 of monthly credit; query text kept 90 days; never his notes),
+  sign into Bing in the profile (unverified), or leave it.
+
 
 ## 5. Order of work
 
