@@ -54,10 +54,12 @@ export function micRoute(label) {
  *   hidden       — the page is not on screen
  *   route        — micRoute of the track
  *   live         — the track is still delivering (not ended)
+ *   muted        — iOS has muted the track (it records nothing while muted)
  */
-export function warmDecision({ enabled = true, conversing = false, userOpened = false, hidden = false, route = 'unknown', live = true } = {}) {
+export function warmDecision({ enabled = true, conversing = false, userOpened = false, hidden = false, route = 'unknown', live = true, muted = false } = {}) {
   if (!enabled) return { keep: false, why: 'off' };
   if (!live) return { keep: false, why: 'ended' };
+  if (muted) return { keep: false, why: 'muted' };
   if (hidden) return { keep: false, why: 'hidden' };
   if (!conversing) return { keep: false, why: 'not-conversing' };
   if (!userOpened) return { keep: false, why: 'not-his' };
@@ -74,6 +76,26 @@ const enabledOnDevice = () => {
 };
 const trackOf = (stream) => stream?.getAudioTracks?.()[0] || null;
 const isLive = (stream) => trackOf(stream)?.readyState === 'live';
+const isMuted = (stream) => !!trackOf(stream)?.muted;
+// THE MUTED MICROPHONE (1 Nov 2026, his "it is not hearing me" all day).
+// Three times that day a long Coach answer ended, the conversation opened
+// the mic for his reply, and iOS handed back a track that was already muted:
+// readyState 'live', 5 bytes recorded. The hold then kept that stream (it
+// only checked 'live') and every later turn, his own taps included, recorded
+// on it. A muted track is not a microphone: it is never held or reused, and a
+// fresh one that arrives muted gets a moment to come back, then one reopen.
+export const UNMUTE_WAIT_MS = 1200;
+const REOPEN_GAP_MS = 300;
+function waitUnmute(stream, ms) {
+  const tr = trackOf(stream);
+  if (!tr?.muted) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; clearTimeout(t); resolve(v); };
+    const t = setTimeout(() => finish(!tr.muted), ms);
+    try { tr.addEventListener?.('unmute', () => finish(true)); } catch { /* old engine */ }
+  });
+}
 const stopAll = (stream) => { try { stream?.getTracks().forEach((t) => t.stop()); } catch { /* gone */ } };
 
 // module state: one microphone, one owner (a dictation hook instance)
@@ -96,7 +118,7 @@ export function warmHeld(owner = null) {
 }
 export const lastWarmDrop = () => lastDrop;
 
-const STREAM_FAULTS = new Set(['dead', 'ended', 'muted', 'replaced']);
+const STREAM_FAULTS = new Set(['dead', 'ended', 'muted', 'replaced', 'empty']);
 /** Let the held stream go: tracks stopped, the session handed back. */
 export function dropWarm(reason = 'drop', owner = null) {
   if (!warm || (owner && warm.owner !== owner)) return false;
@@ -118,17 +140,22 @@ export function dropWarm(reason = 'drop', owner = null) {
 export async function takeMic({ owner = null, trigger = 'tap', getUserMedia = null } = {}) {
   watchPage();
   if (USER_TRIGGERS.has(trigger)) chainUser = true;
-  if (warm && warm.owner === owner && isLive(warm.stream)) {
+  if (warm && warm.owner === owner && isLive(warm.stream) && !isMuted(warm.stream)) {
     clearTimeout(warm.timer);
     warm.timer = 0;
     return { stream: warm.stream, reused: true, warmMs: Date.now() - warm.at };
   }
-  // another surface's stream, or a dead one: never two microphones at once
-  if (warm) dropWarm(warm.owner === owner ? 'dead' : 'other-owner');
+  // another surface's stream, a dead or a muted one: never two microphones at once
+  if (warm) dropWarm(warm.owner !== owner ? 'other-owner' : isLive(warm.stream) ? 'muted' : 'dead');
   if (USER_TRIGGERS.has(trigger)) chainUser = true;   // another owner's drop cleared it
   const gum = getUserMedia || ((c) => navigator.mediaDevices.getUserMedia(c));
-  const stream = await gum({ audio: CAPTURE });
-  return { stream, reused: false, warmMs: null };
+  let stream = await gum({ audio: CAPTURE });
+  if (await waitUnmute(stream, UNMUTE_WAIT_MS)) return { stream, reused: false, warmMs: null };
+  // still muted: let it go and ask once more (the receipt says so)
+  stopAll(stream);
+  await new Promise((r) => setTimeout(r, REOPEN_GAP_MS));
+  stream = await gum({ audio: CAPTURE });
+  return { stream, reused: false, warmMs: null, reopened: true };
 }
 
 /**
@@ -140,7 +167,7 @@ export function giveBackMic(stream, { owner = null, conversing = false } = {}) {
   const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
   const d = warmDecision({
     enabled: enabledOnDevice(), conversing, userOpened: chainUser, hidden,
-    route: micRoute(trackOf(stream)?.label), live: isLive(stream),
+    route: micRoute(trackOf(stream)?.label), live: isLive(stream), muted: isMuted(stream),
   });
   if (!d.keep) {
     if (warm && warm.stream === stream) dropWarm(d.why);

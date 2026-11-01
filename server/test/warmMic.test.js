@@ -119,3 +119,76 @@ test('the receipt says whether the stream was reused, which mic, and why it was 
   const bad = listenFields({ micReused: 'yes', micRoute: 'usb', micKept: 'because' });
   for (const k of ['micReused', 'micRoute', 'micKept']) assert.equal(k in bad, false, k);
 });
+
+// 1 Nov 2026, his "it is not hearing me" all day: after a long Coach answer
+// the conversation's mic came back MUTED (readyState 'live', 5 bytes), the
+// hold kept it, and every later turn, his taps included, recorded on it.
+function mutedStream(label = 'iPhone Microphone') {
+  const s = fakeStream(label);
+  s.track.muted = true;
+  return s;
+}
+
+test('a muted microphone is never held', () => {
+  const ok = { enabled: true, conversing: true, userOpened: true, hidden: false, route: 'builtin', live: true };
+  assert.deepEqual(W.warmDecision({ ...ok, muted: true }), { keep: false, why: 'muted' });
+  assert.equal(listenFields({ micKept: 'muted', micReopened: true }).micKept, 'muted');
+  assert.equal(listenFields({ micReopened: true }).micReopened, true);
+});
+
+test('the replay of 1 Nov: a muted first mic is reopened, never kept, never reused', async () => {
+  W._resetWarmMic();
+  const owner = {};
+  const opened = [];
+  // first getUserMedia hands back a muted track that never comes back; the reopen is fine
+  const gum = async () => { const s = opened.length === 0 ? mutedStream() : fakeStream(); opened.push(s); return s; };
+  const t0 = Date.now();
+  const a = await W.takeMic({ owner, trigger: 'conv-start', getUserMedia: gum });
+  assert.ok(Date.now() - t0 >= W.UNMUTE_WAIT_MS - 50, 'gave the muted track a moment first');
+  assert.equal(opened.length, 2, 'reopened once');
+  assert.equal(opened[0].track.stopped, 1, 'the muted one was let go');
+  assert.equal(a.stream, opened[1]);
+  assert.equal(a.reopened, true);
+  W._resetWarmMic();
+});
+
+test('a held stream that goes muted is not reused: his tap gets a fresh mic', async () => {
+  W._resetWarmMic();
+  const owner = {};
+  let opens = 0;
+  const gum = async () => { opens += 1; return fakeStream(); };
+  const a = await W.takeMic({ owner, trigger: 'tap', getUserMedia: gum });
+  assert.equal(W.giveBackMic(a.stream, { owner, conversing: true }).keep, true);
+  a.stream.track.muted = true;   // iOS mutes it while held, no event delivered
+  const b = await W.takeMic({ owner, trigger: 'tap', getUserMedia: gum });
+  assert.equal(b.reused, false);
+  assert.notEqual(b.stream, a.stream);
+  assert.equal(a.stream.track.stopped, 1);
+  assert.equal(opens, 2);
+  // and a stream muted at the end of a turn is let go, not held
+  b.stream.track.muted = true;
+  assert.equal(W.giveBackMic(b.stream, { owner, conversing: true }).why, 'muted');
+  assert.equal(b.stream.track.stopped, 1);
+  W._resetWarmMic();
+});
+
+test('a muted fresh track that comes back within the wait is used as is', async () => {
+  W._resetWarmMic();
+  let opens = 0;
+  const gum = async () => {
+    opens += 1;
+    const s = mutedStream();
+    setTimeout(() => { s.track.muted = false; s.track.listeners.unmute?.(); }, 50);
+    return s;
+  };
+  const a = await W.takeMic({ owner: {}, trigger: 'tap', getUserMedia: gum });
+  assert.equal(opens, 1);
+  assert.equal(a.reopened, undefined);
+  W._resetWarmMic();
+});
+
+test('an empty capture is said plainly and drops the held mic', () => {
+  const src = read('src/useDictation.js');
+  assert.match(src, /cause === 'empty-capture'\) \{\s*\n\s*dropWarm\('empty'/);
+  assert.match(src, /muted microphone, so nothing was recorded/);
+});

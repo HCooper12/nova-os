@@ -403,7 +403,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     setBlind(false);
     setHearing(true);
     const blindMs = handle?.blindMs?.() ?? 0;
-    const micFacts = handle ? { micReused: !!handle.reused, micRoute: micRoute(handle.trackLabel?.()) } : null;
+    const micFacts = handle ? { micReused: !!handle.reused, micRoute: micRoute(handle.trackLabel?.()), ...(handle.reopened ? { micReopened: true } : {}) } : null;
     const diagnosis = handle?.diagnosis?.() || null;
     const vad = handle?.vad();
     const wasBlind = !!handle?.blind();
@@ -502,6 +502,16 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       } catch { /* never at the cost of the turn */ }
     }
     noteListenEnd({ reason, endedBy, trigger: meta.trigger });
+    // A MIC THAT RECORDED NOTHING (1 Nov 2026). The listen looked alive and
+    // ended in silence, all day. Say what happened, and make sure the next
+    // turn opens a fresh microphone instead of the one that failed.
+    if (cause === 'empty-capture') {
+      dropWarm('empty', ownerRef.current);
+      onError?.(diagnosis?.muted
+        ? 'the iPhone gave Nova a muted microphone, so nothing was recorded. Tap the mic to try again'
+        : 'the microphone recorded nothing. Tap the mic to try again');
+      return;
+    }
     // nothing to hand over: a draft waits in the composer; a turn the screen
     // ended or a mic that never opened is not an empty listen
     if (draft) return;

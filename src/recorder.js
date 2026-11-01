@@ -112,6 +112,7 @@ export async function openRecording({ onLevel, warm = null } = {}) {
     // for the receipt: did this turn record on a stream the last turn kept,
     // and which microphone (warmMic.micRoute reads the label)
     reused: !!got.reused,
+    reopened: !!got.reopened,   // the first stream came back muted (warmMic.js)
     trackLabel: () => stream.getAudioTracks?.()[0]?.label || '',
     vad: () => vad,
     blind: () => vadBlind(vad),
