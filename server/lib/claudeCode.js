@@ -1623,7 +1623,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
       const withdrawn = settled.withdrawn.filter((w) => w.ok).map((w) => w.id);
       const proposalOut = proposalsOut[0] || null;
       const coachPanel = await coachPanelFor(cwd, question);
-      turnJob.result = { text, more: coachHeld, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
+      turnJob.result = { text, more: coachHeld, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, ...(settled.quiet ? { receipt: settled.quiet } : {}), panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently

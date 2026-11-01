@@ -365,7 +365,8 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
   assert.match(app, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(this, ctx, withSettings\) \};\n  \}/);
   assert.match(app, /const glass = glassSnapshot\(s\.glassBeats, s\.glassVisuals\) \|\| undefined;/);
   // the door a turn came in by rides both of its rows (`meta`, 1 Oct)
-  assert.match(app, /const line = \{ at: Date\.now\(\), who, text, more, panel, proposal, acted, research, evidence, glass, \.\.\.\(from \? \{ from \} : \{\}\), \.\.\.via, \.\.\.\(meta \|\| \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');
+  // (1 Nov) and the quiet receipt of cards the Coach took back, never spoken
+  assert.match(app, /const line = \{ at: Date\.now\(\), who, text, more, panel, proposal, acted, research, evidence, glass, \.\.\.\(from \? \{ from \} : \{\}\), \.\.\.\(job\.result\.receipt \? \{ receipt: String\(job\.result\.receipt\) \} : \{\}\), \.\.\.via, \.\.\.\(meta \|\| \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');
   assert.match(app, /chat\.push\(line\)/);
   // EVERY DOOR (1 Oct): the Nova button on another page runs the one
   // pipeline (doOrb → askNova), so everything its reply carried lands exactly

@@ -8220,7 +8220,9 @@ export default class App extends Component {
             const via = answeredBy(job.result);
             // the rest it held for "go on" rides the line (src/turnFold.js)
             const more = job.result.more || undefined;
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...via, ...(meta || {}) };
+            // a card the Coach took back: a quiet receipt under the reply, never
+            // part of what is spoken (server/lib/coachProposals.js withdrawnNote)
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
