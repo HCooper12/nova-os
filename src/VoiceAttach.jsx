@@ -11,9 +11,9 @@ export function VoiceAttach({ a, where = 'mob' }) {
   return (
     <div className={`nv-vattach ${where}`} role="status" aria-live="polite">
       <Meta>{a.intake ? 'Setting up' : 'Talking about'}</Meta>
-      <Chip onClick={a.detach} ariaLabel={a.intake ? 'Call off the new project' : `Stop talking about ${a.name}`}
+      <Chip onClick={a.detach} ariaLabel={a.intake ? 'Call off the new project' : `Stop talking about ${a.name}${a.doc ? ` and ${a.doc}` : ''}`}
         title={a.intake ? 'Call it off; nothing is made' : 'Detach: Nova answers as usual'}>
-        <span className="nm">{a.name}</span><span aria-hidden="true" className="x">×</span>
+        <span className="nm">{a.name}{a.doc && <span className="doc"> · {a.doc}</span>}</span><span aria-hidden="true" className="x">×</span>
       </Chip>
       {a.open && <TextAction onClick={a.open}>Open</TextAction>}
     </div>

@@ -129,3 +129,19 @@ export async function projectDocSection(vaultPath, projectId, docRef, { kernel, 
     cap(body.trim(), DOC_CAP),
   ].join('\n');
 }
+
+// "TELL ME" IN THE VOICE CONVERSATION (T8, 1 Nov 2026). Where the card's
+// document goes on a given turn. `docRef` rides only his Tell me tap (the
+// first turn); `heldDocRef` rides the turns after it while the document is
+// attached. A resumed session already holds what it was told, so:
+//   docRef,    resumed session  -> on the live line, once
+//   docRef,    fresh context    -> in the context, after the PROJECT section
+//   heldDocRef, fresh context   -> in the context again (the session that
+//                                  held it is gone: a new day, a guard reset)
+//   heldDocRef, resumed session -> nowhere (the session holds it)
+// Neither given: nowhere, and the turn is exactly what it was.
+export function docPlacement({ docRef = null, heldDocRef = null, sessionId = null } = {}) {
+  if (docRef) return sessionId ? { live: docRef, context: null } : { live: null, context: docRef };
+  if (heldDocRef && !sessionId) return { live: null, context: heldDocRef };
+  return { live: null, context: null };
+}
