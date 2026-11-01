@@ -105,3 +105,32 @@ test('no two siblings in the deck card share a key (the duplicate key that left 
   assert.deepEqual(dupes, [], `keys repeated outside a list: ${dupes.join(', ')}`);
   assert.doesNotMatch(body, /<Blocks key=\{card\.id\}|<AskWhy key=\{card\.id\}/);
 });
+
+// ------------------------------------------- T2: the decision is reachable --
+
+test('summary deck card: the verbs come straight after the sentence and the change, before every informational block', () => {
+  const src = read('src/screens/InboxSummary.jsx');
+  const body = src.slice(src.indexOf('function DeckCard'), src.indexOf('function RailRow'));
+  const at = (s) => { const i = body.indexOf(s); assert.ok(i > 0, `missing ${s}`); return i; };
+  const verbs = at('<Verbs verbs={card.verbs}');
+  assert.ok(at('<ChangeDrawn') < verbs, 'the drawn change leads');
+  for (const later of ['<AskWhy', '<DeeperSlot', 'nv-sum-ib-srcrow', '<Details', '<CodeShipDetail', 'nv-sum-ib-adj']) {
+    assert.ok(at(later) > verbs, `${later} must follow the verbs`);
+  }
+  assert.ok(at('<AskWhy') - verbs < 120, 'the why-pass panel opens directly under the verbs');
+  // one disclosure, closed by default, holds what started it and where it files
+  const details = src.slice(src.indexOf('function Details'), src.indexOf('function AskWhy'));
+  assert.match(details, /aria-expanded=\{open\}/);
+  assert.match(details, /<Disclose open=\{open\}>/);
+  assert.match(body, /useState\(false\)/, 'closed until he taps it');
+});
+
+test('cupertino deck card: the tick and the cross come before the filing in full and the reason', () => {
+  const src = read('src/screens/Inbox.jsx');
+  const card = src.slice(src.indexOf('{shown.map((item) => ('), src.indexOf('{deck && !showingFocus && ('));
+  const tick = card.indexOf('item.approveLabel}`}');
+  assert.ok(tick > 0);
+  for (const later of ['{item.expanded && (', '{item.reason && <div', '<CodeShipDetail ship={item.ship} />']) {
+    assert.ok(card.indexOf(later) > tick, `${later} must follow the verbs`);
+  }
+});

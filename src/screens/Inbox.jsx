@@ -375,62 +375,13 @@ function InboxClassic({ v }) {
                   <div style={css(`margin-top:9px;font:600 15px ${R};display:-webkit-box;-webkit-line-clamp:${item.expanded ? 'unset' : '2'};-webkit-box-orient:vertical;overflow:hidden`)}>
                     {item.title}
                   </div>
-                  {/* The bare ▸ said nothing about what tapping would do, and
-                      a report is not "what gets filed" — it says which long
-                      thing is behind it. stopPropagation because the whole
-                      title block toggles too, and two toggles is no toggle. */}
-                  {item.canExpand && (
-                    <TextAction compact tone="cyan" onClick={(e) => { e?.stopPropagation?.(); item.toggleExpand(); }} style={{ marginTop: '5px' }}>
-                      {item.expanded ? '▾ Show less' : `▸ ${item.expandLabel}`}
-                    </TextAction>
-                  )}
-                  {/* a plan or a report is pages long — the 220-character
-                      dribble of it under the title told him nothing and
-                      buried the two lines that did */}
-                  {!item.expanded && !item.longForm && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
-                  {item.expanded && (
-                    <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
-                      {item.captured && (
-                        <div>
-                          <Eyebrow>You captured</Eyebrow>
-                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
-                        </div>
-                      )}
-                      {item.full && (
-                        <div>
-                          <Eyebrow tone="gold">Will be filed</Eyebrow>
-                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-                {/* The reason is the densest text in the product — 40-60 words
-                    on every card, nine cards deep. Italic serif is Nova's
-                    speaking voice and earns one or two lines; at this length
-                    it was the slowest possible setting for the text he has to
-                    read most. Same colour and weight, UI face, wider leading. */}
-                {item.reason && <div style={css(`margin-top:7px;font:400 13px/1.55 ${R};color:color-mix(in srgb, var(--nv-ink) 62%, transparent)`)}>{item.reason}</div>}
-                {item.adjustments && (
-                  <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
-                    {item.adjustments.map((a, i) => (
-                      <div key={i} style={css(`display:flex;gap:10px;align-items:baseline;padding:7px 0${i < item.adjustments.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
-                        <span style={{ font: `600 12px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
-                        <span style={{ minWidth: 0, flex: '1 1 auto', opacity: a.outcome ? 0.55 : 1 }}>
-                          <span style={{ display: 'block', font: `500 13.5px/1.45 ${R}`, textDecoration: a.outcome === 'done' ? 'line-through' : 'none' }}>{a.text}</span>
-                          {a.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{a.why}</span>}
-                        </span>
-                        <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
-                          <TextAction compact tone={a.outcome === 'done' ? 'good' : 'quiet'} onClick={() => a.mark('done')}>Done</TextAction>
-                          <TextAction compact tone={a.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => a.mark('skipped')}>Not today</TextAction>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <CodeShipDetail ship={item.ship} />
                 {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
-                <div style={css("margin-top:12px;display:flex;gap:10px;flex-wrap:wrap")}>
+                {/* THE DECISION FIRST (1 Nov 2026, his recording of the other
+                    idiom's card): the verbs sit under the title, and what he
+                    may read before deciding (the filing in full, the reason)
+                    follows them instead of standing in front of them. */}
+                <div style={css("margin-top:10px;display:flex;gap:10px;flex-wrap:wrap")}>
                   {/* THE MODEL CHOICE GATE — this card files nothing itself,
                       so it gets a model tap instead of approve/file. Discard
                       (below, unchanged) still skips the week normally. */}
@@ -512,6 +463,61 @@ function InboxClassic({ v }) {
                     >Research the books</Interactive>
                   )}
                 </div>
+                <div>
+                  {/* The bare ▸ said nothing about what tapping would do, and
+                      a report is not "what gets filed" — it says which long
+                      thing is behind it. stopPropagation because the whole
+                      title block toggles too, and two toggles is no toggle. */}
+                  {item.canExpand && (
+                    <TextAction compact tone="cyan" onClick={(e) => { e?.stopPropagation?.(); item.toggleExpand(); }} style={{ marginTop: '5px' }}>
+                      {item.expanded ? '▾ Show less' : `▸ ${item.expandLabel}`}
+                    </TextAction>
+                  )}
+                  {/* a plan or a report is pages long — the 220-character
+                      dribble of it under the title told him nothing and
+                      buried the two lines that did */}
+                  {!item.expanded && !item.longForm && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
+                  {item.expanded && (
+                    <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
+                      {item.captured && (
+                        <div>
+                          <Eyebrow>You captured</Eyebrow>
+                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
+                        </div>
+                      )}
+                      {item.full && (
+                        <div>
+                          <Eyebrow tone="gold">Will be filed</Eyebrow>
+                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* The reason is the densest text in the product — 40-60 words
+                    on every card, nine cards deep. Italic serif is Nova's
+                    speaking voice and earns one or two lines; at this length
+                    it was the slowest possible setting for the text he has to
+                    read most. Same colour and weight, UI face, wider leading. */}
+                {item.reason && <div style={css(`margin-top:7px;font:400 13px/1.55 ${R};color:color-mix(in srgb, var(--nv-ink) 62%, transparent)`)}>{item.reason}</div>}
+                {item.adjustments && (
+                  <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
+                    {item.adjustments.map((a, i) => (
+                      <div key={i} style={css(`display:flex;gap:10px;align-items:baseline;padding:7px 0${i < item.adjustments.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
+                        <span style={{ font: `600 12px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
+                        <span style={{ minWidth: 0, flex: '1 1 auto', opacity: a.outcome ? 0.55 : 1 }}>
+                          <span style={{ display: 'block', font: `500 13.5px/1.45 ${R}`, textDecoration: a.outcome === 'done' ? 'line-through' : 'none' }}>{a.text}</span>
+                          {a.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{a.why}</span>}
+                        </span>
+                        <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
+                          <TextAction compact tone={a.outcome === 'done' ? 'good' : 'quiet'} onClick={() => a.mark('done')}>Done</TextAction>
+                          <TextAction compact tone={a.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => a.mark('skipped')}>Not today</TextAction>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <CodeShipDetail ship={item.ship} />
               </div>
               </SwipeRow>
               </div>

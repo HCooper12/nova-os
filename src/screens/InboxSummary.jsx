@@ -177,31 +177,37 @@ function DeeperSlot({ d }) {
   return null;
 }
 
-// the two quiet blocks: You captured, Will be filed. A tap opens one in full, in place.
-function Blocks({ card }) {
-  const [open, setOpen] = useState(null);
+// DETAILS, ONE QUIET DISCLOSURE (1 Nov 2026). What started it and Will be
+// filed used to sit as two blocks ABOVE the verbs; on his phone they (and a
+// duplicate-key bug that copied them) stood between the sentence and
+// Discard. They are reference, not the decision: closed by default, one tap
+// opens both in full, nothing lost. The verbs now sit under the sentence.
+function Details({ card, open, onToggle }) {
   const hasCap = !!card.captured;
   const hasWill = card.will.lines.length > 0 || !!card.will.full;
   if (!hasCap && !hasWill) return null;
-  const two = hasCap && hasWill && !open;
+  const willText = [card.will.lines[0], card.will.full || card.will.lines.slice(1).join('\n')].filter(Boolean).join('\n\n');
   return (
-    <div className={`nv-sum-ib-qb${two ? '' : ' one'}`}>
-      {hasCap && (
-        <Interactive as="button" className={`nv-sum-ib-blk${open === 'cap' ? ' open' : ''}`} aria-expanded={open === 'cap'}
-          onClick={() => setOpen(open === 'cap' ? null : 'cap')} base={{ cursor: 'pointer' }}>
-          <span className="nv-sum-ib-bh"><Ico name="quote" />{card.capturedLabel || 'You captured'}<Ico name="down" className="nv-sum-ib-ico x" /></span>
-          {open === 'cap' ? <span className="nv-sum-ib-full">{card.captured}</span> : <span className="nv-sum-ib-bt">“{card.captured}”</span>}
-        </Interactive>
-      )}
-      {hasWill && (
-        <Interactive as="button" className={`nv-sum-ib-blk${open === 'will' ? ' open' : ''}`} aria-expanded={open === 'will'}
-          onClick={() => setOpen(open === 'will' ? null : 'will')} base={{ cursor: 'pointer' }}>
-          <span className="nv-sum-ib-bh"><Ico name="into" />{card.will.label}<Ico name="down" className="nv-sum-ib-ico x" /></span>
-          {open === 'will'
-            ? <span className="nv-sum-ib-full">{[card.will.lines[0], card.will.full || card.will.lines.slice(1).join('\n')].filter(Boolean).join('\n\n')}</span>
-            : card.will.lines.map((l, i) => <span key={i} className="nv-sum-ib-bt1">{l}</span>)}
-        </Interactive>
-      )}
+    <div className="nv-sum-ib-more">
+      <Interactive as="button" className={`nv-sum-ib-moreb${open ? ' open' : ''}`} aria-expanded={open} onClick={onToggle} haptic="tick" base={{ cursor: 'pointer' }}>
+        <span>Details</span><Ico name="down" className="nv-sum-ib-ico x" />
+      </Interactive>
+      <Disclose open={open}>
+        <div className="nv-sum-ib-morebody">
+          {hasCap && (
+            <div className="nv-sum-ib-mrow">
+              <span className="nv-sum-ib-bh"><Ico name="quote" />{card.capturedLabel || 'You captured'}</span>
+              <span className="nv-sum-ib-full">{card.captured}</span>
+            </div>
+          )}
+          {hasWill && (
+            <div className="nv-sum-ib-mrow">
+              <span className="nv-sum-ib-bh"><Ico name="into" />{card.will.label}</span>
+              <span className="nv-sum-ib-full">{willText}</span>
+            </div>
+          )}
+        </div>
+      </Disclose>
     </div>
   );
 }
@@ -251,6 +257,8 @@ function DeckCard({ card, ghosts, position }) {
   const d = card.deeper;
   const running = d && d.mode === 'report' && (d.state === 'running' || d.busy);
   const deeperOff = !d || running;
+  // the card's own disclosure; DeckCard is keyed by the card, so a new card starts closed
+  const [open, setOpen] = useState(false);
   return (
     <div className="nv-sum-ib-deck">
       {ghosts > 1 && <div className="nv-sum-ib-ghost g2" aria-hidden="true" />}
@@ -276,14 +284,14 @@ function DeckCard({ card, ghosts, position }) {
               </ol>
             )}
             <ChangeDrawn change={card.change} />
-            {/* NO KEY HERE, nor on AskWhy below (1 Nov 2026): both once carried
-                key={card.id}, the SAME key on two siblings, and every re-render
-                with the why-pass panel open (the Inbox polls) left one more
-                stale copy of these blocks in the DOM: the column of 20+
-                identical "What started it / Will be filed" pairs he had to
-                scroll past to reach Discard. DeckCard is keyed by the card's id
-                in Waiting, so each card already gets fresh state. */}
-            <Blocks card={card} />
+            {card.stale && <p className="nv-sum-ib-quiet gold">Already changed: {card.stale}. Clear it with ✕, or talk about it.</p>}
+            {card.error && <p className="nv-sum-ib-err">{card.error}</p>}
+            {/* THE DECISION FIRST (1 Nov 2026, his recording): the verbs sit
+                straight under what the card says; everything he might read
+                before deciding follows them, never stands in front of them.
+                The why-pass panel opens under the verbs, only after ✕. */}
+            <Verbs verbs={card.verbs} busy={card.busy} tight />
+            {card.ask && <AskWhy a={card.ask} />}
             {card.adjustments && (
               <ul className="nv-sum-ib-adj">
                 {card.adjustments.map((a, i) => (
@@ -308,11 +316,8 @@ function DeckCard({ card, ghosts, position }) {
                 </Interactive>
               )}
             </div>
-            {card.stale && <p className="nv-sum-ib-quiet gold">Already changed: {card.stale}. Clear it with ✕, or talk about it.</p>}
+            <Details card={card} open={open} onToggle={() => setOpen((o) => !o)} />
             <CodeShipDetail ship={card.ship} />
-            {card.error && <p className="nv-sum-ib-err">{card.error}</p>}
-            {card.ask && <AskWhy a={card.ask} />}
-            <Verbs verbs={card.verbs} busy={card.busy} tight />
           </article>
         </SwipeRow>
       </div>
