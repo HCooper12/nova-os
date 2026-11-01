@@ -276,7 +276,14 @@ function DeckCard({ card, ghosts, position }) {
               </ol>
             )}
             <ChangeDrawn change={card.change} />
-            <Blocks key={card.id} card={card} />
+            {/* NO KEY HERE, nor on AskWhy below (1 Nov 2026): both once carried
+                key={card.id}, the SAME key on two siblings, and every re-render
+                with the why-pass panel open (the Inbox polls) left one more
+                stale copy of these blocks in the DOM: the column of 20+
+                identical "What started it / Will be filed" pairs he had to
+                scroll past to reach Discard. DeckCard is keyed by the card's id
+                in Waiting, so each card already gets fresh state. */}
+            <Blocks card={card} />
             {card.adjustments && (
               <ul className="nv-sum-ib-adj">
                 {card.adjustments.map((a, i) => (
@@ -304,7 +311,7 @@ function DeckCard({ card, ghosts, position }) {
             {card.stale && <p className="nv-sum-ib-quiet gold">Already changed: {card.stale}. Clear it with ✕, or talk about it.</p>}
             <CodeShipDetail ship={card.ship} />
             {card.error && <p className="nv-sum-ib-err">{card.error}</p>}
-            {card.ask && <AskWhy key={card.id} a={card.ask} />}
+            {card.ask && <AskWhy a={card.ask} />}
             <Verbs verbs={card.verbs} busy={card.busy} tight />
           </article>
         </SwipeRow>
