@@ -40,6 +40,8 @@ export function routeIncoming(text, { authorized }) {
   if (/^\/start\b/.test(t)) return { type: 'start' };
   if (/^\/brief\b/.test(t)) return { type: 'brief' };
   if (/^\/new\b/.test(t)) return { type: 'new' };
+  // his press for the project queues, any time (Projects phase 3, 1 Nov 2026)
+  if (/^\/run\b/.test(t)) return { type: 'run-projects' };
   if (t.length > 1000) return { type: 'too-long' };
   return { type: 'ask', question: t };
 }
@@ -113,7 +115,7 @@ async function saveState(state) {
   await writeFile(STATE_PATH(), JSON.stringify(state, null, 2), 'utf8');
 }
 
-const HELP = 'Nova, in your pocket. Just talk — questions, "add a to-do…", "stash this link…", "research X tonight". Proposals arrive with Yes/Leave buttons; nothing changes without your tap. /brief for the day\'s dispatch, /new for a fresh conversation.';
+const HELP = 'Nova, in your pocket. Just talk — questions, "add a to-do…", "stash this link…", "research X tonight". Proposals arrive with Yes/Leave buttons; nothing changes without your tap. /brief for the day\'s dispatch, /new for a fresh conversation, /run to start your projects\' queued work now.';
 
 async function answerAsk(vaultPath, state, chatId, question) {
   const { getMessageJob } = await import('./claudeCode.js');
@@ -208,6 +210,15 @@ async function handleUpdate(vaultPath, state, update) {
     state.sessionId = null;
     await saveState(state);
     await tg('sendMessage', { chat_id: chatId, text: 'Fresh conversation — Nova starts clean.' });
+    return;
+  }
+  if (route.type === 'run-projects') {
+    const { runProjectQueues } = await import('./projectScheduler.js');
+    const r = await runProjectQueues(vaultPath, { force: true }).catch((e) => ({ error: e.message }));
+    const line = r.error ? `The project queues could not run: ${r.error}`
+      : r.started.length ? `Started ${r.started.map((s) => `${s.kind} for ${s.name}`).join(', ')}.`
+        : r.held.length ? `Nothing started. ${r.held.map((h) => `${h.name}: ${h.why}`).join('; ')}.` : 'No project has anything queued.';
+    await tg('sendMessage', { chat_id: chatId, text: line });
     return;
   }
   if (route.type === 'brief') {

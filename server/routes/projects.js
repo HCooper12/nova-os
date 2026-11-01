@@ -10,7 +10,7 @@ const ID_RE = /^[0-9a-f]{8}$/;
 
 function fail(res, e) {
   const status = e.code === 'linked' || e.code === 'protected' ? 403 : e.code === 'missing' ? 404 : e.code === 'duplicate' ? 409
-    : ['brief', 'stage', 'settings', 'intake', 'exists', 'depth', 'lens', 'question', 'lane'].includes(e.code) ? 400 : 500;
+    : ['brief', 'stage', 'settings', 'intake', 'exists', 'depth', 'lens', 'question', 'lane', 'job', 'allowance', 'sandbox', 'undone'].includes(e.code) ? 400 : 500;
   res.status(status).json({ error: e.message, code: e.code || null });
 }
 
@@ -48,7 +48,22 @@ export function projectsRouter({ vaultPath, repoRoot, sessions } = {}) {
         cards,
         sessions: picture ? sessionsIn(picture, p.folder) : null,
         cost: { usd: cost.usd, costKnown: cost.known },
+        queue: p.linked ? { jobs: [] } : k.readQueue(p),
       });
+    } catch (e) { fail(res, e); }
+  });
+
+  // THE QUEUE, RUN NOW (phase 3; his answer of 1 Nov 2026): his press, from
+  // the project page, a spoken command, Telegram, or another host such as Wren
+  // calling this over the tailnet. Window and dry run do not apply to his
+  // press; the cap of two projects working at once does. Body: { projectId? }.
+  router.post('/projects/queue/run', async (req, res) => {
+    try {
+      const id = req.body?.projectId ? String(req.body.projectId) : null;
+      if (id && LINKED_IDS.includes(id)) return fail(res, Object.assign(new Error('that is a linked project: Nova only reads about it'), { code: 'linked' }));
+      if (id && !kernel().getProject(id)) return res.status(404).json({ error: 'no such project' });
+      const { runProjectQueues } = await import('../lib/projectScheduler.js');
+      res.json(await runProjectQueues(vaultPath, { force: true, projectId: id }));
     } catch (e) { fail(res, e); }
   });
 
@@ -92,6 +107,38 @@ export function projectsRouter({ vaultPath, repoRoot, sessions } = {}) {
       const { proposeDryRunLift } = await import('../lib/novaProjects.js');
       await proposeDryRunLift(p.id, { vaultPath }).catch(() => null);
       res.json(out);
+    } catch (e) { fail(res, e); }
+  });
+
+  // A JOB FOR THIS PROJECT'S QUEUE (phase 3). { kind, input, needs?, now? }:
+  // `now` is his yes, so it starts at once (cap permitting); otherwise it
+  // waits for the overnight window. Refused when its allowance is off.
+  router.post('/projects/:id/jobs', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      if (p.linked) return fail(res, Object.assign(new Error(`${p.name} is a linked project: Nova never queues work in it`), { code: 'linked' }));
+      const { queueProjectJob } = await import('../lib/novaProjects.js');
+      const b = req.body || {};
+      res.json(await queueProjectJob(vaultPath, p.id, { kind: String(b.kind || ''), input: b.input, needs: Array.isArray(b.needs) ? b.needs : [], origin: b.origin === 'spoken' ? 'spoken' : 'button', now: b.now === true }));
+    } catch (e) { fail(res, e); }
+  });
+
+  router.post('/projects/:id/jobs/:jobId/cancel', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      res.json({ job: kernel().cancelJob(p, req.params.jobId) });
+    } catch (e) { fail(res, e); }
+  });
+
+  // his own answer to a job that stopped to ask; the card is settled with it
+  router.post('/projects/:id/jobs/:jobId/answer', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      const { answerWaitingJob } = await import('../lib/novaProjects.js');
+      res.json(await answerWaitingJob(vaultPath, p.id, req.params.jobId, req.body?.answer));
     } catch (e) { fail(res, e); }
   });
 

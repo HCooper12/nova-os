@@ -6,6 +6,10 @@
 //                     pending card, nothing is created
 //   project.research  research for the project attached to the conversation
 //   project.watch     a video for that project (its folder only, never the library)
+//   project.queue     (phase 3) a job for that project's queue: research, a
+//                     draft, code or its checks; overnight, or now on his say
+//   project.run       (phase 3) run the queue now: that project's, or all
+//   project.answer    (phase 3) his answer to a job that stopped to ask
 // `ctx` (runVerb → execute) carries the conversation's attached project
 // (`projectId`) and any intake under way (`intakeSessionId`). None of them
 // changes anything he owns by itself (`receipt: false`): the intake files its
@@ -16,7 +20,7 @@ function plain(message) { const e = new Error(message); e.code = 'project'; retu
 const NO_PROJECT = 'no project is attached to this conversation; open one in Projects and tap Talk about this';
 
 /** The attached project, writable, or a plain refusal. */
-async function attachedProject(vaultPath, ctx) {
+async function attachedProject(vaultPath, ctx, { need = 'research' } = {}) {
   const id = ctx?.projectId;
   if (!id) throw plain(NO_PROJECT);
   const { LINKED_IDS } = await import('./projectLinks.js');
@@ -27,7 +31,7 @@ async function attachedProject(vaultPath, ctx) {
   if (p.linked) throw plain('that is a linked project: Nova only reads about it and never starts work in it');
   const { isProtectedPath } = await import('./protectedRoots.js');
   if (isProtectedPath(p.folder)) throw plain('Nova never writes to Science Atlas, its Mission Control or Wren');
-  if (!p.allowances?.research) throw plain(`${p.name} is not allowed to research on its own; turn Research on in its Controls first`);
+  if (need && !p.allowances?.[need]) throw plain(`${p.name} is not allowed to ${need === 'test' ? 'run its tests' : need} on its own; turn ${need[0].toUpperCase()}${need.slice(1)} on in its Controls first`);
   return p;
 }
 
@@ -87,6 +91,55 @@ export const PROJECT_VERBS = [
       const lens = typeof args.lens === 'string' && args.lens.trim() ? args.lens.trim() : undefined;
       const record = await startVideoWatch(vaultPath, link.url, '', { project: { id: p.id }, lens });
       return { destination: `${p.name} — video`, said: `Watching it for ${p.name}. It goes only into the project.`, receipt: false, extra: { projectWatch: { recordId: record.id, projectId: p.id } } };
+    },
+    async undo() { return null; },
+  },
+  {
+    id: 'project.queue', tier: 'act', receipt: false,
+    describe: 'queue a piece of work FOR the project attached to this conversation: kind research (find something out), draft (write a document), code (build or change its code) or test (run its checks). now=yes only when he says to start it now; otherwise it runs overnight. Only when a project is attached',
+    args: { kind: 'research, draft, code or test', input: 'the work, in his words', now: 'yes when he wants it started now, else no' },
+    async run(vaultPath, args, ctx = {}) {
+      const kind = String(args.kind || '').trim().toLowerCase();
+      const p = await attachedProject(vaultPath, ctx, { need: ['research', 'draft', 'code', 'test'].includes(kind) ? kind : null });
+      const now = /^(yes|true|now)$/i.test(String(args.now || '').trim());
+      const { queueProjectJob } = await import('./novaProjects.js');
+      const { job, started, held } = await queueProjectJob(vaultPath, p.id, { kind, input: String(args.input || ''), origin: 'spoken', now });
+      const said = started ? `Started: ${job.input}. It lands on ${p.name}'s page.`
+        : now ? `Queued for ${p.name}, not started yet: ${held}.`
+          : p.dryRun ? `Queued for ${p.name}. It is in dry run, so it waits for you to say run it.`
+            : `Queued for ${p.name}. It runs tonight.`;
+      return { destination: `${p.name} — queue`, said, receipt: false, extra: { projectJob: { projectId: p.id, jobId: job.id, started } } };
+    },
+    async undo() { return null; },
+  },
+  {
+    id: 'project.run', tier: 'act', receipt: false,
+    describe: 'he wants the project queue run NOW (run the queue, start the queued work): the attached project, or every project when none is attached',
+    args: {},
+    async run(vaultPath, args, ctx = {}) {
+      const { runProjectQueues } = await import('./projectScheduler.js');
+      let only = null;
+      if (ctx.projectId) only = (await attachedProject(vaultPath, ctx, { need: null })).id;
+      const r = await runProjectQueues(vaultPath, { force: true, projectId: only });
+      const said = r.started.length
+        ? `Started ${r.started.map((s) => `${s.kind} for ${s.name}`).join(' and ')}.`
+        : r.held.length ? `Nothing started: ${r.held[0].name}, ${r.held[0].why}.` : 'Nothing is queued.';
+      return { destination: 'Project queue', said, receipt: false, extra: { projectRun: r } };
+    },
+    async undo() { return null; },
+  },
+  {
+    id: 'project.answer', tier: 'act', receipt: false,
+    describe: 'his answer to the question a job of the attached project stopped to ask him (it is waiting on him). Only when a project is attached',
+    args: { answer: 'his answer, in his words' },
+    async run(vaultPath, args, ctx = {}) {
+      const p = await attachedProject(vaultPath, ctx, { need: null });
+      const { novaKernel, answerWaitingJob } = await import('./novaProjects.js');
+      const waiting = novaKernel(vaultPath).readQueue(p).jobs.filter((j) => j.status === 'waiting');
+      if (!waiting.length) return { destination: `${p.name} — nothing waiting`, said: `Nothing in ${p.name} is waiting on you.`, receipt: false };
+      const job = waiting[0];
+      const { started } = await answerWaitingJob(vaultPath, p.id, job.id, String(args.answer || ''));
+      return { destination: `${p.name} — answered`, said: started ? 'Got it. It is running again.' : 'Got it. It is back in the queue.', receipt: false, extra: { projectJob: { projectId: p.id, jobId: job.id, started } } };
     },
     async undo() { return null; },
   },

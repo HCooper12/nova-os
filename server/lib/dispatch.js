@@ -260,6 +260,13 @@ async function composeMorning(vaultPath, now) {
     if (overnight) lines.push(overnight);
   } catch { /* optional */ }
 
+  // what his projects did overnight, counted (Projects phase 3)
+  try {
+    const { projectsMorningLine } = await import('./projectScheduler.js');
+    const projects = await projectsMorningLine(vaultPath);
+    if (projects) lines.push(projects);
+  } catch { /* optional */ }
+
   // the topic pulses refreshed overnight
   try {
     const { pulseMorningLine } = await import('./pulse.js');

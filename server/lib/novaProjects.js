@@ -61,11 +61,28 @@ async function fileSettings(vaultPath, payload) {
   return { destination: `${project.name} — settings: ${Object.keys(payload.settings || {}).join(', ')}`, undo: { route: 'project-settings', id: project.id, before }, projectId: project.id };
 }
 
+// HIS ANSWER to a job that stopped to ask (phase 3): the job goes back in the
+// queue with it and starts now, because he is here (his press, window and dry
+// run do not apply; the cap of two still does).
+async function fileAnswer(vaultPath, payload) {
+  const k = novaKernel(vaultPath);
+  const p = assertWritable(k.getProject(payload.projectId));
+  const job = k.answerJob(p, payload.jobId, payload.answer || payload.pick, { fableOk: payload.fable === true });
+  const { runProjectQueues } = await import('./projectScheduler.js');
+  const run = await runProjectQueues(vaultPath, { force: true, projectId: p.id }).catch(() => null);
+  const startedNow = run?.started?.some((s) => s.jobId === job.id);
+  return {
+    destination: `${p.name}: ${payload.fable ? 'runs on Fable' : `answered "${String(job.answer || '').slice(0, 80)}"`}; ${startedNow ? 'the job is running again' : 'the job is back in the queue'}`,
+    undo: { route: 'project-answer', projectId: p.id, jobId: job.id },
+  };
+}
+
 export async function fileProjectDecision(vaultPath, route, payload) {
   if (route === 'project-watch-note') return fileProjectWatchNote(vaultPath, payload);
   if (route === 'project-create') return fileCreate(vaultPath, payload);
   if (route === 'project-stage') return fileStage(vaultPath, payload);
   if (route === 'project-settings') return fileSettings(vaultPath, payload);
+  if (route === 'project-answer') return fileAnswer(vaultPath, payload);
   throw new Error(`unknown project route ${route}`);
 }
 
@@ -101,6 +118,18 @@ export async function undoProjectDecision(vaultPath, undo) {
   if (undo.route === 'project-settings') {
     const { project } = k.applySettings(undo.id, undo.before || {});
     return `${project.name}'s settings are back as they were`;
+  }
+  if (undo.route === 'project-job') {
+    const p = assertWritable(k.getProject(undo.projectId));
+    return k.undoJob(p, undo);
+  }
+  if (undo.route === 'project-answer') {
+    // only while the job has not started again: a running job cannot be un-answered
+    const p = assertWritable(k.getProject(undo.projectId));
+    const job = k.readQueue(p).jobs.find((j) => j.id === undo.jobId);
+    if (!job || job.status !== 'queued') throw new Error(`that job is ${job ? job.status : 'gone'}; the answer has already been used`);
+    k.updateJob(p, job.id, { status: 'waiting', answer: null, fableOk: false });
+    return `${p.name}'s job is waiting on you again`;
   }
   throw new Error(`unknown project undo ${undo.route}`);
 }
@@ -283,4 +312,72 @@ export async function allProjects({ vaultPath, repoRoot } = {}) {
   const { linkedProjects } = await import('./projectLinks.js');
   const mine = novaKernel(vaultPath).listProjects();
   return [...mine, ...(await linkedProjects({ repoRoot }))];
+}
+
+// ---- PHASE 3: the queue from Nova's side ------------------------------------
+
+/**
+ * Retry on a failed project job's record: the job goes back in the queue and
+ * starts now (his press). Each run files its own record, so this one is
+ * withdrawn with a note saying where the next run is.
+ */
+export async function retryProjectJob(vaultPath, record) {
+  const k = novaKernel(vaultPath);
+  const p = assertWritable(k.getProject(record.projectId));
+  const job = k.readQueue(p).jobs.find((j) => j.id === record.jobId);
+  if (!job) throw refuse('that job is no longer in the project\'s queue', 'missing');
+  if (job.status !== 'failed') throw refuse(`that job is ${job.status}, not failed`, 'job');
+  k.updateJob(p, job.id, { status: 'queued', error: null, attempts: 0, endedAt: null });
+  k.appendLog(p, `${job.kind} job ${job.id} queued again (Retry)`, { action: 'queue' });
+  const { runProjectQueues } = await import('./projectScheduler.js');
+  const run = await runProjectQueues(vaultPath, { force: true, projectId: p.id });
+  const { updateRecord } = await import('./inboxStore.js');
+  const again = run.started.find((s) => s.jobId === job.id);
+  return updateRecord(record.id, { status: 'withdrawn', withdrawnAt: new Date().toISOString(), destination: again ? 'Running again: the new run files its own card' : `Back in ${p.name}'s queue (${run.held[0]?.why || 'it starts when there is room'})` });
+}
+
+/**
+ * Queue a job for an attached or named project, and start it now when `now`
+ * (his spoken yes or his press). Returns { job, started, held }.
+ */
+export async function queueProjectJob(vaultPath, projectId, { kind, input, needs = [], origin = 'nova', now = false } = {}) {
+  const k = novaKernel(vaultPath);
+  const p = assertWritable(k.getProject(projectId));
+  if (isProtectedPath(p.folder)) throw refuse('Nova never writes to Science Atlas, its Mission Control or Wren', 'protected');
+  const job = k.enqueueJob(p, { kind, input, needs, origin });
+  if (!now) return { job, started: false, held: null };
+  const { runProjectQueues } = await import('./projectScheduler.js');
+  const run = await runProjectQueues(vaultPath, { force: true, projectId: p.id });
+  const started = run.started.some((s) => s.jobId === job.id);
+  return { job: k.readQueue(p).jobs.find((j) => j.id === job.id), started, held: started ? null : (run.held.find((h) => h.projectId === p.id)?.why || 'another job of this project goes first') };
+}
+
+/** What a sentence about the queue's state says, from the queue itself. */
+export function queueLine(project, queue) {
+  const jobs = queue?.jobs || [];
+  const n = (s) => jobs.filter((j) => j.status === s).length;
+  const parts = [];
+  if (n('running')) parts.push(`${n('running')} running`);
+  if (n('queued')) parts.push(`${n('queued')} queued`);
+  if (n('waiting')) parts.push(`${n('waiting')} waiting on you`);
+  if (!parts.length) return `${project.name} has nothing queued.`;
+  return `${project.name}: ${parts.join(', ')}.${project.dryRun ? ' It is in dry run, so queued work waits for your press.' : ` Queued work runs overnight, ${project.quiet?.from || '22:00'} to ${project.quiet?.to || '07:00'}.`}`;
+}
+
+/**
+ * HIS OWN ANSWER (spoken, or typed on the project page) to a job waiting on
+ * him: the job goes back with it and starts now, and the pending card is
+ * settled so it is not answered twice.
+ */
+export async function answerWaitingJob(vaultPath, projectId, jobId, answer) {
+  const k = novaKernel(vaultPath);
+  const p = assertWritable(k.getProject(projectId));
+  const job = k.answerJob(p, jobId, answer);
+  const { listRecords, updateRecord } = await import('./inboxStore.js');
+  for (const r of (await listRecords()).filter((x) => x.kind === 'project-needs-you' && x.status === 'pending' && x.jobId === jobId)) {
+    await updateRecord(r.id, { status: 'filed', filedAt: new Date().toISOString(), auto: false, destination: `Answered: "${job.answer.slice(0, 80)}"` }).catch(() => {});
+  }
+  const { runProjectQueues } = await import('./projectScheduler.js');
+  const run = await runProjectQueues(vaultPath, { force: true, projectId: p.id }).catch(() => null);
+  return { job, started: !!run?.started?.some((s) => s.jobId === job.id) };
 }

@@ -391,6 +391,9 @@ async function main() {
   startTodoistScheduler(process.env.VAULT_PATH);
   startGuardianScheduler(process.env.VAULT_PATH);
   startOvernightScheduler(process.env.VAULT_PATH);
+  // project queues (Projects phase 3): overnight on their own, any time on his press
+  import('./lib/projectScheduler.js').then(({ startProjectScheduler }) => startProjectScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('project scheduler failed to start:', e.message));
   startTelegramBridge(process.env.VAULT_PATH);
   import('./lib/pulse.js').then(({ startPulseScheduler }) => startPulseScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('pulse scheduler failed to start:', e.message));

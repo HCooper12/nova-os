@@ -350,7 +350,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   // writer refuses a linked project (Science Atlas, Wren, Nova).
   // …and a video watched FOR a project (phase 2): Projects/<Name>/Sources +
   // Raw only, through the kernel's contained writer; never the library.
-  if (route === 'project-create' || route === 'project-stage' || route === 'project-settings' || route === 'project-watch-note') {
+  if (route === 'project-create' || route === 'project-stage' || route === 'project-settings' || route === 'project-watch-note' || route === 'project-answer') {
     const { fileProjectDecision } = await import('./novaProjects.js');
     return fileProjectDecision(vaultPath, route, payload);
   }
@@ -1338,7 +1338,7 @@ export async function undoFiling(vaultPath, undo) {
     return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-distillation state`;
   }
   if (undo.route === 'project-create' || undo.route === 'project-stage' || undo.route === 'project-settings'
-    || undo.route === 'project-watch-note' || undo.route === 'project-research') {
+    || undo.route === 'project-watch-note' || undo.route === 'project-research' || undo.route === 'project-job' || undo.route === 'project-answer') {
     const { undoProjectDecision } = await import('./novaProjects.js');
     return undoProjectDecision(vaultPath, undo);
   }
@@ -1967,6 +1967,10 @@ export async function retryRecord(vaultPath, id) {
   if (record.kind === 'project-research') {
     const { retryProjectResearch } = await import('./projectResearch.js');
     return retryProjectResearch(vaultPath, record);
+  }
+  if (record.kind === 'project-job') {
+    const { retryProjectJob } = await import('./novaProjects.js');
+    return retryProjectJob(vaultPath, record);
   }
   if (record.kind === 'video') {
     const { retryWatch } = await import('./watcher.js');

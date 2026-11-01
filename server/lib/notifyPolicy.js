@@ -30,6 +30,8 @@ const RECORD_PUSH = {
   guardian: 'something is broken',
   // every plan is his own ask (voice, the Ask route, a re-plan of one of his)
   plan: 'a plan he asked for, finished',
+  // a project job he queued stopped on a choice only he can make
+  'project-needs-you': 'a project he set going needs his answer',
 };
 
 // where a record came from when HE started it, not Nova
