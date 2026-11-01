@@ -28,6 +28,15 @@ reading of the code and should be re-checked before building.
   wording. None of it seen on his phone; receipts (`barge`, micReused,
   `interrupted`) are the proof to read.
 
+## Rounds 2-3, same evening (atlas-partner dfe7576..4925fed, pushed, live)
+
+Gaps 2, 3, 4, 6, 7, 8 and the Advisor depth fix. Restart Wren ONLY with
+ now (first real run 1 Nov 18:39, nothing in
+flight). Left: 9 (local model, do last) and 10 (consult, defer). Unseen on
+any screen: the dock's Undo row, the "quiet alerts" count, document cards and
+sheet, chat hydration. Owed: Wren console.html's ask loop does not strip
+document bodies; the Undo for an idea answer has no UI (Mission Control html).
+
 ## Deliberate differences (not gaps)
 
 - Wren never marks a Science Atlas node done; green is his tap alone.
@@ -42,13 +51,13 @@ reading of the code and should be re-checked before building.
 | # | Gap | Nova has | Wren today | Size |
 |---|-----|----------|-----------|------|
 | ~~1~~ | DONE 1 Nov · Listening reliability: a sentence ending on "and"/"the" holds the turn; speech after send joins it; "no, I said" corrects; a blind meter reads the clip for words; frozen-page time is not a timeout; warm mic in a conversation | src/turnSense.js, src/listenRules.js, src/warmMic.js (23842fb8, a8622d43, 40e49fd9) | a blind meter waits for his tap; a fresh mic every turn; no correction path | M |
-| 2 | Safe restart: a reload that waits for running work | scripts/reload-server.mjs, jobRegistry.js | README documents the raw `kickstart -k` (checked); builds are child processes of the server (no `detached`, checked), so a restart kills them | S |
-| 3 | Mission Control's live state in every answer: what is running, waiting on him, failed overnight; reflexes that answer those for free | fleetContext.js, orgContext.js, reflex.js | only Briefing mode sees notices; six reflexes | S-M |
-| 4 | The conversation survives a reload and a device change | conversationLog.js (append-only, ids, read back) | per-day transcript; the dock does not reload past turns (checked); "go on" state is in memory only | M |
+| ~~2~~ | DONE 1 Nov · Safe restart: a reload that waits for running work | scripts/reload-server.mjs, jobRegistry.js | README documents the raw `kickstart -k` (checked); builds are child processes of the server (no `detached`, checked), so a restart kills them | S |
+| ~~3~~ | DONE 1 Nov · Mission Control's live state in every answer: what is running, waiting on him, failed overnight; reflexes that answer those for free | fleetContext.js, orgContext.js, reflex.js | only Briefing mode sees notices; six reflexes | S-M |
+| ~~4~~ | DONE 1 Nov · The conversation survives a reload and a device change | conversationLog.js (append-only, ids, read back) | per-day transcript; the dock does not reload past turns (checked); "go on" state is in memory only | M |
 | ~~5~~ | DONE 1 Nov · Quiet hours and a push policy | quietHours.js, notifyPolicy.js | push.mjs has no quiet logic (checked); work-state pushes at any hour | S |
-| 6 | Documents he can open (weekly status, plan check, ideas report) | artifacts.js, artifactBlocks.js, the stage card (22a4debf) | none | M |
-| 7 | Undo for Wren's own writes (memory rules, profile, Notion saves) | inbox rails, undoData | receipts.log only | M |
-| 8 | Alert tiers and act-rate receipts | alerts.js | client-side alerts only | M |
+| ~~6~~ | DONE 1 Nov · Documents he can open (weekly status, plan check, ideas report) | artifacts.js, artifactBlocks.js, the stage card (22a4debf) | none | M |
+| ~~7~~ | DONE 1 Nov · Undo for Wren's own writes (memory rules, profile, Notion saves) | inbox rails, undoData | receipts.log only | M |
+| ~~8~~ | DONE 1 Nov · Alert tiers and act-rate receipts | alerts.js | client-side alerts only | M |
 | 9 | Local model for cheap lanes (classify, Delegator) | localModel.js, askRoute.js | every turn is a Claude spawn | L, last |
 | 10 | Agents consulting each other | consult.js | one mind with lanes | L, defer |
 
