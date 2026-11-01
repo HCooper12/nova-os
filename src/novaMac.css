@@ -1,0 +1,318 @@
+/* ================================================================
+   ONE NOVA ON THE MAC (1 Nov 2026) — design/mockups/108-one-nova-mac.html,
+   approved: built to BE the mockup. src/NovaMac.jsx. Every size, colour and
+   timing here is the mockup's own (its CSS, a 1440 x 900 window less its
+   28 px title bar), on the real --nv-* tokens. Speaking is jade (--nv-say);
+   gold is only for what waits on his call.
+   ================================================================ */
+.nv-mac {
+  position: fixed; inset: 0; z-index: 5; overflow: hidden; overflow: clip; isolation: isolate; color: var(--nv-ink);
+  font: 15px/1.45 var(--nv-font-ui); -webkit-font-smoothing: antialiased;
+  background: radial-gradient(ellipse 60% 55% at 12% 0%, var(--nv-aur1), transparent 70%), radial-gradient(ellipse 55% 60% at 92% 96%, var(--nv-aur2), transparent 70%), var(--nv-void);
+  --fx-ink: var(--nv-ink); --fx-ink3: var(--nv-ink40); --fx-quiet: color-mix(in srgb, var(--nv-ink) 7%, transparent);
+}
+.nv-mac::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(var(--nv-gridline) 1px, transparent 1px), linear-gradient(90deg, var(--nv-gridline) 1px, transparent 1px); background-size: 48px 48px;
+  -webkit-mask: radial-gradient(ellipse 70% 70% at 50% 40%, #000 30%, transparent 85%); mask: radial-gradient(ellipse 70% 70% at 50% 40%, #000 30%, transparent 85%);
+}
+.nv-mac button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.nv-mac button:focus-visible, .nv-mac input:focus-visible, .nv-mac [tabindex]:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 2px; }
+.nv-mac .ic { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.nv-mac-kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; font: 600 11px var(--nv-font-ui); color: var(--nv-ink60); background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .18), inset 0 -1px 0 rgba(0, 0, 0, .35); }
+.nv-mac-embers { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; }
+
+/* the rail: mockup 93's capsule; it recedes while Nova holds the stage */
+.nv-mac-rail {
+  position: absolute; left: 12px; top: 12px; bottom: 12px; width: 60px; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 0; border-radius: 30px;
+  background: rgba(14, 18, 34, .55); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .18), inset 0 1px 0 rgba(255, 255, 255, .14);
+  transition: transform var(--nv-spring-smooth-ms) var(--nv-spring-smooth), opacity var(--nv-dur-slow) var(--nv-ease);
+}
+.nv-mac-rail .ri { position: relative; width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; color: var(--nv-ink50); }
+.nv-mac-rail .ri.on { color: var(--nv-cy); background: color-mix(in srgb, var(--nv-cy) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-cy) 40%, transparent); }
+.nv-mac-rail .ri:active { transform: scale(.96); }
+.nv-mac-rail .ri .lbl { position: absolute; left: 52px; top: 50%; padding: 4px 10px; border-radius: 8px; white-space: nowrap; font: 600 12px var(--nv-font-ui); color: var(--nv-ink); background: var(--nv-glass2); box-shadow: inset 0 0 0 .5px var(--nv-edge); opacity: 0; transform: translate3d(-6px, -50%, 0); pointer-events: none; transition: opacity var(--nv-dur-fast) var(--nv-ease), transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-mac-rail .ri:hover .lbl, .nv-mac-rail .ri:focus-visible .lbl { opacity: 1; transform: translate3d(0, -50%, 0); transition-delay: 300ms; }
+.nv-mac-rail .sp { flex: 1; }
+.nv-mac-rail .core-mini { width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 45% 42%, #eafcff 0, #8ef0ff 18%, #2f9bf0 48%, rgba(23, 58, 153, 0) 72%); }
+.nv-mac[data-focus] .nv-mac-rail { transform: translate3d(-84px, 0, 0); opacity: 0; pointer-events: none; }
+.nv-mac[data-focus][data-peek] .nv-mac-rail { transform: none; opacity: 1; pointer-events: auto; }
+/* the presence the rail leaves behind: a short lit edge that brings it back */
+.nv-mac-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 18px; z-index: 29; }
+.nv-mac-edge i { position: absolute; left: 3px; top: 50%; width: 3px; height: 44px; margin-top: -22px; border-radius: 2px; background: var(--nv-ink40); opacity: .6; }
+
+/* history button (top right of the stage) */
+.nv-mac-histbtn { position: absolute; right: 20px; top: 14px; z-index: 26; display: inline-flex !important; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px !important; border-radius: 18px; font: 600 13px var(--nv-font-ui) !important; color: var(--nv-ink60) !important; background: rgba(255, 255, 255, .06) !important; box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .16); transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-histbtn .ic { width: 16px; height: 16px; }
+.nv-mac[data-hist] .nv-mac-histbtn, .nv-mac[data-focus] .nv-mac-histbtn { opacity: 0; pointer-events: none; }
+
+/* the core and its threads */
+.nv-mac-core { position: absolute; left: 0; top: 0; width: 300px; height: 300px; z-index: 10; transform-origin: 50% 50%; will-change: transform; --nt-core: 300px; --nt-k: 1; }
+.nv-mac-core .nv-nt-canvas, .nv-mac-core .nv-nt-core { width: 300px; height: 300px; }
+.nv-mac-core .nv-fx-corehit { position: absolute; inset: 0; padding: 0; border-radius: 50%; }
+.nv-mac-core .nv-nt-chase { inset: 13%; width: 74%; height: 74%; }
+.nv-mac-core .nv-nt-chase circle { stroke: var(--nv-cy); stroke-width: 1.6; }
+.nv-mac-tethers { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 9; pointer-events: none; overflow: visible; }
+.nv-mac-tethers path { fill: none; stroke-width: 1.2; stroke-linecap: round; }
+.nv-mac-tethers circle { opacity: .95; }
+
+/* the words under the core */
+.nv-mac-under { position: absolute; left: 0; top: 0; z-index: 12; width: 820px; will-change: transform; }
+.nv-mac-stword { display: flex; justify-content: center; align-items: center; gap: 9px; height: 28px; margin: 0; }
+.nv-mac-stword b { font: 600 20px var(--nv-font-ui); letter-spacing: -.01em; display: inline-block; animation: nvMacWord .28s var(--nv-ease) both; }
+.nv-mac-stword .line { font: 400 15px var(--nv-font-ui); color: var(--nv-ink50); margin-left: 4px; }
+@keyframes nvMacWord { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+.nv-mac-layer { position: absolute; left: 0; right: 0; top: 46px; opacity: 0; transform: translate3d(0, var(--nv-rise), 0); pointer-events: none; transition: opacity var(--nv-dur-base) var(--nv-ease-exit), transform var(--nv-dur-base) var(--nv-ease-exit); }
+.nv-mac[data-state="idle"] .nv-mac-exch, .nv-mac[data-state="listen"] .nv-mac-heard, .nv-mac[data-state="think"] .nv-mac-heard,
+.nv-mac[data-state="speak"] .nv-mac-plate, .nv-mac[data-state="panels"] .nv-mac-plate { opacity: 1; transform: none; pointer-events: auto; transition-timing-function: var(--nv-ease); }
+.nv-mac-exch { display: grid; gap: 10px; text-align: center; }
+.nv-mac-exch button { display: block; text-align: center; text-wrap: balance; margin: 0; }
+.nv-mac-exch span { display: block; font: 600 12px var(--nv-font-ui); margin-bottom: 2px; color: var(--nv-ink40); }
+.nv-mac-exch .q { font: 400 15px/1.35 var(--nv-font-ui) !important; color: var(--nv-ink50) !important; }
+.nv-mac-exch .t { display: -webkit-box !important; -webkit-box-orient: vertical; overflow: hidden; margin: 0 !important; font: inherit !important; color: inherit !important; }
+.nv-mac-exch .q .t { -webkit-line-clamp: 1; }
+.nv-mac-exch .a .t { -webkit-line-clamp: 2; }
+.nv-mac-exch .a { font: 400 26px/1.3 var(--nv-font-serif) !important; color: var(--nv-ink60) !important; }
+.nv-mac-heard { text-align: center; font: italic 400 28px/1.35 var(--nv-font-serif); text-wrap: balance; }
+.nv-mac-heard small { display: block; margin-bottom: 6px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+
+/* the plate (mockup .plate, .who, .pq, .pa) */
+.nv-mac-plate { padding: 16px 24px 20px; border-radius: 30px; background: rgba(18, 23, 44, .62); -webkit-backdrop-filter: blur(30px) saturate(1.5); backdrop-filter: blur(30px) saturate(1.5); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .14), 0 1px 0 rgba(255, 255, 255, .22) inset, 0 26px 54px -24px rgba(0, 0, 0, .85); }
+.nv-mac-plate .esc { position: absolute; right: 24px; top: 16px; height: 28px; display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink40); transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-plate .nv-fx-phead { min-height: 0; margin-bottom: 10px; }
+.nv-mac-plate .nv-fx-who { gap: 7px; height: 28px; padding: 0 12px 0 8px; border-radius: 14px; font: 600 14px var(--nv-font-ui); color: var(--nv-ink); background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-hue) 45%, transparent); }
+.nv-mac-plate .nv-fx-who .dot { width: 12px; height: 12px; background: var(--fx-hue); box-shadow: none; }
+.nv-mac-plate .pq { margin: 0 0 10px; font: italic 400 15px/1.35 var(--nv-font-serif); color: var(--nv-ink50); }
+.nv-mac-plate .pq b { font: normal 600 12px var(--nv-font-ui); margin-right: 7px; color: var(--nv-ink40); }
+.nv-mac-plate .nv-fx-pbody { margin-top: 0; padding-bottom: 10px; box-sizing: border-box; max-height: var(--mac-pmax, 300px); -webkit-mask-image: none; mask-image: none; }
+.nv-mac-plate .nv-fx-pbody[data-scrolled] { -webkit-mask-image: linear-gradient(transparent 0, #000 28px); mask-image: linear-gradient(transparent 0, #000 28px); }
+.nv-mac-plate .nv-fx-pcol { position: relative; top: 0; left: 0; right: 0; margin: 0; font: 400 27px/1.32 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+.nv-mac[data-state="panels"] .nv-mac-plate .nv-fx-pcol, .nv-mac-plate.docked .nv-fx-pcol { font-size: 23px; }
+.nv-mac-plate .nv-fx-pcol p, .nv-mac-plate .nv-fx-pcol p.earlier { display: inline; margin: 0; font: inherit; color: inherit; }
+.nv-mac-plate .nv-fx-w { color: var(--nv-ink); transition: color var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-plate .nv-fx-w::after { background: var(--fx-hue); }
+.nv-mac-plate .nv-fx-note { margin: 0; }
+
+/* thinking: the agents being asked (mockup .sat) */
+.nv-mac-sat {
+  position: absolute; left: 0; top: 0; z-index: 11; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; min-width: 228px; max-width: 320px; padding: 10px 16px 10px 12px; border-radius: var(--nv-radius);
+  background: var(--nv-glass); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 34%, transparent), inset 0 1px 0 rgba(255, 255, 255, .08);
+  transform: translate3d(var(--x, 0), var(--y, 0), 0); animation: nvMacSat var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both;
+}
+@keyframes nvMacSat { from { opacity: 0; scale: .92; } }
+.nv-mac-sat .dot { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--h) 18%, transparent); box-shadow: inset 0 0 0 1.5px var(--h); }
+.nv-mac-sat .dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--h); animation: nvMacBreathe 1.6s ease-in-out infinite; }
+.nv-mac-sat .dot .ic { width: 14px; height: 14px; color: var(--h); stroke-width: 3; }
+.nv-mac-sat.failed .dot .ic { color: var(--nv-warn); }
+@keyframes nvMacBreathe { 50% { opacity: .35; } }
+.nv-mac-sat b { font: 600 14px var(--nv-font-ui); }
+.nv-mac-sat .st { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the running glass: panels docked in a column beside the core */
+.nv-mac-col { position: absolute; z-index: 14; display: flex; flex-direction: column; align-items: flex-end; gap: 18px; min-height: 0; transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-col[data-hidden] { opacity: 0; pointer-events: none; }
+.nv-mac-pnl {
+  position: relative; box-sizing: border-box; width: 100%; flex: 0 1 auto; min-height: 0; overflow: hidden; padding: 16px 18px 18px; border-radius: var(--nv-radius); cursor: pointer; outline: none;
+  background: var(--nv-glass); -webkit-backdrop-filter: blur(26px) saturate(1.5); backdrop-filter: blur(26px) saturate(1.5);
+  box-shadow: inset 0 0 0 1px var(--nv-edge), inset 0 1px 0 rgba(190, 225, 255, .18), 0 30px 60px -30px rgba(0, 0, 0, .9);
+  opacity: 0; transform: translate3d(28px, 0, 0) scale(.96); filter: blur(8px);
+  transition: opacity var(--nv-dur-slow) var(--nv-ease), transform var(--nv-spring-smooth-ms) var(--nv-spring-smooth), filter var(--nv-dur-slow) var(--nv-ease), box-shadow var(--nv-dur-base) var(--nv-ease);
+}
+.nv-mac-pnl:nth-child(2):nth-last-child(2) { width: calc(100% - 64px); }
+.nv-mac-pnl::before, .nv-mac-pnl::after { content: ''; position: absolute; width: 14px; height: 14px; pointer-events: none; border-color: var(--h, var(--nv-bracket)); border-style: solid; opacity: .75; }
+.nv-mac-pnl::before { left: -1px; top: -1px; border-width: 1.5px 0 0 1.5px; border-radius: var(--nv-radius) 0 0 0; }
+.nv-mac-pnl::after { right: -1px; bottom: -1px; border-width: 0 1.5px 1.5px 0; border-radius: 0 0 var(--nv-radius) 0; }
+.nv-mac-pnl.in { opacity: .62; transform: scale(.97); filter: none; }
+.nv-mac-pnl.in.held { opacity: .9; transform: none; }
+.nv-mac-pnl.in.lit { opacity: 1; transform: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 60%, transparent), inset 0 1px 0 rgba(190, 225, 255, .3), 0 0 60px -24px var(--h), 0 30px 60px -30px rgba(0, 0, 0, .9); }
+.nv-mac-pnl.in.hov, .nv-mac-pnl.in:focus-visible { opacity: 1; transform: translate3d(0, -3px, 0); transition-duration: var(--nv-dur-slow), var(--nv-dur-base), var(--nv-dur-slow), var(--nv-dur-base);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 55%, transparent), inset 0 1px 0 rgba(190, 225, 255, .28), 0 0 50px -26px var(--h), 0 36px 64px -30px rgba(0, 0, 0, .95); }
+.nv-mac-pnl.in:focus-visible { box-shadow: 0 0 0 2px var(--nv-cy), inset 0 0 0 1px color-mix(in srgb, var(--h) 55%, transparent), 0 36px 64px -30px rgba(0, 0, 0, .95); }
+.nv-mac-pnl.open { z-index: 17; opacity: 1; transform: none; cursor: default; overflow-y: auto; background: var(--nv-glass2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 60%, transparent), inset 0 1px 0 rgba(190, 225, 255, .3), 0 0 70px -28px var(--h), 0 40px 80px -30px #000; }
+.nv-mac-pnl.dim { opacity: .16 !important; filter: blur(2px); pointer-events: none; }
+.nv-mac-pnl.out { opacity: 0 !important; transform: translate3d(28px, 0, 0) scale(.96) !important; filter: blur(6px); pointer-events: none !important; }
+.nv-mac-pnl .ptag { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-pnl .ptag > i { width: 8px; height: 8px; border-radius: 50%; background: var(--h); flex: none; }
+.nv-mac-pnl .ptag em { font-style: normal; color: var(--h); }
+.nv-mac-pnl .ptag .kept { color: var(--nv-ink50); }
+.nv-mac-pnl .pact { display: inline-flex; gap: 4px; margin: -4px -6px -4px auto; opacity: 0; transition: opacity var(--nv-dur-fast) var(--nv-ease); }
+.nv-mac-pnl.in:hover .pact, .nv-mac-pnl.in:focus-within .pact, .nv-mac-pnl.open .pact, .nv-mac-pnl.pinned .pact { opacity: 1; }
+.nv-mac-pnl .pact button { width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center; color: var(--nv-ink50); background: rgba(255, 255, 255, .06); }
+.nv-mac-pnl .pact button:hover { color: var(--nv-ink); background: rgba(255, 255, 255, .12); }
+.nv-mac-pnl .pact button:active { transform: scale(.94); }
+.nv-mac-pnl .pact .ic { width: 14px; height: 14px; stroke-width: 2.2; }
+.nv-mac-pnl .pact .pin[aria-pressed="true"] { color: var(--h); background: color-mix(in srgb, var(--h) 18%, transparent); }
+.nv-mac-pnl .pact .pin[aria-pressed="true"] path { fill: currentColor; fill-opacity: .35; }
+.nv-mac-pnl .ptitle { margin: 0 0 12px; font: 400 24px/1.15 var(--nv-font-serif); letter-spacing: -.005em; color: var(--nv-ink); }
+.nv-mac-pnl.open .ptitle { font-size: 28px; }
+.nv-mac-pnl .pbody { font-size: 15px; color: var(--nv-ink60); }
+.nv-mac-pnl.open .pbody { color: var(--nv-ink); }
+.nv-mac-pnl .pclose { position: sticky; float: right; bottom: 0; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 15px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink60); background: rgba(255, 255, 255, .06); }
+.nv-mac-pnl .dact { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.nv-mac-pnl .openb { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px 0 12px; border-radius: 19px; font: 600 14px var(--nv-font-ui); color: var(--h); background: color-mix(in srgb, var(--h) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 45%, transparent); }
+.nv-mac-pnl .openb .ic { width: 16px; height: 16px; }
+.nv-mac-pnl .openb:active { transform: scale(.97); }
+/* the proposal waiting on his call: gold; answered, it says how */
+.nv-mac-pnl .decide { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 10px; border-radius: 8px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); background: color-mix(in srgb, var(--nv-gold) 10%, transparent); box-shadow: inset 0 0 0 1.5px var(--nv-gold); }
+.nv-mac-pnl .decide.answered { background: none; box-shadow: none; padding: 0; }
+.nv-mac-pnl .decide .dq-t { flex-basis: 100%; font: 600 13px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-mac-pnl .decide button { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .2); }
+.nv-mac-pnl .decide button.y { color: var(--nv-good); }
+.nv-mac-pnl .decide button.n { color: var(--nv-ink60); }
+.nv-mac-pnl .decide .ic { width: 16px; height: 16px; stroke-width: 2.6; }
+.nv-mac-pnl.open .decide button { width: auto; height: 38px; padding: 0 16px 0 12px; border-radius: 19px; display: inline-flex; gap: 6px; font: 600 14px var(--nv-font-ui); }
+.nv-mac-pnl .decide .dq.yes { color: var(--nv-good); }
+
+/* the composer (mockup .composer) */
+.nv-mac-composer {
+  position: absolute; left: 0; z-index: 20; border-radius: 32px; background: var(--nv-glass); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: inset 0 0 0 1px var(--nv-edge), inset 0 1px 0 var(--nv-spec), 0 14px 34px -16px rgba(0, 0, 0, .7); transition: transform var(--nv-spring-smooth-ms) var(--nv-spring-smooth);
+}
+.nv-mac-composer::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 1.5px var(--nv-vi), 0 0 26px -6px var(--nv-vi); opacity: 0; pointer-events: none; transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-composer.listening::after { opacity: .9; }
+.nv-mac-composer .cl { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 10px; animation: nvMacCl var(--nv-dur-base) var(--nv-ease) both; }
+@keyframes nvMacCl { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+.nv-mac-composer .field { flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 0; border-radius: 23px; background: var(--nv-well); box-shadow: inset 0 0 0 1px rgba(232, 236, 246, .12); font: 400 15px var(--nv-font-ui); color: var(--nv-ink); outline: none; }
+.nv-mac-composer .field::placeholder { color: var(--nv-ink50); }
+.nv-mac-composer .hintk { display: flex; align-items: center; gap: 5px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink40); white-space: nowrap; }
+.nv-mac-composer .mic { width: 46px; height: 46px; border-radius: 23px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--nv-cy) 16%, transparent); box-shadow: inset 0 0 0 1.5px var(--nv-cy); color: var(--nv-cy); }
+.nv-mac-composer .mic:disabled { opacity: .45; }
+.nv-mac-composer .mic:active, .nv-mac-composer .xtype:active, .nv-mac-composer .sendnow:active { transform: scale(.96); }
+.nv-mac-composer .xtype { display: inline-flex; align-items: center; gap: 6px; height: 46px; padding: 0 14px 0 12px; border-radius: 23px; font: 600 14px var(--nv-font-ui); background: rgba(255, 255, 255, .1); flex: none; }
+.nv-mac-composer .xtype .ic { width: 16px; height: 16px; }
+.nv-mac-meter { flex: 1; min-width: 0; height: 46px; display: flex; align-items: center; justify-content: center; gap: 3px; }
+.nv-mac-meter i { display: block; width: 3px; height: 30px; border-radius: 2px; background: var(--nv-vi); transform: scaleY(.12); }
+.nv-mac-composer .sendnow { height: 46px; padding: 0 16px; border-radius: 23px; font: 700 14px var(--nv-font-ui); background: var(--nv-vi); color: #14102e; flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.nv-mac-composer .sendnow small { font: 500 12px var(--nv-font-ui); opacity: .75; }
+
+/* the history drawer (mockup .drawer) */
+.nv-mac-drawer {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 400px; z-index: 28; display: flex; flex-direction: column; background: var(--nv-glass2);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5); backdrop-filter: blur(30px) saturate(1.5);
+  box-shadow: inset 1px 0 0 var(--nv-edge), -30px 0 60px -30px rgba(0, 0, 0, .8); transform: translate3d(104%, 0, 0); transition: transform var(--nv-spring-smooth-ms) var(--nv-spring-smooth);
+}
+.nv-mac[data-hist] .nv-mac-drawer { transform: none; }
+.nv-mac-drawer .dh { flex: none; display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px 20px; }
+.nv-mac-drawer .dh b { font: 700 19px var(--nv-font-ui); letter-spacing: -.01em; }
+.nv-mac-drawer .dh span { font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-drawer .dmore { margin-left: auto; width: 32px; height: 32px; border-radius: 16px; display: grid !important; place-items: center; color: var(--nv-ink60) !important; background: rgba(255, 255, 255, .06) !important; }
+.nv-mac-drawer .dmore .ic { width: 16px; height: 16px; }
+.nv-mac-drawer .dmore:active { transform: scale(.96); }
+.nv-mac-drawer .dmore + .dclose { margin-left: 0 !important; }
+.nv-mac-drawer .dclose { margin-left: auto; display: inline-flex !important; align-items: center; gap: 6px; height: 32px; padding: 0 10px !important; border-radius: 16px; font: 500 12px var(--nv-font-ui) !important; color: var(--nv-ink60) !important; background: rgba(255, 255, 255, .06) !important; }
+.nv-mac-dl { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px 24px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
+/* the thread's own lines, in the drawer's measure (mockup .day .you .nmsg .receipt) */
+.nv-mac-dl .nv-nt-day { align-self: center; font: 600 12px var(--nv-font-ui); color: var(--nv-ink50); padding: 4px 0; text-transform: none; letter-spacing: 0; }
+.nv-mac-dl .nv-nt-you { align-self: flex-end; max-width: 86%; margin: 0; padding: 9px 14px; border-radius: 18px 18px 6px 18px; background: rgba(255, 255, 255, .12); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .16); font: 400 15px/1.38 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-mac-dl .nv-nt-nova { align-self: flex-start; margin: 0; padding: 0; background: none; box-shadow: none; font: 400 15px/1.45 var(--nv-font-ui); text-wrap: pretty; }
+.nv-mac-dl .nv-nt-say { font: inherit; }
+.nv-mac-dl .nv-nt-meta, .nv-mac-dl .nv-nt-by { display: none; }
+.nv-mac-dl .nv-nt-receipt { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 6px 6px 12px; border-radius: 24px; background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+.nv-mac-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.nv-mac-thumbs .thumb { display: grid; gap: 3px; padding: 9px 10px; border-radius: var(--nv-radius); background: var(--nv-glass); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 40%, transparent); text-align: left; }
+.nv-mac-thumbs .thumb i { width: 7px; height: 7px; border-radius: 50%; background: var(--h); }
+.nv-mac-thumbs .thumb b { font: 600 12px/1.25 var(--nv-font-ui); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.nv-mac-thumbs .thumb span { font: 400 11px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-replay { align-self: flex-start; display: inline-flex !important; align-items: center; gap: 6px; height: 32px; padding: 0 12px !important; border-radius: 16px; font: 600 13px var(--nv-font-ui) !important; color: var(--nv-cy) !important; background: color-mix(in srgb, var(--nv-cy) 10%, transparent) !important; }
+.nv-mac-replay .ic { width: 14px; height: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-mac-rail, .nv-mac-composer, .nv-mac-drawer, .nv-mac-pnl, .nv-mac-layer, .nv-mac-composer .cl { transition: opacity var(--nv-dur-fast) linear !important; animation: none !important; }
+  .nv-mac-pnl, .nv-mac-pnl.in, .nv-mac-pnl.in.hov, .nv-mac-layer { transform: none !important; filter: none !important; }
+  .nv-mac[data-focus] .nv-mac-rail { transform: none; }
+  .nv-mac-drawer { transform: none; opacity: 0; pointer-events: none; }
+  .nv-mac[data-hist] .nv-mac-drawer { opacity: 1; pointer-events: auto; }
+  .nv-mac-sat, .nv-mac-stword b { animation: none; }
+  .nv-mac-sat .dot i { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nv-mac-rail, .nv-mac-composer, .nv-mac-plate, .nv-mac-pnl, .nv-mac-sat, .nv-mac-drawer { -webkit-backdrop-filter: none; backdrop-filter: none; background: #141a30; }
+}
+
+/* ---- the panels code builds (mockup 108's sets, brief and day strip) ---- */
+.nv-mac-sets .rows { display: grid; gap: 9px; }
+.nv-mac-sets .row { display: grid; grid-template-columns: 86px 1fr 92px; align-items: center; gap: 12px; transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-sets.open .row { grid-template-columns: 96px 1fr 196px; }
+.nv-mac-sets .row .m { font: 500 13px var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-mac-sets .row .tr { position: relative; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, .06); }
+.nv-mac-sets .row .bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--mh); transform-origin: 0 50%;
+  animation: nvMacBar var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; animation-delay: calc(180ms + var(--i, 0) * 45ms); }
+@keyframes nvMacBar { from { transform: scaleX(0); } }
+.nv-mac-sets .row .pl { position: absolute; top: 0; bottom: 0; border-radius: 0 5px 5px 0; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--mh) 70%, transparent) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mh) 50%, transparent); }
+.nv-mac-sets .row .tg { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--nv-ink40); }
+.nv-mac-sets .row .v { font: 600 15px var(--nv-font-ui); font-variant-numeric: tabular-nums; text-align: right; color: var(--nv-ink); white-space: nowrap; }
+.nv-mac-sets .row .v small { font-weight: 400; color: var(--nv-ink50); font-size: 12px; }
+.nv-mac-sets.open .row .v { font-size: 12.5px; font-weight: 500; color: var(--nv-ink60); }
+.nv-mac-sets.open .row .v b { font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-mac-sets.open .row.short .v b { color: var(--nv-gold); }
+.nv-mac-sets.focus .row { opacity: .38; }
+.nv-mac-sets.focus .row.key { opacity: 1; }
+.nv-mac-sets .row.key .m { color: var(--nv-ink); }
+.nv-mac-sets .row.key.short .m { color: var(--nv-gold); }
+.nv-mac-sets .keynote { margin: 12px 0 0; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-mac-sets .keynote b { font-weight: 600; color: var(--nv-ink); }
+.nv-mac-sets .keynote b.gold { color: var(--nv-gold); }
+.nv-mac-sets .legend { display: flex; gap: 16px; margin: 0 0 12px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-sets .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.nv-mac-sets .legend i { width: 14px; height: 8px; border-radius: 3px; }
+.nv-mac-sets .lg-done { background: var(--nv-ink60); }
+.nv-mac-sets .lg-plan { background: repeating-linear-gradient(135deg, rgba(232, 236, 246, .5) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px rgba(232, 236, 246, .35); }
+.nv-mac-sets .lg-tick { width: 2px !important; height: 12px !important; background: var(--nv-ink40); }
+.nv-mac-sets .dnote { margin: 14px 0 0; font: 400 14px/1.45 var(--nv-font-ui); color: var(--nv-ink60); }
+
+.nv-mac-brief .pts { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.nv-mac-brief .pts li { position: relative; padding-left: 20px; font: 400 15px/1.4 var(--nv-font-ui); color: var(--nv-ink60); animation: nvMacPt var(--nv-dur-base) var(--nv-ease) both; }
+.nv-mac-brief .pts li:nth-child(2) { animation-delay: 140ms; } .nv-mac-brief .pts li:nth-child(3) { animation-delay: 280ms; } .nv-mac-brief .pts li:nth-child(n+4) { animation-delay: 420ms; }
+@keyframes nvMacPt { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+.nv-mac-brief .pts li::before { content: ''; position: absolute; left: 2px; top: 8px; width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--h); }
+.nv-mac-brief .pts li.lit { color: var(--nv-ink); }
+.nv-mac-brief .pts li.lit::before { background: var(--h); }
+.nv-mac-brief .pts li .ul { padding-bottom: 3px; background: linear-gradient(var(--h), var(--h)) 0 100% / 0% 2px no-repeat; transition: background-size .6s var(--nv-ease); }
+.nv-mac-brief .pts li.lit .ul { background-size: 100% 2px; }
+.nv-mac-pnl.open .nv-mac-brief .pts li { color: var(--nv-ink); }
+.nv-mac-brief .srcs, .nv-mac-cal .srcs { margin: 16px 0 12px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-brief .dact { display: flex; align-items: center; gap: 12px; }
+
+.nv-mac-cal .cal { position: relative; height: 96px; margin-top: 4px; }
+.nv-mac-cal .hrs { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; font: 500 11px var(--nv-font-ui); color: var(--nv-ink40); font-variant-numeric: tabular-nums; }
+.nv-mac-cal .hrs span { width: 0; display: flex; justify-content: center; }
+.nv-mac-cal .ln { position: absolute; left: 0; right: 0; top: 26px; height: 56px; border-radius: 8px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .06) 0 1px, transparent 1px calc(100% / var(--n, 6))); }
+.nv-mac-cal .ev { position: absolute; top: 26px; height: 56px; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; font: 600 12.5px/1.2 var(--nv-font-ui); overflow: hidden; overflow-wrap: anywhere; }
+.nv-mac-cal .ev small { display: block; font: 400 12px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-mac-cal .ev.have { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .16); }
+.nv-mac-cal .ev.new { z-index: 1; background: color-mix(in srgb, var(--nv-gold) 16%, var(--nv-bg1)); box-shadow: inset 0 0 0 1.5px var(--nv-gold); color: var(--nv-ink); animation: nvMacDrop var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; }
+@keyframes nvMacDrop { from { opacity: 0; transform: translate3d(0, -22px, 0) scale(.9); } }
+.nv-mac-cal .ev.new small { color: var(--nv-gold); }
+.nv-mac-cal .ev.new.kept, .nv-mac-cal .dev.new.kept { background: color-mix(in srgb, var(--nv-good) 14%, var(--nv-bg1)); box-shadow: inset 0 0 0 1.5px var(--nv-good); }
+.nv-mac-cal .ev.new.kept small, .nv-mac-cal .dev.new.kept small { color: var(--nv-good); }
+.nv-mac-cal .ev.new.gone { opacity: .35; background: none; box-shadow: inset 0 0 0 1px rgba(232, 236, 246, .2); }
+.nv-mac-cal .ev.new.gone small { color: var(--nv-ink40); }
+.nv-mac-cal .day { margin: 8px 0 6px; display: grid; gap: 6px; }
+.nv-mac-cal .drow { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 10px; }
+.nv-mac-cal .drow .t { font: 500 12px var(--nv-font-ui); color: var(--nv-ink40); font-variant-numeric: tabular-nums; text-align: right; }
+.nv-mac-cal .dev { display: block; padding: 8px 12px; border-radius: 8px; font: 600 14px/1.25 var(--nv-font-ui); }
+.nv-mac-cal .dev small { display: block; font: 400 12px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-mac-cal .dev.have { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .16); }
+.nv-mac-cal .dev.new { background: color-mix(in srgb, var(--nv-gold) 16%, var(--nv-bg1)); box-shadow: inset 0 0 0 1.5px var(--nv-gold); }
+.nv-mac-cal .dev.new small { color: var(--nv-gold); }
+.nv-mac-cal .dev.new.gone { opacity: .35; text-decoration: line-through; background: none; box-shadow: inset 0 0 0 1px rgba(232, 236, 246, .2); }
+.nv-mac-cal .cdecide { display: flex; align-items: center; gap: 10px; margin-top: 10px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); animation: nvMacPt var(--nv-dur-base) var(--nv-ease) .2s both; }
+.nv-mac-cal .cdecide button { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .2); }
+.nv-mac-pnl.open .nv-mac-cal .cdecide button.y, .nv-mac-pnl.open .nv-mac-cal .cdecide button.n { width: auto; height: 38px; padding: 0 16px 0 12px; border-radius: 19px; display: inline-flex; gap: 6px; font: 600 14px var(--nv-font-ui); }
+.nv-mac-cal .cdecide button.y { color: var(--nv-good); }
+.nv-mac-cal .cdecide button.n { color: var(--nv-ink60); }
+.nv-mac-cal .cdecide .ic { width: 16px; height: 16px; stroke-width: 2.6; }
+.nv-mac-cal .cdecide .dq.yes { color: var(--nv-good); }
+.nv-mac-cal .cdecide .undo2 { width: auto; height: 30px; padding: 0 12px; border-radius: 15px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink); }
+
+/* THE ISLAND ON THE MAC'S NOVA PAGE: it sits over the core, never over the
+   panel column (src/DynamicIsland.jsx's root; the stage sets the offset) */
+:root[data-nova-mac] [data-island-root] { transform: translate3d(var(--mac-island-dx, 0px), 0, 0); transition: transform var(--nv-spring-smooth-ms) var(--nv-spring-smooth); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-mac-sets .row .bar, .nv-mac-brief .pts li, .nv-mac-cal .ev.new, .nv-mac-cal .cdecide { animation: none; }
+  :root[data-nova-mac] [data-island-root] { transition: none; }
+}

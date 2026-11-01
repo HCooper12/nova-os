@@ -644,7 +644,7 @@ export function DynamicIsland() {
   );
   const sideChip = actions.length === 1;
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 0, zIndex: 95, pointerEvents: 'none' }}>
+    <div data-island-root="" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 0, zIndex: 95, pointerEvents: 'none' }}>
       <svg ref={svgRef} aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
         <defs>
           <filter id="nv-island-goo" filterUnits="userSpaceOnUse" x="0" y="-60" width="0" height="0" colorInterpolationFilters="sRGB">

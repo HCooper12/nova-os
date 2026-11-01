@@ -8219,7 +8219,11 @@ export default class App extends Component {
             const via = answeredBy(job.result);
             // the rest it held for "go on" rides the line (src/turnFold.js)
             const more = job.result.more || undefined;
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...via, ...(meta || {}) };
+            // the Researcher's briefs this answer was built on, for the Mac's
+            // brief panel ("Open the brief"); kept on the line only, never
+            // in the conversation record
+            const briefIds = (Array.isArray(job.result.consult) ? job.result.consult : []).filter((a) => a?.agent === 'researcher' && a.recordId).map((a) => a.recordId);
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -11002,6 +11006,25 @@ export default class App extends Component {
       mark('error', { error: e.message });
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
     });
+  }
+  // THE MAC'S CODE PANELS, NOTED ON THE LINE THEY RODE (1 Nov 2026): kind,
+  // title and source only, for the history drawer's thumbs. conversationSync
+  // picks the record's fields by name, so this never reaches the record.
+  noteMacPanels(at, panels) {
+    if (!Number.isFinite(at) || !Array.isArray(panels)) return;
+    this.setState((s) => ({ voiceChat: s.voiceChat.map((m) => (m.at === at && m.who !== 'you' ? { ...m, macPanels: panels } : m)) }));
+  }
+  // UNDO A PROPOSAL HE SAID YES TO, from where he said it (the Mac's
+  // calendar panel, 1 Nov 2026): the inbox rails' own undo (the record's
+  // undoData), never a second path. The line says it was taken back.
+  undoVoiceProposal(recordId) {
+    const conn = getConnection(); if (!conn || !recordId) return;
+    api.inboxUndo(conn, recordId)
+      .then(() => {
+        this.setState((s) => ({ voiceChat: s.voiceChat.map((m) => (m.proposal?.recordId === recordId ? { ...m, proposal: { ...m.proposal, status: 'undone' } } : m)) }));
+        this.refreshInbox(); this.loadCalendarRange();
+      })
+      .catch((e) => this.toastMsg('Could not undo: ' + e.message));
   }
   // `text`: the live value handed over by the LocalInput composer, which may
   // not have reached App state yet (see LocalInput.jsx). Called without one

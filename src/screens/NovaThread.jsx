@@ -14,6 +14,7 @@ import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
 import { stateOf, threadRows, clock, failedLast } from '../novaThreadFacts.js';
 import { Ico, Glyph, Stage, Settled, KeptTake, Proposal } from '../NovaThreadParts.jsx';
 import { NovaStage } from '../NovaStage.jsx';
+import { NovaMac } from '../NovaMac.jsx';
 import { ONE_NOVA_CHROME } from '../novaStageFacts.js';
 import { audioLevel } from '../audioLevel.js';
 import { CAPTIONS_KEY, captionsOn } from '../novaFocusFacts.js';
@@ -268,6 +269,46 @@ export function NovaThread({ v }) {
   };
   const holdTake = (id) => ({ target }) => setHeld({ kind: 'take', id, rect: target.getBoundingClientRect() });
 
+  // THE MAC (1 Nov 2026, mockup 108, approved): at desktop width the page is
+  // one window-sized stage with the history in a drawer (src/NovaMac.jsx);
+  // the phone below is untouched. The drawer draws the same lines as the
+  // thread, with a settled answer's panels as thumbs and "Replay with the glass".
+  if (!v.isMobile) {
+    const history = ({ settledAs }) => (
+      <>
+        {rows.length === 0 && !T.busy && (
+          <p className="nv-nt-empty">Ask about anything in your vault: training, fuel, notes, the week. Answers come from what is actually written.</p>
+        )}
+        {rows.map((r) => {
+          if (r.type === 'day') return <span key={r.key} className="nv-nt-day">{r.text}</span>;
+          if (r.type === 'door') return <span key={r.key} className="nv-nt-day door"><Ico name="nova" />{r.text}</span>;
+          if (r.type === 'fold') {
+            return r.items.map((i) => <Line key={`${r.key}:${i}`} i={i} m={lineAt(i)} fresh={false} onHold={holdLine(i)} onOpen={openSheet} onReplay={() => {}} settledAs={settledAs} />);
+          }
+          if (r.type === 'take') {
+            const t = tk.find((x) => x.id === r.id);
+            if (!t) return null;
+            return <TakeRow key={r.key} t={t} busy={retrying === t.id} onRetry={() => retry(t)} onType={() => typeIt(t)} onHold={holdTake(t.id)} />;
+          }
+          return <Line key={r.key} i={r.i} m={lineAt(r.i)} fresh={false} onHold={holdLine(r.i)} onOpen={openSheet} onReplay={() => {}} settledAs={settledAs} />;
+        })}
+      </>
+    );
+    return (
+      <div ref={rootRef} className="nv-nt nv-nt-mac" data-screen-label="Voice">
+        <NovaMac T={T} S={S} dict={dict} onTalk={startTalking} onSend={send} fieldRef={fieldRef} captions={captions} history={history}
+          onStatus={ONE_NOVA_CHROME.status ? () => setStatusOpen(true) : null} />
+        {statusOpen && <StatusSheet T={T} dict={dict} S={S} captions={captions} onCaptions={toggleCaptions} onClose={() => setStatusOpen(false)} />}
+        {held && <HoldMenu held={held} T={T} takes={tk} onClose={() => setHeld(null)} onReplay={() => setHeld(null)} />}
+        {sheet && (
+          <GlassSheet originEl={sheet.originEl} onClose={() => setSheet(null)} label={sheet.card.label || 'Panel'}>
+            <div className="nv-nt-sheetbody"><StageCard card={sheet.card} face="summary" /></div>
+          </GlassSheet>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div ref={rootRef} className={`nv-nt${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice" data-tabbar={ONE_NOVA_CHROME.tabBar ? '1' : '0'}>
       {/* A REPLAYED STAGE rises under the presenter's spot over the history,
@@ -372,7 +413,7 @@ export function NovaThread({ v }) {
 const youLine = (j) => document.querySelector(`.nv-nt-you[data-line="${j}"]`);
 
 // exported for a project page's thread (Projects T7): the same lines, never a copy
-export function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
+export function Line({ i, m, fresh, onHold, onOpen, onReplay, settledAs = null }) {
   const lp = useLongPress(m?.who === 'nova' && m.text ? onHold : null);
   if (!m) return null;
   const meta = [m.time, m.where].filter(Boolean).join(' · ');
@@ -409,7 +450,7 @@ export function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
       </div>
       {meta && !m.streaming && <span className="nv-nt-meta">{meta}</span>}
       {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><div className="nv-nt-vpanel"><VoicePanel panel={m.panel} /></div></SafeVisual>}
-      {m.settled && <Settled st={m.settled} time={m.time} onOpen={onOpen} onReplay={() => onReplay(m.settled.panels)} />}
+      {settledAs ? ((m.settled || m.macPanels) && settledAs(m.settled, m)) : (m.settled && <Settled st={m.settled} time={m.time} onOpen={onOpen} onReplay={() => onReplay(m.settled.panels)} />)}
       {m.notice && (
         <p className="nv-nt-routed">Started as {m.notice.label.toLowerCase()}: {m.notice.why}
           <button type="button" onClick={m.notice.undo}>Just answer it</button></p>

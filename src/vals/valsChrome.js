@@ -150,9 +150,12 @@ export function valsChrome(app, ctx) {
     })(),
     // full-screen on the Mac: the sidebar folds away, and a tab on the left
     // edge (plus ⌘B) brings it back
-    showSidebar: !mob && !st.sidebarHidden,
+    // THE NOVA PAGE ON THE MAC (mockup 108, approved 1 Nov 2026) draws its
+    // own capsule rail, which recedes while Nova holds the stage: the
+    // sidebar and its edge tab stand aside there (src/NovaMac.jsx)
+    showSidebar: !mob && !st.sidebarHidden && !(st.screen === 'voice' && st.novaStyle === 'summary'),
     // one control, one place, both states
-    sidebarToggle: !mob ? { open: !st.sidebarHidden, toggle: () => app.toggleSidebar() } : null,
+    sidebarToggle: !mob && !(st.screen === 'voice' && st.novaStyle === 'summary') ? { open: !st.sidebarHidden, toggle: () => app.toggleSidebar() } : null,
     tabs,
     wrapMission: mob ? mp : { padding: '24px 40px 64px', maxWidth: '1180px' },
     wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },

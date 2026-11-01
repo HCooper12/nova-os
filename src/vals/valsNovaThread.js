@@ -76,6 +76,7 @@ export function valsNovaThread(app, ctx, v) {
         ask: (m.acted.status || 'done') === 'done' ? wishlistAskFor(m.acted, inboxItems, st.wishlistAnswered, app) : null,
       } : null,
       proposal: live && m.proposal ? {
+        recordId: m.proposal.recordId || null, kind: m.proposal.kind || null,
         title: m.proposal.title, status: m.proposal.status, replaced: !!m.proposal.replaced,
         approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,
         dismiss: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, false) : null,
@@ -94,6 +95,12 @@ export function valsNovaThread(app, ctx, v) {
         title: m.research.title || null, body: m.research.body || null, error: m.research.error || null,
       } : null,
       panel: m.panel || null,
+      // THE MAC'S BRIEF PANEL (mockup 108): the Researcher's briefs this
+      // answer stood on (the line's own research, or a consult's record), so
+      // "Open the brief" opens the real Inbox record; none, no button
+      macPanels: who === 'nova' && Array.isArray(m.macPanels) && m.macPanels.length ? m.macPanels : null,
+      briefIds: who === 'nova' ? (m.briefIds?.length ? m.briefIds : m.research?.recordId ? [m.research.recordId] : null) : null,
+      openBrief: live && who === 'nova' && (m.research?.recordId || m.briefIds?.length) ? () => app.openCapture(m.research?.recordId || m.briefIds[0]) : null,
       // TEXT → LAYOUT (15 Oct): what code filed this capture as, read off the
       // Inbox record behind the receipt (src/filedFlight.js). Display only.
       filed: who === 'nova' ? filedFor(chat, i, inboxItems) : null,
@@ -226,6 +233,21 @@ export function valsNovaThread(app, ctx, v) {
       // stage is the foot of this page now, src/NovaStage.jsx)
       micOpen: !!st.voiceScreenMic,
       openCapture: v.openCaptureSheet || null,
+      // THE MAC (mockup 108): its capsule rail goes to a page, Esc stops
+      // Nova mid-sentence, and the agents asked this turn ride the 'ask' poll
+      go: (k) => app.navigate(k),
+      stop: () => app.stopSpeaking(),
+      consultLane: 'ask',
+      // what the Mac's code-built panels read (src/novaMacFacts.js codePanels):
+      // his week, the Inbox records, his calendar; and the proposal's Undo
+      // on the inbox rails (only when its record carries undoData)
+      week: st.liveTrainOverview?.muscleWeek || null,
+      inbox: st.liveInbox?.items || null,
+      calendarEvents: st.liveCalendarRange ?? null,
+      loadCalendar: () => app.loadCalendarRange(),
+      undoProposal: live ? (id) => app.undoVoiceProposal(id) : null,
+      openRecord: live ? (id) => app.openCapture(id) : null,
+      notePanels: (at, panels) => app.noteMacPanels(at, panels),
     },
   };
 }

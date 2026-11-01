@@ -13,7 +13,7 @@
 
   Builds on 106 Option A (approved for the phone, 31 Oct): one canvas, the
   filament core centred and coloured by state (Ready blue-cyan, Listening
-  violet, Thinking cyan with an orbit arc, Speaking gold), heard words under
+  violet, Thinking cyan with an orbit arc, Speaking jade), heard words under
   it, the glass plate and serif subtitles while he speaks.
 
   What the Mac adds, drawn in a 1440 x 900 window in the command theme:
@@ -40,7 +40,7 @@
   --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink50:rgba(232,236,246,.52); --nv-ink40:rgba(232,236,246,.38);
   --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8); --nv-well:rgba(0,0,0,.3);
   --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
-  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-gold:#e0b26a; --nv-good:#5fe8a8; --nv-warn:#e08383; --nv-nova:#c9d8ff; --nv-on-acc:#0a2830;
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-gold:#e0b26a; --nv-say:#50e4a8; --nv-good:#5fe8a8; --nv-warn:#e08383; --nv-nova:#c9d8ff; --nv-on-acc:#0a2830;
   --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b; --nv-m-biceps:#5fe8a8; --nv-m-quads:#7ab8ff;
   --nv-radius:10px; --nv-bracket:rgba(89,230,255,.55);
   --nv-gridline:rgba(130,175,255,.045);
@@ -140,16 +140,16 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 .heard .hw.on{opacity:1;transform:none}
 .plate{padding:16px 24px 20px;border-radius:30px;background:rgba(18,23,44,.62);-webkit-backdrop-filter:blur(30px) saturate(1.5);backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 1px 0 rgba(255,255,255,.22) inset,0 26px 54px -24px rgba(0,0,0,.85)}
 .plate .ph{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.who{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px 0 8px;border-radius:14px;font:600 14px var(--ui);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-gold) 45%,transparent)}
-.who i{width:12px;height:12px;border-radius:50%;background:var(--nv-gold)}
+.who{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px 0 8px;border-radius:14px;font:600 14px var(--ui);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-say) 45%,transparent)}
+.who i{width:12px;height:12px;border-radius:50%;background:var(--nv-say)}
 .plate .esc{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:500 12px var(--ui);color:var(--nv-ink40)}
 .plate .pq{margin:0 0 10px;font:italic 400 15px/1.35 var(--serif);color:var(--nv-ink50)}
 .plate .pq b{font:600 12px var(--ui);font-style:normal;margin-right:7px;color:var(--nv-ink40)}
 .plate .pa{margin:0;font:400 27px/1.32 var(--serif);text-wrap:pretty}
 .win[data-state="panels"] .plate .pa{font-size:23px}
 .w{position:relative;display:inline-block;padding-bottom:4px;opacity:0;color:var(--nv-ink);transition:color var(--nv-dur-base) var(--nv-ease);will-change:transform,opacity}
-.w.lit{color:var(--nv-gold)}
-.w::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:var(--nv-gold);transform-origin:0 50%;transform:scaleX(var(--p,0));opacity:var(--u,0)}
+.w.lit{color:var(--nv-say)}
+.w::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:var(--nv-say);transform-origin:0 50%;transform:scaleX(var(--p,0));opacity:var(--u,0)}
 
 /* ---------- thinking: the agents being consulted ---------- */
 .sat{position:absolute;left:0;top:0;z-index:11;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;min-width:228px;padding:10px 16px 10px 12px;border-radius:var(--nv-radius);
@@ -222,6 +222,80 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 .decide button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2)}
 .decide button.y{color:var(--nv-good)}.decide button.n{color:var(--nv-ink60)}
 .decide .ic{width:16px;height:16px;stroke-width:2.6}
+.decide .undo2[hidden]{display:none}
+.decide .undo2{width:auto;height:30px;padding:0 12px;border-radius:15px;font:600 13px var(--ui);color:var(--nv-ink)}
+.decide.yes button.y,.decide.yes button.n,.decide.no button.y,.decide.no button.n{display:none !important}
+.decide.yes .dq{color:var(--nv-good)}
+.ev.new.kept{background:color-mix(in srgb,var(--nv-good) 14%,var(--nv-bg1));box-shadow:inset 0 0 0 1.5px var(--nv-good)}
+.ev.new.kept small{color:var(--nv-good)}
+.ev.new.gone{opacity:0 !important;transform:translate3d(0,-10px,0) scale(.94) !important;transition:opacity var(--nv-dur-base) var(--nv-ease),transform var(--nv-dur-base) var(--nv-ease)}
+
+/* ---------- touching the glass (his ask, 1 Nov: during and after) ---------- */
+.pnl{cursor:pointer;outline:none}
+.pact{display:inline-flex;gap:4px;margin:-4px -6px -4px 6px;opacity:0;transition:opacity var(--nv-dur-fast) var(--nv-ease)}
+.pnl.in:hover .pact,.pnl.in:focus-within .pact,.pnl.open .pact,.pnl.pinned .pact{opacity:1}
+.pact button{width:26px;height:26px;border-radius:13px;display:grid;place-items:center;color:var(--nv-ink50);background:rgba(255,255,255,.06)}
+.pact button:hover{color:var(--nv-ink);background:rgba(255,255,255,.12)}
+.pact button:active{transform:scale(.94)}
+.pact .ic{width:14px;height:14px;stroke-width:2.2}
+.pact .pin[aria-pressed="true"]{color:var(--h);background:color-mix(in srgb,var(--h) 18%,transparent)}
+.pact .pin[aria-pressed="true"] path{fill:currentColor;fill-opacity:.35}
+.pnl.in.hov,.pnl.in:focus-visible{opacity:1;transform:translate3d(0,-3px,0);transition-duration:var(--nv-dur-slow),var(--nv-dur-base),var(--nv-dur-slow),var(--nv-dur-base);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 55%,transparent),inset 0 1px 0 rgba(190,225,255,.28),0 0 50px -26px var(--h),0 36px 64px -30px rgba(0,0,0,.95)}
+.pnl.in:focus-visible{box-shadow:0 0 0 2px var(--nv-cy),inset 0 0 0 1px color-mix(in srgb,var(--h) 55%,transparent),0 36px 64px -30px rgba(0,0,0,.95)}
+.pnl.pinned .ptag em::after{content:" · kept";color:var(--nv-ink50)}
+.pnl.out{opacity:0 !important;transform:translate3d(28px,0,0) scale(.96) !important;filter:blur(6px);pointer-events:none !important}
+/* opened in place: the panel grows over the column; the others step back */
+.pnl.open{z-index:17;opacity:1;transform:none;cursor:default;background:var(--nv-glass2);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 60%,transparent),inset 0 1px 0 rgba(190,225,255,.3),0 0 70px -28px var(--h),0 40px 80px -30px #000}
+.pnl.dim{opacity:.16 !important;filter:blur(2px);pointer-events:none}
+.pnl .det{display:none}
+.pnl.open .det{display:block;animation:detIn var(--nv-dur-slow) var(--nv-ease) both .08s}
+.pnl.open .sum{display:none}
+@keyframes detIn{from{opacity:0;transform:translate3d(0,8px,0)}}
+.pclose{display:none;position:absolute;right:16px;bottom:14px;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:15px;font:500 12px var(--ui);color:var(--nv-ink60);background:rgba(255,255,255,.06)}
+.pnl.open .pclose{display:inline-flex}
+.pnl.open .ptitle{font-size:28px}
+.legend{display:flex;gap:16px;margin:0 0 12px;font:500 12px var(--ui);color:var(--nv-ink50)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:8px;border-radius:3px}
+.lg-done{background:var(--nv-ink60)}.lg-plan{background:repeating-linear-gradient(135deg,rgba(232,236,246,.5) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px rgba(232,236,246,.35)}
+.lg-tick{width:2px !important;height:12px !important;background:var(--nv-ink40)}
+.rows.wide .row{grid-template-columns:96px 1fr 196px}
+.pnl.focusrow .rows.wide .row{opacity:1}
+.row .pl{position:absolute;top:0;bottom:0;border-radius:0 5px 5px 0;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--mh) 70%,transparent) 0 2px,transparent 2px 5px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mh) 50%,transparent)}
+.rows.wide .row .bar{transform:scaleX(1)}
+.rows.wide .row .v{font-size:12.5px;font-weight:500;color:var(--nv-ink60);white-space:nowrap}
+.rows.wide .row .v b{font:600 15px var(--ui);color:var(--nv-ink)}
+.rows.wide .row.short .v b{color:var(--nv-m-shoulders)}
+.dnote{margin:14px 0 40px;font:400 14px/1.45 var(--ui);color:var(--nv-ink60)}
+.dnote b{color:var(--nv-ink)}
+.pts li.more{display:none}
+.pnl.open .pts li.more{display:list-item;opacity:1;transform:none}
+.pnl.open .pts li{opacity:1;transform:none;color:var(--nv-ink)}
+.srcs{margin:16px 0 12px;font:400 13px var(--ui);color:var(--nv-ink50)}
+.dact{display:flex;align-items:center;gap:12px;margin-bottom:38px}
+.openb{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px 0 12px;border-radius:19px;font:600 14px var(--ui);color:var(--h);background:color-mix(in srgb,var(--h) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 45%,transparent)}
+.openb .ic{width:16px;height:16px}
+.openb:active{transform:scale(.97)}
+.opened{font:400 13px var(--ui);color:var(--nv-ink60)}
+.day{margin:8px 0 6px;display:grid;gap:6px}
+.drow{display:grid;grid-template-columns:48px 1fr;align-items:center;gap:10px}
+.drow .t{font:500 12px var(--ui);color:var(--nv-ink40);font-variant-numeric:tabular-nums;text-align:right}
+.dev{display:block;padding:8px 12px;border-radius:8px;font:600 14px/1.25 var(--ui)}
+.dev small{display:block;font:400 12px var(--ui);color:var(--nv-ink60)}
+.dev.have{background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16)}
+.dev.have.tr{box-shadow:inset 3px 0 0 var(--nv-m-quads),inset 0 0 0 .5px rgba(255,255,255,.16)}
+.dev.free{color:var(--nv-ink50);font-weight:500;background:repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 6px,transparent 6px 12px);box-shadow:inset 0 0 0 1.5px rgba(232,236,246,.2)}
+.dev.new{background:color-mix(in srgb,var(--nv-gold) 16%,var(--nv-bg1));box-shadow:inset 0 0 0 1.5px var(--nv-gold)}
+.dev.new small{color:var(--nv-gold)}
+.dev.new.kept{background:color-mix(in srgb,var(--nv-good) 14%,var(--nv-bg1));box-shadow:inset 0 0 0 1.5px var(--nv-good)}
+.dev.new.kept small{color:var(--nv-good)}
+.dev.new.gone{opacity:.35;text-decoration:line-through;background:none;box-shadow:inset 0 0 0 1px rgba(232,236,246,.2)}
+.dev.new.gone small{color:var(--nv-ink40)}
+.pnl.open .decide{margin-bottom:40px}
+.pnl.open .decide button.y,.pnl.open .decide button.n{width:auto;height:38px;padding:0 16px 0 12px;border-radius:19px;gap:6px;display:inline-flex;align-items:center;font:600 14px var(--ui)}
+.pnl.open .decide button.y::after{content:"Add it"}.pnl.open .decide button.n::after{content:"No"}
 
 /* ---------- composer ---------- */
 .composer{position:absolute;left:0;bottom:22px;width:680px;height:64px;z-index:20;border-radius:32px;background:var(--nv-glass);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);
@@ -270,6 +344,36 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 .replay{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);color:var(--nv-cy);background:color-mix(in srgb,var(--nv-cy) 10%,transparent)}
 .replay .ic{width:14px;height:14px}
 
+/* the › and the status sheet (the phone's, NovaThread StatusSheet) */
+.dh .dmore{margin-left:auto;width:32px;height:32px;padding:0;border-radius:16px;display:grid;place-items:center;color:var(--nv-ink60);background:rgba(255,255,255,.06)}
+.dh .dmore .ic{width:16px;height:16px}
+.dh .dmore+.dclose{margin-left:0}
+.ssroot{position:absolute;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:color-mix(in srgb,var(--nv-void) 50%,transparent);opacity:0;pointer-events:none;transition:opacity var(--nv-dur-fast) var(--nv-ease)}
+.ssroot.on{opacity:1;pointer-events:auto}
+.ssheet{width:100%;max-width:560px;box-sizing:border-box;padding:6px 12px 14px;border-radius:28px 28px 0 0;background:color-mix(in srgb,var(--nv-void) 86%,transparent);-webkit-backdrop-filter:blur(30px) saturate(1.5);backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.16),0 1px 0 rgba(255,255,255,.12) inset;transform:translate3d(0,40px,0);transition:transform var(--nv-dur-base) var(--nv-ease)}
+.ssroot.on .ssheet{transform:none}
+.ssheet .grab{display:block;width:38px;height:5px;margin:2px auto 4px;border-radius:3px;background:rgba(232,236,246,.3)}
+.shead{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 4px 0 8px}
+.shead b{font:700 20px var(--ui);letter-spacing:-.01em}
+.shead>span{display:inline-flex;align-items:center;gap:6px;font:400 13px var(--ui);color:var(--nv-ink60)}
+.shead>span .ic{width:14px;height:14px}
+.shead .stuck{margin-left:auto;width:36px;height:36px;border-radius:18px;display:grid;place-items:center;color:var(--nv-ink60)}
+.shead .stuck .ic{width:16px;height:16px}
+.sgroup{margin:8px 0;padding:4px;border-radius:20px;background:rgba(255,255,255,.05);box-shadow:0 0 0 .5px rgba(255,255,255,.1)}
+.sstat{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;min-height:44px;padding:0 12px}
+.sstat span{font:400 15px var(--ui);color:var(--nv-ink60)}
+.sstat b{justify-self:end;text-align:right;font:600 15px var(--ui)}
+.sstat b.live{display:inline-flex;align-items:center;gap:6px;color:var(--nv-cy)}
+.sstat b.live i{width:7px;height:7px;border-radius:50%;background:var(--nv-cy)}
+.smi{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:48px;padding:0 12px;border-radius:16px;text-align:left;font:400 15px var(--ui)}
+.smi .ic{width:18px;height:18px;color:var(--nv-ink60)}
+.smi .v{font:400 13px var(--ui);color:var(--nv-ink40)}
+.smi:active{background:rgba(255,255,255,.07)}
+.ssw{position:relative;width:51px;height:31px;border-radius:16px;background:rgba(232,236,246,.22)}
+.ssw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:var(--nv-ink)}
+.ssw.on{background:var(--nv-good)}.ssw.on::after{transform:translateX(20px)}
+.dl .fresh{align-self:center;margin:8px 0 0;max-width:320px;text-align:center;font:400 14px/1.45 var(--ui);color:var(--nv-ink60)}
+
 /* ---------- rationale ---------- */
 .why{padding:4px 20px 0;max-width:1440px;display:grid;gap:18px;font-size:14px;line-height:1.5;color:var(--nv-ink60)}
 @media (min-width:1900px){.why{padding:62px 0 0}}
@@ -285,6 +389,8 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 
 @media (prefers-reduced-motion:reduce){
   .rail,.composer,.drawer,.pnl,.sat,.ev.new.on,.layer,.heard .hw,.cl,.pts li,.decide{transition:opacity var(--nv-dur-fast) linear !important}
+  .pnl.in.hov,.pnl.in:focus-visible,.pnl.out{transform:none !important}
+  .pnl.open .det{animation:none}
   .pnl,.pnl.in,.sat,.ev.new,.layer,.pts li,.decide{transform:none !important;filter:none !important}
   .win.focus .rail{transform:none}
   .drawer{transition:opacity var(--nv-dur-fast) linear !important;transform:none;opacity:0;pointer-events:none}
@@ -307,12 +413,20 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13h4l1.5 3h5L16 13h4M4 13l2.5-8h11L20 13v6H4z"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20zM14 3.5V8h4M9.5 12.5h5M9.5 16h5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+  <symbol id="i-stage" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2.5"/><path d="M9 20h6"/></symbol>
+  <symbol id="i-brief" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-compose" viewBox="0 0 24 24"><path d="M12 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12M17.5 4.5l2 2L12 14l-3 1 1-3z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.6v2.2M12 18.2v2.2M3.6 12h2.2M18.2 12h2.2M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6"/></symbol>
   <symbol id="i-replay" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></symbol>
 </svg>
 
 <div class="demo" role="toolbar" aria-label="Demo states">
   <h1>One Nova, Mac</h1>
-  <button data-act="idle">Ready</button><button data-act="listen">Listening</button><button data-act="think">Thinking</button><button data-act="speak">Speaking</button><button data-act="panels">Panels arriving</button><button data-act="hist">History</button>
+  <button data-act="idle">Ready</button><button data-act="listen">Listening</button><button data-act="think">Thinking</button><button data-act="speak">Speaking</button><button data-act="panels">Panels arriving</button><button data-act="held">Panels held</button><button data-act="hist">History</button>
   <span class="keys"><span>Hold <kbd>⌥</kbd><kbd>Space</kbd> to talk</span><span><kbd>Esc</kbd> stop</span><span><kbd>⌘</kbd><kbd>\</kbd> history</span></span>
 </div>
 
@@ -350,26 +464,44 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
       <div class="layer plate"><div class="ph"><span class="who"><i></i>Nova</span><span class="esc"><kbd>Esc</kbd> to stop</span></div><p class="pq"></p><p class="pa" aria-live="polite"></p></div>
     </div>
 
-    <!-- the running glass -->
-    <section class="pnl" id="p1" style="--h:var(--nv-nova);left:872px;top:64px;width:508px" aria-label="Sets this week">
-      <div class="ptag"><i></i><span><em>Nova’s own</em> · from your training log</span><span class="demo-s">DEMO FIGURES</span></div>
+    <!-- the running glass. Each panel can be hovered (it lifts, its tether
+         lights), opened in place (the detail), pinned through the next
+         question, or put away (×); Esc puts them all away. Tab or the arrow
+         keys move between them, Enter opens one. -->
+    <section class="pnl" id="p1" data-i="1" tabindex="0" aria-expanded="false" style="--h:var(--nv-nova);left:872px;top:64px;width:508px" aria-label="Sets this week. Enter to open">
+      <div class="ptag"><i></i><span><em>Nova’s own</em> · from your training log</span><span class="demo-s">DEMO FIGURES</span><span class="pact"><button class="pin" aria-label="Keep this panel through the next question" aria-pressed="false"><svg class="ic"><use href="#i-pin"/></svg></button><button class="px" aria-label="Put this panel away"><svg class="ic"><use href="#i-x"/></svg></button></span></div>
       <h3 class="ptitle">Sets this week</h3>
-      <div class="rows" id="rows"></div>
-      <p class="keynote"><b>Side delts</b> are short by Sunday at this pace. The tick on each bar is the week’s target.</p>
+      <div class="sum">
+        <div class="rows" id="rows"></div>
+        <p class="keynote"><b>Side delts</b> are short by Sunday at this pace. The tick on each bar is the week’s target.</p>
+      </div>
+      <div class="det" aria-hidden="true">
+        <div class="legend"><span><i class="lg-done"></i>done</span><span><i class="lg-plan"></i>still planned this week</span><span><i class="lg-tick"></i>target</span></div>
+        <div class="rows wide" id="rowsd"></div>
+        <p class="dnote">With Saturday’s plan, side delts end the week at <b>8 of 12</b>. Every other muscle reaches its target.</p>
+      </div>
+      <button class="pclose" aria-label="Close the detail"><kbd>Esc</kbd> Close</button>
     </section>
-    <section class="pnl" id="p2" style="--h:var(--nv-m-quads);left:936px;top:338px;width:444px" aria-label="Researcher brief">
-      <div class="ptag"><i></i><span><em>from the Researcher</em> · brief, 28 Oct</span><span class="demo-s">DEMO BRIEF</span></div>
+    <section class="pnl" id="p2" data-i="2" tabindex="0" aria-expanded="false" style="--h:var(--nv-m-quads);left:936px;top:338px;width:444px" aria-label="Researcher brief. Enter to open">
+      <div class="ptag"><i></i><span><em>from the Researcher</em> · brief, 28 Oct</span><span class="demo-s">DEMO BRIEF</span><span class="pact"><button class="pin" aria-label="Keep this panel through the next question" aria-pressed="false"><svg class="ic"><use href="#i-pin"/></svg></button><button class="px" aria-label="Put this panel away"><svg class="ic"><use href="#i-x"/></svg></button></span></div>
       <h3 class="ptitle">Growing side delts</h3>
       <ul class="pts">
         <li><span class="ul">Hard sets close to failure do the work</span></li>
         <li><span class="ul">Cable or dumbbell both count; pick the one you can push</span></li>
         <li><span class="ul">Spread the sets over two or three days</span></li>
+        <li class="more"><span class="ul">Ten to twenty hard sets a week is the range most studies use</span></li>
+        <li class="more"><span class="ul">Partial reps at the stretch may add a little; the evidence is thin</span></li>
       </ul>
+      <div class="det" aria-hidden="true">
+        <p class="srcs">4 sources, cited in the brief · in your Inbox since 28 Oct</p>
+        <div class="dact"><button class="openb"><svg class="ic"><use href="#i-doc"/></svg>Open the brief</button><span class="opened" role="status"></span></div>
+      </div>
+      <button class="pclose" aria-label="Close the detail"><kbd>Esc</kbd> Close</button>
     </section>
-    <section class="pnl" id="p3" style="--h:var(--nv-nova);left:872px;top:578px;width:508px" aria-label="Saturday">
-      <div class="ptag"><i></i><span><em>from your calendar</em> · Saturday 1 November</span><span class="demo-s">DEMO EVENTS</span></div>
+    <section class="pnl" id="p3" data-i="3" tabindex="0" aria-expanded="false" style="--h:var(--nv-nova);left:872px;top:578px;width:508px" aria-label="Saturday. Enter to open">
+      <div class="ptag"><i></i><span><em>from your calendar</em> · Saturday 1 November</span><span class="demo-s">DEMO EVENTS</span><span class="pact"><button class="pin" aria-label="Keep this panel through the next question" aria-pressed="false"><svg class="ic"><use href="#i-pin"/></svg></button><button class="px" aria-label="Put this panel away"><svg class="ic"><use href="#i-x"/></svg></button></span></div>
       <h3 class="ptitle" style="margin-bottom:6px">Saturday morning</h3>
-      <div class="cal">
+      <div class="cal sum">
         <div class="hrs"><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>1</span></div>
         <div class="ln"></div>
         <div class="ev have tr" style="left:0;width:calc(100% / 6 * 1.25 - 4px)">Lower body<small>7:00</small></div>
@@ -377,7 +509,15 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
         <div class="ev new" style="left:calc(100% / 6 * 2);width:calc(100% / 6 * 1.5 - 4px)">Side delts<small>4 sets · your call</small></div>
         <div class="ev have" style="left:calc(100% / 6 * 4);width:calc(100% / 6 * 1.5 - 4px)">Groceries<small>11:00</small></div>
       </div>
-      <div class="decide"><button class="y" aria-label="Yes, add it"><svg class="ic"><use href="#i-check"/></svg></button><button class="n" aria-label="No"><svg class="ic"><use href="#i-x"/></svg></button><span>or just say it</span></div>
+      <div class="det day" aria-hidden="true">
+        <div class="drow"><span class="t">7:00</span><span class="dev have tr">Lower body<small>gym · 75 min</small></span></div>
+        <div class="drow"><span class="t">9:00</span><span class="dev new">Side delts, 4 sets<small>9:00 to 10:30 · your call</small></span></div>
+        <div class="drow"><span class="t">11:00</span><span class="dev have">Groceries<small>45 min</small></span></div>
+        <div class="drow"><span class="t">2:00</span><span class="dev free">Free until dinner</span></div>
+        <div class="drow"><span class="t">6:30</span><span class="dev have">Dinner with Sam<small>Fitzroy</small></span></div>
+      </div>
+      <div class="decide"><button class="y" aria-label="Yes, add it"><svg class="ic"><use href="#i-check"/></svg></button><button class="n" aria-label="No"><svg class="ic"><use href="#i-x"/></svg></button><span class="dq">or just say it</span><button class="undo2" hidden>Undo</button></div>
+      <button class="pclose" aria-label="Close the detail"><kbd>Esc</kbd> Close</button>
     </section>
 
     <div class="composer" id="composer">
@@ -386,8 +526,8 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
     </div>
 
     <aside class="drawer" aria-label="History">
-      <div class="dh"><b>History</b><span>this week</span><button class="dclose"><kbd>Esc</kbd> Close</button></div>
-      <div class="dl">
+      <div class="dh"><b>History</b><span>this week</span><button class="dmore" aria-label="Nova’s status and settings"><svg class="ic"><use href="#i-chev"/></svg></button><button class="dclose"><kbd>Esc</kbd> Close</button></div>
+      <div class="dl" id="dl">
         <div class="day">Yesterday</div>
         <div class="you">Log my breakfast, eggs on toast</div>
         <div class="receipt"><span class="ok"><svg class="ic"><use href="#i-check"/></svg></span><span><b>Logged in Fuel</b><span class="sub">Eggs on toast · breakfast</span></span><button class="undo">Undo</button></div>
@@ -404,6 +544,29 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
         <p class="nmsg">Yes. Pull day at six, lats first. Nothing has moved since this morning.</p>
       </div>
     </aside>
+    <!-- THE › (his yes, 1 Nov): the phone's own status sheet, drawn as the
+         build draws it (NovaThread's StatusSheet: a sheet from the foot,
+         560 wide, over a 50% scrim): status, switches, New chat, Settings -->
+    <div class="ssroot" id="ssroot" aria-hidden="true">
+      <div class="ssheet" role="dialog" aria-modal="true" aria-label="Nova: status and settings">
+        <span class="grab" aria-hidden="true"></span>
+        <div class="shead"><b>Nova</b><span><svg class="ic"><use href="#i-mic"/></svg>Your turn</span><button class="stuck" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></div>
+        <div class="sgroup">
+          <div class="sstat"><span>Your Mac</span><b class="live"><i></i>Live</b></div>
+          <div class="sstat"><span>Answers</span><b>From your vault, read-only</b></div>
+          <div class="sstat"><span>Voice</span><b>Nova’s own voice</b></div>
+          <div class="sstat"><span>Microphone</span><b>Ready</b></div>
+        </div>
+        <div class="sgroup">
+          <button class="smi" role="switch" aria-checked="false"><svg class="ic"><use href="#i-mic"/></svg><span>“Hey Nova”</span><span class="ssw"></span></button>
+          <button class="smi" role="switch" aria-checked="true"><svg class="ic"><use href="#i-stage"/></svg><span>Subtitles on the stage</span><span class="ssw on"></span></button>
+          <button class="smi"><svg class="ic"><use href="#i-brief"/></svg><span>Brief me</span><span class="v"></span></button>
+          <button class="smi"><svg class="ic"><use href="#i-moon"/></svg><span>Ambient</span><span class="v">full screen</span></button>
+          <button class="smi" id="newchat"><svg class="ic"><use href="#i-compose"/></svg><span>New chat</span><span class="v">the record keeps it</span></button>
+          <button class="smi"><svg class="ic"><use href="#i-gear"/></svg><span>Settings</span><span class="v">voice, hearing and the rest</span></button>
+        </div>
+      </div>
+    </div>
     <span class="demo-tag">DEMO CONTENT</span>
   </div>
   </div></div>
@@ -412,7 +575,7 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
     <section>
       <h2>Shared with the phone (106 A)</h2>
       <ul>
-        <li>The same filament core, coloured by state: blue-cyan ready, violet listening, cyan with an orbit thinking, gold speaking.</li>
+        <li>The same filament core, coloured by state: blue-cyan ready, violet listening, cyan with an orbit thinking, jade speaking (his call, 31 Oct, on every device). Gold is kept only for what waits on his call: the Saturday proposal.</li>
         <li>Heard words under the core in serif italic; the glass plate with paced serif subtitles and the underline while he speaks.</li>
         <li>The last exchange rests under the core on Ready, as on the phone.</li>
         <li>The composer at the foot, one field and the mic.</li>
@@ -437,6 +600,18 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
         <tr><td>"Take five" / "Standing by": he stops her in two words</td><td>Esc stops anything, and so does the word "stop".</td></tr>
         <tr><td>Data acted out (the bento reel, his motion bar)</td><td>Bars grow from zero and counts roll up. The Saturday block drops into the free hour while he hears "four sets". After the answer, the panels stay where they are.</td></tr>
         <tr><td>Decisions are a conversation (§2b rule 8)</td><td>A light tick or cross on the proposal, or he answers out loud.</td></tr>
+      </table>
+    </section>
+    <section class="wide">
+      <h2>Touching the glass (his ask, 1 Nov: "interact with the panel displays after or during conversation")</h2>
+      <table>
+        <tr><td>Hover a panel</td><td>It lifts 3 px and its thread to the core lights in its hue; the pin and × appear in its corner.</td></tr>
+        <tr><td>Click it, or Enter</td><td>It opens in place over the column (the others step back): the sets panel becomes every muscle's done and still-planned sets against the target; the brief shows all its points and "Open the brief"; the calendar shows the whole day with the proposal's ✓ and ✕, which answer it. Close, or Esc.</td></tr>
+        <tr><td>Answer the proposal</td><td>✓ turns the block from gold (waits on him) to green (added on his word) with Undo beside it; ✕ leaves the hour free. The same answer whether the panel is open or not, during the answer or after it.</td></tr>
+        <tr><td>Pin</td><td>The panel stays through the next question; the core keeps to the left of it while he talks. The pin again, or ×, lets it go.</td></tr>
+        <tr><td>× or Esc</td><td>× puts one panel away. Esc, in order: closes an open panel; stops Nova mid-answer (the panels stay); then puts every unpinned panel away. With nothing left, the stage returns to Ready with the answer resting under the core.</td></tr>
+        <tr><td>Keyboard</td><td>Tab reaches each panel; the arrow keys move between them; Enter opens; Esc closes.</td></tr>
+        <tr><td>› in the history drawer (his yes, 1 Nov)</td><td>Opens the phone's own status sheet: the Mac's connection, answers, voice and microphone, the Hey Nova and subtitles switches, Brief me, New chat and Settings. New chat empties the drawer and the line under the core, and the sheet then offers the last chat back (Undo).</td></tr>
       </table>
     </section>
     <section class="wide">
@@ -476,7 +651,8 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   const HIS=(t)=>{if(t<300||t>3600)return 0;const s=(t-300)/1000;return clamp(.12+.3*Math.pow(Math.abs(Math.sin(s*6.1)),1.4)+.14*Math.sin(s*14.3+1.3)*Math.sin(s*2.1));};
 
   /* ---------- the core: 106's filament engine at Mac size ---------- */
-  const HUES={idle:[224,36],listen:[268,26],think:[204,30],speak:[402,10],panels:[402,10],hist:[224,36]};
+  // jade speaking (--nv-say #50e4a8, hue 156): the heart's hue is h0 - 0.45 dh
+  const HUES={idle:[224,36],listen:[268,26],think:[204,30],speak:[162,14],panels:[162,14],hist:[224,36]};
   function makeCore(cv){
     const size=420,dpr=Math.min(window.devicePixelRatio||1,2);cv.width=size*dpr;cv.height=size*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
     const o={bands:32,segs:36,arc:1.15,weight:1,chaos:1,speed:.16,embers:560,wisps:84,heart:.12};
@@ -526,15 +702,18 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   for(let i=0;i<34;i++)meter.appendChild(document.createElement('i'));const bars=[...meter.children];
 
   /* the chart rows (demo figures) */
-  const ROWS=[{m:'Chest',h:'--nv-m-chest',n:10,t:12},{m:'Lats',h:'--nv-m-back',n:11,t:12},{m:'Side delts',h:'--nv-m-shoulders',n:5,t:12,key:1},{m:'Biceps',h:'--nv-m-biceps',n:8,t:10},{m:'Quads',h:'--nv-m-quads',n:9,t:10}];
+  const ROWS=[{m:'Chest',h:'--nv-m-chest',n:10,p:2,t:12},{m:'Lats',h:'--nv-m-back',n:11,p:2,t:12},{m:'Side delts',h:'--nv-m-shoulders',n:5,p:3,t:12,key:1},{m:'Biceps',h:'--nv-m-biceps',n:8,p:2,t:10},{m:'Quads',h:'--nv-m-quads',n:9,p:3,t:10}];
+  const MORE=[{m:'Rear delts',h:'--nv-m-shoulders',n:4,p:4,t:8},{m:'Triceps',h:'--nv-m-biceps',n:9,p:2,t:10},{m:'Hamstrings',h:'--nv-m-quads',n:7,p:3,t:10}];
   const MAX=14;
+  /* the detail: every muscle, done and still planned this week, against the target */
+  $('#rowsd').innerHTML=ROWS.concat(MORE).map((r)=>'<div class="row'+(r.n+r.p<r.t?' short':'')+'" style="--mh:var('+r.h+');--w:'+(r.n/MAX*100)+'%;--t:'+(r.t/MAX*100)+'%"><span class="m">'+r.m+'</span><span class="tr"><i class="bar"></i><i class="pl" style="left:'+(r.n/MAX*100)+'%;width:'+(r.p/MAX*100)+'%"></i><i class="tg"></i></span><span class="v"><b>'+r.n+'</b> done · '+r.p+' planned · of '+r.t+'</span></div>').join('');
   $('#rows').innerHTML=ROWS.map((r)=>'<div class="row'+(r.key?' key':'')+'" style="--mh:var('+r.h+');--w:'+(r.n/MAX*100)+'%;--t:'+(r.t/MAX*100)+'%"><span class="m">'+r.m+'</span><span class="tr"><i class="bar"></i><i class="tg"></i></span><span class="v"><b class="cnt" data-n="'+r.n+'">0</b> <small>of '+r.t+'</small></span></div>').join('');
 
   /* ---------- layout: where the core sits in each state ---------- */
   const W=1440,TOP=28;
   function frameFor(st,histOpen,focus){
     const L=focus?0:84,R=histOpen?W-400:W;
-    if(st==='panels')return {cx:470,cy:268,s:.8,uw:600,mx:720,off:165};
+    if(st==='panels'||(!histOpen&&S.pinned.size))return {cx:470,cy:268,s:.8,uw:600,mx:720,off:165};
     const cx=(L+R)/2;if(st==='listen')return {cx,cy:290,s:1,uw:820,mx:cx,off:196};
     if(st==='speak')return {cx,cy:290,s:1,uw:820,mx:cx,off:196};
     return {cx,cy:histOpen?300:306,s:histOpen?.86:1,uw:histOpen?720:820,mx:cx,off:165};
@@ -551,9 +730,11 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   function apply(){
     corewrap.style.transform='translate3d('+(cur.cx-210)+'px,'+(cur.cy-210)+'px,0) scale('+cur.s+')';
     under.style.setProperty('--cx',cur.cx);under.style.setProperty('--ty',cur.cy+cur.off*cur.s);
-    sats.forEach((el)=>{const o=SATPOS[el.dataset.k];el.style.setProperty('--x',(cur.cx+o[0])+'px');el.style.setProperty('--y',(cur.cy+o[1])+'px');});
+    sats.forEach((el)=>{const o=(S.pinned.size&&SATPOS_DOCKED[el.dataset.k])||SATPOS[el.dataset.k];el.style.setProperty('--x',(cur.cx+o[0])+'px');el.style.setProperty('--y',(cur.cy+o[1])+'px');});
   }
   const SATPOS={coach:[-420,-150],researcher:[230,-60],calendar:[-430,80]};
+  // a pinned panel holds the right: the Researcher's thread goes up and over instead
+  const SATPOS_DOCKED={researcher:[130,-236]};
 
   /* ---------- tethers: core to each satellite or panel ---------- */
   function tether(x2,y2,hue,dash,ctrl){
@@ -566,24 +747,31 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   const HUEV={coach:cssv('--nv-m-chest'),researcher:cssv('--nv-m-quads'),calendar:cssv('--nv-nova')};
 
   /* ---------- state ---------- */
-  const S={state:'idle',t0:performance.now(),T:PLAIN,asked:PLAIN.asked,hist:false,auto:false,shown:[0,0,0,0],lit:0,heardN:-1};
+  const S={state:'idle',t0:performance.now(),T:PLAIN,asked:PLAIN.asked,hist:false,auto:false,shown:[0,0,0,0],lit:0,heardN:-1,
+    pinned:new Set(),gone:new Set(),open:0,hover:0,decided:null,cut:null};
   const NAMES={idle:'Ready',listen:'Listening',think:'Thinking',speak:'Speaking',panels:'Speaking',hist:'Ready'};
-  const COLS={idle:'var(--nv-cy)',listen:'var(--nv-vi)',think:'var(--nv-cy)',speak:'var(--nv-gold)',panels:'var(--nv-gold)'};
+  const COLS={idle:'var(--nv-cy)',listen:'var(--nv-vi)',think:'var(--nv-cy)',speak:'var(--nv-say)',panels:'var(--nv-say)'};
   let wordEls=[],wordCache=[];
   function buildPlate(T){pq.innerHTML='<b>You</b>'+S.asked.replace(/</g,'&lt;');pa.innerHTML='';wordEls=[];wordCache=[];
     T.U.forEach((s)=>s.words.forEach((w)=>{const sp=document.createElement('span');sp.className='w';sp.textContent=w.w;pa.appendChild(sp);pa.appendChild(document.createTextNode(' '));wordEls.push({el:sp,w});wordCache.push('');}));}
-  function resetPanels(){S.shown=[0,0,0,0];S.lit=0;P.slice(1).forEach((p)=>{p.classList.remove('in','lit','held','focusrow');});
-    $$('.cnt',win).forEach((c)=>c.textContent='0');$$('.row .bar',win).forEach((b)=>{b.getAnimations().forEach((a)=>a.cancel());b.style.transform='scaleX(0)';});
-    $$('.pts li',win).forEach((li)=>{li.classList.remove('on','lit');li.querySelector('.ul').style.setProperty('--ulp','0%');});
-    $('.ev.new',win).classList.remove('on');$('.decide',win).classList.remove('on');tethers.innerHTML='';}
+  /* a new question clears the glass, except a panel he pinned */
+  function resetPanels(){if(S.open&&!S.pinned.has(S.open))closePanel(true);S.lit=0;S.cut=null;S.gone.clear();
+    P.slice(1).forEach((p,k)=>{const i=k+1;p.classList.remove('lit','focusrow','dim');if(S.pinned.has(i)){p.classList.add('held');return;}
+      S.shown[i]=0;p.classList.remove('in','held','out','hov');
+      if(i===1){$$('#rows .cnt',p).forEach((c)=>c.textContent='0');$$('#rows .bar',p).forEach((b)=>{b.getAnimations().forEach((a)=>a.cancel());b.style.transform='scaleX(0)';});}
+      if(i===2){$$('.pts li',p).forEach((li)=>{li.classList.remove('on','lit');li.querySelector('.ul').style.setProperty('--ulp','0%');});$('.opened',p).textContent='';}
+      if(i===3){$('.ev.new',p).classList.remove('on');$('.decide',p).classList.remove('on');decide(null);}});
+    tethers.innerHTML='';}
+  const docked=()=>[1,2,3].filter((i)=>S.shown[i]&&!S.gone.has(i));
   function setState(s,opts={}){
     const prev=S.state;S.state=s;S.t0=performance.now();S.auto=!!opts.auto;S.heardN=-1;
     if(s==='hist'){S.hist=true;s='idle';S.state='idle';}
     else if(!opts.keepHist)S.hist=false;
     win.dataset.state=S.state;win.style.setProperty('--sc',COLS[S.state]);
-    const focus=['listen','think','speak','panels'].includes(S.state);
+    const focus=['listen','think','speak','panels'].includes(S.state)&&!opts.calm;
     win.classList.toggle('focus',focus);win.classList.toggle('hist',S.hist);win.classList.remove('peek');
     if(S.state!=='panels'&&!opts.keepPanels)resetPanels();
+    if(S.state==='panels'&&prev!=='panels'){S.cut=null;S.gone.clear();}
     sats.forEach((el)=>el.classList.remove('on','done'));
     if(prev!==S.state||opts.force){stB.textContent=NAMES[S.state];
       stB.animate(RM.matches?[{opacity:0},{opacity:1}]:[{opacity:0,transform:'translate3d(0,6px,0)'},{opacity:1,transform:'none'}],{duration:RM.matches?160:280,easing:'cubic-bezier(.32,.72,0,1)'});}
@@ -603,8 +791,8 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 
   /* ---------- panels: arrive, light, act out ---------- */
   function countUp(el,to){const t0=performance.now(),d=RM.matches?0:650;const f=(now)=>{const k=d?EOUT(clamp((now-t0)/d)):1;el.textContent=Math.round(to*k);if(k<1)requestAnimationFrame(f);};requestAnimationFrame(f);}
-  function showPanel(i){if(S.shown[i])return;S.shown[i]=performance.now();const p=P[i];p.classList.add('in');
-    if(i===1){$$('.row',p).forEach((row,k)=>{const b=$('.bar',row);
+  function showPanel(i){if(S.shown[i]||S.gone.has(i))return;S.shown[i]=performance.now();const p=P[i];p.classList.add('in');
+    if(i===1){$$('#rows .row',p).forEach((row,k)=>{const b=$('.bar',row);
         if(RM.matches){b.style.transform='scaleX(1)';}else{b.animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:800,delay:180+k*45,easing:cssv('--nv-spring-bouncy'),fill:'forwards'});}
         setTimeout(()=>countUp($('.cnt',row),+$('.cnt',row).dataset.n),180+k*45);});}
     if(i===2){$$('.pts li',p).forEach((li,k)=>setTimeout(()=>li.classList.add('on'),RM.matches?0:220+k*140));}}
@@ -612,9 +800,9 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 
   /* ---------- the loop ---------- */
   let last=performance.now(),wordStep=0;
-  function updateWords(t){
+  function updateWords(t,cut){
     for(let i=0;i<wordEls.length;i++){const {el,w}=wordEls[i];
-      const e=tw(t,w.st,280,EOUT);const L=t<w.st?0:t<w.en?1:1-tw(t,w.en,320,EOUT);const pr=t<w.st?0:t>=w.en?1:(t-w.st)/(w.en-w.st);
+      const e=tw(t,w.st,280,EOUT);const L=cut||t<w.st?0:t<w.en?1:1-tw(t,w.en,320,EOUT);const pr=t<w.st?0:t>=w.en?1:(t-w.st)/(w.en-w.st);
       const key=e.toFixed(2)+'|'+L.toFixed(2)+'|'+pr.toFixed(2);if(wordCache[i]===key)continue;wordCache[i]=key;
       el.style.opacity=e;el.style.transform=RM.matches?'none':'translate3d(0,'+((1-e)*9)+'px,0)';
       el.classList.toggle('lit',L>.5);el.style.setProperty('--u',L);el.style.setProperty('--p',pr);}
@@ -639,20 +827,23 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
       stLine.textContent=asking?'· '+asking:'';
       if(S.auto&&ts>3500)setState('panels',{auto:true,asked:S.asked});}
     else if(st==='speak'){lvl=levelAt(PLAIN,ts);updateWords(ts);if(ts>endOf(PLAIN)+1400){exQ.innerHTML='<span>You</span>'+S.asked;exA.innerHTML='<span>Nova</span>'+PLAIN.short;setState('idle');}}
-    else if(st==='panels'){lvl=levelAt(RICH,ts);updateWords(ts);
-      RICH.U.forEach((s)=>{if(ts>=s.at-150){showPanel(s.panel);}});
-      let li=0;RICH.U.forEach((s)=>{if(ts>=s.at-150&&ts<s.at+s.dur+300)li=s.panel;});
-      const end=endOf(RICH);
-      if(ts<end+300)light(li);else if(S.lit){light(0);P.slice(1).forEach((p)=>p.classList.add('held'));}
-      if(ts>T_SIDE)P[1].classList.add('focusrow');
-      if(ts>T_ANGLE-900){const L=$$('.pts li',win)[0];L.classList.add('lit');L.querySelector('.ul').style.setProperty('--ulp','100%');}
-      if(ts>T_FOUR){$('.ev.new',win).classList.add('on');}
-      if(ts>T_FOUR+600)$('.decide',win).classList.add('on');
-      if(ts>end+300&&stB.textContent!=='Ready'){stB.textContent='Ready';win.style.setProperty('--sc',COLS.idle);stLine.textContent='· yours to say on Saturday';$('.plate .esc',win).style.opacity=0;}
-      [1,2,3].forEach((i)=>{if(!S.shown[i])return;const a=ANCH[i];const lit=S.lit===i;svg+=tether(a[0],a[1],lit?cssv(i===2?'--nv-m-quads':'--nv-nova'):cssv('--nv-ink40'),{p:RM.matches?1:tw(now,S.shown[i],600),op:lit?.7:.25},a[2]);});
+    else if(st==='panels'){const tsw=S.cut!=null?S.cut:ts;lvl=S.cut!=null?0:levelAt(RICH,ts);updateWords(tsw,S.cut!=null);
+      RICH.U.forEach((s)=>{if(tsw>=s.at-150){showPanel(s.panel);}});
+      let li=0;RICH.U.forEach((s)=>{if(tsw>=s.at-150&&tsw<s.at+s.dur+300)li=s.panel;});
+      const end=endOf(RICH),over=ts>end+300||S.cut!=null;
+      if(!over)light(li);else{if(S.lit)light(0);docked().forEach((i)=>P[i].classList.add('held'));}
+      if(tsw>T_SIDE)P[1].classList.add('focusrow');
+      if(tsw>T_ANGLE-900){const L=$$('.pts li',win)[0];L.classList.add('lit');L.querySelector('.ul').style.setProperty('--ulp','100%');}
+      if(tsw>T_FOUR){$('.ev.new',win).classList.add('on');}
+      if(tsw>T_FOUR+600)$('.decide',win).classList.add('on');
+      if(over&&stB.textContent!=='Ready'){stB.textContent='Ready';win.style.setProperty('--sc',COLS.idle);stLine.textContent=S.decided?stLine.textContent:S.cut!=null?'· stopped; the panels stay':'· yours to say on Saturday';$('.plate .esc',win).style.opacity=0;}
     }
+    /* every docked panel keeps its thread to the core; the one spoken about,
+       hovered or open is lit in its hue */
+    docked().forEach((i)=>{const a=ANCH[i];const lit=S.lit===i||S.hover===i||S.open===i;
+      svg+=tether(a[0],a[1],lit?cssv(i===2?'--nv-m-quads':'--nv-nova'):cssv('--nv-ink40'),{p:RM.matches?1:tw(now,S.shown[i],600),op:lit?.7:.25},a[2]);});
     tethers.innerHTML=svg;
-    const coreState=(st==='panels'&&ts>endOf(RICH)+300)?'idle':st;
+    const coreState=(st==='panels'&&(ts>endOf(RICH)+300||S.cut!=null))?'idle':st;
     core.step(dt,coreState,lvl);core.draw(now/1000);
     embers.draw(dt,now/1000,core.S.h0-core.S.dh*.4,lvl);
   }
@@ -665,6 +856,16 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   $('.sendnow',win).addEventListener('click',()=>setState('think',{auto:true}));
   $('.histbtn',win).addEventListener('click',()=>setState('hist'));
   $('.dclose',win).addEventListener('click',()=>setState('idle'));
+  /* the › : the status sheet; New chat empties the drawer, the sheet then offers it back */
+  const ss=$('#ssroot'),dl=$('#dl');let kept=null;
+  const sheet=(on)=>{ss.classList.toggle('on',on);ss.setAttribute('aria-hidden',String(!on));};
+  $('.dmore',win).addEventListener('click',()=>sheet(true));
+  ss.addEventListener('click',(e)=>{if(e.target===ss)sheet(false);});
+  $('.stuck',ss).addEventListener('click',()=>sheet(false));
+  $('#newchat').addEventListener('click',()=>{const b=$('#newchat');sheet(false);
+    if(!kept){kept=new String(dl.innerHTML);dl.innerHTML='<p class="fresh">Ask about anything in your vault: training, fuel, notes, the week. Answers come from what is actually written.</p>';b.innerHTML='<svg class="ic"><use href="#i-replay"/></svg><span>Undo · 6 turns</span><span class="v">bring it back</span>';
+      kept.ex=[exQ.innerHTML,exA.innerHTML];exQ.innerHTML='';exA.innerHTML='';}
+    else{dl.innerHTML=kept;exQ.innerHTML=kept.ex[0];exA.innerHTML=kept.ex[1];kept=null;b.innerHTML='<svg class="ic"><use href="#i-compose"/></svg><span>New chat</span><span class="v">the record keeps it</span>';}});
   $('.replay',win).addEventListener('click',()=>{S.hist=false;setState('panels',{asked:RICH.asked});});
   $('.edge',win).addEventListener('mouseenter',()=>win.classList.add('peek'));
   $('.rail',win).addEventListener('mouseleave',()=>win.classList.remove('peek'));
@@ -672,12 +873,64 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
   let pttDown=false;
   addEventListener('keydown',(e)=>{
     if(e.code==='Space'&&e.altKey&&!pttDown){e.preventDefault();pttDown=true;setState('listen');return;}
-    if(e.key==='Escape'){if(S.hist&&S.state==='idle')setState('idle');else if(S.state!=='idle')setState('idle');return;}
+    if(e.key==='Escape'){
+      if(ss.classList.contains('on')){sheet(false);return;}                // 0. the status sheet closes
+      if(S.open){closePanel();return;}                                   // 1. the open detail closes
+      if(S.state==='panels'&&S.cut==null&&performance.now()-S.t0<endOf(RICH)+300){S.cut=performance.now()-S.t0;return;} // 2. Nova stops; the panels stay
+      if(docked().some((i)=>!S.pinned.has(i))){putAway(docked().filter((i)=>!S.pinned.has(i)));return;} // 3. the panels go (pinned ones stay)
+      if(S.hist&&S.state==='idle')setState('idle');else if(S.state!=='idle')setState('idle');return;}
     if(e.key==='\\'&&e.metaKey){e.preventDefault();S.hist?setState('idle'):setState('hist');}
   });
   addEventListener('keyup',(e)=>{if(e.code==='Space'&&pttDown){pttDown=false;if(S.state==='listen')setState('think',{auto:true});}});
+  /* ---------- touching the glass ---------- */
+  const PANEL_AT={left:812,top:64,width:568};
+  let flipAnim=null;
+  function flip(p,change){const b={x:p.offsetLeft,y:p.offsetTop,w:p.offsetWidth,h:p.offsetHeight};change();
+    const a={x:p.offsetLeft,y:p.offsetTop,w:p.offsetWidth,h:p.offsetHeight};if(RM.matches)return;
+    flipAnim&&flipAnim.cancel();
+    flipAnim=p.animate([{transformOrigin:'0 0',transform:'translate3d('+(b.x-a.x)+'px,'+(b.y-a.y)+'px,0) scale('+(b.w/a.w)+','+(b.h/a.h)+')'},{transformOrigin:'0 0',transform:'none'}],{duration:+cssv('--nv-spring-snappy-ms').replace('ms','')||640,easing:cssv('--nv-spring-snappy')});}
+  function openPanel(i){if(S.open===i)return;if(S.open)closePanel(true);const p=P[i];S.open=i;
+    p.dataset.home=p.getAttribute('style');
+    flip(p,()=>{p.classList.add('open');p.style.left=PANEL_AT.left+'px';p.style.top=PANEL_AT.top+'px';p.style.width=PANEL_AT.width+'px';});
+    p.setAttribute('aria-expanded','true');$$('.det',p).forEach((d)=>d.setAttribute('aria-hidden','false'));
+    docked().forEach((k)=>{if(k!==i)P[k].classList.add('dim');});}
+  function closePanel(instant){const i=S.open;if(!i)return;const p=P[i];S.open=0;
+    const back=()=>{p.classList.remove('open');p.setAttribute('style',p.dataset.home);};
+    if(instant)back();else flip(p,back);
+    p.setAttribute('aria-expanded','false');$$('.det',p).forEach((d)=>d.setAttribute('aria-hidden','true'));
+    P.slice(1).forEach((q)=>q.classList.remove('dim'));if(!instant)p.focus({preventScroll:true});}
+  function putAway(list){list.forEach((i)=>{if(S.open===i)closePanel(true);S.gone.add(i);S.pinned.delete(i);const p=P[i];p.classList.add('out');p.classList.remove('pinned','hov','lit');$('.pin',p).setAttribute('aria-pressed','false');});
+    if(S.hover&&list.includes(S.hover))S.hover=0;
+    // nothing left on the glass: the stage returns to Ready, the answer resting under the core
+    if(!docked().length&&S.state==='panels'){setTimeout(()=>{exQ.innerHTML='<span>You</span>'+RICH.asked;exA.innerHTML='<span>Nova</span>'+RICH.short;setState('idle');},300);}
+    else if(!docked().length&&!S.pinned.size)travel(frameFor(S.state,S.hist,win.classList.contains('focus')));}
+  function decide(v){S.decided=v;const d=$('.decide',win),e=$('.ev.new',win),dv=$('.dev.new',win),q=$('.dq',d),u=$('.undo2',d);
+    d.classList.toggle('yes',v==='yes');d.classList.toggle('no',v==='no');e.classList.toggle('kept',v==='yes');e.classList.toggle('gone',v==='no');
+    dv.classList.toggle('kept',v==='yes');dv.classList.toggle('gone',v==='no');u.hidden=!v;
+    q.textContent=v==='yes'?'Added to Saturday, 9:00 to 10:30':v==='no'?'Left free':'or just say it';
+dv.querySelector('small').textContent=v==='yes'?'9:00 to 10:30 · added on your word':v==='no'?'not added':'9:00 to 10:30 · your call';
+    e.querySelector('small').textContent=v==='yes'?'4 sets · added':'4 sets · your call';
+    if(v&&S.state==='panels'&&stB.textContent==='Ready')stLine.textContent=v==='yes'?'· added to Saturday':'· Saturday stays free';}
+  P.slice(1).forEach((p,k)=>{const i=k+1;
+    p.addEventListener('mouseenter',()=>{if(!p.classList.contains('in'))return;S.hover=i;p.classList.add('hov');});
+    p.addEventListener('mouseleave',()=>{if(S.hover===i)S.hover=0;p.classList.remove('hov');});
+    p.addEventListener('focus',()=>{if(p.classList.contains('in'))S.hover=i;});
+    p.addEventListener('blur',()=>{if(S.hover===i)S.hover=0;});
+    p.addEventListener('click',(e)=>{if(e.target.closest('button'))return;if(!p.classList.contains('in')||S.open===i)return;openPanel(i);});
+    p.addEventListener('keydown',(e)=>{if(e.target!==p)return;
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();S.open===i?closePanel():openPanel(i);return;}
+      if(['ArrowDown','ArrowRight','ArrowUp','ArrowLeft'].includes(e.key)){e.preventDefault();const list=docked();if(!list.length)return;
+        const at=list.indexOf(i),step=(e.key==='ArrowDown'||e.key==='ArrowRight')?1:-1;P[list[(at+step+list.length)%list.length]].focus();}});
+    $('.px',p).addEventListener('click',()=>putAway([i]));
+    $('.pclose',p).addEventListener('click',()=>closePanel());
+    $('.pin',p).addEventListener('click',(e)=>{const on=!S.pinned.has(i);on?S.pinned.add(i):S.pinned.delete(i);p.classList.toggle('pinned',on);e.currentTarget.setAttribute('aria-pressed',String(on));});});
+  $('.decide .y',win).addEventListener('click',()=>decide('yes'));
+  $('.decide .n',win).addEventListener('click',()=>decide('no'));
+  $('.decide .undo2',win).addEventListener('click',()=>decide(null));
+  $('.openb',win).addEventListener('click',()=>{$('.opened',win).textContent='Opened in your Inbox';});
   $$('.demo button').forEach((b)=>b.addEventListener('click',()=>{const a=b.dataset.act;
     if(a==='think'){S.asked=RICH.asked;}
+    if(a==='held'){setState('panels',{demo:a,force:true});S.t0-=endOf(RICH)+600;return;}
     setState(a,{demo:a,force:true});}));
 
   /* fit the window to narrow viewports */
