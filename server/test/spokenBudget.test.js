@@ -182,3 +182,17 @@ test('the stream cut skips sentences inside a directive line', () => {
   const s = `Short answer.\nPROPOSE {"kind":"plan","goal":"${'One sentence here. '.repeat(30)}"}`;
   assert.equal(budgetCut(s, 10), -1);
 });
+
+test('a directive the model broke across lines is joined whole before any fold (1 Nov, the plan that never filed)', async () => {
+  const { joinDirectives } = await import('../../src/turnFold.js');
+  const reply = 'Sure, sir. ' + 'It goes as one batched proposal. '.repeat(12) + '\n\nPROPOSE {"kind":"plan","goal":"Standardise to 6 to 12 reps. Keep sets, order and heaviest-first as they are.\n"}';
+  for (const out of [foldReply(reply, { budget: 30 }), budgetFold(reply, 30)]) {
+    const line = out.said.split('\n').find((l) => l.startsWith('PROPOSE'));
+    assert.ok(line, 'the directive is in the turn');
+    assert.equal(JSON.parse(line.slice(8)).kind, 'plan');
+    assert.ok(!String(out.held || '').includes('"}'), 'none of it is held as prose');
+  }
+  // a brace inside a string does not keep it open; an unclosed one never eats the reply
+  assert.equal(joinDirectives('SHOW {"panel":"a}"}\nnext'), 'SHOW {"panel":"a}"}\nnext');
+  assert.equal(joinDirectives('PROPOSE {"a":1\nno close here'), 'PROPOSE {"a":1\nno close here');
+});

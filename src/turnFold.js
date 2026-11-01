@@ -32,8 +32,41 @@ const VIS_RE = /^\s*VIS\s*\{/;
  * → { said, held }  held is null when there is no mark, or nothing after it.
  * A mark with nothing before it is not a fold: the whole reply is said.
  */
+// A DIRECTIVE IS ONE LINE, EVEN WHEN THE MODEL BREAKS IT (1 Nov 2026, the
+// rep-range plan he agreed to): the model wrote PROPOSE {"kind":"plan",
+// "goal":"…as they are. with the closing "} on the NEXT line. Every reader
+// here works line by line, so the head stayed in the turn, the tail was held
+// as prose, the JSON never parsed and nothing was filed. A directive whose
+// braces have not closed takes the lines after it until they do. Pure.
+const DIRECTIVE_HEAD = /^\s*(?:SHOW|PROPOSE|ACT|CARD|PLAY|RESEARCH|WATCH|CONSULT|WITHDRAW|REFLECT|VIS)\s*\{/;
+function braceDepth(t) {
+  let depth = 0;
+  let inStr = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true; else if (c === '{') depth++; else if (c === '}') depth--;
+  }
+  return depth;
+}
+export function joinDirectives(text) {
+  const lines = String(text ?? '').split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    if (DIRECTIVE_HEAD.test(line)) {
+      let j = i;
+      while (braceDepth(line) > 0 && j + 1 < lines.length && j - i < 40) { j++; line = `${line} ${lines[j].trim()}`; }
+      if (braceDepth(line) === 0) { out.push(line); i = j; continue; }
+      line = lines[i];
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 export function foldReply(text, { budget = null } = {}) {
-  const s = String(text ?? '');
+  const s = joinDirectives(text);
   const m = MARK_RE.exec(s);
   if (!m) return budget ? budgetFold(s, budget) : { said: s, held: null };
   const before = s.slice(0, m.index).replace(/\s+$/, '');
@@ -148,7 +181,7 @@ export function summariseReceipts(receipts = []) {
 
 /** Fold a reply the model did not fold: the budget said, a later question moved last, the rest held. Pure. */
 export function budgetFold(text, budget = SPOKEN_WORDS) {
-  const whole = String(text ?? '');
+  const whole = joinDirectives(text);
   // directive lines leave first, whole, wherever they sit: they ride with the
   // turn (code reads them there) and are never cut or held
   const lines = whole.split('\n');
