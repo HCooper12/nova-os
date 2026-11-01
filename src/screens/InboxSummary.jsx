@@ -255,6 +255,139 @@ function useAutoSeen(card) {
   }, [id, seen]);
 }
 
+// WAITING ON ANOTHER CARD (1 Nov 2026): said first, in words, with the way
+// to the card it waits on; its tick reads "Waiting on Upper C" and waits too
+function WaitNote({ w }) {
+  return (
+    <div className="nv-sum-ib-waitnote" role="note">
+      <span className="h">Waiting on another card</span>
+      <p>{w.line}</p>
+      {w.go && <TextAction onClick={w.go} style={{ marginLeft: '-4px' }}>Go to that card</TextAction>}
+    </div>
+  );
+}
+
+// THE REBUILD'S WEEK: each day, what it holds after, the lifts it gains
+function RebuildWeek({ week }) {
+  if (!week?.length) return null;
+  return (
+    <div className="nv-sum-ib-week nv-sum-ib-gweek" role="img"
+      aria-label={week.filter((d) => d.changes).map((d) => `${d.day}: ${d.after}${d.lifts ? `, ${d.lifts} lifts` : ''}`).join('; ')}>
+      {week.map((d, i) => (
+        <div key={d.day} className={d.changes ? 'chg' : undefined} style={{ '--i': i }}>
+          <span className="d">{d.day}</span>
+          <span className="a">{d.after || '·'}</span>
+          {d.lifts > 0 && <span className="l">{d.lifts} lifts</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// one change inside the rebuild: its line, its plain meaning, a light tick or cross
+function GroupMember({ m, i }) {
+  const it = m.item;
+  if (!it) return null;
+  const hold = m.blocked || m.waiting;
+  const holdLine = m.blocked ? `${m.blocked.reason}.` : m.waiting ? `Waiting on ${m.waiting.name}: its card is in this list and goes first.` : '';
+  return (
+    <li style={{ '--i': Math.min(i, 12) }}>
+      <span className="t">{m.title}</span>
+      <span className="acts">
+        <Interactive as="button" className="nv-sum-ib-mtick" aria-label={hold ? `Waiting on ${m.waiting?.name || m.blocked?.name}` : `File: ${m.title}`}
+          aria-disabled={hold || it.busy ? 'true' : undefined} onClick={hold || it.busy ? undefined : it.approve} haptic={hold ? undefined : 'commit'} base={{ cursor: hold ? 'default' : 'pointer' }}>
+          <Ico name="check" />
+        </Interactive>
+        <Interactive as="button" className="nv-sum-ib-mx" aria-label={`Discard: ${m.title}`} onClick={it.busy ? undefined : it.discard} haptic="tick" base={{ cursor: 'pointer' }}>
+          <Ico name="x" />
+        </Interactive>
+      </span>
+      {m.meaning && <span className="m">{m.meaning}</span>}
+      {holdLine && <span className="w">{holdLine}</span>}
+      {it.askingWhy && (
+        <div className="ask">
+          <AskWhy a={{ q: 'Why pass?', rest: 'The Coach learns from this.', chips: it.whyChips || [], text: it.whyText || '', onText: it.onWhyText, submit: (r) => it.submitWhy(r), cancel: it.cancelWhy }} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+// THE COACH'S PROGRAM REBUILD AS ONE DECISION (1 Nov 2026). The week it
+// makes, the sentence code counted, Apply all (asked once, then filed card
+// by card in order), Discard all (one reason on every card), and each change
+// one tap away under See each change.
+function GroupCard({ card, ghosts, position }) {
+  const g = card.group;
+  const n = g.count;
+  return (
+    <div className="nv-sum-ib-deck">
+      {ghosts > 1 && <div className="nv-sum-ib-ghost g2" aria-hidden="true" />}
+      {ghosts > 0 && <div className="nv-sum-ib-ghost g1" aria-hidden="true" />}
+      <div className="nv-deck-rise" style={{ position: 'relative' }}>
+        <SwipeRow
+          right={card.swipe.right ? { label: 'Apply', icon: '✓', tone: 'var(--nv-good)', run: card.swipe.right } : null}
+          left={card.swipe.left ? { label: 'Discard', icon: '✕', tone: 'var(--nv-warn)', run: card.swipe.left } : null}>
+          <article className="nv-sum-card nv-sum-ib-card nv-sum-ib-group" aria-label={`${position}: ${card.sentence}`} aria-busy={g.running ? 'true' : 'false'}>
+            <div className="nv-sum-ib-khead">
+              <Tile tile={card.tile} />
+              <span className="lx">
+                <span className="nv-sum-ib-kl" style={{ color: TONE_HUE[card.tile.tone] || 'var(--nv-sum-ink2)' }}>{card.kindLabel}</span>
+                <span className="nv-sum-ib-kt">{card.where}</span>
+              </span>
+              <span className="nv-sum-ib-when">{card.when}</span>
+            </div>
+            <p className="nv-sum-ib-say">{g.title} · <span className="nv-sum-ib-gn">{n}</span> changes</p>
+            <RebuildWeek week={g.week} />
+            <p className="nv-sum-ib-gsum">{g.summary}</p>
+            {g.runLine && <p className={`nv-sum-ib-quiet${g.failed ? ' gold' : ''}`} role="status">{g.runLine}</p>}
+            {g.confirm === 'apply' ? (
+              <div className="nv-sum-ib-ask" role="group" aria-label="Apply all">
+                <span className="q">{g.confirmQ}</span><span className="rest"> {g.orderNote}</span>
+                <div className="nv-sum-ib-askrow">
+                  <Interactive as="button" className="nv-sum-ib-yes" onClick={() => { card.receiptFor('approve'); g.apply(); }} haptic="commit" base={{ cursor: 'pointer' }}>
+                    <Ico name="check" /><span className="lbl">{g.applyLabel}</span>
+                  </Interactive>
+                  <Interactive as="button" className="nv-sum-ib-keep" onClick={g.cancel} haptic="tick" base={{ cursor: 'pointer' }}>Not yet</Interactive>
+                </div>
+              </div>
+            ) : g.confirm === 'discard' ? (
+              <AskWhy a={{ q: 'Why pass?', rest: `The Coach learns from this. Your reason goes on all ${n}.`, chips: g.reasons, text: '', submit: (r) => { card.receiptFor('discard'); g.discard(r); }, cancel: g.cancel }} />
+            ) : (
+              <div className="nv-sum-ib-answer tight">
+                {g.order.length > 0 && (
+                  <Interactive as="button" className="nv-sum-ib-yes" onClick={g.running ? undefined : g.askApply} aria-disabled={g.running ? 'true' : undefined} haptic="tick" base={{ cursor: 'pointer' }}>
+                    <Ico name="check" /><span className="lbl">{g.running ? 'Working…' : g.applyLabel}</span>
+                  </Interactive>
+                )}
+                <Interactive as="button" className="nv-sum-ib-no" onClick={g.running ? undefined : g.askDiscard} aria-label={`Discard all ${n}`} title={`Discard all ${n}`} haptic="tick" base={{ cursor: 'pointer' }}>
+                  <Ico name="x" />
+                </Interactive>
+              </div>
+            )}
+            <div className="nv-sum-ib-meanbox">
+              <Interactive as="button" className={`nv-sum-ib-meanb${g.open ? ' open' : ''}`} aria-expanded={g.open} onClick={g.toggleOpen} haptic="tick" base={{ cursor: 'pointer' }}>
+                <span>See each change · {n}</span><Ico name="down" className="nv-sum-ib-ico x" />
+              </Interactive>
+              <Disclose open={g.open}>
+                <div className="nv-sum-ib-meanbody">
+                  <div className="nv-sum-ib-mrow">
+                    <span className="nv-sum-ib-bh"><Ico name="quote" />What started it</span>
+                    <span className="nv-sum-ib-full">{g.captured}</span>
+                  </div>
+                  <ol className="nv-sum-ib-glist">
+                    {g.members.map((m, i) => <GroupMember key={m.id} m={m} i={i} />)}
+                  </ol>
+                </div>
+              </Disclose>
+            </div>
+          </article>
+        </SwipeRow>
+      </div>
+    </div>
+  );
+}
+
 function DeckCard({ card, ghosts, position }) {
   useAutoSeen(card);
   const d = card.deeper;
@@ -279,6 +412,7 @@ function DeckCard({ card, ghosts, position }) {
               </span>
               <span className="nv-sum-ib-when">{card.when}</span>
             </div>
+            {card.waiting && <WaitNote w={card.waiting} />}
             {/* the sentence opens what it means (the row under the verbs is the same toggle) */}
             <Interactive as="p" className="nv-sum-ib-say" onClick={() => setOpen((o) => !o)} aria-expanded={open}
               aria-label={`${card.sentence}. ${open ? 'Hide' : 'Show'} what this means`} base={{ cursor: 'pointer' }}>{card.sentence}</Interactive>
@@ -491,7 +625,9 @@ function Waiting({ S }) {
       {/* QUICK CAPTURE (mockup 103): first, where a thought is dropped */}
       <QuickCaptureCard q={S.quickCapture} />
       {card
-        ? <DeckCard key={card.id} card={card} ghosts={S.ghosts} position={S.position} />
+        ? card.isGroup
+          ? <GroupCard key={card.id} card={card} ghosts={S.ghosts} position={S.position} />
+          : <DeckCard key={card.id} card={card} ghosts={S.ghosts} position={S.position} />
         : (
           <div className="nv-sum-card nv-sum-ib-empty nv-sum-rise" style={{ '--i': 3 }}>
             <Tile tile={{ tone: 'vault', glyph: 'checkc' }} />

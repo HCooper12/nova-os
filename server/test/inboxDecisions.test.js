@@ -89,7 +89,8 @@ export function build(app) {
 test('a Coach "add" card yields ONE captured block and ONE will-be-filed block', () => {
   const items = rebuildFixture();
   const carter = items.find((r) => r.decision.payload.addName === 'Carter Extension');
-  const app = fakeApp({ liveInbox: { items: [carter, ...items.filter((r) => r !== carter)] } });
+  // alone, as a card of its own (with its rebuild it is one group card, T4)
+  const app = fakeApp({ liveInbox: { items: [carter] } });
   const { S } = build(app);
   assert.equal(S.card.id, carter.id);
   assert.equal(typeof S.card.captured, 'string', 'one captured text, not a list');
@@ -202,8 +203,192 @@ test('a card that waits on another is not "already changed"', () => {
     { waiting: true, lead: 'Waiting on another card', text: 'Upper C has to be created first. Say yes to that card' });
   assert.deepEqual(staleLine('Seated Cable Row is no longer in Upper C'), { waiting: false, lead: 'Already changed', text: 'Seated Cable Row is no longer in Upper C' });
   assert.equal(staleLine(null), null);
-  const carter = rebuildFixture().find((r) => r.decision.payload.addName === 'Carter Extension');
-  const { S } = build(fakeApp({ liveInbox: { items: [carter] } }));
-  assert.equal(S.card.staleLine.lead, 'Waiting on another card');
+  // a card the Coach's day-creating card has overtaken still says "already changed"
+  const pec = rebuildFixture().find((r) => r.id === 'add-A4');
+  const has = fakeApp({ liveInbox: { items: [pec] }, liveWorkoutRoutines: [{ id: 'ua', name: 'Upper A', exercises: [{ exerciseId: 'reverse-pec-deck', name: 'Reverse Pec Deck' }] }] });
+  assert.equal(build(has).S.card.staleLine.lead, 'Already changed');
   for (const f of ['src/screens/InboxSummary.jsx', 'src/CoachSuggestions.jsx']) assert.doesNotMatch(read(f), />Already changed: \{/, f);
+});
+
+// ------------------------------- T4: one decision for a program rebuild --
+
+import { rebuildGroups, applyOrder, groupSummary, waitingOn, groupRunLine, memberTitle, GROUP_WINDOW_MS } from '../../src/inboxGroups.js';
+import { runInboxGroup } from '../../src/inboxGroupRun.js';
+
+test('rebuildGroups: the Coach\'s cards from one request within five seconds are one group; others stay single', () => {
+  const items = [...rebuildFixture(), ...others];
+  const late = { ...coach('late', 'routine-edit', { action: 'create', routineId: 'new:accessory', routineName: 'Accessory' }, 'Coach: create a new routine, Accessory', 'optional day'), createdAt: new Date(T0 + GROUP_WINDOW_MS + 5000).toISOString() };
+  const typed = { ...rebuildFixture()[0], id: 'typed', source: 'voice' };
+  const groups = rebuildGroups([...items, late, typed]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].ids.length, 24);
+  assert.ok(!groups[0].ids.includes('late') && !groups[0].ids.includes('typed') && !groups[0].ids.includes('alert-1'));
+  assert.equal(rebuildGroups([items[0]]).length, 0, 'one card is not a group');
+  assert.equal(rebuildGroups(items.map((r) => ({ ...r, status: 'filed' }))).length, 0, 'only pending cards group');
+  // the key survives its oldest member being filed
+  const after = rebuildGroups(items.filter((r) => r.id !== 'create-A'));
+  assert.equal(after[0].key, groups[0].key);
+});
+
+test('applyOrder: new days, then the week, then the lifts in the Coach\'s order; an "after" lift follows its anchor; an orphan is blocked', () => {
+  const items = rebuildFixture();
+  const { order, blocked } = applyOrder(items, ['Push', 'Legs', 'Mobility (Huberman)']);
+  assert.equal(order.length, 24);
+  assert.deepEqual(blocked, []);
+  assert.deepEqual(order.slice(0, 3), ['create-A', 'create-B', 'create-C']);
+  assert.deepEqual(order.slice(3, 6), ['sched-monday', 'sched-wednesday', 'sched-friday']);
+  assert.deepEqual(order.slice(6, 9), ['add-A0', 'add-A1', 'add-A2']);
+  // every child comes after the card that creates its day
+  for (const r of items) {
+    const p = r.decision.payload;
+    if (p.action === 'create') continue;
+    const parent = `create-${p.routineName.slice(-1)}`;
+    assert.ok(order.indexOf(r.id) > order.indexOf(parent), `${r.id} before ${parent}`);
+  }
+  // an "after" anchor added later by the Coach still goes first
+  const anchorLate = items.map((r) => (r.id === 'add-C0' ? { ...r, decision: { ...r.decision, payload: { ...r.decision.payload, afterName: 'Seated Cable Row' } } } : r));
+  const o2 = applyOrder(anchorLate, []).order;
+  assert.ok(o2.indexOf('add-C0') > o2.indexOf('add-C2'), 'placed after its anchor');
+  // a lift aimed at a day nobody creates and that does not exist stays blocked
+  const orphan = items.filter((r) => r.id !== 'create-C');
+  const o3 = applyOrder(orphan, ['Push']);
+  assert.equal(o3.blocked.length, 7, 'Upper C\'s six lifts and its Friday');
+  assert.ok(o3.blocked.every((b) => !o3.order.includes(b.id)));
+  assert.match(o3.blocked[0].reason, /^Upper C does not exist yet, and no card here creates it$/);
+  // ...but not when the day already exists in his program
+  assert.equal(applyOrder(orphan, ['Upper C']).blocked.length, 0);
+});
+
+test('groupSummary and memberTitle: counted from the cards, in his words', () => {
+  const items = rebuildFixture();
+  assert.equal(groupSummary(items), '3 new training days, 18 lifts in them, 3 schedule changes: Monday Upper A, Wednesday Upper B, Friday Upper C');
+  assert.equal(memberTitle(items.find((r) => r.id === 'sched-friday')), 'Friday: Upper C (was Mobility (Huberman))');
+  assert.equal(memberTitle(items.find((r) => r.id === 'create-C')), 'New training day: Upper C');
+  assert.equal(memberTitle(items.find((r) => r.id === 'add-C1')), 'Add Carter Extension to Upper C');
+});
+
+test('waitingOn: a lift for a day not yet created names the card that creates it; a filed create or an existing day frees it', () => {
+  const items = rebuildFixture();
+  const carter = items.find((r) => r.id === 'add-C1');
+  assert.deepEqual(waitingOn(carter, { routineNames: ['Push'], records: items }), { name: 'Upper C', parentId: 'create-C' });
+  assert.equal(waitingOn(carter, { routineNames: ['Upper C'], records: items }), null);
+  const filed = items.map((r) => (r.id === 'create-C' ? { ...r, status: 'filed' } : r));
+  assert.equal(waitingOn(carter, { routineNames: [], records: filed }), null);
+  assert.deepEqual(waitingOn(carter, { routineNames: [], records: items.filter((r) => r.id !== 'create-C') }), { name: 'Upper C', parentId: null });
+  assert.equal(waitingOn(items.find((r) => r.id === 'create-C'), { records: items }), null, 'a create waits on nothing');
+});
+
+function fakeRunApp(items) {
+  const app = fakeApp({ liveInbox: { items } });
+  app.refreshInbox = () => app.calls.push(['refreshInbox']);
+  app.toastMsg = (m) => app.calls.push(['toast', m]);
+  return app;
+}
+
+test('runInboxGroup: the existing per-record routes, one at a time, in order; stops at the first refusal; each record replaced from the server', async () => {
+  const items = rebuildFixture();
+  const app = fakeRunApp(items);
+  const { order } = applyOrder(items, []);
+  const sent = [];
+  let inFlight = 0;
+  const api = {
+    inboxApprove: async (conn, id) => {
+      inFlight++; assert.equal(inFlight, 1, 'never two at once'); await new Promise((r) => setTimeout(r, 1)); inFlight--;
+      sent.push(id);
+      if (id === order[5]) throw new Error('Upper C hasn\'t been created yet');
+      return { record: { ...items.find((r) => r.id === id), status: 'filed', undoData: { route: 'x' } } };
+    },
+    inboxDiscard: async () => { throw new Error('not this one'); },
+  };
+  const run = await runInboxGroup(app, { key: 'g', ids: order, kind: 'approve' }, { api, getConnection: () => ({ url: 'x' }) });
+  assert.deepEqual(sent, order.slice(0, 6), 'stopped at the refusal');
+  assert.equal(run.done.length, 5);
+  assert.deepEqual(run.failed, { id: order[5], error: 'Upper C hasn\'t been created yet' });
+  const st = app.state.liveInbox.items;
+  assert.equal(st.filter((r) => r.status === 'filed').length, 5, 'only what the server filed shows filed');
+  assert.ok(st.filter((r) => r.status === 'filed').every((r) => r.undoData), 'each keeps its own undo');
+  assert.equal(app.state.inboxGroupRun.g.running, false);
+  assert.ok(app.calls.some((c) => c[0] === 'refreshInbox'), 're-reads the Inbox after');
+  assert.match(groupRunLine(app.state.inboxGroupRun.g, memberTitleOf(items)), /^Applied 5 of 24\. Stopped at "Friday: Upper C \(was Mobility \(Huberman\)\)": Upper C hasn't been created yet\. 19 changes are still waiting\.$/);
+});
+
+const memberTitleOf = (items) => (id) => memberTitle(items.find((r) => r.id === id));
+
+test('runInboxGroup: Discard all records the one reason on every member', async () => {
+  const items = rebuildFixture();
+  const app = fakeRunApp(items);
+  const got = [];
+  const api = { inboxDiscard: async (conn, id, reason) => { got.push([id, reason]); return { record: { ...items.find((r) => r.id === id), status: 'discarded' } }; } };
+  await runInboxGroup(app, { key: 'g', ids: items.map((r) => r.id), kind: 'discard', reason: 'Not now' }, { api, getConnection: () => ({}) });
+  assert.equal(got.length, 24);
+  assert.ok(got.every(([, r]) => r === 'Not now'));
+  assert.equal(groupRunLine(app.state.inboxGroupRun.g), 'Discarded all 24.');
+  // no connection, no run
+  assert.equal(await runInboxGroup(fakeRunApp(items), { key: 'g', ids: ['a'] }, { api, getConnection: () => null }), null);
+});
+
+test('the summary deck shows the rebuild as ONE card with Apply all asked first; the digest no longer offers its cards as routine', () => {
+  const items = [...rebuildFixture(), ...others];
+  const app = fakeRunApp(items);
+  const { base, S } = build(app);
+  assert.equal(base.inboxGroups.length, 1);
+  assert.equal(S.card.isGroup, true);
+  const g = S.card.group;
+  assert.equal(g.headline, "Coach's program rebuild · 24 changes");
+  assert.equal(g.summary, '3 new training days, 18 lifts in them, 3 schedule changes: Monday Upper A, Wednesday Upper B, Friday Upper C');
+  assert.equal(g.applyLabel, 'Apply all 24');
+  assert.equal(g.confirmQ, 'Apply all 24 changes to your program?');
+  assert.equal(g.members.length, 24);
+  assert.ok(g.members.every((m) => m.meaning), 'each change keeps its plain meaning');
+  assert.equal(S.position, '1 of 4', 'the rebuild and the three others');
+  assert.match(S.digestLine, /^1 program rebuild/);
+  assert.ok(!S.subjects.some((s) => s.count >= 24), 'no "all 24" outside the group');
+  // a swipe right only asks; Apply all is a second tap
+  g.askApply();
+  assert.deepEqual(app.state.inboxGroupConfirm, { key: g.key, kind: 'apply' });
+  assert.equal(app.calls.filter((c) => c[0] === 'inboxAction').length, 0, 'nothing filed by asking');
+  const again = build(app).S.card.group;
+  assert.equal(again.confirm, 'apply');
+  assert.deepEqual(again.order.slice(0, 3), ['create-A', 'create-B', 'create-C']);
+  // the week drawn: Friday becomes Upper C with its six lifts
+  const fri = again.week.find((d) => d.day === 'Fri');
+  assert.deepEqual([fri.after, fri.lifts, fri.changes], ['Upper C', 6, true]);
+});
+
+test('a single card waiting on another: said at the top, "Waiting on Upper C" not pressable, no swipe to file, and Go to that card', () => {
+  // one create and one of its lifts, not a group (different requests)
+  const items = rebuildFixture();
+  const carter = { ...items.find((r) => r.id === 'add-C1'), text: 'another request' };
+  const create = items.find((r) => r.id === 'create-C');
+  const app = fakeRunApp([carter, create]);
+  const { S } = build(app);
+  assert.equal(S.card.id, carter.id);
+  assert.equal(S.card.waiting.name, 'Upper C');
+  assert.match(S.card.waiting.line, /^Upper C has to be created first\./);
+  assert.equal(S.card.verbs.yes.label, 'Waiting on Upper C');
+  assert.equal(S.card.verbs.yes.disabled, true);
+  assert.equal(S.card.swipe.right, null);
+  assert.equal(S.card.staleLine, null, 'not also "already changed"');
+  S.card.waiting.go();
+  assert.equal(build(app).S.card.id, 'create-C', 'the card it waits on comes to the top');
+  // and it never waits before his program has loaded (nothing claimed)
+  const unknown = fakeRunApp([carter, create]);
+  unknown.state.liveWorkoutRoutines = [];
+  assert.equal(build(unknown).S.card.waiting || null, null);
+});
+
+test('both idioms draw the rebuild card from the one view model, and Apply all never fires on the first tap', () => {
+  const sum = read('src/screens/InboxSummary.jsx');
+  assert.match(sum, /card\.isGroup\s*\?\s*<GroupCard/);
+  const grp = sum.slice(sum.indexOf('function GroupCard'), sum.indexOf('function DeckCard'));
+  assert.match(grp, /onClick=\{g\.running \? undefined : g\.askApply\}/, 'the first tap asks');
+  assert.match(grp, /g\.apply\(\)/, 'the second applies');
+  assert.doesNotMatch(grp, /inboxAction|api\./, 'no write path of its own');
+  const cup = read('src/screens/Inbox.jsx');
+  assert.match(cup, /groups\.map\(\(g\) => <RebuildCardClassic key=\{g\.key\} g=\{g\} \/>\)/);
+  assert.match(cup, /onClick=\{g\.running \? undefined : g\.askApply\}/);
+  // the runner calls only the existing per-record routes
+  const run = read('src/inboxGroupRun.js');
+  assert.match(run, /api\.inboxApprove\(conn, id\)/);
+  assert.match(run, /api\.inboxDiscard\(conn, id, reason\)/);
 });
