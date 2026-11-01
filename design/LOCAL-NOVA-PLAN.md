@@ -391,6 +391,11 @@ vault text, wrong for anything that reads his notes, health or training.
 If he wants it, it is a fourth provider with a "no vault text" boundary
 enforced by code. ChatGPT free, Grok and Siri as apps remain not programmable.
 
+**2 Nov:** the Coach is local-first behind lib/coachRoute.js (4 of his 17 real
+questions answered on the Mac, all grounded; 13 to Claude by code in 0.5 s;
+the exercise-choice rule added after the 4B mis-mapped lateral raises to rear
+delts). The 9B bench still waits for ~7.7 GB free.
+
 Order: Apple model as backend 3 (cheap to build, measured already), then the
 Chrome-read research lane, then Gemini only if he wants a free cloud brain
 for public questions.
