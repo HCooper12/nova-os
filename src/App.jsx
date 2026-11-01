@@ -122,6 +122,7 @@ import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult, answeredBy } from './conversationSync.js';
+import { firstThingFits } from './firstThingFit.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -11721,7 +11722,7 @@ export default class App extends Component {
     // THE ACK COMES FIRST (his call, 29 Oct 2026): a "one thing first" line is
     // said after Nova has acknowledged him (speakAckLine), or after the fast
     // reply when there is no ack, never ahead of either
-    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; }
+    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; this.firstThingWords = question; }
     asked.then((resp) => {
       if (askSeq !== this.askSeq) return;   // dropped for a continuation or a correction
       if (resp.text) {
@@ -13084,10 +13085,12 @@ export default class App extends Component {
   sayFirstThingAfter(seq) {
     if (this.firstThingDue !== seq) return;
     this.firstThingDue = null;
-    this.sayFirstThing();
+    this.sayFirstThing(this.firstThingWords || '');
   }
-  sayFirstThing() {
-    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false);
+  // a reading of his body (HRV) is said only into a turn about his body; it
+  // stays a card otherwise (src/firstThingFit.js, 1 Nov)
+  sayFirstThing(hisWords = '') {
+    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false && firstThingFits(x, hisWords));
     if (!a || !this.state.voiceSpeak || this.standbyOn()) return;
     a.spokenAt = new Date().toISOString();
     this.speakTtsSentence(a.firstThing, null);
