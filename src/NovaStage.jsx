@@ -295,25 +295,38 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     const main = d.main;
     const root = sec?.parentElement;
     if (!sec || !main || !root) return;
-    const mr = main.getBoundingClientRect();
+    // THE FIXED LAYERS' OWN COORDINATES (1 Nov 2026, his black, core-less
+    // listening screen). While the keyboard is up iOS scrolls the DOCUMENT
+    // itself, even this 100dvh page, and every in-flow rect is read that far
+    // up; the fixed layers do not move with it. Measured then (the mic opens
+    // as the keyboard goes), the core was placed 396 px above the screen and
+    // the sky ended 396 px short, and nothing measured again once iOS
+    // scrolled back. So in-flow rects are taken back to the page's own place
+    // (plus the document's scroll), the ground and the pour fill the screen
+    // by CSS (only their sides follow <main>), and a document scroll, a
+    // keyboard leaving and a return to the page all measure again.
+    const sx = window.scrollX || 0;
+    const sy = window.scrollY || 0;
+    const m0 = main.getBoundingClientRect();
+    const mr = { left: m0.left + sx, top: m0.top + sy, width: m0.width, bottom: m0.bottom + sy };
     const foot = parseFloat(getComputedStyle(root).paddingBottom) || 0;
     sec.style.setProperty('--oc-vh', `${Math.round(main.clientHeight)}px`);
     sec.style.setProperty('--oc-foot', `${Math.round(foot)}px`);
     for (const el of [groundRef.current, pourCanvasRef.current]) {
       if (!el) continue;
-      el.style.left = `${mr.left}px`; el.style.top = `${mr.top}px`; el.style.width = `${mr.width}px`; el.style.height = `${mr.height}px`;
+      el.style.left = `${mr.left}px`; el.style.width = `${mr.width}px`;
     }
     if (headRef.current) { headRef.current.style.left = `${mr.left}px`; headRef.current.style.width = `${mr.width}px`; headRef.current.style.top = `${mr.top}px`; }
     d.max = Math.max(0, main.scrollHeight - main.clientHeight);
     const off = main.scrollTop - d.max; // where the stage sits once he is at the foot
-    const top = sec.getBoundingClientRect().top + off;
+    const top = sec.getBoundingClientRect().top + sy + off;
     const composer = root.querySelector('.nv-nt-composer');
     const ctop = composer ? composer.getBoundingClientRect().top : mr.bottom - 82;
     sec.style.setProperty('--st-ctop', `${Math.round(ctop - top)}px`);
     // a short screen (Safari's toolbar, a small phone): the hint never sits
     // over the last exchange; it gives way instead
     const exb = sec.querySelector('.nv-nt-stexch')?.getBoundingClientRect();
-    sec.toggleAttribute('data-crowded', !!exb && exb.height > 0 && exb.bottom + off > ctop - 66 - 8);
+    sec.toggleAttribute('data-crowded', !!exb && exb.height > 0 && exb.bottom + sy + off > ctop - 66 - 8);
     d.g = {
       fx: mr.left + mr.width / 2,
       fy: top + STAGE.coreY,
@@ -379,6 +392,21 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     ro?.observe(main);
     const onResize = () => measureRef.current();
     window.addEventListener('resize', onResize);
+    // the keyboard coming and going (iOS scrolls the document, the visual
+    // viewport shrinks) and a return to the page: measure again, once a frame
+    let again = 0;
+    const remeasure = () => {
+      if (again) return;
+      again = requestAnimationFrame(() => { again = 0; measureRef.current(); progress(); });
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') remeasure(); };
+    const vv = typeof window.visualViewport === 'object' ? window.visualViewport : null;
+    window.addEventListener('scroll', remeasure, { passive: true });
+    window.addEventListener('pageshow', remeasure);
+    document.addEventListener('focusout', remeasure);
+    document.addEventListener('visibilitychange', onVisible);
+    vv?.addEventListener('resize', remeasure);
+    vv?.addEventListener('scroll', remeasure);
     // A BACK SWIPE ONTO THIS PAGE (src/edgeBack.js) moves <main> for its
     // first frames, before this page has rendered its fixed layers, then lets
     // go of it: anything measured meanwhile was measured off a moved page
@@ -392,6 +420,13 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
       main.removeEventListener('touchstart', mine);
       main.removeEventListener('wheel', mine);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', remeasure);
+      window.removeEventListener('pageshow', remeasure);
+      document.removeEventListener('focusout', remeasure);
+      document.removeEventListener('visibilitychange', onVisible);
+      vv?.removeEventListener('resize', remeasure);
+      vv?.removeEventListener('scroll', remeasure);
+      cancelAnimationFrame(again);
       ro?.disconnect();
       cancelAnimationFrame(d.raf);
       cancelAnimationFrame(d.kr);

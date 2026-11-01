@@ -141,3 +141,20 @@ test('the panel on the plate is whole (1 Nov, his recording): the card entire, w
   assert.match(src, /while \(p && p !== inner\) \{ top \+= p\.offsetTop; p = p\.offsetParent; \}/, 'layout boxes, never painted rects (rows arrive by transform)');
   assert.doesNotMatch(read('src/index.css').slice(read('src/index.css').indexOf('ONE NOVA STAGE (31 Oct 2026)')), /\.nv-nt-stplate \.nv-fx-dock \{[^}]*max-height: 45%/, 'no clip box that cuts the card mid-row');
 });
+
+test('listening after the keyboard (1 Nov, his black, core-less screen): the fixed layers never take a rect read while iOS has the document scrolled', () => {
+  const src = read('src/NovaStage.jsx');
+  const m = src.slice(src.indexOf('const measure = () => {'), src.indexOf('const measureRef = useRef(measure);'));
+  // in-flow rects are put back by the document's own scroll
+  assert.match(m, /const sy = window\.scrollY \|\| 0;/);
+  assert.match(m, /const mr = \{ left: m0\.left \+ sx, top: m0\.top \+ sy,/);
+  assert.match(m, /const top = sec\.getBoundingClientRect\(\)\.top \+ sy \+ off;/);
+  // the ground fills the screen by CSS: only its sides follow <main>
+  assert.match(m, /el\.style\.left = `\$\{mr\.left\}px`; el\.style\.width = `\$\{mr\.width\}px`;\n/);
+  assert.doesNotMatch(m, /el\.style\.height = /);
+  // and a document scroll, the keyboard leaving, a return to the page measure again
+  for (const re of [/window\.addEventListener\('scroll', remeasure, \{ passive: true \}\);/, /window\.addEventListener\('pageshow', remeasure\);/,
+    /document\.addEventListener\('focusout', remeasure\);/, /vv\?\.addEventListener\('resize', remeasure\);/, /document\.addEventListener\('visibilitychange', onVisible\);/]) assert.match(src, re);
+  const css = read('src/index.css');
+  assert.match(css, /\.nv-nt-ground \{ position: fixed; z-index: 0; left: 0; top: 0; width: 100vw; height: 100dvh;/);
+});
