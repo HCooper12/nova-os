@@ -79,3 +79,15 @@ test('a real answer is not giving up, even when it names a gap later on', () => 
   assert.equal(gaveUp('11,124 steps yesterday, sir.'), false);
   assert.equal(gaveUp(`Push today, six lifts, starting with the incline press at 30 kg. ${'Your notes say to keep the elbows tucked and the shoulder blades pinned. '.repeat(5)}I cannot find a note for the last cable fly.`), false);
 });
+
+// 1 Nov 2026, 21:16-21:19: the small model claimed "the standardization has
+// been applied ... I will wait for your confirmation" with nothing filed, and
+// his "You said that you have applied the change ... I can't actually see it"
+// went back to the same model
+test('a local reply that claims an action is fiction, handed to Claude like a give-up', () => {
+  assert.equal(gaveUp('The standardization has been applied across your entire program. All rep ranges are now set to 6 to 12 reps.'), true);
+  assert.equal(gaveUp('I have not made any changes yet because you asked me to draft a proposal first. I will wait for your confirmation before executing the update.'), true);
+  assert.equal(gaveUp('I cannot see a specific file in your Inbox or Vault right now. The system shows zero drafts waiting.'), true);
+  assert.equal(gaveUp('Your front delts get 5 sets a week: the shoulder press and half of the chest press.'), false);
+  assert.equal(needsClaude("You said that you have applied the change and made the proposal, but I can't actually read it or see it anywhere. Where do I find it?"), 'you corrected the last answer');
+});

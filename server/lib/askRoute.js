@@ -47,7 +47,7 @@ const KNOWLEDGE = [
 const AGENTS = /\b(?:ask (?:the )?(?:coach|researcher|leader|librarian)|coach (?:say|says|think|thinks)|the other agents|look (?:it|that) up|find out|figure (?:it|that) out)\b/;
 
 // he is correcting the last answer: the small model already missed once
-const CORRECTION = /\b(?:you(?:'re| are| seem to be)(?: getting)? confused|that's (?:not|wrong)|that is (?:not|wrong)|not what i (?:asked|meant|said)|you should (?:be|have)|you didn't (?:answer|listen)|answer the question|simple question)\b/;
+const CORRECTION = /\b(?:you said (?:that )?you|i can'?t (?:actually )?(?:see|find|read) (?:it|that|the|any)|you(?:'re| are| seem to be)(?: getting)? confused|that's (?:not|wrong)|that is (?:not|wrong)|not what i (?:asked|meant|said)|you should (?:be|have)|you didn't (?:answer|listen)|answer the question|simple question)\b/;
 
 /** Why a question should go straight to Claude, or null when the model on
  *  this Mac may take it (with the agents agentsFor names). Pure. */
@@ -111,6 +111,15 @@ const GAVE_UP = [
   /\bmissing from your (?:records|vault|notes)\b/,
   /\bi have not (?:yet )?asked\b/,
   /\bno (?:data|information|record|research) (?:on|about|for|comparing)\b/,
+  // A CLAIMED ACTION (1 Nov 2026, 21:16): the small model said "the
+  // standardization has been applied across your entire program ... I will
+  // wait for your confirmation" when nothing had been filed. It cannot write
+  // his program; a reply that says it did, or that it is waiting on an
+  // approval, is fiction and goes to Claude like a give-up.
+  /\b(?:has|have) been (?:applied|updated|changed|made|created|saved|standardi[sz]ed|filed)\b/,
+  /\bi (?:have|'ve) (?:applied|updated|changed|made|created|saved|filed|drafted|moved|added|removed)\b/,
+  /\bi will (?:wait for your (?:confirmation|approval)|create the file|make the changes?)\b/,
+  /\bthe system shows\b/,
 ];
 
 /** Did a local reply give up instead of answering? Looks at the opening
