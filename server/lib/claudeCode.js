@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { isProtectedPath } from './protectedRoots.js';
+import { prepareSpec, specBlock, specRef } from './buildSpec.js';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
@@ -289,7 +290,9 @@ function cannotServe(w, args) {
 // (args carry --session-id on turn 1 and --resume thereafter, so a cold
 // spawn is always continuity-safe). finishTurn runs the per-surface
 // post-processing (panels, proposals, research) and marks the job ready.
-function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env }) {
+// `extra`: further text blocks in the same user message, after his words
+// (the Builder's spec, lib/buildSpec.js): beside what he said, never in it
+function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env, extra = [] }) {
   // The CEO's org chart: record which CLI session file is the live Coach /
   // Leader conversation, so Ask Nova's context can read their actual
   // exchanges back. Fire-and-forget; a miss is an absent section, never an
@@ -321,7 +324,8 @@ function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env }) {
   w.finishTurn = finishTurn;
   w.streamed = '';
   w.lastUsed = Date.now();
-  w.child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n');
+  const content = [{ type: 'text', text }, ...extra.filter((t) => typeof t === 'string' && t.trim()).map((t) => ({ type: 'text', text: t }))];
+  w.child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n');
 }
 
 // THE BUILDER (rebuilt 13 Oct 2026, his ask: "It should perform exactly like
@@ -403,6 +407,11 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
   const effectiveSessionId = sessionId || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null, startedAt: Date.now(), sessionId: effectiveSessionId, stage: null };
   jobs.set(jobId, job);
+  // A SPEC PER BUILD (1 Nov 2026, lib/buildSpec.js): in the Builder lane,
+  // code writes what he asked, where it may write, how we would know, and
+  // which suites run, BEFORE the turn spawns; the first turn carries it.
+  const spec = readOnly ? null : prepareSpec({ jobId, brief: text, lane: 'code', cwd, verify });
+  if (spec) job.spec = specRef(spec);
 
   const argsFor = (resume) => {
     const a = [
@@ -431,7 +440,7 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
   // One Builder turn on THIS job, resolved with its reply. A process that dies
   // mid-turn marks the job 'error' (spawnWarm's die); that rejects here.
   let resumeNext = !isNewSession;
-  const turn = (message) => new Promise((resolve, reject) => {
+  const turn = (message, extra = []) => new Promise((resolve, reject) => {
     job.status = 'running';
     job.partial = null;
     const args = argsFor(resumeNext);
@@ -441,14 +450,14 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
       if (!settled && job.status === 'error') { settled = true; clearInterval(watch); reject(new Error(job.error || 'the Builder stopped')); }
     }, 400);
     warmTurn({
-      kind: 'code', sessionId: effectiveSessionId, cwd, args, text: message, job,
+      kind: 'code', sessionId: effectiveSessionId, cwd, args, text: message, job, extra,
       finishTurn: (replyText) => { settled = true; clearInterval(watch); resolve(replyText); },
     });
   });
 
   const filesOf = () => [...(job.touched || [])].map((f) => (path.isAbsolute(f) ? path.relative(cwd, f) : f)).filter((f) => f && !f.startsWith('..'));
   const finish = (text, extra = {}) => {
-    job.result = { text, sessionId: effectiveSessionId, files: filesOf(), startedAt: job.startedAt, endedAt: Date.now(), ...extra };
+    job.result = { text, sessionId: effectiveSessionId, files: filesOf(), startedAt: job.startedAt, endedAt: Date.now(), ...(job.spec ? { spec: job.spec } : {}), ...extra };
     job.stage = null;
     job.status = 'ready';
     if (onDone) { try { onDone(job); } catch { /* the filer reports its own failure */ } }
@@ -457,7 +466,7 @@ export function startMessage(cwd, { text, sessionId, model, readOnly = false, ve
   (async () => {
     const gate = verify && !readOnly ? await import('./builderGate.js') : null;
     const before = gate ? await gate.changedFiles(cwd) : null;
-    let reply = await turn(text);
+    let reply = await turn(text, spec ? [specBlock(spec, spec.text)] : []);
     if (!gate) return finish(reply);
     const after = await gate.changedFiles(cwd);
     if (!after || JSON.stringify(after) === JSON.stringify(before)) {

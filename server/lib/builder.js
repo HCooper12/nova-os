@@ -40,6 +40,7 @@ import { createProjectDir, projectDir, undoProject } from './projects.js';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { sandboxed, sandboxAvailable, sandboxUnavailable } from './sandbox.js';
 import { registerJobMap } from './jobRegistry.js';
+import { prepareSpec, specBlock, specRef } from './buildSpec.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 
@@ -49,12 +50,14 @@ export function getBuildJob(id) { return jobs.get(id) || null; }
 // What the builder is told. Deliberately short: the brief is his, the rules are
 // about the boundary, and nothing here describes HOW to build — that is the
 // model's job and the reason this lane exists.
-export function buildPrompt(brief, slug, { shell = false } = {}) {
+// `spec` (1 Nov 2026, lib/buildSpec.js): the spec code wrote from the brief
+// before this build started, carried verbatim after his words.
+export function buildPrompt(brief, slug, { shell = false, spec = null } = {}) {
   return `You are building something for Hayden, on his own machine, unattended.
 
 WHAT HE ASKED FOR:
 ${brief}
-
+${spec ? `\n${specBlock(spec, spec.text)}\n` : ''}
 WHERE YOU ARE:
 Your working directory is an empty project folder called "${slug}". Everything you
 make goes in here. You cannot write anywhere else and must not try.
@@ -94,10 +97,10 @@ ${shell ? `- You have Read, Write, Edit, Glob, Grep and a shell. Use the shell: 
 // it was written (17 Sep) and went red for three deploys before anyone saw it.
 // A path gated on what the machine happens to have needs to be exercised both
 // ways, by hand, or it is not covered at all.
-export function buildInvocation(brief, slug, dir, model, { shell: force } = {}) {
+export function buildInvocation(brief, slug, dir, model, { shell: force, spec = null } = {}) {
   const shell = force === undefined ? sandboxAvailable() : force;
   const argv = [
-    '-p', buildPrompt(brief, slug, { shell }),
+    '-p', buildPrompt(brief, slug, { shell, spec }),
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs(shell ? 'Read,Write,Edit,Glob,Grep,Bash' : 'Read,Write,Edit,Glob,Grep'),
     '--output-format', 'json',
@@ -131,7 +134,12 @@ export function startBuild(brief, { name, model, recordId = null } = {}) {
   const job = { id: jobId, status: 'running', slug, dir, result: null, error: null };
   jobs.set(jobId, job);
 
-  const run = buildInvocation(text, slug, dir, model);
+  // A SPEC BEFORE THE SPAWN (lib/buildSpec.js): code writes what was asked,
+  // where, and how we would know, then the Builder's prompt carries it
+  const shell = sandboxAvailable();
+  const spec = prepareSpec({ jobId, brief: text, lane: 'project', dir, shell });
+  job.spec = specRef(spec);
+  const run = buildInvocation(text, slug, dir, model, { shell, spec });
   job.shell = run.shell;
   if (!run.shell) job.note = `built without a shell — ${sandboxUnavailable()}`;
   const child = spawn(run.cmd, run.args, { cwd: dir, ...(run.env ? { env: run.env } : {}) });
@@ -156,7 +164,7 @@ export function startBuild(brief, { name, model, recordId = null } = {}) {
     }
     if (job.status !== 'error') {
       job.status = 'done';
-      job.result = { summary, dir, slug };
+      job.result = { summary, dir, slug, spec: job.spec };
     }
     // A build always leaves a receipt, finished or not — he walked away, and
     // "it failed and here is why" is the thing he most needs to come back to.
