@@ -116,10 +116,23 @@ export function resumeAt(said, next, spokenUpTo = String(said || '').length) {
   const a = String(said || '');
   const b = String(next || '');
   if (!a || b.startsWith(a)) return spokenUpTo;
+  // the text under the voice was rearranged (the server's fold moved a
+  // question, prefixed a line): carry on after the last sentence he heard,
+  // wherever it now sits. 1 Nov 2026, his screenshot: the whole Coach reply
+  // was said and shown three times because this rewound to the start.
+  const units = a.match(/[\s\S]*?(?:[.!?]+["'”’)\]]*(?=\s|$)|\n|$)/g) || [];
+  for (let i = units.length - 1; i >= 0; i--) {
+    const u = units[i].trim();
+    if (u.length < 12) continue;
+    const at = b.indexOf(u);
+    if (at !== -1) return at + u.length;
+    break;
+  }
+  // a real rewrite: back to the last sentence end both texts share, so the
+  // first sentence that differs is said whole and nothing is said again
   let n = 0;
   while (n < a.length && n < b.length && a[n] === b[n]) n += 1;
-  const head = b.slice(0, n);
   let cut = 0;
-  for (const m of head.matchAll(/[.!?]["'”’)]*\s+|\n/g)) cut = m.index + m[0].length;
+  for (const m of b.slice(0, n).matchAll(/[.!?]["'”’)]*\s+|\n/g)) cut = m.index + m[0].length;
   return cut;
 }

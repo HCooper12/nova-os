@@ -147,3 +147,17 @@ test('a document carries his local time, and every conversational agent is told 
   assert.match(read('server/lib/artifacts.js'), /created_local: createdLocal/);
   assert.match(read('server/lib/talk.js'), /HIS CLOCK, NOT THE FILE'S/);
 });
+
+// 1 Nov 2026, 20:56, his screenshot: a Coach reply shown and said three times.
+// The server's fold rearranged the final text, resumeAt found no common prefix
+// and rewound to 0, and the reveal appends, so everything came again.
+test('resumeAt never re-speaks what he heard when the fold rearranged the text', () => {
+  const said = 'Agreed. Your heaviest lifts go first, while you are fresh. I\'m moving Incline Dumbbell Bench to first on Push A now. ';
+  const final = 'Asked the Researcher. Agreed. Your heaviest lifts go first, while you are fresh. I\'m moving Incline Dumbbell Bench to first on Push A now.\n\nDone: Incline Dumbbell Bench is number 1 on Push A now.\n\nWant the rest?';
+  const at = resumeAt(said, final, said.length);
+  assert.equal(final.slice(at).trim(), 'Done: Incline Dumbbell Bench is number 1 on Push A now.\n\nWant the rest?');
+  // a genuinely different reply still starts over
+  assert.equal(resumeAt('Totally different words here.', 'Another answer entirely, new.'), 0);
+  // the reveal on the line never appends a sentence it already holds
+  assert.match(read('src/App.jsx'), /if \(piece\.trim\(\)\.length >= 12 && have\.includes\(piece\.trim\(\)\)\) return;/);
+});

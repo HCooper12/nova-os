@@ -8144,7 +8144,15 @@ export default class App extends Component {
     // arriving seconds early made every reply feel like pressing play on
     // something already written.
     const spokenReveal = elevenPath && this.state.voiceSpeak;
-    const reveal = (t) => { stream.revealed = (stream.revealed || '') + t; applyPartial(stream.revealed); };
+    // never the same words twice (1 Nov 2026, his screenshot: a Coach reply
+    // shown three times): a sentence already on the line is not appended again
+    const reveal = (t) => {
+      const have = stream.revealed || '';
+      const piece = String(t || '');
+      if (piece.trim().length >= 12 && have.includes(piece.trim())) return;
+      stream.revealed = have + piece;
+      applyPartial(stream.revealed);
+    };
     // `from` is where this sentence starts in the reply, so the panel whose
     // prose begins inside it can be raised at the instant its audio does —
     // voice leads, glass follows, exactly as the text reveal already does.
@@ -11394,7 +11402,10 @@ export default class App extends Component {
     if (this.trySettingsVoice(q)) return;
     const pending = this.state.voicePendingProposal;
     if (pending && getConnection() && this.state.connectionStatus !== 'offline') {
-      const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
+      // "just make the changes and implement them" (1 Nov 2026, 20:56): his
+      // instruction to apply what the Coach has waiting IS his yes
+      const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q)
+        || /^(?:(?:all ?right|alright|ok(?:ay)?|cool|yes|yep|sure|no worries)[,.! ]+)*(?:just )?(?:make|apply|implement|do|put in|go ahead (?:and|with)|lock in) (?:the |those |these |all (?:the |of the )?)?(?:changes?|updates?|them|it|that)\b/i.test(q);
       const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|cancel|not now|never mind|nevermind)[.!\s]*$/i.test(q);
       const later = /^(later|not now|skip|hold it|come back to (it|that)|leave it for now)[.!\s]*$/i.test(q);
       if (yes || no || later) {
