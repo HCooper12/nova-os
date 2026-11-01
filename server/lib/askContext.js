@@ -181,13 +181,19 @@ let contextCache = null; // { at, text }
 // A PROJECT TURN (Projects T7, 29 Oct 2026): the same context, with the
 // project's own section appended by code (lib/projectContext.js). Without a
 // projectId this is exactly the base context, byte for byte.
-export async function buildAskContext(vaultPath, sessionId, { fast = false, projectId = null, repoRoot } = {}) {
+// "TELL ME" (phase 2): with a `docRef` too, the card's document follows the
+// PROJECT section (lib/projectContext.js projectDocSection). Without one, the
+// turn is exactly what it was.
+export async function buildAskContext(vaultPath, sessionId, { fast = false, projectId = null, repoRoot, docRef = null } = {}) {
   if (sessionId) return '';
   const base = await buildBaseAskContext(vaultPath, { fast });
   if (!projectId) return base;
-  const { projectContextSection } = await import('./projectContext.js');
+  const { projectContextSection, projectDocSection } = await import('./projectContext.js');
   const section = await projectContextSection(vaultPath, projectId, { repoRoot }).catch((e) => `NOTE — the project's context FAILED to load this turn (${e.message}). Say so if it matters.`);
-  return section ? (base ? `${base}\n\n${section}` : section) : base;
+  const withProject = section ? (base ? `${base}\n\n${section}` : section) : base;
+  if (!docRef) return withProject;
+  const doc = await projectDocSection(vaultPath, projectId, docRef).catch((e) => `NOTE — the document he asked about FAILED to load this turn (${e.message}). Say so.`);
+  return withProject ? `${withProject}\n\n${doc}` : doc;
 }
 
 async function buildBaseAskContext(vaultPath, { fast = false } = {}) {

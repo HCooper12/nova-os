@@ -282,11 +282,23 @@ export function videoIdOf(url) {
 // What this video ALREADY has in the vault — the guard against a second copy
 // of a podcast he has watched before. Scans only where a video's own pages
 // land (Sources + Raw), so it stays cheap.
-export async function findExistingVideoPages(vaultPath, url) {
+// `dirs` (Projects phase 2): a project's own Sources + Raw instead of the
+// library's, so a project dedupes against itself and never against his Wiki.
+// A link with no video id (Instagram, TikTok) then matches on the link itself,
+// query and fragment dropped. Without `dirs` this is exactly as before.
+export function videoLinkKey(url) {
   const id = videoIdOf(url);
+  if (id) return id;
+  const s = String(url || '').trim().replace(/[?#].*$/, '').replace(/\/+$/, '');
+  return /^https?:\/\/\S+$/.test(s) ? s.replace(/^https?:\/\/(www\.)?/i, '') : null;
+}
+
+export async function findExistingVideoPages(vaultPath, url, { dirs = null } = {}) {
+  const id = dirs ? videoLinkKey(url) : videoIdOf(url);
   const out = { pages: [], transcriptRel: null };
   if (!id) return out;
-  for (const rel of ['Wiki/Sources', 'Raw']) {
+  const where = dirs || ['Wiki/Sources', 'Raw'];
+  for (const rel of where) {
     const dir = path.join(vaultPath, rel);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
@@ -297,7 +309,7 @@ export async function findExistingVideoPages(vaultPath, url) {
         head = readFileSync(path.join(dir, name), 'utf8').slice(0, 4000);
       } catch { continue; }
       if (!head.includes(id)) continue;
-      if (rel === 'Raw') out.transcriptRel ||= relPath;
+      if (rel === 'Raw' || /\/Raw$/.test(rel)) out.transcriptRel ||= relPath;
       else out.pages.push(relPath);
     }
   }

@@ -84,3 +84,48 @@ export async function projectContextSection(vaultPath, projectId, { repoRoot, ke
   }));
   return renderProjectSection({ project: p, brief, log, pages });
 }
+
+// "TELL ME" (Projects phase 2, T3): one document a card pointed at, handed in
+// after the PROJECT section so Nova answers FROM it, in short turns. The
+// document is read by code: a project research card's SYNTHESIS.md (while it
+// is still the one that research wrote; otherwise what that research found,
+// from its own record), or a project watch card's Source page. Capped; a
+// document that cannot be read is NAMED, never silently dropped.
+export const DOC_CAP = 6000;
+
+export async function projectDocSection(vaultPath, projectId, docRef, { kernel, getRecord } = {}) {
+  const label = `the document he asked about (${docRef})`;
+  const absent = () => ABSENT_NOTE([{ label }]);
+  if (typeof docRef !== 'string' || !/^[0-9a-f]{8}$/.test(docRef)) return absent();
+  const read = getRecord || (await import('./inboxStore.js')).getRecord;
+  const r = await read(docRef).catch(() => null);
+  if (!r || r.projectId !== projectId) return absent();
+  const k = kernel || (await import('./novaProjects.js')).novaKernel(vaultPath);
+  const p = k.getProject(projectId);
+  if (!p) return absent();
+  let title = r.decision?.title || r.text || docRef;
+  let body = null;
+  let what = '';
+  if (r.kind === 'project-research') {
+    what = 'project research';
+    const file = k.readFolderFile(p, 'research/SYNTHESIS.md');
+    const { createHash } = await import('node:crypto');
+    if (file != null && createHash('sha256').update(file).digest('hex') === r.undoData?.synthesis?.hash) body = file;
+    else if (Array.isArray(r.decision?.payload?.synthesis)) {
+      const pl = r.decision.payload;
+      body = [`(research/SYNTHESIS.md has changed since; this is what this research found, from its own record)`, '',
+        ...pl.synthesis.map((c) => `- ${c.claim} (${(c.sources || []).join('; ')})`), '',
+        'Sources:', ...(pl.sourceList || []).map((s) => `- ${s.title}: ${s.url}`)].join('\n');
+    }
+  } else if (r.kind === 'video' && r.decision?.route === 'project-watch-note') {
+    what = 'a video watched for the project';
+    const rel = r.undoData?.files?.[0]?.relPath;
+    body = rel ? k.readProjectVaultFile(p, rel) : null;
+    if (body == null && r.decision?.payload?.body) body = `(its page could not be read from the vault; this is the note as filed)\n\n${r.decision.payload.body}`;
+  }
+  if (body == null) return absent();
+  return [
+    `THE DOCUMENT HE ASKED ABOUT — ${title} (${what} for ${p.name}). He tapped "Tell me" on it: tell him what it says that matters, from THIS document, in short spoken turns; then let him talk back. Say plainly when something is not in it.`,
+    cap(body.trim(), DOC_CAP),
+  ].join('\n');
+}

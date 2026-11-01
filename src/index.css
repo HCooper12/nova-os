@@ -2993,6 +2993,11 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-sum-ib-disc > div { min-height: 0; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .nv-sum-ib-disc { transition: opacity 160ms ease; } }
 .nv-sum-ib-fdetail { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 12px 64px; }
+/* PROJECTS phase 2: "Also file to my library" sits on the filed row itself,
+   under the title (not in the disclosure), so the flag is seen. The tick draws
+   itself once when it lands in the library; reduced motion just shows it. */
+.nv-sum-ib-flib { padding: 0 14px 10px 64px; min-width: 0; }
+@media (max-width: 420px) { .nv-sum-ib-flib { padding-left: 14px; } }
 .nv-sum-ib-fdetail .dl { font: 400 13px/1.4 var(--nv-font-ui); color: var(--ib-ink2); }
 .nv-sum-ib-fdetail .k { display: block; font: 600 13px var(--nv-font-ui); color: var(--ib-ink3); }
 .nv-sum-ib-fdetail .v { display: block; margin-top: 2px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -6509,3 +6514,8 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 @keyframes nv-ss-hin { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .nv-ss-hrow { animation: none; } }
 
+/* PROJECTS phase 2: the library flag's tick draws itself once it is in his
+   library (src/LibraryFlag.jsx); reduced motion just shows it. */
+.nv-libflag[data-done] .nv-libflag-tick { stroke-dasharray: 14; stroke-dashoffset: 0; animation: nvLibTick .42s var(--nv-ease) both; }
+@keyframes nvLibTick { from { stroke-dashoffset: 14; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .nv-libflag[data-done] .nv-libflag-tick { animation: none; } }

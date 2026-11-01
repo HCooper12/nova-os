@@ -35,6 +35,9 @@ export const TRIGGERS = ['tap', 'auto', 'reply-window', 'conv-start', 'wake', 'b
 // What closed it: his tap, the turn clock (lead or hold), a cap, the screen
 // going away (lock, app switch), the mic never opening, or the engine itself.
 export const ENDED_BY = ['tap', 'clock', 'cap', 'hidden', 'mic', 'engine'];
+// Which surface a turn receipt came from (server/lib/voiceTurns.js reads this
+// list). 'project' (1 Nov 2026): the microphone on a project page's thread.
+export const SURFACES = ['voice', 'presence', 'barge', 'ask', 'project'];
 
 /**
  * A tap while the mic is open. 'keep' means the turn stays open (a haptic and

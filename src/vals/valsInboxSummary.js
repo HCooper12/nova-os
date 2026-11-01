@@ -372,6 +372,9 @@ export function valsInboxSummary(app, ctx, v) {
       tile: tileOf(r), kindLabel: kindLabelOf(r, h),
       tick: onRecord && tileOf(r).tone !== 'none',
       dim: ['discarded', 'undone', 'withdrawn'].includes(h.status),
+      // a project video Nova thinks belongs in his library too: shown on the
+      // row itself (not in the disclosure), a light tick beside the reason
+      library: h.libraryFlag || null,
       action: h.canUndo ? { label: 'Undo', run: h.undo, busy: !!h.busy }
         : h.canRetry ? { label: 'Retry', run: h.retry, busy: !!h.busy } : null,
       state: h.canUndo || h.canRetry ? '' : h.status === 'filed' ? 'no undo' : (STATUS_WORD[h.status] || (h.status === 'error' ? 'Error' : '')),
@@ -384,6 +387,7 @@ export function valsInboxSummary(app, ctx, v) {
         fullLabel: h.status === 'filed' ? 'What was filed' : 'The filing',
         dismiss: h.canDiscard ? { run: h.discard, busy: !!h.busy } : null,
         weave: h.deepAnalyse && h.status === 'filed' ? { run: h.deepAnalyse, busy: !!h.busy } : null,
+        tellMe: h.tellMe || null,
         ship: h.ship || null,
       },
     };

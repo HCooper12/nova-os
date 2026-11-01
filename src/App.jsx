@@ -659,7 +659,7 @@ export default class App extends Component {
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
     liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
-    projectThreads: {}, projectSessions: {}, projectAskText: '', projectAskBusy: false,
+    projectThreads: {}, projectSessions: {}, projectSpeaking: {}, projectAskText: '', projectAskBusy: false,
     projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
     liveWishlist: null, wishlistDemo: null, wishlistUi: null, wishlistError: null, wishlistAnswered: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
@@ -6747,10 +6747,16 @@ export default class App extends Component {
   // with projectId so the server appends the project's own context (code-read:
   // the brief, phases, log tail and its reads pages). The answer streams into
   // the page; both lines go to the conversation record carrying projectId.
-  sendProjectAsk() {
+  // `opts` (Projects phase 2, "Tell me"): { projectId, text, docRef }. A
+  // docRef seed starts its own conversation on the server with the card's
+  // document after the PROJECT section; the server keeps reflexes and other
+  // lanes out of it. While the project is in speaking mode (Tell me turned it
+  // on) the reply is SPOKEN through the one TTS FIFO the Nova thread uses
+  // (speakTtsSentence), sentence by sentence as it streams.
+  sendProjectAsk(opts = {}) {
     const conn = getConnection();
-    const id = this.state.projectOpen;
-    const text = String(this.state.projectAskText || '').trim();
+    const id = opts.projectId || this.state.projectOpen;
+    const text = String(opts.text ?? this.state.projectAskText ?? '').trim();
     if (!conn || !id || !text || this.state.projectAskBusy) return;
     const at = new Date().toISOString();
     const push = (turn) => this.setState((s) => ({ projectThreads: { ...s.projectThreads, [id]: [...(s.projectThreads[id] || []), turn] } }));
@@ -6762,27 +6768,112 @@ export default class App extends Component {
       return { projectThreads: { ...s.projectThreads, [id]: list } };
     });
     push({ who: 'you', text, at });
-    this.setState({ projectAskText: '', projectAskBusy: true });
-    const sid = (this.state.projectSessions || {})[id] || null;
+    this.setState(opts.text != null ? { projectAskBusy: true } : { projectAskText: '', projectAskBusy: true });
+    const sid = opts.docRef ? null : ((this.state.projectSessions || {})[id] || null);
+    // a SPOKEN turn (the page's microphone) is answered aloud, like Tell me
+    if (opts.spoken) this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [id]: true } }));
+    const speaking = !!(this.state.voiceSpeak && ((this.state.projectSpeaking || {})[id] || opts.spoken));
+    const voice = { upTo: 0 };
+    const sayNew = (reply, final) => {
+      if (!speaking || this.state.projectOpen !== id) return;
+      const fresh = String(reply || '').slice(voice.upTo);
+      if (!fresh) return;
+      const m = final ? fresh.match(/[\s\S]+/) : fresh.match(/[\s\S]*[.!?](?=\s|$)/);
+      if (!m) return;
+      for (const piece of m[0].match(final ? /[^.!?]*[.!?]+\s*|[^.!?]+$/g : /[\s\S]*?[.!?](?=\s|$)\s*/g) || [m[0]]) {
+        const heard = lintSpoken(toSpokenProse(speakableText(piece, { final: true })));
+        if (heard.trim()) this.speakTtsSentence(heard);
+      }
+      voice.upTo += m[0].length;
+    };
     const done = (reply, sessionId) => {
       settle({ text: reply, streaming: false, typing: false });
-      this.setState((s) => ({ projectAskBusy: false, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
+      sayNew(reply, true);
+      // answerSeq: Keep talking reopens the mic once per finished answer
+      this.setState((s) => ({ projectAskBusy: false, projectAnswerSeq: { ...(s.projectAnswerSeq || {}), [id]: ((s.projectAnswerSeq || {})[id] || 0) + 1 }, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
       api.saveConversation(conn, [{ who: 'you', text, at, via: 'app', projectId: id }, { who: 'nova', text: reply, at: new Date().toISOString(), via: 'app', projectId: id }]).catch(() => {});
     };
     const fail = (msg) => { settle({ who: 'system', text: msg, streaming: false }); this.setState({ projectAskBusy: false }); };
-    api.ask(conn, text, sid, { projectId: id })
+    api.ask(conn, text, sid, { projectId: id, ...(opts.docRef ? { docRef: opts.docRef } : {}), ...(speaking || opts.spoken ? { spoken: true } : {}) })
       .then((resp) => {
         if (resp.text) { done(resp.text, resp.sessionId || sid); return; }
         if (!resp.jobId) { fail('Nova could not take that one. Try again.'); return; }
         push({ who: 'nova', text: '', at: new Date().toISOString(), streaming: true, typing: true });
         this.startPoll('projectAsk', () => api.claudeCodeJob(conn, resp.jobId), {
           timeoutMs: 120_000, intervalMs: 700,
-          onProgress: (job) => { if (job.partial) settle({ text: String(job.partial), streaming: true, typing: true }); },
+          onProgress: (job) => { if (job.partial) { settle({ text: String(job.partial), streaming: true, typing: true }); sayNew(String(job.partial), false); } },
           onReady: (job) => done(job.result?.text || 'Nothing came back for that.', job.result?.sessionId || job.sessionId || sid),
           onError: (msg) => fail(`That failed: ${msg}`),
         });
       })
       .catch((e) => fail(`That failed: ${e.message}`));
+  }
+  // "TELL ME" on a project's research or watch card: open the project, turn
+  // its thread's voice on, and send the seed turn that hands Nova the card's
+  // document (docRef). Unlocks audio inside his tap, the one moment iOS allows.
+  tellMeAbout(projectId, recordId) {
+    if (!projectId || !recordId) return;
+    const r = (this.state.liveInbox?.items || []).find((x) => x.id === recordId);
+    const title = r?.decision?.title || 'this';
+    const what = r?.kind === 'project-research' ? 'what this research found' : 'what this video shows';
+    if (this.state.projectOpen !== projectId) this.openProject(projectId);
+    if (this.state.voiceSpeak) this.primeSpeech();
+    this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: true } }));
+    // the state above lands before the ask reads it
+    setTimeout(() => this.sendProjectAsk({ projectId, text: `Tell me ${what}: “${title}”.`, docRef: recordId }), 0);
+  }
+  // PHASE 2: a question researched FOR the project. The record it returns is
+  // the job; it narrates on the wire and lands in the Research feed.
+  sendProjectResearch(projectId) {
+    const conn = getConnection();
+    const q = String(this.state.projectResearchText || '').trim();
+    if (!conn || !projectId || !q || this.state.projectResearchBusy) return;
+    this.setState({ projectResearchBusy: true, projectResearchError: null });
+    api.projectResearch(conn, projectId, q)
+      .then(() => { this.setState({ projectResearchText: '', projectResearchBusy: false }); haptic('commit'); this.refreshInbox(); })
+      .catch((e) => this.setState({ projectResearchBusy: false, projectResearchError: e.message || 'That did not start' }));
+  }
+  // a video for the project, through the lens he picked (the project's own by default)
+  sendProjectVideo(projectId) {
+    const conn = getConnection();
+    const url = String(this.state.projectVideoUrl || '').trim();
+    if (!conn || !projectId || !url || this.state.projectVideoBusy) return;
+    const pick = this.state.projectVideoLens;
+    const lens = pick && pick.id === projectId ? pick.lens : undefined;
+    this.setState({ projectVideoBusy: true, projectVideoError: null });
+    api.projectWatch(conn, projectId, { url, lens })
+      .then(() => { this.setState({ projectVideoUrl: '', projectVideoBusy: false }); haptic('commit'); this.refreshInbox(); })
+      .catch((e) => this.setState({ projectVideoBusy: false, projectVideoError: e.message || 'That did not start' }));
+  }
+  // a light tick or cross on one found video (kept on this device until he answers the card)
+  toggleProjectCandidate(recordId, url) {
+    this.setState((s) => {
+      const cur = { ...((s.projectCandidateCross || {})[recordId] || {}) };
+      if (cur[url]) delete cur[url]; else cur[url] = true;
+      return { projectCandidateCross: { ...(s.projectCandidateCross || {}), [recordId]: cur } };
+    });
+  }
+  // HIS "Watch them": the kept links, one after another, into the project only
+  watchProjectCandidates(projectId, recordId, urls) {
+    const conn = getConnection();
+    if (!conn || !urls?.length) return;
+    this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [recordId]: true } }));
+    api.projectCandidatesWatch(conn, projectId, recordId, urls)
+      .then(() => { haptic('commit'); this.toastMsg(`Watching ${urls.length} for the project, one at a time`); })
+      .catch((e) => this.toastMsg(e.message || 'That did not start'))
+      .finally(() => { this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [recordId]: false } })); this.refreshInbox(); if (this.state.projectOpen) this.loadProject(this.state.projectOpen); });
+  }
+  // KEEP TALKING (T6): the project page's microphone reopens after each answer
+  setProjectKeepTalking(projectId, on) {
+    if (on && this.state.voiceSpeak) this.primeSpeech();
+    this.setState((s) => ({
+      projectKeepTalking: { ...(s.projectKeepTalking || {}), [projectId]: !!on },
+      ...(on ? { projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: true } } : {}),
+    }));
+  }
+  setProjectSpeaking(projectId, on) {
+    if (!on) this.resetTtsQueue();
+    this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: !!on } }));
   }
   refreshProjects() {
     const conn = getConnection();
@@ -6868,7 +6959,8 @@ export default class App extends Component {
   // that finished while the app was closed is not re-narrated as news.
   narrateJobs(inbox) {
     if (this.state.demoMode) return;
-    const items = (inbox?.items || []).filter((r) => r.kind === 'research' && !r.parentPlanId);
+    // a project's research and its watches narrate too (src/jobBeats.js projectResearchStages)
+    const items = (inbox?.items || []).filter((r) => (r.kind === 'research' && !r.parentPlanId) || (r.projectId && (r.kind === 'project-research' || r.kind === 'video')));
     const seen = (this.jobSeen = this.jobSeen || new Map());
     const booting = !this.jobsBooted;
     this.jobsBooted = true;
@@ -8657,6 +8749,19 @@ export default class App extends Component {
     });
   }
 
+  // HIS TAP: a project's video Nova flagged, also into his library. Never
+  // optimistic (it writes his library): the tick turns green only when the
+  // server's new record is back; that record carries its own Undo.
+  fileProjectWatchToLibrary(id) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect to your Mac first'); return; }
+    const key = `lib:${id}`;
+    this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [key]: true } }));
+    api.inboxFileToLibrary(conn, id)
+      .then(({ record }) => { haptic('commit'); this.toastMsg(`In your library: ${record?.destination || 'filed'}`); })
+      .catch((e) => this.toastMsg(e.message || 'That did not file'))
+      .finally(() => { this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [key]: false } })); this.refreshInbox(); });
+  }
   inboxAction(id, kind, reason) {
     const conn = getConnection();
     if (!conn) return;

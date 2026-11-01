@@ -5,6 +5,8 @@
 // "working" chip is a real session in the project's folder, "waiting" is a
 // count of pending cards that carry the project's id.
 
+import { libraryFlagOf, tellMeOf } from './valsInbox.js';
+
 const VISIBLE = 6; // choice overload: the rest behind "Show all"
 
 const sessionsIn = (pic, dir) => {
@@ -13,8 +15,13 @@ const sessionsIn = (pic, dir) => {
   return pic.groups.flatMap((g) => g.sessions || []).filter((s) => s.cwd === dir || String(s.cwd || '').startsWith(prefix));
 };
 
+// The app holds the inbox as { items } (App.inboxFromSync); the phase-1 tests
+// handed an array. Both are read, so Home's card and the rail's "waiting"
+// counts see the real records (found 1 Nov 2026: under { items } they were 0).
+const inboxItems = (inbox) => (Array.isArray(inbox) ? inbox : Array.isArray(inbox?.items) ? inbox.items : []);
+
 export function pendingProjectCards(inbox) {
-  return (Array.isArray(inbox) ? inbox : []).filter((r) => r.status === 'pending' && (r.projectId || r.kind === 'project-brief'));
+  return inboxItems(inbox).filter((r) => r.status === 'pending' && (r.projectId || r.kind === 'project-brief'));
 }
 
 /** Home's card: only when something waits on him. Null otherwise. */
@@ -29,6 +36,81 @@ export function projectsWaiting(st, go) {
     items: cards.slice(0, 3).map((r, i) => ({ id: r.id, title: r.kind === 'project-brief' ? (r.decision?.reason || r.text) : (r.decision?.title || r.text), name: names[i], kind: r.kind, dryRun: !!r.dryRun })),
     sub: `waiting on you · ${names[0]}`,
     open: first.kind === 'project-brief' ? go('inbox') : go('projects'),
+  };
+}
+
+// PHASE 2: the lenses a video can be read through, in his words
+export const LENSES = [
+  { id: 'reference', label: 'What it says', hint: 'the ideas, with timestamps' },
+  { id: 'claims', label: 'Its claims', hint: 'checked against sources' },
+  { id: 'design', label: 'What it shows', hint: 'frames: palette, materials, layout, light' },
+];
+const LENS_LABEL = Object.fromEntries(LENSES.map((l) => [l.id, l.label]));
+
+const ago = (iso, now = Date.now()) => {
+  const t = Date.parse(iso || '');
+  if (!Number.isFinite(t)) return '';
+  const m = Math.round((now - t) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
+
+/**
+ * A project's research feed: its research runs and the videos watched for
+ * it, newest first, each a line code wrote. From the live inbox, so a running
+ * job's progress shows as it happens. Pure over (items, projectId, app, st).
+ */
+export function researchFeed(items, projectId, app, st = {}, now = Date.now()) {
+  const mine = (items || []).filter((r) => r.projectId === projectId && (r.kind === 'project-research' || r.kind === 'video')
+    && !['discarded', 'undone', 'withdrawn'].includes(r.status));
+  mine.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return mine.map((r) => {
+    const research = r.kind === 'project-research';
+    const running = r.status === 'classifying';
+    const pl = r.decision?.payload || {};
+    const lensAsked = r.lens || pl.lensAsked || 'reference';
+    const lensUsed = r.lensUsed || pl.lens || null;
+    const question = String(r.text || '').replace(/^(Research|Watch):\s*/, '');
+    const line = running
+      ? (research ? (r.panel?.merging ? 'Writing the synthesis' : r.panel?.label ? `Researching · ${r.panel.label}` : 'Planning who to send') : `Watching for ${LENS_LABEL[lensAsked]?.toLowerCase() || lensAsked}`)
+      : r.status === 'error' ? (r.error || 'It did not finish')
+        : research ? (r.summary || r.decision?.reason || '') : (r.decision?.payload?.fellBack ? `Design lens unavailable: ${r.decision.payload.fellBack}` : (lensUsed ? `${LENS_LABEL[lensUsed] || lensUsed} · ${r.destination || ''}` : r.destination || ''));
+    const cost = Number.isFinite(r.costUsd) && r.costUsd > 0 ? `US$${r.costUsd.toFixed(2)}` : null;
+    return {
+      id: r.id,
+      kind: research ? 'research' : 'watch',
+      label: research ? 'Research' : `Video · ${LENS_LABEL[lensUsed || lensAsked] || 'video'}`,
+      title: r.decision?.title || question,
+      question,
+      line,
+      status: running ? 'running' : r.status === 'error' ? 'error' : 'filed',
+      when: ago(r.filedAt || r.createdAt, now),
+      receipt: [r.model || pl.model || null, cost].filter(Boolean).join(' · '),
+      dropped: research && r.droppedClaims ? r.droppedClaims : 0,
+      tellMe: tellMeOf(r, app),
+      open: () => app.openCapture(r.id),
+      retry: r.status === 'error' ? () => app.inboxAction(r.id, 'retry') : null,
+      library: libraryFlagOf(r, items, app, st),
+    };
+  });
+}
+
+/** A pending candidates card as the page draws it: a tick or cross on each, one "Watch them". */
+export function candidatesCard(r, app, st = {}) {
+  const items = r.decision?.payload?.items || [];
+  const crossed = (st.projectCandidateCross || {})[r.id] || {};
+  const kept = items.filter((i) => !crossed[i.url]);
+  const each = r.decision?.payload?.estimateEachUsd;
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+  return {
+    items: items.map((i) => ({ url: i.url, host: host(i.url), why: i.why || '', crossed: !!crossed[i.url], toggle: () => app.toggleProjectCandidate(r.id, i.url) })),
+    keptCount: kept.length,
+    estimate: Number.isFinite(each) && kept.length ? `up to ~US$${(each * kept.length).toFixed(2)} for ${kept.length} (the Watcher's ceiling, ~US$${each.toFixed(2)} each)` : '',
+    watch: kept.length ? () => app.watchProjectCandidates(r.projectId, r.id, kept.map((i) => i.url)) : null,
+    busy: !!(st.inboxActionBusy || {})[r.id],
   };
 }
 
@@ -55,7 +137,7 @@ export function listProjects(st) {
   return { all, live, archivedCount: all.length - live.length };
 }
 
-export function valsProjects(app) {
+export function valsProjects(app, { isOffline = false, demoMode = false } = {}) {
   const st = app.state;
   const loaded = Array.isArray(st.liveProjects);
   const { all, live, archivedCount } = listProjects(st);
@@ -102,15 +184,58 @@ export function valsProjects(app) {
         set: (e) => app.setState({ projectAskText: e.target.value }),
         send: () => app.sendProjectAsk(),
         busy: !!st.projectAskBusy,
+        // "Tell me" turns the thread's voice on (the Nova thread's own TTS
+        // queue); voice off in Settings means text only, and the page says so
+        speaking: !!(st.projectSpeaking || {})[p.id],
+        voiceOff: !st.voiceSpeak,
+        setSpeaking: (on) => app.setProjectSpeaking(p.id, on),
+        // THE MICROPHONE (T6): his spoken turn goes the typed turn's way, with
+        // projectId; the hook and the rules live in the screen (src/projectTalk.js)
+        projectId: p.id,
+        sendSpoken: (text) => app.sendProjectAsk({ projectId: p.id, text, spoken: true }),
+        novaSpeaking: !!st.voiceSpeaking,
+        stopSpeaking: () => app.stopSpeaking(),
+        offline: !!isOffline,
+        demo: !!demoMode,
+        keepTalking: !!(st.projectKeepTalking || {})[p.id],
+        setKeepTalking: (on) => app.setProjectKeepTalking(p.id, on),
+        answerSeq: (st.projectAnswerSeq || {})[p.id] || 0,
+        heardLine: (st.projectHeardLine || {})[p.id] || null,
+        setHeardLine: (line) => app.setState((s) => ({ projectHeardLine: { ...(s.projectHeardLine || {}), [p.id]: line } })),
+        reportMic: (on) => app.setState((s) => (!!s.voiceScreenMic === !!on ? null : { voiceScreenMic: !!on })),
       },
       // what happened, in the project's own log (code-written)
       thread: p.linked ? (d?.commits || []).map((c) => ({ at: String(c.at || '').slice(0, 16).replace('T', ' '), dry: false, text: c.subject })) : logLines.slice(-12).reverse(),
       phases: phases.map((x, i) => ({ name: x.name, what: x.what || '', done: !!x.done, current: i === firstOpen })),
       files: (d?.files || []).slice(0, 40),
-      waiting: (d?.cards || []).map((r) => ({
+      // the live inbox first (it follows the wire), the page's read as a fallback
+      waiting: (inboxItems(st.liveInbox).some((r) => r.projectId === p.id) ? inboxItems(st.liveInbox).filter((r) => r.projectId === p.id && r.status === 'pending') : (d?.cards || [])).map((r) => ({
         id: r.id, title: r.decision?.title || r.text, reason: r.decision?.reason || '', kind: r.kind, dryRun: !!r.dryRun,
         approve: () => app.decideProjectCard(r.id, 'approve'), discard: () => app.decideProjectCard(r.id, 'discard'),
+        candidates: r.kind === 'project-watch-candidates' ? candidatesCard(r, app, st) : null,
       })),
+      // PHASE 2: research and videos, newest first, and the two ways in
+      research: p.linked ? null : {
+        feed: researchFeed(inboxItems(st.liveInbox), p.id, app, st),
+        ask: {
+          text: st.projectResearchText || '',
+          set: (e) => app.setState({ projectResearchText: e.target.value }),
+          send: () => app.sendProjectResearch(p.id),
+          busy: !!st.projectResearchBusy,
+          error: st.projectResearchError || null,
+        },
+        video: {
+          url: st.projectVideoUrl || '',
+          set: (e) => app.setState({ projectVideoUrl: e.target.value, projectVideoError: null }),
+          lens: (st.projectVideoLens && st.projectVideoLens.id === p.id ? st.projectVideoLens.lens : null) || p.lens || 'reference',
+          setLens: (lens) => app.setState({ projectVideoLens: { id: p.id, lens } }),
+          lenses: LENSES,
+          send: () => app.sendProjectVideo(p.id),
+          busy: !!st.projectVideoBusy,
+          error: st.projectVideoError || null,
+          note: 'Goes only into this project. Not your library.',
+        },
+      },
       sessions: d?.sessions || null,
       cost: d ? { usd: d.cost?.usd ?? 0, known: !!d.cost?.costKnown } : { usd: 0, known: false },
       controls: p.linked ? null : {
@@ -118,6 +243,8 @@ export function valsProjects(app) {
         allowances: p.allowances || {},
         quiet: p.quiet || null,
         modelOverride: p.modelOverride || null,
+        lens: p.lens || 'reference',
+        lenses: LENSES,
       },
       actions: p.linked ? { openCode: () => app.openProjectCode(p) } : {
         setSetting: (patch) => app.setProjectSetting(p.id, patch),

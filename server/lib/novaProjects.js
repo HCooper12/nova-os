@@ -10,7 +10,10 @@ import { isProtectedPath } from './protectedRoots.js';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { makeKernel, DRY_RUN_PROJECTS } from './projectKernel.js';
+import { makeKernel, DRY_RUN_PROJECTS, LENSES, lensOf, assertWritable, vaultName } from './projectKernel.js';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { PROJECTS_ROOT } from './projects.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -59,6 +62,7 @@ async function fileSettings(vaultPath, payload) {
 }
 
 export async function fileProjectDecision(vaultPath, route, payload) {
+  if (route === 'project-watch-note') return fileProjectWatchNote(vaultPath, payload);
   if (route === 'project-create') return fileCreate(vaultPath, payload);
   if (route === 'project-stage') return fileStage(vaultPath, payload);
   if (route === 'project-settings') return fileSettings(vaultPath, payload);
@@ -67,6 +71,21 @@ export async function fileProjectDecision(vaultPath, route, payload) {
 
 export async function undoProjectDecision(vaultPath, undo) {
   const k = novaKernel(vaultPath);
+  if (undo.route === 'project-watch-note') {
+    const p = assertWritable(k.getProject(undo.projectId));
+    // a copy first, the vault's own rule for anything Nova takes away
+    const { backupFile } = await import('./backup.js');
+    for (const f of undo.files || []) {
+      const full = path.join(vaultPath, f.relPath);
+      if (existsSync(full) && createHash('sha256').update(await readFile(full, 'utf8')).digest('hex') === f.hash) await backupFile(full);
+    }
+    const n = k.removeProjectVaultFiles(p, undo.files || [], { line: `watch note undone: ${(undo.files || []).map((f) => f.relPath.split('/').slice(-2).join('/')).join(', ')}` });
+    return `removed ${p.name}'s source page${n > 1 ? ' and its transcript' : ''}`;
+  }
+  if (undo.route === 'project-research') {
+    const p = assertWritable(k.getProject(undo.projectId));
+    return k.undoResearch(p, undo);
+  }
   if (undo.route === 'project-create') {
     const said = k.undoCreate(undo.id, { files: undo.files || [] });
     if (undo.workspace) {
@@ -84,6 +103,132 @@ export async function undoProjectDecision(vaultPath, undo) {
     return `${project.name}'s settings are back as they were`;
   }
   throw new Error(`unknown project undo ${undo.route}`);
+}
+
+// ---- THE PROJECT WATCHER (phase 2, PROJECTS-PLAN §2) -----------------------
+
+function refuse(message, code) { const e = new Error(message); e.code = code; return e; }
+
+const urlOfRecord = (r) => r?.decision?.payload?.url || (String(r?.text || '').match(/^Watch:\s*(\S+)/) || [])[1] || '';
+const LIVE = (r) => !['error', 'undone', 'discarded', 'withdrawn', 'failed'].includes(r.status);
+
+/**
+ * Before a project watch starts: the project is his, writable and live, the
+ * lens is one of three, and this video is not already in it (the second watch
+ * of one link is refused, naming the first). Returns { id, name, lens }.
+ */
+export async function prepareProjectWatch(vaultPath, projectId, url, lens, { retryOf = null } = {}) {
+  const { LINKED_IDS } = await import('./projectLinks.js');
+  if (LINKED_IDS.includes(projectId)) throw refuse('that is a linked project: Nova only reads about it and never files anything into it', 'linked');
+  const k = novaKernel(vaultPath);
+  const p = k.getProject(projectId);
+  if (!p) throw refuse('no such project', 'missing');
+  assertWritable(p);
+  if (p.stage === 'archived') throw refuse(`${p.name} is archived; bring it back before sending it videos`, 'stage');
+  if (lens != null && !LENSES.includes(lens)) throw refuse(`lens must be one of ${LENSES.join(', ')}`, 'lens');
+  const { videoLinkKey, findExistingVideoPages } = await import('./ingest.js');
+  const key = videoLinkKey(url);
+  if (key) {
+    const { listRecords } = await import('./inboxStore.js');
+    const prior = (await listRecords()).find((r) => r.id !== retryOf && r.projectId === p.id && r.kind === 'video' && LIVE(r) && videoLinkKey(urlOfRecord(r)) === key);
+    if (prior) {
+      const when = String(prior.createdAt || '').slice(0, 10);
+      const what = prior.decision?.title ? `“${prior.decision.title}”` : 'it';
+      throw refuse(`${p.name} already has this video: ${what}, sent ${when}${prior.status === 'classifying' ? ' and still being watched' : ''}. Nova will not watch it twice.`, 'duplicate');
+    }
+    if (vaultPath) {
+      const dir = k.projectVaultDir(p);
+      const pages = await findExistingVideoPages(vaultPath, url, { dirs: [`${dir}/Sources`, `${dir}/Raw`] });
+      if (pages.pages.length) throw refuse(`${p.name} already has this video at ${pages.pages[0]}. Nova will not watch it twice.`, 'duplicate');
+    }
+  }
+  return { id: p.id, name: p.name, lens: lens || lensOf(p) };
+}
+
+/**
+ * The project-watch-note filer: Projects/<Name>/Sources/<Title>.md and
+ * Projects/<Name>/Raw/<Title> (Transcript).md, through the kernel's contained
+ * writer. Never Wiki/Sources, never Raw/, never the weave. If the vault page
+ * was deleted the folder is made again, but only for a project whose record
+ * exists and is writable (the kernel's guard runs first).
+ */
+async function fileProjectWatchNote(vaultPath, payload) {
+  const k = novaKernel(vaultPath);
+  const p = k.getProject(payload?.projectId);
+  if (!p) throw refuse('the project this video was for no longer exists', 'missing');
+  assertWritable(p);
+  const dir = k.projectVaultDir(p);
+  if (payload.url) {
+    const { findExistingVideoPages } = await import('./ingest.js');
+    const prior = await findExistingVideoPages(vaultPath, payload.url, { dirs: [`${dir}/Sources`, `${dir}/Raw`] });
+    if (prior.pages.length) throw refuse(`this video is already in ${p.name} at ${prior.pages[0]}`, 'duplicate');
+  }
+  const base = vaultName(payload.title) || 'Watched video';
+  const suffix = existsSync(path.join(vaultPath, dir, 'Sources', `${base}.md`)) ? ` ${Date.now() % 10000}` : '';
+  let transcript = null;
+  if (payload.transcriptRef && /^[0-9a-f-]{1,40}\.txt$/.test(payload.transcriptRef)) {
+    transcript = await readFile(path.join(dataRoot(), 'watch', payload.transcriptRef), 'utf8').catch(() => null);
+  }
+  const rawBase = `${base}${suffix} (Transcript)`;
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; // his day, not UTC's
+  const matter = (await import('gray-matter')).default;
+  const front = {
+    type: 'source',
+    ...(transcript ? { raw: `[[${dir}/Raw/${rawBase}]]` } : {}),
+    ...(payload.url ? { url: payload.url } : {}),
+    tags: ['video', 'project'],
+    project: p.id,
+    lens: payload.lens || 'reference',
+    created: date,
+    updated: date,
+  };
+  const files = [{ rel: `Sources/${base}${suffix}.md`, content: matter.stringify(`# ${payload.title}\n\n${payload.body}\n`, front) }];
+  if (transcript) {
+    files.push({ rel: `Raw/${rawBase}.md`, content: `Verbatim video transcript fetched by Nova's Watcher for the project ${p.name}, received ${date}.\nSource URL: ${payload.url || '(unknown)'}\nSource page: [[${dir}/Sources/${base}${suffix}]]\n\n---\n\n${transcript}` });
+  }
+  const written = k.writeProjectVaultFiles(p, files, { line: `watched “${String(payload.title).slice(0, 80)}” (${payload.lens || 'reference'} lens) → ${dir}/Sources/${base}${suffix}.md${transcript ? ' + Raw transcript' : ''}`, action: 'watch' });
+  return {
+    destination: `${p.name} — Sources/${base}${suffix}.md${transcript ? ' (+ transcript in its Raw/)' : ' (no transcript)'}`,
+    undo: { route: 'project-watch-note', projectId: p.id, files: written },
+    projectId: p.id,
+  };
+}
+
+/**
+ * HIS TAP ONLY: "Also file to my library". The ordinary watch-note filing of
+ * the same note and stored transcript into Wiki/Sources + Raw, as its own
+ * filed record with its own undo. The ingest weave is NOT started (Deep weave
+ * on that record is his separate ask). The project's copy stays.
+ */
+export async function fileProjectWatchToLibrary(vaultPath, recordId) {
+  const { getRecord, createRecord, updateRecord } = await import('./inboxStore.js');
+  const r = await getRecord(recordId);
+  if (!r || r.kind !== 'video' || !r.projectId || r.decision?.route !== 'project-watch-note') throw refuse('that is not a project watch', 'missing');
+  if (r.status !== 'filed') throw refuse('only a filed project note can also go to your library', 'stage');
+  if (r.libraryWorthy?.yes !== true) throw refuse('Nova did not flag this one for your library', 'stage');
+  if (r.libraryRecordId) {
+    const prev = await getRecord(r.libraryRecordId);
+    if (prev && prev.status === 'filed') throw refuse(`already in your library: ${prev.destination || 'filed'}`, 'duplicate');
+  }
+  const pl = r.decision.payload || {};
+  const p = novaKernel(vaultPath).getProject(r.projectId);
+  const decision = {
+    route: 'watch-note', confidence: 'high', title: pl.title,
+    reason: `Filed to your library from ${p?.name || 'a project'}, on your tap. Undo removes the library page and its transcript; the project's own copy stays.`,
+    payload: { title: pl.title, body: pl.body, url: pl.url, lane: 'reference', transcriptRef: pl.transcriptRef || null },
+  };
+  const { fileDecision } = await import('./inbox.js');
+  const filed = await fileDecision(vaultPath, decision);
+  const at = new Date().toISOString();
+  const lib = await createRecord({
+    id: newId(), kind: 'video', source: 'watcher', mode: 'draft', status: 'filed',
+    text: `Watch: ${pl.url || ''}`, createdAt: at, filedAt: at, auto: false,
+    decision, destination: filed.destination, undoData: filed.undo,
+    parentId: r.id, fromProjectId: r.projectId,
+  });
+  await updateRecord(r.id, { libraryRecordId: lib.id });
+  return { record: lib };
 }
 
 // ---- cards Nova files (pending; nothing applies until his yes) -------------

@@ -9,8 +9,8 @@ import { linkedProject, gitLog, sessionsIn, projectCost, LINKED_IDS } from '../l
 const ID_RE = /^[0-9a-f]{8}$/;
 
 function fail(res, e) {
-  const status = e.code === 'linked' ? 403 : e.code === 'missing' ? 404
-    : ['brief', 'stage', 'settings', 'intake', 'exists', 'depth'].includes(e.code) ? 400 : 500;
+  const status = e.code === 'linked' || e.code === 'protected' ? 403 : e.code === 'missing' ? 404 : e.code === 'duplicate' ? 409
+    : ['brief', 'stage', 'settings', 'intake', 'exists', 'depth', 'lens', 'question', 'lane'].includes(e.code) ? 400 : 500;
   res.status(status).json({ error: e.message, code: e.code || null });
 }
 
@@ -92,6 +92,55 @@ export function projectsRouter({ vaultPath, repoRoot, sessions } = {}) {
       const { proposeDryRunLift } = await import('../lib/novaProjects.js');
       await proposeDryRunLift(p.id, { vaultPath }).catch(() => null);
       res.json(out);
+    } catch (e) { fail(res, e); }
+  });
+
+  // RESEARCH FOR THIS PROJECT (phase 2): the Researcher's panel with the
+  // project handed in; code checks every claim's source and writes research/.
+  // { jobId } is the record's id, polled at GET /api/inbox/item/:id like any
+  // record job. A linked project is refused (403) and nothing is written.
+  router.post('/projects/:id/research', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      if (p.linked) return fail(res, Object.assign(new Error(`${p.name} is a linked project: Nova never writes research into it`), { code: 'linked' }));
+      const { startProjectResearch } = await import('../lib/projectResearch.js');
+      const model = req.body?.model === 'opus' || req.body?.model === 'sonnet' ? req.body.model : undefined;
+      const record = await startProjectResearch(vaultPath, p.id, req.body?.question, { model });
+      res.json({ jobId: record.id, record });
+    } catch (e) { fail(res, e); }
+  });
+
+  // HIS "Watch them" on a candidates card, with the links he did not cross out
+  router.post('/projects/:id/candidates/:recordId/watch', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      if (p.linked) return fail(res, Object.assign(new Error(`${p.name} is a linked project`), { code: 'linked' }));
+      const { getRecord } = await import('../lib/inboxStore.js');
+      const r = await getRecord(req.params.recordId);
+      if (!r || r.projectId !== p.id) return res.status(404).json({ error: 'no such card for this project' });
+      const { watchCandidates } = await import('../lib/projectResearch.js');
+      const urls = Array.isArray(req.body?.urls) ? req.body.urls.map(String) : null;
+      res.json({ record: await watchCandidates(vaultPath, r.id, urls) });
+    } catch (e) { fail(res, e); }
+  });
+
+  // A VIDEO FOR THIS PROJECT (phase 2): the Watcher, with the project as its
+  // destination and its lens (or his per-video pick). Lands only in
+  // Projects/<Name>/Sources + Raw. { recordId } comes back; the record narrates.
+  router.post('/projects/:id/watch', async (req, res) => {
+    try {
+      const p = await find(req.params.id);
+      if (!p) return res.status(404).json({ error: 'no such project' });
+      if (p.linked) return fail(res, Object.assign(new Error(`${p.name} is a linked project: Nova never files anything into it`), { code: 'linked' }));
+      const { extractVideoUrl, startVideoWatch } = await import('../lib/watcher.js');
+      const link = extractVideoUrl(String(req.body?.url || ''));
+      if (!link) return res.status(400).json({ error: 'that does not look like a video link (YouTube, Instagram, TikTok, Vimeo…)' });
+      const model = req.body?.model === 'opus' || req.body?.model === 'sonnet' ? req.body.model : undefined;
+      const lens = typeof req.body?.lens === 'string' && req.body.lens ? req.body.lens : undefined;
+      const record = await startVideoWatch(vaultPath, link.url, String(req.body?.question || link.question || '').slice(0, 500), { project: { id: p.id }, lens, model });
+      res.json({ recordId: record.id, record });
     } catch (e) { fail(res, e); }
   });
 

@@ -78,6 +78,8 @@ export const KIND_BEING = {
   guardian: 'guardian', compost: 'guardian', pattern: 'guardian', autonomy: 'guardian',
   'model-choice': 'guardian', 'forge-job': 'guardian',
   research: 'researcher', study: 'researcher', paper: 'researcher', scout: 'researcher', repertoire: 'researcher',
+  // a project's research and the videos it found (Projects phase 2): the Researcher's work
+  'project-research': 'researcher', 'project-watch-candidates': 'researcher',
   video: 'watcher',
   'read-next': 'librarian', 'stash': 'librarian', 'stash-write': 'librarian', wishlist: 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
   // his own answer on the Daily review card — Wiki/Library/Review Log.md,

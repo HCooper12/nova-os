@@ -244,6 +244,10 @@ export const api = {
   projectStage: (conn, id, to, reason) => post(conn, `/api/projects/${encodeURIComponent(id)}/stage`, { to, reason: reason || '' }),
   projectArchive: (conn, id) => post(conn, `/api/projects/${encodeURIComponent(id)}/archive`, {}),
   projectSettings: (conn, id, patch) => post(conn, `/api/projects/${encodeURIComponent(id)}/settings`, patch),
+  // phase 2: research for a project, a video for it, and his "Watch them" on found videos
+  projectResearch: (conn, id, question, model) => post(conn, `/api/projects/${encodeURIComponent(id)}/research`, { question, ...(model ? { model } : {}) }),
+  projectWatch: (conn, id, { url, lens, question } = {}) => post(conn, `/api/projects/${encodeURIComponent(id)}/watch`, { url, ...(lens ? { lens } : {}), ...(question ? { question } : {}) }),
+  projectCandidatesWatch: (conn, id, recordId, urls) => post(conn, `/api/projects/${encodeURIComponent(id)}/candidates/${encodeURIComponent(recordId)}/watch`, { urls }),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
   stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),
@@ -720,6 +724,8 @@ export const api = {
   // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)
   inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
+  // a project's video, also into his library: only ever from his tap (Projects phase 2)
+  inboxFileToLibrary: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/file-to-library`),
   // the tag on a capture: move it, or re-read it with a detail (mockup 103)
   inboxReroute: (conn, id, route, detail) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reroute`, { route: route || null, detail: detail || '' }),
   // his Notion Wishlist: the tap that answers an add's open question (id = the add's inbox record)

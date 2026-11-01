@@ -267,6 +267,18 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  // HIS TAP ONLY (Projects phase 2): a project watch Nova flagged as worth his
+  // library is filed there too, as its own record with its own undo. Never
+  // the weave; never without this request.
+  router.post('/inbox/:id/file-to-library', async (req, res) => {
+    try {
+      const { fileProjectWatchToLibrary } = await import('../lib/novaProjects.js');
+      res.json(await fileProjectWatchToLibrary(vaultPath, req.params.id));
+    } catch (e) {
+      res.status(e.code === 'missing' ? 404 : 400).json({ error: e.message, code: e.code || null });
+    }
+  });
+
   router.post('/inbox/:id/retry', async (req, res) => {
     try {
       const record = await retryRecord(vaultPath, req.params.id);

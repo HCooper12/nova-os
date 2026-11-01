@@ -117,6 +117,61 @@ export function researchStages(record) {
   return out;
 }
 
+// PROJECTS phase 2: a project's research (the same panel fields as the
+// Researcher's, so the same stages) and a video watched for a project. Every
+// line from the record: the panel, the lens it was asked and the lens it
+// used, the filed destination, the summary code wrote, the error.
+const LENS_WORD = { reference: 'what it says', claims: 'its claims', design: 'what it shows' };
+export function projectResearchStages(record) {
+  if (!record?.projectId) return [];
+  if (record.kind === 'project-research') {
+    const base = researchStages({ ...record, kind: 'research' });
+    return base.map((st) => {
+      if (st.key === 'ready') {
+        const line = record.summary || record.decision?.reason?.split('. ')[0] || '';
+        return {
+          key: 'ready',
+          say: `Research filed for the project: ${record.decision.title}.${line ? ` ${line}.` : ''}`,
+          card: { kind: 'key', tone: 'good', label: 'FILED', caption: record.decision.title, foot: line || null },
+        };
+      }
+      if (st.key === 'error') return { ...st, card: { ...st.card, foot: 'Retry from the project page' } };
+      if (st.key === 'go') return { ...st, card: { ...st.card, label: 'RESEARCHING FOR THE PROJECT' } };
+      return st;
+    });
+  }
+  if (record.kind !== 'video') return [];
+  const out = [];
+  const asked = record.lens || 'reference';
+  out.push({
+    key: 'go',
+    say: `Watching it for the project, for ${LENS_WORD[asked] || asked}.`,
+    card: { kind: 'key', tone: 'cy', label: 'WATCHING FOR THE PROJECT', caption: String(record.text || '').replace(/^Watch:\s*/, '').slice(0, 120), foot: `${asked} lens` },
+  });
+  const status = String(record.status || '');
+  if (status === 'error') {
+    out.push({
+      key: 'error',
+      say: `The watch failed${record.error ? `: ${String(record.error).slice(0, 160)}` : ''}.`,
+      card: { kind: 'key', tone: 'warn', label: 'FAILED', caption: String(record.error || 'no reason recorded').slice(0, 200), foot: 'Nothing was written' },
+    });
+  } else if (status === 'filed' && record.decision?.title) {
+    const fell = record.lensUsed && record.lensUsed !== asked;
+    out.push({
+      key: 'ready',
+      say: `Filed into the project: ${record.decision.title}.${fell ? ` The ${asked} lens could not be used, so it is a ${record.lensUsed} read.` : ''}`,
+      card: { kind: 'key', tone: 'good', label: 'FILED TO THE PROJECT', caption: record.decision.title, foot: record.destination || null },
+    });
+  }
+  return out;
+}
+
+// which stages a record narrates: the Researcher's, or a project job's
+export function stagesFor(record) {
+  if (record?.kind === 'research') return researchStages(record);
+  return projectResearchStages(record);
+}
+
 // A settled record narrates nothing more; used to stop tracking it.
 export function jobSettled(record) {
   const s = String(record?.status || '');
@@ -126,7 +181,7 @@ export function jobSettled(record) {
 // The stages not yet shown, and the seen-set to keep. `seen` is a Set of
 // keys already narrated for this record (undefined for a record never seen).
 export function newStages(record, seen) {
-  const stages = researchStages(record);
+  const stages = stagesFor(record);
   // A record that is already settled the first time it is seen finished
   // while nobody was watching: it is history, not news, and seeds silently.
   // The app's own first-sight mark (`seen.set(id, null)`) came back here as

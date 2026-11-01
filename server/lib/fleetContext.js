@@ -61,6 +61,8 @@ export const KIND_AGENT = {
   build: 'Builder',
   // Projects phase 1 (lib/novaProjects.js, lib/projectIntake.js)
   'project-brief': 'Projects', 'project-stage': 'Projects', 'project-settings': 'Projects',
+  // phase 2: research for a project, and the videos it found
+  'project-research': 'Researcher', 'project-watch-candidates': 'Researcher',
   // the Repertoire (15 Sep): a clip read for its technique, researched
   // outward, and taught back one a day — the other agents can say so
   repertoire: 'Repertoire',

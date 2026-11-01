@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, copyFileSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -12,6 +12,8 @@ import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
+import { denyAllExcept } from './spawnBoundary.js';
+import { assertNotProtected } from './protectedRoots.js';
 
 // The Watcher — Nova's eyes on video. Hayden hands it a link (a fitness
 // video, a podcast, a talk); the watch toolchain (yt-dlp + the bundled watch
@@ -42,6 +44,16 @@ export const SINGLE_PASS_MAX_CHARS = 150_000;
 export const CHUNK_CHARS = 60_000;
 const CHUNK_MODEL = () => modelFor('watcher-chunk');
 const CHUNK_CONCURRENCY = 3;
+
+// A PROJECT'S LENSES (Projects phase 2, PROJECTS-PLAN §2). A library watch
+// still lets the model choose coach or reference; a project watch reads the
+// video through the lens the project (or his per-video pick) names:
+// reference = what it says, claims = do its claims hold, design = what it
+// SHOWS, from frames the watch plugin samples. Shared with projectKernel.js.
+export const WATCH_LENSES = ['reference', 'claims', 'design'];
+// frames sampled for the design lens: enough to see a room from its angles,
+// few enough that one model pass looks at every one
+export const DESIGN_FRAMES = 24;
 
 // Everything except vault reads and the web-read tools. Edit/Write matter most.
 const WATCH_DISALLOWED = [
@@ -124,15 +136,23 @@ export function parseWatchReport(stdout) {
     const fence = section.match(/```\n([\s\S]*?)\n```/);
     if (fence && fence[1].trim()) transcript = fence[1].trim();
   }
-  return { title, uploader, duration, transcriptSource, transcript };
+  // the frame list (only when frames were asked for): each line is
+  // "- `<absolute path>` (t=MM:SS, reason=…)"; a path that is not there is a null
+  const frames = [];
+  const frameSection = (text.split(/^## Frames$/m)[1] || '').split(/^## Transcript$/m)[0];
+  for (const m of frameSection.matchAll(/^- `([^`]+)` \(t=([0-9:]+)/gm)) frames.push({ path: m[1], t: m[2] });
+  return { title, uploader, duration, transcriptSource, transcript, frames };
 }
 
 // Local transcript fetch — no model involved. Transcript detail skips the
 // video download entirely when captions exist, so this is usually seconds.
-export function fetchVideoTranscript(url, workDir) {
+// `frames: true` (the design lens) downloads the video and samples
+// DESIGN_FRAMES keyframes into <workDir>/frames as well.
+export function fetchVideoTranscript(url, workDir, { frames = false } = {}) {
   const script = resolveWatchScript();
+  const detail = frames ? ['--detail', 'efficient', '--max-frames', String(DESIGN_FRAMES)] : ['--detail', 'transcript'];
   return new Promise((resolve, reject) => {
-    const child = spawn(resolvePython(), [script, url, '--detail', 'transcript', '--out-dir', workDir], {
+    const child = spawn(resolvePython(), [script, url, ...detail, '--out-dir', workDir], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, PATH: SPAWN_PATH },
     });
@@ -202,7 +222,8 @@ Dense bullets, not prose — no verdicts yet, no filler, no padding. Length foll
 Output the notes as PLAIN MARKDOWN — start directly with the first heading or bullet. No JSON, no code fences, no preamble, no sign-off.`;
 }
 
-export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false, him = '' }) {
+export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false, him = '', project = null, lens = null, projectContext = '' }) {
+  if (project) return buildProjectWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest, him, project, lens, projectContext });
   return `${NOVA_LENS}
 
 You are Nova's Watcher. Hayden submitted a video; ${digest ? 'it is LONG, so its full timestamped transcript was extracted locally and condensed by your own chunked extraction passes into the notes file below' : 'its full timestamped transcript has been extracted locally'}. Your job is to watch it FOR him — read ${digest ? 'the notes' : 'the transcript'}, weigh it, and draft the one note worth keeping.
@@ -234,20 +255,109 @@ Both lanes:
 Output ONLY a JSON object: {"lane":"coach"|"reference","title":"Short Note Title","verdict":"one sentence — the watch-it-or-skip-it call","body":"the full note in markdown"}. No code fences, no commentary.`;
 }
 
-export function normalizeWatch(parsed) {
-  const lane = parsed.lane === 'coach' ? 'coach' : 'reference';
+export function normalizeWatch(parsed, { lens = null } = {}) {
+  const lane = lens && WATCH_LENSES.includes(lens) ? lens : parsed.lane === 'coach' ? 'coach' : 'reference';
   const title = String(parsed.title || '').trim().slice(0, 120);
   const verdict = String(parsed.verdict || '').trim().slice(0, 300);
   const body = String(parsed.body || '').trim();
   if (!title || !body) throw new Error('the Watcher returned an incomplete note');
-  return { lane, title, verdict, body };
+  const out = { lane, title, verdict, body };
+  // a project watch also answers "would this belong in his main library?"
+  if (lens) out.libraryWorthy = normalizeLibraryWorthy(parsed.libraryWorthy);
+  return out;
+}
+
+// STRICT: yes only when the model said a real boolean true AND gave a reason.
+// Anything else (absent, "yes", a number, an empty reason) is a no, so the
+// "Also file to my library" action appears only on a clear, reasoned yes.
+export function normalizeLibraryWorthy(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { yes: false, reason: '' };
+  const reason = typeof v.reason === 'string' ? v.reason.replace(/\s+/g, ' ').trim().slice(0, 240) : '';
+  if (v.yes !== true || !reason) return { yes: false, reason: v.yes === false ? reason : '' };
+  return { yes: true, reason };
+}
+
+const LIBRARY_QUESTION = `"libraryWorthy": would this video ALSO belong in his main library (his Wiki: ideas, training, health, leadership, things he would want to find again outside this project)? {"yes": true|false, "reason": "one sentence"}. Say yes only when it clearly would; a video useful only to this project is a no.`;
+
+// THE PROJECT WATCH (phase 2). The note goes ONLY into the project's own
+// folder. The model gets the project's context handed in (never the vault to
+// search: a project job reads what its brief names), the transcript, and the
+// one lens to read it through.
+export function buildProjectWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false, him = '', project, lens = 'reference', projectContext = '' }) {
+  const lane = lens === 'claims'
+    ? `LENS "claims": list the video's actual claims and judge each for support: well-supported, contested, or wrong. Use web search to check the load-bearing ones against primary sources and cite what you find as [links]. Judge them against what this project needs. End with a straight verdict: adopt / partially useful / ignore, and exactly what to take for ${project.name}. If it is fluff, say so plainly.`
+    : `LENS "reference": distil it for ${project.name}. A 2-3 sentence summary, then the key ideas each anchored to a transcript timestamp (M:SS), then what bears on this project's goal and phases, then actionable takeaways if any genuinely exist.`;
+  return `${NOVA_LENS}
+
+You are Nova's Watcher, watching a video FOR ONE OF HAYDEN'S PROJECTS: "${project.name}". The note you write goes ONLY into that project's own folder, never his main library. ${digest ? 'The video is LONG, so its transcript was condensed by your own extraction passes into the notes file below.' : 'Its full timestamped transcript has been extracted locally.'}
+
+The video:
+- URL: ${url}
+- Title: ${title || '(unknown)'}
+- Uploader: ${uploader || '(unknown)'}
+- Duration: ${duration || '(unknown)'}
+- Transcript source: ${transcriptSource || 'captions'}
+- ${digest ? 'Condensed notes file (Read this FIRST, in full)' : 'Transcript file (Read this FIRST, in full)'}: ${transcriptPath}
+${question ? `\nHayden's specific ask: ${question}\n` : ''}${him ? `\nWHO YOU ARE WATCHING FOR (his profile page):\n${him}\n` : ''}${projectContext ? `\nTHE PROJECT (read by code from its brief, log and pages; this is all you know about it):\n${projectContext.slice(0, 8000)}\n` : ''}
+${lane}
+
+Always:
+- Cite transcript timestamps for anything specific.
+- You have the words, not the pictures. If something can't be judged without seeing the screen, say so instead of guessing.
+- No wikilinks to pages you have not been shown. Write timelessly (absolute dates). ~250-500 words.
+- ${LIBRARY_QUESTION}
+
+Output ONLY a JSON object: {"lane":"${lens}","title":"Short Note Title","verdict":"one sentence — what this video is worth to the project","body":"the full note in markdown","libraryWorthy":{"yes":false,"reason":"…"}}. No code fences, no commentary.`;
+}
+
+// THE DESIGN LENS (Q33): what the video SHOWS. The frames are files on this
+// Mac; the model is told to open each one and to describe only what it sees,
+// with the frame's timestamp. It reports how many it actually opened
+// (framesRead), and code treats 0 as "the frames could not be read".
+export function buildDesignPrompt({ url, title, uploader, duration, question, frames = [], transcriptPath = null, him = '', project, projectContext = '' }) {
+  const list = frames.map((f) => `- ${f.path} (t=${f.t})`).join('\n');
+  return `${NOVA_LENS}
+
+You are Nova's Watcher reading a video through the DESIGN lens for Hayden's project "${project.name}". The note goes ONLY into that project's folder, never his main library.
+
+The video: ${title || '(untitled)'}${uploader ? ` by ${uploader}` : ''}${duration ? `, ${duration}` : ''} — ${url}
+${question ? `His ask: ${question}\n` : ''}${projectContext ? `\nTHE PROJECT (read by code; all you know about it):\n${projectContext.slice(0, 6000)}\n` : ''}${him ? `\nWHO IT IS FOR:\n${him.slice(0, 3000)}\n` : ''}
+FRAMES sampled from the video (open EVERY one with the Read tool; each is an image):
+${list}
+${transcriptPath ? `\nThe transcript (what is said over the pictures) is at ${transcriptPath}. Read it after the frames.\n` : '\nThere is no transcript: the frames are all you have.\n'}
+Write what the video SHOWS that matters to this project, each point with the timestamp(s) of the frame(s) you saw it in:
+- colour and palette (name the colours you see; approximate, never invented hex codes)
+- materials and finishes
+- layout and the arrangement of the space
+- light (natural, artificial, where it falls)
+- storage
+- furniture and objects
+Then what is worth taking for ${project.name}, and what is not.
+
+THE RULE: describe only what a frame actually shows. If you could not open a frame, or it shows nothing useful, say so; never fill a gap from the title or the transcript and present it as seen. Count the frames you actually opened and saw.
+
+${LIBRARY_QUESTION}
+
+Output ONLY a JSON object: {"lane":"design","title":"Short Note Title","verdict":"one sentence — what this video shows that is worth taking","body":"the full note in markdown, timestamps on every visual point","framesRead": <number of frames you actually opened>,"libraryWorthy":{"yes":false,"reason":"…"}}. No code fences, no commentary.`;
+}
+
+// the design verdict, strictly: framesRead is an integer between 0 and the
+// frames offered; anything else is 0 (and 0 means the lens falls back)
+export function normalizeDesign(parsed, frameCount) {
+  const base = normalizeWatch(parsed, { lens: 'design' });
+  const n = Number(parsed?.framesRead);
+  const framesRead = Number.isInteger(n) && n > 0 ? Math.min(n, frameCount) : 0;
+  return { ...base, framesRead };
 }
 
 // The note's header is composed in CODE from metadata the toolchain actually
 // returned — the source line is never the model's to get wrong.
-export function composeWatchNote({ url, title, uploader, duration, transcriptSource, verdict, body }) {
+export function composeWatchNote({ url, title, uploader, duration, transcriptSource, verdict, body, first = null, readBy = null, noTranscript = false }) {
   const src = [title || url, uploader, duration].filter(Boolean).join(' — ');
-  const lines = [`**Source:** [${src}](${url}) · transcript via ${transcriptSource || 'captions'}`];
+  // `first`: a line that must lead the note (the design lens's honest
+  // fallback); `readBy`: the model and lens, named on a project note
+  const lines = [...(first ? [first] : []), `**Source:** [${src}](${url}) · ${noTranscript ? 'no transcript (frames only)' : `transcript via ${transcriptSource || 'captions'}`}`];
+  if (readBy) lines.push(`**Read by:** ${readBy}`);
   if (verdict) lines.push(`**Verdict:** ${verdict}`);
   return `${lines.join('\n')}\n\n${body}\n`;
 }
@@ -273,7 +383,20 @@ export function parseWatchDirective(text) {
 // verdict pass so a video watched "on Opus" actually runs on Opus
 // throughout, not just its final judgment. Omitted, both passes just use
 // their own standing lane default, same as always.
-export async function startVideoWatch(vaultPath, url, question = '', { model } = {}) {
+//
+// `project` (Projects phase 2): { id } of one of his projects, and `lens` an
+// optional per-video override of the project's own lens. The note then goes
+// ONLY to Projects/<Name>/Sources + Raw (route project-watch-note), the
+// record carries projectId, and neither the library nor the ingest weave is
+// touched. The project must exist, be his (not linked) and writable, and must
+// not already hold this video.
+export async function startVideoWatch(vaultPath, url, question = '', { model, project, lens } = {}) {
+  return (await startVideoWatchJob(vaultPath, url, question, { model, project, lens })).record;
+}
+
+// …and the same with the job's promise, for a caller that runs several in
+// sequence (a candidates card's "Watch them").
+export async function startVideoWatchJob(vaultPath, url, question = '', { model, project, lens } = {}) {
   const u = String(url || '').trim();
   if (!/^https?:\/\//.test(u)) throw new Error('a video URL is required');
   if (u.length > 500) throw new Error('that URL does not look right (500 chars max)');
@@ -284,6 +407,13 @@ export async function startVideoWatch(vaultPath, url, question = '', { model } =
   // in 'classifying'.
   if (!laneEnabled('watcher-verdict')) throw laneOffError('watcher-verdict');
   if (!laneEnabled('watcher-chunk')) throw laneOffError('watcher-chunk');
+  if (lens !== undefined && lens !== null && !project) throw new Error('a lens belongs to a project watch');
+  let proj = null;
+  if (project) {
+    const { prepareProjectWatch } = await import('./novaProjects.js');
+    proj = await prepareProjectWatch(vaultPath, typeof project === 'string' ? project : project.id, u, lens);
+    if (proj.lens === 'design' && !laneEnabled('watcher-design')) throw laneOffError('watcher-design');
+  }
 
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -293,11 +423,12 @@ export async function startVideoWatch(vaultPath, url, question = '', { model } =
     mode: 'draft',
     status: 'classifying', // shows as in-flight in the queue
     createdAt: new Date().toISOString(),
+    ...(proj ? { projectId: proj.id, lens: proj.lens } : {}),
   });
   // the gate's answer rides the record so a retry keeps it (the Researcher's same fix)
   if (model) updateRecord(record.id, { model }).catch(() => {});
-  runWatchJob(vaultPath, record.id, u, q, model);
-  return record;
+  const done = runWatchJob(vaultPath, record.id, u, q, model, proj);
+  return { record, done };
 }
 
 // A video record carries its whole input in its text, so a failed run can
@@ -305,13 +436,21 @@ export async function startVideoWatch(vaultPath, url, question = '', { model } =
 export async function retryWatch(vaultPath, record) {
   const m = String(record.text || '').match(/^Watch:\s*(\S+)(?:\s+—\s+([\s\S]+))?$/);
   if (!m) throw new Error('this video record has no URL to re-run');
+  // a project watch retries as a project watch, with its own lens, and is
+  // checked again (the project may have been archived or linked since)
+  let proj = null;
+  if (record.projectId) {
+    const { prepareProjectWatch } = await import('./novaProjects.js');
+    proj = await prepareProjectWatch(vaultPath, record.projectId, m[1], record.lens || undefined, { retryOf: record.id });
+  }
   const updated = await updateRecord(record.id, { status: 'classifying', error: null });
-  runWatchJob(vaultPath, record.id, m[1], (m[2] || '').trim(), record.model || undefined);
+  runWatchJob(vaultPath, record.id, m[1], (m[2] || '').trim(), record.model || undefined, proj);
   return updated;
 }
 
 // The fetch-then-reason step, shared by first runs and retries.
-async function runWatchJob(vaultPath, recordId, url, question, model) {
+async function runWatchJob(vaultPath, recordId, url, question, model, proj = null) {
+  if (proj) return runProjectWatchJob(vaultPath, recordId, url, question, model, proj);
   let workDir = null;
   try {
     workDir = await mkdtemp(path.join(os.tmpdir(), 'nova-watch-'));
@@ -380,6 +519,148 @@ async function runWatchJob(vaultPath, recordId, url, question, model) {
   } finally {
     if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+// What the job calls out to, so a test can stand in for the watch script and
+// the model (tests never spawn python or the CLI). Production never sets it.
+const deps = { fetchReport: (...a) => fetchVideoTranscript(...a), runClaude: (...a) => runClaude(...a), fetchCarousel: (...a) => fetchCarousel(...a) };
+export function _setWatchDepsForTest(over = {}) {
+  const prev = { ...deps };
+  Object.assign(deps, over);
+  return () => Object.assign(deps, prev);
+}
+
+const dataRootOf = () => process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+
+/**
+ * A PROJECT WATCH (Projects phase 2). Same fetch, then the project's lens,
+ * then the project-watch-note route: Projects/<Name>/Sources + Raw only. No
+ * library page, no ingest weave, ever, from here. A video with no transcript
+ * AND no frames is an error card with nothing written.
+ */
+async function runProjectWatchJob(vaultPath, recordId, url, question, model, proj) {
+  let workDir = null;
+  try {
+    workDir = await mkdtemp(path.join(os.tmpdir(), 'nova-watch-'));
+    const wantFrames = proj.lens === 'design';
+    let report = null;
+    let fetchError = null;
+    let framesWhy = null;
+    try { report = await deps.fetchReport(url, workDir, { frames: wantFrames }); } catch (e) { fetchError = e; }
+    if (wantFrames && !report) {
+      // the video itself would not download for frames: the words may still come
+      framesWhy = `the frames could not be extracted (${String(fetchError?.message || 'no reason given').slice(0, 160)})`;
+      try { report = await deps.fetchReport(url, path.join(workDir, 'words'), { frames: false }); fetchError = null; } catch (e) { fetchError = e; }
+    }
+    const frames = wantFrames ? (report?.frames || []).filter((f) => f?.path && existsSync(f.path)) : [];
+    if (wantFrames && report && !frames.length && !framesWhy) framesWhy = 'no frames came out of the video on this Mac';
+    if (!report?.transcript && !frames.length) {
+      const slides = await deps.fetchCarousel(url, path.join(workDir, 'slides')).catch(() => null);
+      if (slides) report = { title: slides.title, uploader: slides.uploader, duration: null, transcriptSource: `${slides.slidePaths.length} carousel slides`, transcript: carouselBrief(slides) };
+      else throw new Error(`nothing to read: ${fetchError ? fetchError.message : 'the video has no transcript'}${wantFrames ? ` and ${framesWhy || 'no frames'}` : ''}. Nothing was written.`);
+    }
+
+    let transcriptPath = null;
+    let digest = false;
+    if (report.transcript) {
+      digest = report.transcript.length > SINGLE_PASS_MAX_CHARS;
+      transcriptPath = path.join(workDir, 'transcript.txt');
+      if (digest) {
+        const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'), question, model);
+        transcriptPath = path.join(workDir, 'notes.md');
+        await writeFile(transcriptPath, notes, 'utf8');
+      } else {
+        await writeFile(transcriptPath, report.transcript, 'utf8');
+      }
+    }
+
+    let him = '';
+    try { const { profileContext } = await import('./profile.js'); him = await profileContext(vaultPath); } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
+    let projectContext = '';
+    try { const { projectContextSection } = await import('./projectContext.js'); projectContext = await projectContextSection(vaultPath, proj.id); } catch { projectContext = ''; }
+
+    const meta = { url, question, title: report.title, uploader: report.uploader, duration: report.duration, transcriptSource: report.transcriptSource };
+    let cost = 0;
+    const onCost = (usd) => { if (Number.isFinite(usd)) cost += usd; };
+    let out = null;
+    let fellBack = null;
+    let modelUsed = null;
+    if (wantFrames && frames.length) {
+      const framesDir = path.dirname(frames[0].path);
+      try {
+        // the model looks from inside the frames folder, with Read and nothing else
+        assertNotProtected(framesDir, 'look at frames there');
+        let tPath = null;
+        if (transcriptPath) { tPath = path.join(framesDir, 'transcript.txt'); copyFileSync(transcriptPath, tPath); }
+        modelUsed = model || modelFor('watcher-design');
+        const text = await deps.runClaude(framesDir, buildDesignPrompt({ ...meta, frames, transcriptPath: tPath, him, project: proj, projectContext }), {
+          allowedTools: 'Read', disallowed: denyAllExcept('Read'), model: modelUsed, lane: 'watcher-design', cwd: framesDir, onCost,
+        });
+        const d = normalizeDesign(parseJsonText(text), frames.length);
+        if (!d.framesRead) fellBack = 'the model reported it could not open any of the frames';
+        else out = d;
+      } catch (e) {
+        fellBack = `the frames could not be read (${String(e.message).slice(0, 160)})`;
+      }
+    } else if (wantFrames) {
+      fellBack = framesWhy;
+    }
+    const lensUsed = out ? 'design' : wantFrames ? 'reference' : proj.lens;
+    if (!out) {
+      if (!transcriptPath) throw new Error(`${fellBack || 'the design read failed'}, and the video has no transcript to fall back on. Nothing was written.`);
+      modelUsed = model || modelFor('watcher-verdict');
+      const text = await deps.runClaude(workDir, buildWatchPrompt({ ...meta, transcriptPath, digest, him, project: proj, lens: lensUsed, projectContext }), {
+        allowedTools: lensUsed === 'claims' ? 'Read WebSearch WebFetch' : 'Read',
+        disallowed: denyAllExcept(lensUsed === 'claims' ? 'Read WebSearch WebFetch' : 'Read'),
+        model: modelUsed, lane: 'watcher-verdict', cwd: workDir, onCost,
+      });
+      out = normalizeWatch(parseJsonText(text), { lens: lensUsed });
+    }
+    const first = fellBack ? `**Design lens unavailable:** ${fellBack}. This note is the reference read of what the video SAYS, not of what it shows.` : null;
+    const readBy = `${modelUsed} · ${lensUsed} lens${out.framesRead ? ` · ${out.framesRead} of ${frames.length} frames looked at` : ''}`;
+    const note = composeWatchNote({ ...meta, verdict: out.verdict, body: out.body, first, readBy, noTranscript: !report.transcript });
+
+    let transcriptRef = null;
+    if (report.transcript) {
+      await mkdir(path.join(dataRootOf(), 'watch'), { recursive: true });
+      transcriptRef = `${recordId}.txt`;
+      await writeFile(path.join(dataRootOf(), 'watch', transcriptRef), report.transcript, 'utf8');
+    }
+    const decision = {
+      route: 'project-watch-note',
+      confidence: 'high',
+      title: out.title,
+      reason: `Watched for ${proj.name} and filed into its own folder only (Projects/${proj.name}/Sources). Not your library. Undo removes the page and its transcript.`,
+      payload: { projectId: proj.id, title: out.title, body: note, url, lens: lensUsed, lensAsked: proj.lens, transcriptRef, model: modelUsed, framesRead: out.framesRead || 0, fellBack: fellBack || null, libraryWorthy: out.libraryWorthy || { yes: false, reason: '' } },
+    };
+    const { fileDecision } = await import('./inbox.js');
+    let filed;
+    try {
+      filed = await fileDecision(vaultPath, decision);
+    } catch (e) {
+      // the project's folder refused it (gone, linked, archived away): an error
+      // card that keeps the analysis on the record, with nothing written
+      await updateRecord(recordId, { status: 'error', decision, error: `not filed: ${e.message}`, costUsd: cost || null });
+      return;
+    }
+    await updateRecord(recordId, {
+      status: 'filed', decision, destination: filed.destination, undoData: filed.undo,
+      filedAt: new Date().toISOString(), auto: true,
+      lensUsed, model: modelUsed, costUsd: cost || null,
+      libraryWorthy: decision.payload.libraryWorthy,
+    });
+    notifyFiled(recordId, out.title, filed.destination, `Watched for ${proj.name} — Nova`);
+  } catch (e) {
+    await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
+  } finally {
+    if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+function parseJsonText(text) {
+  const jsonMatch = firstBalancedObjectMatch(text);
+  if (!jsonMatch) throw new Error(String(text || '').slice(0, 200) || 'no JSON in the Watcher response');
+  try { return parseModelJson(jsonMatch[0]); } catch { return JSON.parse(repairJsonControlChars(jsonMatch[0])); }
 }
 
 // Digest notes are expensive (~$3.50 and ~5 minutes for a 4-hour podcast)
@@ -495,13 +776,13 @@ export function repairJsonControlChars(text) {
 
 // One spawn, raw result text back.
 function runClaudeText(vaultPath, prompt, opts = {}) {
-  return runClaude(vaultPath, prompt, opts);
+  return deps.runClaude(vaultPath, prompt, opts);
 }
 
 // One spawn, one JSON object back — the judgment pass, which genuinely needs
 // typed fields (lane/title/verdict/body).
 async function runClaudeJson(vaultPath, prompt, opts = {}) {
-  const text = await runClaude(vaultPath, prompt, opts);
+  const text = await deps.runClaude(vaultPath, prompt, opts);
   const jsonMatch = firstBalancedObjectMatch(text);
   if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in Watcher response');
   try {
@@ -511,20 +792,25 @@ async function runClaudeJson(vaultPath, prompt, opts = {}) {
   }
 }
 
-function runClaude(vaultPath, prompt, { allowedTools, model, lane } = {}) {
+// `cwd` (a project watch): where the model runs, checked against the folders
+// Nova never writes to; `disallowed`: a tighter deny-list (the design lens's
+// Read-only one); `onCost(usd)`: the run's own cost, for the card.
+function runClaude(vaultPath, prompt, { allowedTools, model, lane, cwd = null, disallowed = null, onCost = null } = {}) {
+  const where = cwd || vaultPath;
+  if (cwd) assertNotProtected(cwd, 'run the Watcher there');
   return new Promise((resolve, reject) => {
     const args = [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
       '--allowedTools', allowedTools || 'Read',
-      '--disallowedTools', WATCH_DISALLOWED,
+      '--disallowedTools', disallowed || WATCH_DISALLOWED,
       '--strict-mcp-config', // MCP servers can't auth under launchd — drop them
       '--output-format', 'json',
       '--session-id', randomUUID(),
     ];
     if (model) args.push('--model', model);
     if (lane) args.push(...effortArgs(lane)); // every caller names its lane
-    const child = spawn(CLAUDE_BIN, args, { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(CLAUDE_BIN, args, { cwd: where, stdio: ['ignore', 'pipe', 'pipe'] });
 
     let stdout = '';
     let stderr = '';
@@ -540,6 +826,7 @@ function runClaude(vaultPath, prompt, { allowedTools, model, lane } = {}) {
           throw new Error(`claude returned no JSON (exit ${code}): ${(stderr || stdout).trim().slice(0, 300) || 'no output'}`);
         }
         if (lane) recordRun(lane, fromEnvelope(outer));
+        if (onCost) { try { onCost(Number(outer.total_cost_usd)); } catch { /* a receipt never fails the run */ } }
         if (outer.is_error || code !== 0) {
           const spent = Number(outer.total_cost_usd);
           throw new Error(
@@ -589,9 +876,9 @@ async function fileWatchNote(vaultPath, recordId, decision, url) {
   }
 }
 
-function notifyFiled(recordId, title, destination) {
+function notifyFiled(recordId, title, destination, heading = 'Watched and filed — Nova') {
   import('./push.js').then(({ sendPush }) => sendPush({
-    title: 'Watched and filed — Nova',
+    title: heading,
     body: `${title}${destination ? ` → ${destination}` : ''}`,
     tag: `watched-${recordId}`,
     url: `./#/inbox?open=${recordId}`,
