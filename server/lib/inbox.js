@@ -1945,7 +1945,18 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
 export async function retryRecord(vaultPath, id) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
+  // A FINISHED PLAN WITH A FAILED STEP is not an errored record (its report
+  // exists), but the step deserves its second chance all the same: only the
+  // failed steps run again, on the same plan, and a new report is written.
+  if (record.kind === 'plan') {
+    const { retryFailedSteps } = await import('./planner.js');
+    return retryFailedSteps(vaultPath, id);
+  }
   if (record.status !== 'error') throw new Error('only errored records can be retried');
+  if (record.kind === 'build') {
+    const { retryBuild } = await import('./builder.js');
+    return retryBuild(record);
+  }
   if (record.kind === 'research') {
     const { retryResearch } = await import('./researcher.js');
     return retryResearch(vaultPath, record);

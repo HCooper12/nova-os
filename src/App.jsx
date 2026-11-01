@@ -8701,7 +8701,12 @@ export default class App extends Component {
       }));
       if (kind === 'approve') this.toastMsg('Filed ✓ — ' + record.destination);
       else if (kind === 'discard') { /* the card leaving is the receipt — no toast */ }
-      else if (kind === 'retry') this.toastMsg('Retrying — Nova is running this again…');
+      else if (kind === 'retry') {
+        this.toastMsg('Retrying — Nova is running this again…');
+        // a plan's failed step running again: its new report comes back to
+        // the conversation, as the first run's did
+        if (record?.kind === 'plan') this.watchPlanRun(id);
+      }
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
       // Put the row back exactly where it was — an optimistic approve that

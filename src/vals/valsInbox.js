@@ -51,6 +51,15 @@ const SOURCE_LABEL = {
 // is matched against the shelf. `undefined` = not a practice record; `null` =
 // one whose skill could not be named (the room opens on the shelf).
 const PRACTICE_KINDS = new Set(['practice-skill', 'practice-session', 'practice-status']);
+// A plan whose run is over (its report is written) with a step that failed or
+// was skipped: Retry runs only those steps again (server/lib/planner.js
+// retryFailedSteps). Pure.
+export function planCanRetry(r) {
+  if (r?.kind !== 'plan' || !r.planOk || !r.finishedAt) return false;
+  if (r.status !== 'pending' && r.status !== 'filed') return false;
+  return (r.plan?.steps || []).some((s) => s.status === 'failed' || s.status === 'skipped');
+}
+
 function practiceSlugOf(r, shelf = []) {
   if (!PRACTICE_KINDS.has(r.kind)) return undefined;
   const direct = r.slug || r.meta?.slug || r.decision?.payload?.slug || r.decision?.slug || r.undoData?.slug;
@@ -520,7 +529,12 @@ export function valsInbox(app, ctx) {
     // their own.
     canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'
       // his 31 Oct report: a failed Weave, recipe import or Wishlist add showed only Dismiss. The server retries each of these (inbox.js retryRecord).
-      || (r.kind === 'ingest' && !!r.ingestRetry) || r.kind === 'recipe-video' || r.kind === 'recipe-scan' || r.kind === 'wishlist'),
+      || (r.kind === 'ingest' && !!r.ingestRetry) || r.kind === 'recipe-video' || r.kind === 'recipe-scan' || r.kind === 'wishlist'
+      // a failed build carries its whole brief (server/lib/builder.js retryBuild)
+      || (r.kind === 'build' && !!r.buildBrief))
+      // a plan that finished with a failed step runs that step again (1 Nov:
+      // his mockup step failed and the card offered no way back)
+      || planCanRetry(r),
     approve: () => app.inboxAction(r.id, 'approve'),
     // seen: looked at, not decided. A toggle, so a slip is one tap back.
     seen: !!r.seenAt,
