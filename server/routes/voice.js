@@ -197,7 +197,10 @@ export function voiceRouter(vaultPath) {
           const fu = await import('../lib/planFollowUp.js');
           const asksStatus = fu.isPlanStatusQuestion(raw);
           const asksRetry = !asksStatus && fu.isPlanRetryRequest(raw);
-          const pl = (asksStatus || asksRetry) ? await fu.recentPlanContext({ phases: fu.STATUS_PHASES }) : null;
+          // "retry" reaches back a day: the report that named the failed step
+          // says "say retry", and he may answer it after the follow-up window
+          const pl = asksStatus ? await fu.recentPlanContext({ phases: fu.STATUS_PHASES })
+            : asksRetry ? await fu.recentPlanContext({ phases: ['finished'], windowMs: fu.RETRY_WINDOW_MS }) : null;
           if (pl && asksStatus) {
             const { plainCause } = await import('../lib/plainCause.js');
             const text = fu.planStatusLine(pl.record, { cause: plainCause });

@@ -175,3 +175,23 @@ test('/api/ask: a status question while the plan is being drawn says so, and a f
     server.close();
   }
 });
+
+test('/api/ask: "retry" still reaches a plan whose report came back hours ago', async () => {
+  const hoursAgo = (h) => new Date(Date.now() - h * 3600_000).toISOString();
+  const old = await store.createRecord({
+    id: 'p-hours', kind: 'plan', status: 'pending', planOk: true, source: 'planner', mode: 'draft',
+    createdAt: hoursAgo(3), approvedAt: hoursAgo(3), finishedAt: hoursAgo(2.5), goal: 'Mock up the program',
+    plan: { steps: [step('s1', 'build', 'failed', { error: 'the record vanished', recordId: 'job999' })] },
+    decision: { route: 'note', payload: { body: 'The report.' } },
+  });
+  // every newer plan from the tests above is out of the way
+  for (const r of await store.listRecords()) if (r.kind === 'plan' && r.id !== old.id) await store.updateRecord(r.id, { status: 'discarded' });
+  const server = await serve();
+  try {
+    const again = await post(server, { question: 'Try it again', raw: 'Try it again' });
+    assert.match(again.text, /Running the Builder step again/);
+    assert.equal(again.plan.recordId, old.id);
+  } finally {
+    server.close();
+  }
+});

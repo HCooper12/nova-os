@@ -53,6 +53,8 @@ export function isAffirmativeOrNegative(text) {
 // refused, because "it failed, and why" is the answer to it.
 export const LIVE_PHASES = ['proposed', 'running', 'finished', 'planning'];
 export const STATUS_PHASES = [...LIVE_PHASES, 'failed', 'refused'];
+// how far back a bare "retry" looks for a finished plan with a failed step
+export const RETRY_WINDOW_MS = 24 * 3600_000;
 export async function recentPlanContext({ now = Date.now(), records = null, windowMs = PLAN_FOLLOW_UP_WINDOW_MS, phases = LIVE_PHASES } = {}) {
   const all = records || await listRecords().catch(() => []);
   const plans = all.filter((r) => r.kind === 'plan');
