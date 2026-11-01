@@ -96,3 +96,56 @@ test('whether a change was made goes to Claude before the local model answers (1
   for (const q of ['No worries, just make sure the changes have been made', 'Has it actually been applied?', 'Did you save that?']) assert.ok(needsClaude(q), q);
   for (const q of ['How many sets of chest this week?', 'Make me a smoothie recipe']) assert.equal(needsClaude(q), null, q);
 });
+
+// THE CLAUDE-FREE RESEARCH LANE (1 Nov 2026): a lookup is answered on this
+// Mac from pages Nova's browser reads, never sent to Claude; a proper
+// research brief is still Claude's. Real-shaped questions, a dozen each way.
+test('a lookup is searched on this Mac, never sent to Claude', async () => {
+  const { webLookup } = await import('../lib/askRoute.js');
+  for (const q of [
+    'What is the current recommended protein intake per kg for muscle gain?',
+    'Who is the prime minister of Australia?',
+    'When does Bunnings open on Sunday?',
+    'How much does a Garmin Forerunner 965 cost?',
+    'Latest news on the AFL trade period',
+    'Look up creatine monohydrate side effects',
+    'Search for a good sourdough starter guide',
+    'What does https://example.com/post say?',
+    "What's the weather in Melbourne this weekend?",
+    'Who won the grand final?',
+    'What is HRV?',
+    'Where is the nearest Coles?',
+    'google the release date for the new iPhone',
+  ]) {
+    assert.equal(needsClaude(q), null, q);
+    assert.equal(webLookup(q), true, q);
+  }
+});
+
+test('his own world, the agents\' questions and quick acts are not web lookups', async () => {
+  const { webLookup } = await import('../lib/askRoute.js');
+  for (const q of [
+    'What is my next session?',
+    'How many steps today?',
+    'How much protein have I had?',
+    'What did I bench last week?',
+    "What's on the calendar tomorrow?",
+    'When did I last deadlift?',
+    'What is the best rep range for hypertrophy?',
+    'Is a cable fly better than a dumbbell fly?',
+    'Why do my forearms pump out before my biceps?',
+    'How should I structure a deload week?',
+    'What does the research say about creatine timing?',
+    'Add oat milk to my shopping list',
+    HIS_QUESTION,
+    '',
+  ]) assert.equal(webLookup(q), false, q);
+});
+
+test('a proper research brief stays Claude\'s; a research question is still the agents\'', async () => {
+  for (const q of ['Write me a research brief on creatine timing', 'Can you do a deep dive into zone 2 training?', 'Give me a proper research report on sleep and recovery']) {
+    assert.equal(needsClaude(q), 'you asked for a research brief', q);
+  }
+  assert.equal(needsClaude('What does the research say about creatine timing?'), null);
+  assert.ok(ids('What does the research say about creatine timing?').includes('researcher'));
+});

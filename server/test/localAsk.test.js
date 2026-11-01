@@ -54,6 +54,7 @@ import assert from 'node:assert/strict';
 const {
   startAskLocal, buildLocalAskPrompt, vaultRead, vaultSearch, vaultList, readToolCalls, stripThink,
   recordAskTurn, sessionTurns, _reset, _flush, PROMPT_BUDGET, MAX_ROUNDS, progressLine, askAgent, wantsAct,
+  _setWebResearchForTests, webAvailable, runTool,
 } = await import('../lib/localAsk.js');
 const { getMessageJob } = await import('../lib/claudeCode.js');
 const { setLanePref, resetLanePref } = await import('../lib/modelPrefs.js');
@@ -399,4 +400,80 @@ test('after the agents answer, an ACT he did not ask for is dropped, whatever it
   assert.equal(wantsAct('Does it really matter if I log it?'), false);
   assert.equal(wantsAct('add oat milk to my list'), true);
   assert.equal(wantsAct('Log my weight at 84.2'), true);
+});
+
+// THE WEB, READ BY CODE (1 Nov 2026, the Claude-free research lane): the
+// search and page reads are a seam here; a test never launches Chrome
+const webAsks = [];
+const WEB_RESULT = (q) => ({
+  sources: [
+    { n: 1, url: 'https://www.healthline.com/protein', title: 'How much protein', text: 'Aim for 1.6 to 2.2 g per kg a day for muscle gain.' },
+    { n: 2, url: 'https://pubmed.ncbi.nlm.nih.gov/1/', title: 'Meta-analysis', text: 'Gains plateau near 1.62 g/kg/day.' },
+  ],
+  misses: [], hostsRead: ['www.bing.com', 'www.healthline.com', 'pubmed.ncbi.nlm.nih.gov'], timings: {}, searchError: null, q,
+});
+
+test('without Nova\'s browser (always, under the test runner) there is no web tool and nothing is searched', async () => {
+  assert.equal(webAvailable(), false);
+  reply = () => ({ message: { role: 'assistant', content: 'Healthline says 1.6 g.' } });
+  const job = await settled(startAskLocal(vault, { question: 'What is the current recommended protein intake per kg?' }));
+  assert.equal(job.status, 'ready', job.error);
+  assert.ok(!seen[0].tools.some((t) => t.function.name === 'web_research'));
+  assert.doesNotMatch(seen[0].messages[0].content, /THE WEB/);
+  assert.doesNotMatch(job.result.text, /Sources/);
+  assert.match(await runTool(vault, { name: 'web_research', args: { query: 'x' } }), /cannot be searched/);
+});
+
+test('a lookup is searched by code before the turn; the answer cites the pages and code adds the sources', async () => {
+  webAsks.length = 0;
+  _setWebResearchForTests({ gather: async (q) => { webAsks.push(q); return WEB_RESULT(q); } });
+  try {
+    reply = () => ({ message: { role: 'assistant', content: 'About 1.6 to 2.2 g per kg a day [1], levelling off near 1.62 [2], sir.' } });
+    const job = await settled(startAskLocal(vault, { question: 'Nova, look up the recommended protein intake per kg for muscle gain' }));
+    assert.equal(job.status, 'ready', job.error);
+    assert.deepEqual(webAsks, ['the recommended protein intake per kg for muscle gain'], 'his lead-in is not searched');
+    const user = seen[0].messages.find((m) => m.role === 'user').content;
+    assert.match(user, /^Nova, look up the recommended/);
+    assert.match(user, /WEB PAGES for .*\n\n\[1\] How much protein\nhttps:\/\/www\.healthline\.com\/protein\nAim for 1\.6/);
+    assert.ok(seen[0].tools.some((t) => t.function.name === 'web_research'), 'the model may search again itself');
+    assert.match(seen[0].messages[0].content, /THE WEB/);
+    assert.match(job.result.text, /\[1\].*\[2\]/);
+    assert.match(job.result.text, /Sources:\n\[1\] https:\/\/www\.healthline\.com\/protein\n\[2\] https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/1\/$/);
+    assert.equal(job.result.provider, 'local');
+    assert.equal(agentAsks.length, 0, 'a lookup asks no agent');
+  } finally { _setWebResearchForTests(null); }
+});
+
+test('the model may call web_research itself; the pages come back numbered, a spoken reply names hosts, an invented number is taken out', async () => {
+  webAsks.length = 0;
+  _setWebResearchForTests({ gather: async (q) => { webAsks.push(q); return WEB_RESULT(q); } });
+  try {
+    reply = (b, n) => {
+      if (n === 1) return { message: { role: 'assistant', content: '', tool_calls: [toolCall('web_research', { query: 'creatine loading phase' }, 'w1')] } };
+      return { message: { role: 'assistant', content: 'Loading is optional [2], sir [5].' } };
+    };
+    // not a lookup by its shape (his own world), so code does not search first
+    const job = await settled(startAskLocal(vault, { question: 'should my creatine have a loading phase', spoken: true }));
+    assert.equal(job.status, 'ready', job.error);
+    assert.deepEqual(webAsks, ['creatine loading phase']);
+    const back = seen[1].messages.find((m) => m.role === 'tool' && m.tool_call_id === 'w1');
+    assert.match(back.content, /^WEB PAGES for "creatine loading phase"/);
+    assert.match(back.content, /\[2\] Meta-analysis/);
+    assert.equal(progressLine({ name: 'web_research', args: { query: 'x' } }), 'Looking that up on the web…');
+    assert.doesNotMatch(job.result.text, /\[5\]/, 'a source it was never given is not shown');
+    assert.match(job.result.text, /Sources: \[2\] pubmed\.ncbi\.nlm\.nih\.gov$/);
+    assert.deepEqual(job.result.lookups.map((l) => l.name), ['web_research']);
+  } finally { _setWebResearchForTests(null); }
+});
+
+test('a failed search reaches the model as a failure to say plainly, and a reply that gives up still goes to Claude', async () => {
+  _setWebResearchForTests({ gather: async () => ({ sources: [], misses: [], hostsRead: ['www.bing.com'], timings: {}, searchError: 'www.bing.com asked for a human check instead of showing results' }) });
+  try {
+    reply = () => ({ message: { role: 'assistant', content: "I can't find that on the web right now, sir." } });
+    const job = await settled(startAskLocal(vault, { question: 'Who won the grand final?' }));
+    const user = seen[0].messages.find((m) => m.role === 'user').content;
+    assert.match(user, /The web search failed: www\.bing\.com asked for a human check.*do not answer from memory/);
+    assert.equal(job.status, 'error', 'a give-up is never spoken');
+    assert.match(job.error, /said it could not answer/);
+  } finally { _setWebResearchForTests(null); }
 });

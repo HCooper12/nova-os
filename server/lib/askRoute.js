@@ -64,13 +64,61 @@ const CORRECTION = /\b(?:you said (?:that )?you|i can'?t (?:actually )?(?:see|fi
 // the records: Claude's Nova reads them and can file what is missing.
 const ACTION_STATUS = /\b(?:make sure (?:the |that |those |these )?(?:changes?|it|that|they|this) (?:ha(?:s|ve) been|(?:is|are) (?:made|done|applied))|(?:has|have) (?:the |that |it |they |those |these )?(?:changes? )?(?:actually )?been (?:made|applied|done|saved|filed)|did (?:you|it|that|they) (?:actually )?(?:apply|save|file|make|go through))\b/;
 
+// A PROPER RESEARCH BRIEF IS CLAUDE'S (1 Nov 2026, his decision on the
+// Claude-free research lane): a lookup is answered on this Mac from pages
+// Nova's browser reads (lib/localResearch.js), but when he asks for a brief,
+// a report or a deep dive, Claude's Nova takes it and puts it to the
+// Researcher. Narrow on purpose: "what does the research say about X" is
+// still a knowledge question for the agents (agentsFor), not this.
+const RESEARCH_BRIEF = /\b(?:research brief|(?:write|make|give|get|do) (?:me |up )?(?:a |an )?(?:proper |full |cited |research )?(?:brief|report|deep dive|write-?up) (?:on|about|into)|deep (?:dive|research) (?:on|into)|proper research)\b/;
+
 export function needsClaude(question) {
   const q = norm(question);
   if (!q) return null;
   if (CORRECTION.test(q)) return 'you corrected the last answer';
   if (ACTION_STATUS.test(q)) return 'it is about whether a change was made';
   if (/\b(?:ask|use|get) claude\b/.test(q)) return 'you asked for Claude';
+  if (RESEARCH_BRIEF.test(q)) return 'you asked for a research brief';
+  // A LOOKUP IS NOT CLAUDE'S (1 Nov 2026). Nothing here sends "what is",
+  // "who is", "latest", "look up" or a URL to Claude: the model on this Mac
+  // takes it, and webLookup (below) has code search the web for it first.
+  // With no browser the small model tries from the vault, and a give-up still
+  // goes to Claude on the same job (gaveUp).
   return null;
+}
+
+// WHICH QUESTIONS NEED THE WEB (1 Nov 2026). Code, not the small model,
+// decides: the 4B model never reaches out on its own (0 hand-ups in 34 Coach
+// bench turns), so a lookup is searched before the turn and the pages ride in
+// beside his question. In this order:
+//   - he says so (look it up, search for, google, online, a URL): always;
+//   - a question about his own world (my, I, today, his calendar, plan,
+//     program, vault): never; the vault and TODAY answer those;
+//   - a question the agents settle (knowledgeKind): never; the Coach and the
+//     Researcher are its ground, and the 29 Oct rules stand;
+//   - otherwise the shape of a lookup: what is / who is / when does / where
+//     is / how much does it cost / latest / news / price.
+// A false positive costs one search (a few seconds of Chrome); a false
+// negative leaves the small model to the vault, then Claude.
+const WEB_ASKED = /\b(?:look (?:it |that |this |them )?up|search (?:for|the web|online|the internet)|google (?:it|that|for)?|on the (?:web|internet)|online)\b|https?:\/\/|\bwww\.\S/;
+const OWN_WORLD = /\b(?:my|me|mine|myself|i|i'm|i've|i'd|i'll|we|our|us)\b|\b(?:today|tonight|tomorrow|yesterday|this morning|this afternoon|this evening|next session|calendar|schedule|inbox|vault|notes?|journal|plan|program(?:me)?|routine|workout|session|shopping list|to-?dos?|tasks?|reminders?)\b/;
+const LOOKUP_SHAPE = [
+  /^(?:so |and |ok,? |okay,? )?(?:who|whom|when|where)\b/,
+  /^(?:so |and |ok,? |okay,? )?what(?:'s| is| are| was| were| does| do| did| will| would| has| have)\b/,
+  /\bhow (?:much|many|old|tall|long|far|big)\b/,
+  /\b(?:latest|news|headlines?|current(?:ly)?|recent(?:ly)?|right now|this year|price of|cost of|costs?|priced|opening hours|open (?:until|till|on)|release date|come out|weather|forecast|score|results?)\b/,
+];
+
+/** Should code search the web before the model on this Mac answers? Pure. */
+export function webLookup(question) {
+  const raw = norm(question);
+  if (!raw) return false;
+  if (needsClaude(raw)) return false;
+  if (WEB_ASKED.test(raw)) return true;
+  const q = subject(question);
+  if (OWN_WORLD.test(q)) return false;
+  if (knowledgeKind(q)) return false;
+  return LOOKUP_SHAPE.some((re) => re.test(q));
 }
 
 /** What kind of question this is when the evidence, a judgement or another

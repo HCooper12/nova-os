@@ -82,15 +82,41 @@ export function toolFor(url) {
 
 /* ------------------------------- the browser ------------------------------ */
 
-async function withPage(fn) {
+// ONE CHROME AT A TIME ON THE PROFILE (1 Nov 2026, the local research lane,
+// lib/localResearch.js). Chrome refuses a second process on a live profile,
+// so two readers launched together (a search and a page read, or two page
+// reads in parallel) would have the second fail with a lock error that reads
+// like a broken page. Every launch from this process waits its turn here. A
+// lock held by ANOTHER process (the browser hand, lib/browse.js, runs Chrome
+// through its own MCP server on the same profile) is said as what it is.
+let chromeQueue = Promise.resolve();
+
+/** Run `fn(page)` in a fresh headless Chrome on Nova's profile, one launch
+ *  at a time; the browser is closed whatever happens. Shared with
+ *  lib/localResearch.js so both readers launch Chrome the same way. */
+export function withPage(fn) {
+  const run = chromeQueue.then(() => launchAndRun(fn));
+  chromeQueue = run.catch(() => {});
+  return run;
+}
+
+async function launchAndRun(fn) {
   const puppeteer = await import('puppeteer-core');
   await mkdir(PROFILE_DIR, { recursive: true });
-  const browser = await puppeteer.default.launch({
-    executablePath: CHROME,
-    headless: 'new',
-    userDataDir: PROFILE_DIR,
-    args: ['--no-first-run', '--no-default-browser-check', '--disable-extensions'],
-  });
+  let browser;
+  try {
+    browser = await puppeteer.default.launch({
+      executablePath: CHROME,
+      headless: 'new',
+      userDataDir: PROFILE_DIR,
+      args: ['--no-first-run', '--no-default-browser-check', '--disable-extensions'],
+    });
+  } catch (e) {
+    if (/SingletonLock|already (?:running|in use)|ProcessSingleton/i.test(String(e.message))) {
+      throw new Error('Nova\'s browser profile is in use by another job (the browser hand)');
+    }
+    throw e;
+  }
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 1600 });

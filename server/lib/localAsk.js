@@ -34,7 +34,8 @@ import { registerAskJob, settleAskReply } from './claudeCode.js';
 import { whereLine, suppressGlass } from './register.js';
 import { describeForModel } from './verbs.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
-import { gaveUp, agentsFor } from './askRoute.js';
+import { gaveUp, agentsFor, webLookup } from './askRoute.js';
+import { gatherWeb, webCanRun, searchResting, searchQuery, sourcesBlock, withSources } from './localResearch.js';
 
 export const PROMPT_BUDGET = 9000;      // chars of system prompt before his question
 export const MAX_ROUNDS = 4;            // vault lookups per turn
@@ -76,6 +77,7 @@ function verbLines() {
 const TOOL_TEXT_FORM = `To use a tool, reply with ONLY this, then wait for the result:
 <tool_call>{"name":"vault_search","arguments":{"query":"bench press"}}</tool_call>
 Tools: vault_search {"query"} finds matching lines in his notes; vault_read {"path","from","lines"} reads one page (path as search showed it); vault_list {"folder"} lists a folder; ask_agent {"agent","question"} asks one of his agents (coach, researcher, leader, librarian, cfo, stash, calendar).`;
+const TOOL_TEXT_WEB = '\nweb_research {"query"} searches the web in Nova\'s browser and reads the top pages.';
 
 // THE AGENTS NOVA ON THIS MAC MAY ASK (29 Oct 2026, his rule: Nova talks with
 // every agent and uses his whole vault without needing Claude to help it, no
@@ -90,7 +92,7 @@ const clip = (s, n) => {
 
 /** The system prompt for one local turn. Pure: every input is handed in. The
  *  history is dropped oldest-first until the whole prompt fits the budget. */
-export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '', withAgents = false } = {}) {
+export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '', withAgents = false, withWeb = false } = {}) {
   const wl = whereLine(place, { oneShot: direct });
   const lengthRule = withAgents && !direct && !spoken
     ? '- Up to six sentences. Plain text, no markdown, no lists. Lead with the answer, then why, then the one thing to do.'
@@ -125,7 +127,10 @@ VAULT TOOLS
 Use vault_search, vault_read and vault_list when TODAY below does not already answer. At most ${MAX_ROUNDS} lookups, then answer.
 
 YOUR AGENTS
-You lead his agents and may ask any of them with ask_agent: the Coach, the Researcher, the Leader, the Librarian, the CFO, the Stash, his calendar. When a question needs the evidence, a judgement about his training, food, work or money, or something his vault does not hold, ask the agent whose ground it is, then answer from what it says. Never tell him you cannot answer before you have asked.${toolsInText ? `\n${TOOL_TEXT_FORM}` : ''}`;
+You lead his agents and may ask any of them with ask_agent: the Coach, the Researcher, the Leader, the Librarian, the CFO, the Stash, his calendar. When a question needs the evidence, a judgement about his training, food, work or money, or something his vault does not hold, ask the agent whose ground it is, then answer from what it says. Never tell him you cannot answer before you have asked.${withWeb ? `
+
+THE WEB
+For a fact about the outside world that neither his vault nor TODAY holds (what something is, who, when, a price, the latest news), use web_research. Answer only from the numbered pages it returns, cite them as [1], [2], and never write a URL yourself: code adds the sources.` : ''}${toolsInText ? `\n${TOOL_TEXT_FORM}${withWeb ? TOOL_TEXT_WEB : ''}` : ''}`;
 
   const tail = [];
   tail.push(`TODAY (computed by code just now; trust it over older pages):\n${clip(today, 1600) || '(not available right now)'}`);
@@ -205,6 +210,58 @@ export const TOOLS = [
     },
   },
 ];
+
+// THE WEB, READ BY CODE (1 Nov 2026, lib/localResearch.js): offered only
+// when Nova's browser can run, so the model is never handed a tool that can
+// only fail.
+export const WEB_TOOL = {
+  type: 'function',
+  function: {
+    name: 'web_research',
+    description: 'Search the web in Nova\'s own browser and read the top pages. Returns numbered pages ([1], [2]...) to answer from and cite. For facts about the outside world that his vault does not hold.',
+    parameters: { type: 'object', properties: { query: { type: 'string', description: 'what to search for, in plain words' } }, required: ['query'] },
+  },
+};
+
+// the test seam: { gather(query) → gatherWeb's shape }. A test never
+// launches Chrome or touches the network.
+let webDeps = null;
+export function _setWebResearchForTests(deps) { webDeps = deps || null; }
+
+/** Can code look something up on the web on this turn? */
+export function webAvailable() {
+  if (webDeps) return true;
+  // a search engine that just refused is left alone for a while
+  // (lib/localResearch.js searchResting): no tool that can only fail
+  return webCanRun() && !searchResting();
+}
+
+const WEB_PAGES = 3;          // pages read per web_research call
+const WEB_PAGE_CHARS = 2200;  // each page, as the small model reads it
+const WEB_MAX_SOURCES = 8;    // numbered pages in one turn, across calls
+
+/** One web_research call, run by code: search, read the top pages, number
+ *  them after any the turn already holds, and hand back the block the model
+ *  reads. `web` is the turn's running list ({ sources, hosts }). */
+export async function webResearch(web, { query } = {}) {
+  const q = String(query || '').trim();
+  if (!q) return 'web_research needs a query.';
+  if (!web) return 'The web cannot be searched on this turn.';
+  if (web.sources.length >= WEB_MAX_SOURCES) return 'You have read as many web pages as one turn allows. Answer now from the pages above.';
+  let got;
+  try {
+    got = webDeps ? await webDeps.gather(q) : await gatherWeb(q, { max: WEB_PAGES, maxChars: WEB_PAGE_CHARS });
+  } catch (e) {
+    return `The web search failed: ${e.message}. Tell him plainly; do not answer from memory.`;
+  }
+  for (const h of got.hostsRead || []) if (!web.hosts.includes(h)) web.hosts.push(h);
+  if (got.searchError) return `The web search failed: ${got.searchError}. Tell him plainly; do not answer from memory.`;
+  const offset = web.sources.length;
+  const fresh = (got.sources || []).slice(0, WEB_MAX_SOURCES - offset).map((src, i) => ({ ...src, n: offset + i + 1 }));
+  web.sources.push(...fresh);
+  if (!fresh.length) return `The search found pages but none could be read${got.misses?.length ? ` (${got.misses.map((m) => m.reason).slice(0, 2).join('; ')})` : ''}. Tell him plainly; do not answer from memory.`;
+  return `WEB PAGES for "${clip(q, 120)}" (read just now by Nova's browser; answer only from these, cite by number):\n\n${sourcesBlock(fresh, { budget: WEB_PAGES * WEB_PAGE_CHARS })}`;
+}
 
 const capResult = (s) => (s.length > RESULT_CHARS ? `${s.slice(0, RESULT_CHARS)}\n(cut at ${RESULT_CHARS} characters)` : s);
 const capLine = (s) => { const t = String(s).replace(/\t/g, ' ').trim(); return t.length > LINE_CHARS ? `${t.slice(0, LINE_CHARS)}…` : t; };
@@ -326,16 +383,17 @@ export async function vaultList(vault, { folder = '' } = {}) {
   return capResult(shown.join('\n') + (names.length > shown.length ? `\n(${names.length - shown.length} more not shown)` : ''));
 }
 
-export async function runTool(vault, call) {
+export async function runTool(vault, call, { web = null } = {}) {
   const args = call?.args && typeof call.args === 'object' ? call.args : {};
   try {
     if (call?.name === 'vault_search') return await vaultSearch(vault, args);
     if (call?.name === 'vault_read') return await vaultRead(vault, args);
     if (call?.name === 'vault_list') return await vaultList(vault, args);
+    if (call?.name === 'web_research') return await webResearch(web, args);
   } catch (e) {
     return `That lookup failed: ${e.message}`;
   }
-  return `There is no tool "${call?.name}". Use vault_search, vault_read or vault_list.`;
+  return `There is no tool "${call?.name}". Use vault_search, vault_read or vault_list${web ? ', or web_research' : ''}.`;
 }
 
 /* --------------------------- reading the model ---------------------------- */
@@ -388,6 +446,7 @@ export function progressLine(call) {
   if (call?.name === 'vault_read') return `Reading ${quiet(path.basename(String(a.path || ''), '.md')) || 'a page'} in your vault…`;
   if (call?.name === 'vault_list') return `Looking through ${quiet(a.folder) || 'your vault'}…`;
   if (call?.name === 'ask_agent') return 'Asking another agent…';
+  if (call?.name === 'web_research') return 'Looking that up on the web…';
   return 'Looking in your vault…';
 }
 
@@ -536,14 +595,16 @@ export async function askAgent(ctl, args = {}, titles = () => '') {
 
 /** One local turn: the chat loop with code-run lookups. Returns the reply
  *  text, the lookups used, and the token usage. Throws a plain reason. */
-async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, agentAnswers = '', titles }) {
+async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, agentAnswers = '', titles, web = null, webFound = '' }) {
   let useTools = true;
   let switched = false;
-  // his question first, then what the agents already said (a Qwen chat
-  // template takes one system message, and the system prompt is clipped)
+  const tools = web ? [...TOOLS, WEB_TOOL] : TOOLS;
+  // his question first, then what the agents already said and the pages code
+  // already read (a Qwen chat template takes one system message, and the
+  // system prompt is clipped)
   const messages = [
     { role: 'system', content: buildLocalAskPrompt(promptOpts) },
-    { role: 'user', content: agentAnswers ? `${question}\n\n${agentAnswers}` : question },
+    { role: 'user', content: [question, agentAnswers, webFound].filter(Boolean).join('\n\n') },
   ];
   const used = [];
   let outputTokens = 0;
@@ -560,7 +621,7 @@ async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, 
       // thinking and returns no answer (27 Oct). The context window is the
       // one default (lib/localModel.js CHAT_CTX): the prompt alone is ~2.2k
       // tokens before the vault pages a lookup hands back.
-      out = await chatLocal(messages, { tools: useTools && !final ? TOOLS : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false });
+      out = await chatLocal(messages, { tools: useTools && !final ? tools : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false });
     } catch (e) {
       // a server that does not take `tools`: once, at the start, the text form
       if (e.status === 400 && useTools && !switched && round === 0) {
@@ -600,6 +661,13 @@ async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, 
         // standing rule), so the deadline moves by however long it took
         const t0 = Date.now();
         result = await askAgent(ctl, c.args, titles);
+        deadline += Date.now() - t0;
+      } else if (c.name === 'web_research') {
+        // a search and its page reads are code's time, not the model's: the
+        // deadline moves by however long they took, like an agent's ask
+        job.partial = progressLine(c);
+        const t0 = Date.now();
+        result = await runTool(cwd, c, { web });
         deadline += Date.now() - t0;
       } else {
         job.partial = progressLine(c);
@@ -657,18 +725,30 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     const { openConsult, sourceTitlesLine } = await import('./consult.js');
     const ctl = fallback || dryRun ? null : openConsult({ from: 'nova', question, vaultPath: cwd, job });
     const asks = ctl ? agentsFor(question, { handsFree: direct }) : [];
+    // THE WEB FIRST, FOR A LOOKUP (1 Nov 2026, his Claude-free research
+    // lane): code decides a question needs the outside world (askRoute
+    // webLookup) and searches it in Nova's browser before the turn, so the
+    // small model answers from pages rather than memory. The model may still
+    // search again itself (web_research). The bench reads the model alone.
+    const web = !dryRun && webAvailable() ? { sources: [], hosts: [] } : null;
+    const lookup = !!web && webLookup(question);
     let agentAnswers = '';
-    if (asks.length) {
-      // the model must be able to answer before anyone is asked: otherwise
-      // the agents would be asked twice, here and again by Claude's Nova
-      const cannot = !localModelConfigured() ? (localBackend() === 'ollama' ? 'Ollama is not installed on this Mac' : 'the local model is not installed')
-        : (!localBoard().ready && !memoryHeadroom().ok) ? memoryHeadroom().reason : null;
+    let webFound = '';
+    // the model must be able to answer before anyone is asked or anything
+    // searched: otherwise the agents would be asked twice, here and again by
+    // Claude's Nova, and a search would be spent on an answer that never comes
+    const cannotRun = () => (!localModelConfigured() ? (localBackend() === 'ollama' ? 'Ollama is not installed on this Mac' : 'the local model is not installed')
+      : (!localBoard().ready && !memoryHeadroom().ok) ? memoryHeadroom().reason : null);
+    if (asks.length || lookup) {
+      const cannot = cannotRun();
       if (cannot) {
         recordRun('ask-nova', { provider: 'local', usd: 0, ms: Date.now() - started, model: `local:${defaultModel()}`, error: String(cannot).slice(0, 200) });
         job.error = failure(cannot);
         job.status = 'error';
         return;
       }
+    }
+    if (asks.length) {
       console.log(`local ask: asking ${asks.map((a) => a.agent).join(', ')} first`);
       try {
         const { results } = await ctl.run({ asks });
@@ -679,12 +759,19 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
       // a give-up after this hands Claude what the agents already said
       job.agentAnswers = agentAnswers;
     }
-    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs, withAgents: !!asks.length };
+    if (lookup) {
+      job.partial = progressLine({ name: 'web_research' });
+      const t0 = Date.now();
+      const found = await webResearch(web, { query: searchQuery(question) });
+      console.log(`local ask: looked it up on the web first (${web.sources.length} page(s), ${Date.now() - t0}ms, hosts ${web.hosts.join(', ') || 'none'})`);
+      webFound = `[Nova's browser looked this up before you were asked.]\n${found}`;
+    }
+    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs, withAgents: !!asks.length, withWeb: !!web };
     let turn;
     try {
       // the small model's clock starts once the agents have answered: no
       // caps on an ask (his standing rule)
-      turn = await converse(job, { cwd, question, promptOpts, deadline: Date.now() + TURN_TIMEOUT_MS(), ctl, agentAnswers, titles: sourceTitlesLine });
+      turn = await converse(job, { cwd, question, promptOpts, deadline: Date.now() + TURN_TIMEOUT_MS(), ctl, agentAnswers, titles: sourceTitlesLine, web, webFound });
     } catch (e) {
       const ms = Date.now() - started;
       recordRun('ask-nova', { provider: 'local', fallback: !!fallback, usd: 0, ms, model: `local:${defaultModel()}`, error: String(e.message || e).slice(0, 200) });
@@ -745,6 +832,13 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
       job.error = failure(shadow.error || 'the answer could not be settled');
       job.status = 'error';
       return;
+    }
+    // the pages the web lookups read ride in the reply, written by code: the
+    // cited ones (or every page read, if none was cited), a number that was
+    // never a page taken out. A spoken turn names hosts, not URLs.
+    if (web?.sources.length) {
+      shadow.result = { ...shadow.result, text: withSources(shadow.result.text, web.sources, { short: spoken || direct }) };
+      console.log(`local ask: web hosts read this turn: ${web.hosts.join(', ')}`);
     }
     const answer = shadow.result.text;
     recordAskTurn(effectiveSessionId, { q: question, a: answer, provider: 'local' }, { opened });
