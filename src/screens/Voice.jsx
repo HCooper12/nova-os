@@ -18,6 +18,7 @@ import { SafeVisual } from '../SafeVisual.jsx';
 import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
 import { NovaThread } from './NovaThread.jsx';
 import { FiledRows } from '../motion/FiledRows.jsx';
+import { VoiceAttach } from '../VoiceAttach.jsx';
 
 // THE STATION FRAME STAYS — the bracketed panels and the reticle were his
 // explicit ask (20 Aug: "a station, not a chat page"). What changes in the
@@ -251,6 +252,7 @@ function VoiceClassic({ v }) {
         </ScreenHead>
         <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}><Clock /></div>
       </div>
+      <VoiceAttach a={v.voiceAttach} where="classic" />
       {/* THE GLASS TAKES THE ROOM. His note: the chat beside it is
           distracting when a card pops up — so when Nova puts something on
           the glass, everything else recedes behind a blur, exactly like the

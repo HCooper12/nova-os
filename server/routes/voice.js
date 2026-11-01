@@ -170,6 +170,17 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // he called a spoken project setup off from the chip (or New chat): its
+  // pending card is withdrawn, nothing is created
+  router.post('/voice/intake/cancel', async (req, res) => {
+    try {
+      const { cancelVoiceIntake } = await import('../lib/voiceIntake.js');
+      res.json({ withdrawn: await cancelVoiceIntake(String(req.body?.sessionId || '')) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.post('/ask', async (req, res) => {
     try {
       let question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';

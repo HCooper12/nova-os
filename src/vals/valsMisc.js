@@ -35,6 +35,7 @@ function updateLine(st) {
 import { buildShopView } from '../shopModel.js';
 import { demoShopState, shopDemoVariant, demoShopRotation, demoShopRecipes } from '../shopDemo.js';
 import { filedFor } from '../filedFlight.js';
+import { voiceAttachOf } from '../projectVoice.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
@@ -171,6 +172,9 @@ export function valsMisc(app, ctx) {
         ? { text: 'OFFLINE — RECONNECT FOR ANSWERS', tone: 'var(--nv-gold)' }
         : { text: 'LIVE · READ-ONLY ANSWERS FROM YOUR VAULT', tone: 'var(--nv-cy)' },
     voiceBusy: st.voiceBusy,
+    // WHAT THE CONVERSATION IS ABOUT (1 Nov 2026): a project being set up by
+    // voice, or the project attached to it; the chip's × lets it go
+    voiceAttach: voiceAttachOf(st, app),
     voiceSpeaking: st.voiceSpeaking,
     // Name an engine ONLY when the server names it — a guessed label is
     // false information wearing a confident face (it happened: an old

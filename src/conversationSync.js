@@ -104,6 +104,9 @@ export function pendingTurns(chat, synced, { dev, device = '' } = {}) {
       ...(agent ? { by: m.who } : (m.by ? { by: m.by } : {})),
       ...(Array.isArray(m.from) && m.from.length ? { from: m.from } : {}),
       ...answeredBy(m),
+      // a line about a project attached to the conversation (1 Nov 2026):
+      // the record files it to that project's transcript too
+      ...(typeof m.projectId === 'string' && /^([0-9a-f]{8}|repo|atlas|wren)$/.test(m.projectId) ? { projectId: m.projectId } : {}),
     });
   });
   return out;

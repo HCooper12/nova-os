@@ -13,6 +13,7 @@ import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
 import { parseVisualStream } from './visualBeats.js';
 import { lintSpoken } from './spokenLint.js';
+import { voiceAskExtras, intakeAfter, afterApproval } from './projectVoice.js';
 import { stanceOfSpan } from './glassBeats.js';
 import { speakableText } from './artifactBlocks.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
@@ -8061,7 +8062,9 @@ export default class App extends Component {
   // after a relaunch passes when he asked); a reply found finished more than
   // a minute after that is shown at once and offered, never spoken
   // (src/replyReturn.js, 1 Nov 2026).
-  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null, lastRunningAt = Date.now() } = {}) {
+  // `projectId`: the project this turn was about; the reply's line carries it,
+  // so the conversation record files it to that project's transcript
+  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null, lastRunningAt = Date.now(), projectId = null } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
     // he can barge in, which left nothing saying "more sentences are coming":
@@ -8347,7 +8350,7 @@ export default class App extends Component {
             // in the conversation record. A card the Coach took back is a
             // quiet receipt under the reply, never spoken (coachProposals.js)
             const briefIds = (Array.isArray(job.result.consult) ? job.result.consult : []).filter((a) => a?.agent === 'researcher' && a.recordId).map((a) => a.recordId);
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...via, ...(meta || {}) };
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...(projectId ? { projectId } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -8366,6 +8369,8 @@ export default class App extends Component {
           // askNova) dispatches the research/watch that's actually waiting.
           // what a model's ACT started (the research is already watched above)
           this.followActed(job.result.acted, { research: false });
+          // a project being set up by voice: continued, or over
+          if (job.result.intake) this.setState((s) => ({ voiceIntake: intakeAfter(job.result, s.voiceIntake) }));
           const mc = job.result.modelChoicePending;
           if (mc?.kind === 'act') this.armActGate(mc);
           else if (mc) {
@@ -11171,9 +11176,18 @@ export default class App extends Component {
     // report has to come back HERE (watchPlanRun) — and "Undo lives in your
     // Inbox" would be a lie about a thing that has not happened yet.
     const isPlan = (this.state.voiceChat || []).some((m) => m.proposal?.recordId === recordId && m.proposal.kind === 'plan');
+    const isProject = (this.state.voiceChat || []).some((m) => m.proposal?.recordId === recordId && m.proposal.projectBrief);
     const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
-    call.then(() => {
+    call.then((resp) => {
       mark(approve ? 'done' : 'dismissed');
+      // a project's brief: its own line, from the record his yes just made
+      if (isProject && approve) { this.afterProjectApproved(resp?.record); return; }
+      if (isProject) {
+        const line = 'Not made. Tell me what to change, or say never mind.';
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speak(line);
+        return;
+      }
       if (approve && isPlan) this.watchPlanRun(recordId);
       if (approve) { this.refreshLiveData(); this.refreshCalendarCard(); }
       const line = approve
@@ -11260,6 +11274,8 @@ export default class App extends Component {
         else if (yes && offer.kind === 'browse-press') this.pressFromGlass(offer.recordId, offer.title);
         else if (yes && offer.kind === 'browse-open') this.openBrowserUrl(offer.url);
         else if (yes && offer.kind === 'briefing-resume') { this.navigate('briefing'); this.playBriefing(offer.from || 0); }
+        else if (yes && offer.kind === 'project-first-move') this.startProjectFirstMove(offer);
+        else if (yes && offer.kind === 'project-start-another') this.startAnotherProject(offer.text);
         else if (yes) this.acceptWatchOffer(offer);
         else {
           const line = 'As you wish, sir.';
@@ -11335,6 +11351,9 @@ export default class App extends Component {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
         return;
       }
+      // a project being set up by voice owns his words (the intake's turn),
+      // as the interview does: no front-door job takes them
+      if (this.state.voiceIntake) { this.setState({ orbInput: '' }); this.askNova(q); this.flushPrime(); return; }
       // the front door first: a link or a command starts the job it names,
       // and only what is left is a question for Ask Nova
       if (this.routeFromChat(q)) { this.flushPrime(); return; }
@@ -11886,14 +11905,22 @@ export default class App extends Component {
         if (slow && slow[1] >= 50) turn.preAskSlowest = `${slow[0]}:${slow[1]}`;
       }
       this.turnWordsAt = 0;
-      return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where });
+      // A PROJECT IN THE CONVERSATION (src/projectVoice.js): the intake's
+      // session while one is being set up, else the attached project's id;
+      // nothing at all when neither is set
+      const proj = voiceAskExtras({ voiceProject: this.state.voiceProject, voiceIntake: this.state.voiceIntake, sentProjectId: this.voiceProjectSent || null });
+      if (proj.projectId) this.voiceProjectSent = proj.projectId;
+      return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where, ...proj });
     };
     const asked = this.state.pendingAttach.length ? this.flushAttachments(conn).then(send) : send(null);
     // HIS SPOKEN LINE: it offers "Not what I said" for a minute, and opens the
     // continuation window ("...oh, and also"), src/turnSense.js
     const heardIt = !!this.spokenInput && !context;
     const youAt = Date.now();
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: youAt, who: 'you', text: question, attached: attached.length ? attached : undefined, ...(heardIt ? { heard: true } : {}), ...(meta || {}) }], voiceBusy: true }));
+    // his line about the attached project files to its transcript too
+    const aboutProject = !this.state.voiceIntake && this.state.voiceProject?.id ? this.state.voiceProject.id : null;
+    this.askProjectId = aboutProject;
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: youAt, who: 'you', text: question, attached: attached.length ? attached : undefined, ...(heardIt ? { heard: true } : {}), ...(aboutProject ? { projectId: aboutProject } : {}), ...(meta || {}) }], voiceBusy: true }));
     if (heardIt) { this.offerFixFor(youAt); this.lastSent = { kind: 'ask', text: question, sentAt: youAt, youAt, turn, replySpeakingAt: null, claimed: false }; }
     this.stopSpeaking();
     // THE ACK COMES FIRST (his call, 29 Oct 2026): a "one thing first" line is
@@ -11990,7 +12017,7 @@ export default class App extends Component {
       // route sends one code-written line to speak after the ack, so the
       // longer think is announced, never a silence.
       if (deepLine && this.state.voiceSpeak) this.speakTtsSentence(deepLine, null, { stance: 'ack', ack: true });
-      this.attachAskPoll(conn, jobId, { agent, meta, turn });
+      this.attachAskPoll(conn, jobId, { agent, meta, turn, projectId: this.askProjectId || null });
     }).catch((e) => {
       if (askSeq !== this.askSeq) return;
       this.endAnswer(turn);
@@ -12018,6 +12045,90 @@ export default class App extends Component {
     if (acted.open) this.openFromNova(acted.open);
     if (acted.browse?.recordId) this.watchBrowse(acted.browse.recordId, acted.browse.task || '');
     if (acted.record || acted.watch || acted.research || acted.ingest) this.refreshInbox?.();
+    // PROJECTS BY VOICE: project.start opened an intake (its first question is
+    // the next reply, after this one has been heard); a second project while
+    // one is attached is asked about first; research or a watch filed for it
+    if (acted.intake?.jobId) this.followIntake(acted.intake);
+    if (acted.offer?.kind === 'project-start-another') this.setState({ voicePendingOffer: acted.offer });
+    if (acted.intake?.stage === 'cancelled') this.setState({ voiceIntake: null });
+    if (acted.projectResearch || acted.projectWatch) this.refreshInbox?.();
+  }
+  // THE INTAKE'S TURN, SPOKEN LIKE ANY NOVA TURN: the same poll, the same
+  // FIFO, after the reply that started it has been heard
+  followIntake(intake) {
+    const conn = getConnection();
+    if (!conn || !intake?.jobId) return;
+    this.setState({ voiceIntake: { sessionId: intake.sessionId } });
+    this.queueTtsFinalize(() => {
+      this.setState({ voiceBusy: true });
+      this.attachAskPoll(conn, intake.jobId, { agent: null });
+    });
+  }
+  // the chip's ×, or New chat, during a spoken project setup
+  cancelVoiceIntake({ say = true } = {}) {
+    const sid = this.state.voiceIntake?.sessionId;
+    this.setState({ voiceIntake: null });
+    const conn = getConnection();
+    if (!sid || !conn) return;
+    api.voiceIntakeCancel(conn, sid).then(() => this.refreshInbox()).catch(() => {});
+    if (say) {
+      const line = 'Dropped. Nothing was made.';
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+      if (this.state.voiceSpeak) this.speak(line);
+    }
+  }
+  // HIS YES ON A BRIEF MADE BY VOICE: the project now exists. Nova says where
+  // it lives and its first move, from the real record (src/projectVoice.js),
+  // and the conversation is now about it.
+  afterProjectApproved(record) {
+    const conn = getConnection();
+    const id = record?.undoData?.id;
+    this.setState({ voiceIntake: null });
+    if (!conn || !id) return;
+    api.project(conn, id).then(({ project }) => {
+      if (!project) return;
+      // attached: the next ask carries its section once (projectFresh), since
+      // the conversation's own session never heard the intake
+      this.attachVoiceProject({ id: project.id, name: project.name });
+      const { say, offer } = afterApproval(project);
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: say, projectId: project.id }], ...(offer ? { voicePendingOffer: offer } : {}) }));
+      if (this.state.voiceSpeak) this.speak(say);
+      this.refreshProjects();
+    }).catch(() => {
+      const line = 'It is made. It is in Projects.';
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+      if (this.state.voiceSpeak) this.speak(line);
+    });
+  }
+  // "Shall I start with that?" — yes: the first move, as research for the
+  // project, by the same door the project page's Research box uses
+  startProjectFirstMove(offer) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.projectResearch(conn, offer.projectId, offer.question)
+      .then(() => {
+        const line = 'Researching it now. It lands on the project page.';
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speak(line);
+        this.refreshInbox();
+      })
+      .catch((e) => {
+        const line = `I could not start it: ${e.message}. Nothing ran.`;
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speak(line);
+      });
+  }
+  // yes to "start a separate new project?": the intake opens with his words
+  startAnotherProject(text) {
+    const conn = getConnection();
+    if (!conn || !text) return;
+    api.voiceIntakeStart(conn, text)
+      .then(({ jobId, intake }) => { this.attachVoiceProject(null); this.followIntake({ jobId, sessionId: intake?.sessionId }); })
+      .catch((e) => {
+        const line = `I could not start setting it up: ${e.message}.`;
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speak(line);
+      });
   }
   // A screen a verb named (screen.open, quick.session, practice.prepare).
   openFromNova(open) {
@@ -12249,7 +12360,11 @@ export default class App extends Component {
     // still reads it; this device just stops merging lines from before now.
     try { localStorage.setItem(CONV_FROM_KEY, new Date().toISOString()); } catch { /* best-effort */ }
     this.stopSpeaking();
-    this.setState({ voiceSessionId: null, voiceChat: [], voiceChatUndo: stash });
+    // a new chat is about nothing yet: the attached project goes, and a
+    // project being set up is called off (its pending card withdrawn)
+    if (this.state.voiceIntake) this.cancelVoiceIntake({ say: false });
+    this.voiceProjectSent = null;
+    this.setState({ voiceSessionId: null, voiceChat: [], voiceChatUndo: stash, voiceProject: null });
   }
   undoNewVoiceChat() {
     let stash = this.state.voiceChatUndo;
