@@ -10,6 +10,7 @@ import { tryReflex } from '../lib/reflex.js';
 import { composeShow } from '../lib/morningShow.js';
 import { lintSpoken } from '../../src/spokenLint.js';
 import { normWhere, whereLine, suppressGlass, forceConfirmFor, handsFreeWhere } from '../lib/register.js';
+import { makeGreetClaim } from '../lib/greetClaim.js';
 
 // Who answered, for the conversation record: an answer from the model on
 // his Mac carries it, and (27 Oct, local first) so does a Claude answer this
@@ -110,6 +111,7 @@ async function expandIdiomsSafe(raw) {
 
 export function voiceRouter(vaultPath) {
   const router = Router();
+  const greetClaim = makeGreetClaim();
 
   // Standby, as the snapshot and the island read it (lib/standby.js).
   router.get('/voice/standby', async (req, res) => {
@@ -489,6 +491,8 @@ export function voiceRouter(vaultPath) {
   // this endpoint only decides the words.
   router.post('/greet', async (req, res) => {
     try {
+      // one hello per arrival: his other device may have started this one a moment ago
+      if (!greetClaim.take()) return res.json({ standDown: true });
       const gap = req.body?.gap === 'return' ? 'return' : 'new-day';
       const now = new Date();
       // a return is told only what happened while he was away (21 Oct): the
@@ -525,6 +529,7 @@ export function voiceRouter(vaultPath) {
       } catch { /* quiet rails, quiet greeting */ }
       res.json({ jobId: startGreeting(vaultPath, { facts: bits.join('\n\n'), gap }) });
     } catch (e) {
+      greetClaim.release();
       res.status(500).json({ error: e.message });
     }
   });

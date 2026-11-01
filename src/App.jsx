@@ -12126,7 +12126,14 @@ export default class App extends Component {
     }
   }
   greetJob(conn, gap, origin, today, since = null) {
-    api.greet(conn, gap, since).then(({ jobId }) => {
+    api.greet(conn, gap, since).then(({ jobId, standDown }) => {
+      // his other device started this arrival's hello a moment ago (server/lib/greetClaim.js)
+      if (standDown) {
+        this.greetInFlight = false;
+        this.awayFrom = 0;
+        try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.now() })); } catch { /* best-effort */ }
+        return;
+      }
       this.startPoll('greet', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 45_000,
         intervalMs: 700,
