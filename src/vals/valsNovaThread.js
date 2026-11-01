@@ -182,6 +182,8 @@ export function valsNovaThread(app, ctx, v) {
         yes: () => bq.answer('yes'), no: () => bq.answer('no'), later: () => bq.answer('later'), stop: bq.stop,
       } : null,
       blocked: v.speechBlocked,
+      // the document the last reply carries, shown on the stage (replyDocument)
+      doc: st.voiceDoc || null,
       // Nova's status and settings: what the classic Station, ⋯ and chips held
       status: {
         answers: demo ? 'Demo replies' : offline ? 'Offline' : 'From your vault, read-only',

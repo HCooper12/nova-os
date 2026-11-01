@@ -67,7 +67,9 @@ test('every receipt line code writes is recognised as one', () => {
   assert.ok(lines.length >= 3);
   const body = `${Array.from({ length: 10 }, () => 'A sentence of ten words that only pads the reply out here.').join(' ')}\n\n${lines.join('\n')}`;
   const f = budgetFold(body);
-  for (const l of lines) assert.ok(f.said.includes(l), `said: ${l}`);
+  // said as one counted line; every receipt is kept, in the rest
+  assert.match(f.said, /Done: 1 change to your program\. 2 changes did not land/);
+  for (const l of lines) assert.ok(f.held.includes(l), `held: ${l}`);
 });
 
 test('he asked for depth: a longer budget', () => {
@@ -110,4 +112,38 @@ test('wired: the server folds at the budget, files a rewrite\'s documents; the p
   assert.match(app, /resumeAt\(stream\.saidText, speakable, stream\.spokenUpTo\)/);
   assert.match(app, /sameWidthTokens\(parseArtifactBlocks\(text, \{ final: true \}\)\.text\)/);
   assert.match(read('server/lib/talk.js'), /ONE QUESTION, AND IT ENDS YOUR TURN/);
+});
+
+test('his 1 Nov 15:14 turn: three Done lines are said as one, the list is held', async () => {
+  const { summariseReceipts } = await import('../../src/turnFold.js');
+  const t = `Checking Upper C against the plan first. Two lifts never landed, and the shoulder press went in first, not last.
+
+The earlier cards were refused because Upper C didn't exist yet. It exists now, so I'm putting the row and the pec deck in, and moving the shoulder press to the end. Code will confirm what lands underneath.
+
+Done: Chest-Supported Dumbbell Row is on Upper C now, 3 sets of 12. Done: Reverse Pec Deck is on Upper C now, 5 sets of 12 to 15. Done: Machine Shoulder Press is number 4 on Upper C now.
+
+Want me to set those days on your schedule?`;
+  const f = budgetFold(t);
+  assert.equal((f.said.match(/Done:/g) || []).length, 1, f.said);
+  assert.match(f.said, /Done: 3 changes to your program\./);
+  assert.match(f.said.trim(), /schedule\?$/);
+  assert.match(f.held, /Reverse Pec Deck is on Upper C now/);
+  assert.deepEqual(summariseReceipts(['Done: a.']), { line: 'Done: a.', list: '' });
+});
+
+test('the document a reply carries goes on the stage, not only into the history', async () => {
+  const { replyDocument } = await import('../../src/novaStageFacts.js');
+  assert.equal(replyDocument('Here it is.\n[[artifact:8ad3db95]]\nIt shows Upper A.'), '8ad3db95');
+  assert.equal(replyDocument('Writing.\n[[artifact:pending]]', [{ id: 'abcd1234' }]), 'abcd1234');
+  assert.equal(replyDocument('No document here.'), null);
+  const app = read('src/App.jsx');
+  assert.match(app, /const docId = replyDocument\(text, job\.result\.artifacts\);/);
+  const stage = read('src/NovaStage.jsx');
+  assert.equal((stage.match(/<ArtifactCard key=\{T\.doc\.id\} id=\{T\.doc\.id\} compact \/>/g) || []).length, 2, 'speaking and ready');
+  assert.match(read('src/vals/valsNovaThread.js'), /doc: st\.voiceDoc \|\| null/);
+});
+
+test('a document carries his local time, and every conversational agent is told to use it', () => {
+  assert.match(read('server/lib/artifacts.js'), /created_local: createdLocal/);
+  assert.match(read('server/lib/talk.js'), /HIS CLOCK, NOT THE FILE'S/);
 });

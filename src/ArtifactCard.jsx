@@ -110,7 +110,9 @@ const shell = (hue, extra) => ({
 });
 
 /** The card itself. Needs only the id; everything else it finds. */
-export function ArtifactCard({ id }) {
+// `compact` (the stage, src/NovaStage.jsx): one line of title, no summary,
+// so it sits between Nova's words and the composer at 375px
+export function ArtifactCard({ id, compact = false }) {
   const meta = useArtifactMeta(id);
   if (meta?.missing) {
     return (
@@ -137,11 +139,11 @@ export function ArtifactCard({ id }) {
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', font: `600 11.5px ${UI}`, letterSpacing: '.02em', color: agent.hue }}>
           {agent.name}<span style={{ color: 'var(--nv-ink40)' }}>·</span><span style={{ color: 'var(--nv-ink50)' }}>{KIND_LABEL[kind]}</span>
         </span>
-        <span style={{ display: 'block', marginTop: '3px', font: `400 19px/1.2 ${SERIF}`, letterSpacing: '-.005em', color: 'var(--nv-ink)', textWrap: 'balance', overflowWrap: 'anywhere' }}>{title}</span>
-        {meta?.summary ? (
+        <span style={{ display: 'block', marginTop: '3px', font: `400 19px/1.2 ${SERIF}`, letterSpacing: '-.005em', color: 'var(--nv-ink)', ...(compact ? { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { textWrap: 'balance', overflowWrap: 'anywhere' }) }}>{title}</span>
+        {meta?.summary && !compact ? (
           <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginTop: '4px', font: `400 13.5px/1.4 ${UI}`, color: 'var(--nv-ink60)' }}>{meta.summary}</span>
         ) : null}
-        {bits.length ? <Meta tone="faint" style={{ display: 'block', marginTop: '6px' }}>{bits.join(' · ')}</Meta> : null}
+        {bits.length && !compact ? <Meta tone="faint" style={{ display: 'block', marginTop: '6px' }}>{bits.join(' · ')}</Meta> : null}
       </span>
       <svg width="9" height="15" viewBox="0 0 9 15" aria-hidden="true" style={{ flex: 'none', color: 'var(--nv-ink40)' }}>
         <path d="M1.5 1.5 7.5 7.5 1.5 13.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

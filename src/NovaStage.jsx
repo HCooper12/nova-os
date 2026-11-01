@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CoreFace, Ico } from './NovaThreadParts.jsx';
 import { StageCard } from './StageCard.jsx';
+import { ArtifactCard } from './ArtifactCard.jsx';
 import { SafeVisual } from './SafeVisual.jsx';
 import { audioLevel } from './audioLevel.js';
 import { onSpeech, spokenSentences } from './speechClock.js';
@@ -563,6 +564,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
             <>
               {ex.you && <button type="button" className="q" onClick={() => goLine(ex.you.i)} tabIndex={rest ? 0 : -1}><span>You</span><span className="t">{ex.you.text}</span></button>}
               {ex.nova && <button type="button" className="a" onClick={() => goLine(ex.nova.i)} tabIndex={rest ? 0 : -1}><span>{ex.nova.who}</span><span className="t">{ex.nova.text}</span></button>}
+              {T.doc && rest && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
             </>
           )}
           {rest && asks.length > 0 && (
@@ -589,6 +591,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
                       what is showing, then Nova's words */}
                   {asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
                   {dock && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
+                  {T.doc && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
                 </>
               )}
               offNote="Subtitles are off. Turn them on in Nova’s status and settings." />

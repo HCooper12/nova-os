@@ -4824,6 +4824,16 @@ button.nv-ts-cd[disabled] { cursor: default; }
    over .pa; a longer question is cut with an ellipsis, never wrapped */
 .nv-nt-stasked { flex: none; margin: 0 0 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: italic 400 15px/1.35 var(--nv-font-serif); color: var(--nv-ink50); }
 .nv-nt-stasked b { margin-right: 7px; font: normal 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+/* THE DOCUMENT ON THE STAGE (1 Nov 2026): the reply's document is on the
+   screen he is looking at, whole width, one tap from open. It arrives like
+   a card set down, and stays still under reduced motion. */
+.nv-nt-stdoc { flex: none; width: 100%; max-width: 100%; min-width: 0; justify-self: stretch; overflow: hidden; margin: 0 0 12px; text-align: left; animation: nvStDoc .42s var(--nv-spring-smooth) both; }
+.nv-nt-stexch .nv-nt-stdoc { margin: 4px 0 0; }
+/* with a document under it, Nova's last words take two lines, not three */
+.nv-nt-stexch:has(.nv-nt-stdoc) { grid-template-columns: minmax(0, 1fr); }
+.nv-nt-stexch:has(.nv-nt-stdoc) .a .t { -webkit-line-clamp: 2; }
+@keyframes nvStDoc { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nv-nt-stdoc { animation: none; } }
 /* A PANEL ON THE PLATE (1 Nov 2026): the plate reaches down to 12 px over the
    composer while one is up (the hint it would leave room for is hidden while
    Nova speaks), the panel's tag is one line with the lit part's name in it,

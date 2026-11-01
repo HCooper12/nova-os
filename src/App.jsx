@@ -16,6 +16,7 @@ import { lintSpoken } from './spokenLint.js';
 import { voiceAskExtras, intakeAfter, afterApproval, tellMeLine } from './projectVoice.js';
 import { stanceOfSpan } from './glassBeats.js';
 import { speakableText, parseArtifactBlocks } from './artifactBlocks.js';
+import { replyDocument } from './novaStageFacts.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
 import { cutHeld, asksForRest, HELD_UNHEARD_LINE, budgetCut, spokenBudget } from './turnFold.js';
 import { greetDue, standsDown, notePresence } from './greetDue.js';
@@ -8271,6 +8272,10 @@ export default class App extends Component {
         const text = job.result.text;
         // the documents this reply filed: their cards draw at once
         rememberArtifacts(job.result.artifacts);
+        // and the one it carries is on the stage he is looking at, not only
+        // up in the history (src/novaStageFacts.js replyDocument)
+        const docId = replyDocument(text, job.result.artifacts);
+        if (docId) this.setState({ voiceDoc: { id: docId, at: Date.now() } });
         // the speech path measured the streamed text with "[[artifact:pending]]"
         // where the finished reply has a real id of another length; measure the
         // finished one the same way, or the tail would be sliced off-by-some
@@ -11842,6 +11847,8 @@ export default class App extends Component {
     // which ask this is: a continuation or a correction drops the one before
     // it, and that one's answer must not land (dropAnswerInFlight)
     const askSeq = (this.askSeq = (this.askSeq || 0) + 1);
+    // a new question: the last reply's document leaves the stage
+    if (this.state.voiceDoc) this.setState({ voiceDoc: null });
     // Answering the model-choice gate is not a new question for Nova to
     // reason about — intercept it here, before it ever reaches Ask Nova.
     if (this.state.modelChoicePending) { this.resolveModelChoiceFromSpeech(question); return; }

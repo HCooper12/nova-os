@@ -108,6 +108,23 @@ export function lastExchange(lines) {
   return { you, nova };
 }
 
+// THE DOCUMENT ON THE STAGE (1 Nov 2026, his words: "it still keeps saying
+// here is the document here is the program here is a visual, but I have to
+// actually scroll up to be able to view it in the chat history. Everything
+// should be appearing on the main screen that I'm looking at."). A reply's
+// document card was drawn only inside its history line. The finished reply
+// names the document it carries: the first real token in its words (a
+// document re-shown is named by token too), else the first one it filed.
+// Pending and new-N tokens are not documents yet. Pure.
+export function replyDocument(text, artifacts = []) {
+  for (const m of String(text || '').matchAll(/\[\[artifact:([a-z0-9][a-z0-9-]{3,63})\]\]/gi)) {
+    const id = m[1].toLowerCase();
+    if (id !== 'pending' && !id.startsWith('new-')) return id;
+  }
+  const first = (artifacts || []).find((a) => a && a.id);
+  return first ? first.id : null;
+}
+
 // THE PANEL ON THE PLATE, WHOLE (1 Nov 2026, his recording: the body panel
 // showed as a sliver of its figure and a program's rows were cut mid-row).
 // Mockup 106 draws no panel; whatever the plate holds of one is whole: the
