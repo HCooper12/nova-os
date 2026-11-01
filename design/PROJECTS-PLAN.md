@@ -438,6 +438,7 @@ back.
 **Phase 3 — it works while he sleeps.** The queue, the scheduler, the
 quiet window, the concurrency cap, allowances as CLI blocks, stop-and-ask,
 the morning line, push and Telegram, narration. Done when: a queued
+  His call, 1 Nov 2026: a first move that is not research (drafting, code) is NOT started on a spoken yes in phase 2. Phase 3 adds it, inside the project's allowances (`allowances.draft` / `code` / `test`), by the same spoken "Shall I start with that?" yes; until then such a move stays on the project page as his next step and Nova says so. Also his call: "Tell me" on a research card opens the Voice conversation with the project and that document attached; there is one place to talk.
 research job for the room runs overnight unattended, appears in the
 morning greeting as one line and as a card, and `LOG.md` has the receipt.
 
