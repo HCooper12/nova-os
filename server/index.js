@@ -318,6 +318,12 @@ async function main() {
   import('./lib/inboxStore.js').then(async ({ reapOrphanedClassifying, reapStaleErrors }) => {
     const { reaped } = await reapOrphanedClassifying();
     if (reaped) console.log(`inbox reaper: flipped ${reaped} orphaned record(s) to error`);
+    // a plan a restart cut off is finished, not abandoned: it gets its report and its card
+    try {
+      const { resumeInterruptedPlans } = await import('./lib/planner.js');
+      const { resumed } = await resumeInterruptedPlans(process.env.VAULT_PATH);
+      if (resumed.length) console.log(`plans: resuming ${resumed.length} plan(s) a restart cut off (${resumed.join(', ')})`);
+    } catch (e) { console.error('plan resume failed:', e.message); }
     // and age out failures nobody will retry — twelve were sitting in the
     // queue on 4 Sep, four of them ENOTFOUND blips from 9 August
     const stale = await reapStaleErrors();

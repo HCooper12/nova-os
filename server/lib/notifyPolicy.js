@@ -28,6 +28,8 @@ const RECORD_PUSH = {
   'recipe-video': 'a recipe he shared',
   ingest: 'a link he shared',
   guardian: 'something is broken',
+  // every plan is his own ask (voice, the Ask route, a re-plan of one of his)
+  plan: 'a plan he asked for, finished',
 };
 
 // where a record came from when HE started it, not Nova

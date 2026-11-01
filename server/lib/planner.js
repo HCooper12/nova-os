@@ -17,7 +17,8 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { createRecord, updateRecord, getRecord } from './inboxStore.js';
+import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
+import { registerJobMap } from './jobRegistry.js';
 import { modelFor, laneEnabled, laneOffError, isValidModel, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
@@ -528,6 +529,12 @@ export function missingInputsNote(step, plan) {
 // One plan runs in one place at a time. A step that pauses and a step that
 // finishes can both try to wake the plan in the same second.
 const plansRunning = new Set();
+// THE RELOAD GUARD MUST SEE A PLAN (1 Nov 2026). reload-server.mjs asks
+// jobRegistry what is in flight. A plan between two steps, or collecting the
+// last step's result and writing its report, has no `claude` child, so it looked
+// like idle time: the Coach finished at 13:27:52, the reload fired at :53, and
+// his plan was stamped Interrupted with the work done and no report.
+const planJobs = registerJobMap('plan', new Map());
 
 export async function runPlan(vaultPath, recordId) {
   const record = await getRecord(recordId);
@@ -551,6 +558,7 @@ export async function runPlan(vaultPath, recordId) {
 export async function resumePlan(vaultPath, recordId) {
   if (plansRunning.has(recordId)) return { ok: false, error: 'already running' };
   plansRunning.add(recordId);
+  planJobs.set(recordId, { id: recordId, status: 'running' });
   try {
     const record = await getRecord(recordId);
     if (!record?.plan) throw new Error('that plan has nothing to run');
@@ -599,7 +607,7 @@ export async function resumePlan(vaultPath, recordId) {
           step.status = settled.ok ? 'done' : 'failed';
           step.output = output;
           // errors say what happened (lib/plainCause.js, his rule 24 Oct)
-          step.error = settled.ok ? null : plainCause(settled.why);
+          step.error = settled.ok ? null : plainCause(wasInterrupted(settled.why) ? STEP_INTERRUPTED : settled.why);
           if (settled.ok) outputs[step.id] = output;
         } catch (e) {
           step.status = 'failed';
@@ -621,7 +629,35 @@ export async function resumePlan(vaultPath, recordId) {
     return await writeReport(vaultPath, recordId, record.goal, plan, progress);
   } finally {
     plansRunning.delete(recordId);
+    planJobs.delete(recordId);
   }
+}
+
+// A step cut off by a restart says so, and where its work may be. The reaper's
+// own sentence ("Discard it, or re-run the loop") is about a record, not a step.
+export const STEP_INTERRUPTED = 'the server restarted while this step was finishing; if it had got as far as proposing changes, they are already in your Inbox';
+const wasInterrupted = (why) => /^Interrupted/.test(String(why || ''));
+
+/**
+ * AT BOOT, FINISH THE PLANS A RESTART CUT OFF. The inbox reaper stamps every
+ * in-flight record Interrupted and stops there, so a plan whose steps were
+ * mostly done got no report and no card, and he never heard (1 Nov 2026).
+ * resumePlan is built for this: a done step is carried, a dispatched step is
+ * awaited and never re-dispatched, so nothing is paid for twice. Only plans
+ * that stopped in the last day are touched. Returns the runs, so a test can
+ * wait for them; the server just lets them continue.
+ */
+export async function resumeInterruptedPlans(vaultPath, { now = Date.now(), maxAgeMs = 24 * 3600 * 1000 } = {}) {
+  const items = await listRecords();
+  const due = items.filter((r) => r.kind === 'plan' && r.status === 'error' && wasInterrupted(r.error)
+    && r.planOk && Array.isArray(r.plan?.steps) && r.plan.steps.length && !r.finishedAt
+    && now - Date.parse(r.startedAt || r.createdAt || 0) < maxAgeMs);
+  const runs = [];
+  for (const r of due) {
+    await updateRecord(r.id, { status: 'classifying', error: null });
+    runs.push(resumePlan(vaultPath, r.id).catch((e) => ({ ok: false, error: e.message })));
+  }
+  return { resumed: due.map((r) => r.id), runs };
 }
 
 // RETRY WHAT FAILED. A finished plan whose steps failed or were skipped runs
