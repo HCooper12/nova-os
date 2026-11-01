@@ -442,6 +442,25 @@ the morning line, push and Telegram, narration. Done when: a queued
 research job for the room runs overnight unattended, appears in the
 morning greeting as one line and as a card, and `LOG.md` has the receipt.
 
+**Phase 3, settled with him (1 Nov 2026, his answers):**
+1. Queued work runs on its own **overnight only**, inside the project's window
+   (`quiet`, default 22:00–07:00 Melbourne). He can also start the queue at any
+   time himself: a button on the project page, a spoken command, a Telegram
+   command, and one HTTP endpoint (`POST /api/projects/queue/run`) that other
+   hosts such as Wren may call. Nova never writes to Wren to add that command;
+   a Wren session wires its own side.
+2. A job still running when the window closes **is let finish**; nothing new
+   starts. (This replaces "a job also stops at the quiet window's end" in §5:
+   stopping a CLI run partway loses its work.)
+3. **Dry run keeps its meaning**: a dry-run project never starts queued work on
+   its own; his press, command or spoken yes runs it. Only a project with dry
+   run lifted runs unattended overnight.
+Mechanism notes: the sandbox allows writes only inside the project folder, so
+a draft or code run cannot keep a CLI session (`--no-session-persistence`, as
+the Builder runs). A fix round, and the run after his answer to a stop-and-ask
+card, is a FRESH run handed the task, his answer and the folder as it stands
+(`git diff`), never a resumed session.
+
 **Phase 4 — it knows what it costs.** `projectId` on the ledger and
 receipts; the project page's cost; the estimate-and-ask; the agreed
 limit; the usage-percentage question answered one way or the other, and
