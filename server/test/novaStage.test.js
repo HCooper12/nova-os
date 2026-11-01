@@ -102,3 +102,14 @@ test('a turn that starts while he is up in the history brings him down to the st
   assert.match(src, /if \(turning && !wasTurning\.current && drive\.current\.sp > 0\.02\) toStageRef\.current\(true\);/);
   assert.match(src, /if \(d\.pinned\) main\.scrollTop = main\.scrollHeight;\n\s*else if \(d\.seeking\) toStageRef\.current\(true\);/);
 });
+
+test('speaking (1 Nov, his recording): his question is one line, Nova\'s words keep two whole lines, and they move by whole lines', () => {
+  const css = read('src/index.css');
+  const block = css.slice(css.indexOf('ONE NOVA STAGE (31 Oct 2026)'), css.indexOf('/* end of the One Nova stage */'));
+  assert.match(block, /\.nv-nt-stasked \{[^}]*white-space: nowrap; text-overflow: ellipsis;/, 'a long question never fills the plate');
+  assert.match(block, /\.nv-nt-stplate \.nv-fx-pbody \{ flex: 1 0 auto; min-height: calc\(2 \* \(25px \* 1\.3 \+ 4px\) \+ 9px\);/);
+  assert.match(block, /\.nv-nt-stplate \.nv-fx-dock \{[^}]*flex: 0 1 auto; min-height: 0;/, 'the panel gives way, never the words');
+  const src = read('src/NovaStage.jsx');
+  assert.ok(src.indexOf('className="nv-nt-stasked"') < src.indexOf('className={`nv-fx-dock'), 'mockup 106 order: You, then what is showing, then the words');
+  assert.match(read('src/NovaFocus.jsx'), /const top = lineTops\.find\(\(t\) => t >= -y - 0\.5\);/, 'the first line in view is never cut in half');
+});

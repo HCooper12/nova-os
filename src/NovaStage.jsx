@@ -471,6 +471,9 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
               markHue={stage?.mark?.hue || null}
               lead={(
                 <>
+                  {/* mockup 106's order: "You" and his question on one line, then
+                      what is showing, then Nova's words */}
+                  {asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
                   {dock && (
                     <div className={`nv-fx-dock${stage ? '' : ' out'}`} key={dock.key} aria-hidden={stage ? undefined : true}>
                       <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(dock.hero, e.currentTarget)} tabIndex={stage ? 0 : -1}
@@ -483,7 +486,6 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
                       </button>
                     </div>
                   )}
-                  {asked && <p className="nv-nt-stasked"><b>You</b>{asked}</p>}
                 </>
               )}
               offNote="Subtitles are off. Turn them on in Nova’s status and settings." />
