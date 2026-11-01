@@ -254,7 +254,8 @@ async function askVoice(vaultPath, state, chatId, msg) {
     const audioPath = path.join(workDir, `voice${ext}`);
     await writeFile(audioPath, Buffer.from(await r.arrayBuffer()));
     const { transcribeAudio } = await import('./transcribe.js');
-    const { text } = await transcribeAudio(audioPath, { mime: media.mime_type || 'audio/ogg' });
+    // source: a voice note is his own recording, so shadow mode measures it
+    const { text } = await transcribeAudio(audioPath, { mime: media.mime_type || 'audio/ogg', source: 'telegram' });
     if (!text) throw new Error('nothing was heard in that note');
     // he sees what was heard BEFORE the answer — a mishearing is visible, not silent
     await tg('sendMessage', { chat_id: chatId, text: `Heard: “${text.slice(0, 600)}”` }).catch(() => {});

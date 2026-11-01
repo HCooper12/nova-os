@@ -905,11 +905,15 @@ export function voiceRouter(vaultPath) {
     }
     try {
       const { transcribeBuffer } = await import('../lib/transcribe.js');
-      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, spoke: req.get('x-vad') === 'heard' });
-      console.log(`voice/transcribe ${audio.buf.length}B ${audio.mime} → ${out.backend} ${out.ms}ms ${out.text ? `${out.text.length}ch` : `silence${out.raw ? ` (dropped ${JSON.stringify(out.raw.slice(0, 40))})` : ''}`}`);
+      const { deviceFromUa } = await import('../lib/sttShadow.js');
+      // source/device feed the shadow row only (lib/sttShadow.js); 20 s, not
+      // 60, before the local ears stand in: he is waiting on a spoken turn
+      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, spoke: req.get('x-vad') === 'heard', source: 'voice', device: deviceFromUa(req.get('user-agent')), timeoutMs: 20_000 });
+      console.log(`voice/transcribe ${audio.buf.length}B ${audio.mime} → ${out.provider}${out.fallback ? ` (fallback: ${out.reason})` : ''}${out.shadow ? ' +shadow' : ''} ${out.ms}ms ${out.text ? `${out.text.length}ch` : `silence${out.raw ? ` (dropped ${JSON.stringify(out.raw.slice(0, 40))})` : ''}`}`);
       // the filler line dropped off a silent clip rides back for the receipt
       const dropped = !out.text && typeof out.raw === 'string' && out.raw ? out.raw.slice(0, 80) : '';
-      res.json({ text: out.text, backend: out.backend, ms: out.ms, bytes: audio.buf.length, ...(dropped ? { dropped } : {}) });
+      // which ears heard it, for the client's turn receipt (2 Nov 2026)
+      res.json({ text: out.text, backend: out.backend, provider: out.provider, ms: out.ms, bytes: audio.buf.length, ...(out.fallback ? { fallback: true, reason: out.reason } : {}), ...(out.shadow ? { shadow: true } : {}), ...(dropped ? { dropped } : {}) });
     } catch (e) {
       console.log(`voice/transcribe FAILED ${audio.buf.length}B ${audio.mime}: ${e.message}`);
       res.status(502).json({ error: e.message });
@@ -932,9 +936,10 @@ export function voiceRouter(vaultPath) {
     let heard = '';
     try {
       const { transcribeBuffer } = await import('../lib/transcribe.js');
-      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name });
+      const { deviceFromUa } = await import('../lib/sttShadow.js');
+      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, source: 'action-button', device: deviceFromUa(req.get('user-agent')), timeoutMs: 20_000 });
       heard = out.text;
-      console.log(`ask/audio heard ${audio.buf.length}B via ${out.backend} in ${out.ms}ms: ${JSON.stringify(heard.slice(0, 80))}`);
+      console.log(`ask/audio heard ${audio.buf.length}B via ${out.provider}${out.fallback ? ` (fallback: ${out.reason})` : ''} in ${out.ms}ms: ${JSON.stringify(heard.slice(0, 80))}`);
     } catch (e) {
       console.log(`ask/audio transcription FAILED: ${e.message}`);
       // he spoke and nothing was heard: that still belongs in the record, so

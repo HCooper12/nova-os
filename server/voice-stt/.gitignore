@@ -1,0 +1,3 @@
+# the ears venv, rebuilt by setup.sh (~hundreds of MB, never committed)
+env/
+__pycache__/
