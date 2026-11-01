@@ -14,6 +14,16 @@ the session log at the foot is append-only.
 
 
 
+## 1 Nov late: Projects phase 2 + voice-first + Tell me, protected roots, plan-interrupt fix, Inbox decision cards (e4846aa6, deployed)
+- GOAL: Nova runs his projects by voice; Inbox decisions usable. DONE CRITERIA: met in tests and real-model harness runs; UNMET until his phone (mic, spoken yes, Tell me, Apply all).
+- STATE: main e4846aa6 pushed, deploy green. server/lib: projectIntake, voiceIntake, projectVerbs (project.start/cancel/research/watch), projectResearch, protectedRoots (new), planner (resumeInterruptedPlans). Client: src/screens/Projects.jsx, InboxSummary.jsx, plainMeaning.js, inboxGroups.js, inboxGroupRun.js. Plan: design/PROJECTS-PLAN.md.
+- DECISIONS: voice-first, the project mic retired (forecloses typing-only project mic); Atlas/Wren/Mission Control never written, by folder (forecloses the old readOnly lane for them); non-research first moves on spoken yes come in phase 3; Tell me opens Voice with the document attached; Coach rebuild = ONE grouped Inbox decision, applied in dependency order through per-record routes; cupertino Inbox baseline re-recorded on his OK.
+- VERIFIED: lint 0 errors, build green, server tests 4756 pass 0 fail on clean main worktree (~/Projects/nova-os-inbox); guard-cupertino inbox unchanged; deploy run 41273152640 success; served chunk contains "What this means"; /api/health 200. Real-model runs: intake, design lens, research (23 sources, 0 dropped), voice start/attach/cancel, Tell me.
+- ASSUMED: iPhone mic and spoken yes; Apply all against the real server (never pressed); local-model lane (verbs get no projectId).
+- OPEN: his 18+ pending Coach cards (apply or discard is his call); his real project idea untried; handoff for phases 3-5 (queue, quiet window, cap of two, usage %, learned-change cards), Wren host, Code-as-tab, kernel byte-identity test; reaper still strands non-plan records caught mid-reload; worktrees nova-os-phase1/2/voice/tellme/inbox/planfix/trial can be removed; ios/ project files modified by another session.
+- NEXT: he reloads the app and tries Start a project by voice; expect a brief card, a spoken yes creating ~/Projects/<slug>, a chip on the Voice screen.
+- DO NOT: write to Atlas/Wren/Mission Control; discard or approve his Coach cards for him; re-record guard baselines without his say; reload the server except via scripts/reload-server.mjs; make worktrees with the Agent isolation option (fails); trust "dry run" wording (research runs for real).
+
 ## 1 Nov: Mac Nova page, phone stage fixes, conversation relevance (bb15f11b, deployed + server reloaded)
 - GOAL: Mac page identical to mockup 108 (jade, panels he can touch); fix his phone recordings; stop irrelevant panels / canned replies. DONE: all three merged to main, pushed, deploy green (run 41265035823), served bundle has the new strings, server reloaded, health 200. UNMET: none seen on his iPhone/Mac yet (phone keyboard/mic/iOS suspension were emulated only).
 - STATE: src/NovaMac.jsx, novaMac.css, novaMacFacts.js (code-built sets/brief/calendar panels; a passing muscle mention raises none); phone: panelFit/cleanCuts in novaStageFacts.js, replyReturn.js (finished reply shows on return, spoken only if <=60 s, else "Tap to hear"); server: planFollowUp.js (status question answered from the plan record), planner.js build step settles on its own record + retry, firstThingFit.js, withdrawn cards = quiet receipt.
@@ -5799,6 +5809,8 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**1 Nov (Projects, claude.ai 01MSoYRW).** Landed Projects phase 2, voice-first intake, Tell me, protected roots, plan-interrupt resume, and the Inbox decision-card fix (grouped Coach rebuild, plain-words cards). Corrected, not added: the reload race stranded a finished plan, and Nova claimed "dry run" while research ran for real; both fixed. Entry at the top of the stack has the state.
 
 1 Nov: built the Mac Nova page to mockup 108 (jade, code-built panels, history drawer), fixed four phone stage faults from his recordings (long question swallowing Nova's words, clipped panel, listening black half from iOS document scroll, reply lost after leaving the app), and fixed the conversation faults (status question re-filed as a correction, plan build step losing its record, passing mentions raising exercise/HRV panels, card text spoken). Corrected: my earlier claim that the Mac sets panel was complete; a passing muscle mention raised it, now tightened. Three date-dependent tests fixed after they turned red on 1 Nov.
 
