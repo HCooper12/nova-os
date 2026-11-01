@@ -101,11 +101,30 @@ function unitsOf(s) {
  * sentence that fits (always at least the first). -1 when all of it fits.
  * Pure, and stable as the text grows.
  */
+// THE MACHINE LINES ARE WHOLE (1 Nov 2026, his "make sure the changes have
+// been made"): a PROPOSE line's JSON carried sentences ("…10-15. He will go
+// heavy…"), the budget cut landed between two of them, half the line was said
+// and half held, the directive never parsed and the rep-range plan he agreed
+// to was never filed. A sentence inside a directive line is not a sentence of
+// the turn: it is skipped, and no cut lands inside the line.
+function machineSpans(s) {
+  const spans = [];
+  let at = 0;
+  for (const line of s.split('\n')) {
+    if (MACHINE_RE.test(line) || VIS_RE.test(line)) spans.push([at, at + line.length]);
+    at += line.length + 1;
+  }
+  return spans;
+}
+
 export function budgetCut(text, budget = SPOKEN_WORDS) {
   const s = String(text ?? '');
+  const spans = machineSpans(s);
+  const inMachine = (u) => spans.some(([a, b]) => u.start < b && u.end > a);
   let words = 0;
   let cut = -1;
   for (const u of unitsOf(s)) {
+    if (inMachine(u)) continue;
     const w = wordsIn(u.text);
     if (w && words && words + w > budget) return cut;
     words += w;
@@ -129,11 +148,16 @@ export function summariseReceipts(receipts = []) {
 
 /** Fold a reply the model did not fold: the budget said, a later question moved last, the rest held. Pure. */
 export function budgetFold(text, budget = SPOKEN_WORDS) {
-  const s = String(text ?? '');
+  const whole = String(text ?? '');
+  // directive lines leave first, whole, wherever they sit: they ride with the
+  // turn (code reads them there) and are never cut or held
+  const lines = whole.split('\n');
+  const early = lines.filter((l) => MACHINE_RE.test(l)).map((l) => l.trim());
+  const s = lines.filter((l) => !MACHINE_RE.test(l)).join('\n');
   const cut = budgetCut(s, budget);
-  if (cut === -1) return { said: s, held: null };
+  if (cut === -1) return { said: whole, held: null };
   const before = s.slice(0, cut).replace(/\s+$/, '');
-  const machine = [];
+  const machine = [...early];
   const prose = [];
   for (const line of s.slice(cut).split('\n')) {
     if (MACHINE_RE.test(line)) machine.push(line.trim());
@@ -149,7 +173,7 @@ export function budgetFold(text, budget = SPOKEN_WORDS) {
     else kept.push(line.trim());
   }
   let rest = kept.join('\n');
-  if (!rest.trim()) return { said: s, held: null };
+  if (!rest.trim()) return { said: whole, held: null };
   // the last question he is asked, wherever it sat, ends the spoken turn
   const qs = unitsOf(rest).filter((u) => /\?["'”’)]*\s*$/.test(u.text.trim()));
   const q = qs[qs.length - 1];
@@ -164,7 +188,7 @@ export function budgetFold(text, budget = SPOKEN_WORDS) {
   const said1 = summariseReceipts(receipts);
   if (said1.list) rest = `${said1.list}\n\n${rest}`;
   const held = rest.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || null;
-  if (!held) return { said: s, held: null };
+  if (!held) return { said: whole, held: null };
   const close = ask || (/\?\s*$/.test(before) ? '' : 'Want the rest?');
   const turn = [before, said1.line, close].filter(Boolean).join('\n\n');
   return { said: [turn, ...machine].join('\n'), held };

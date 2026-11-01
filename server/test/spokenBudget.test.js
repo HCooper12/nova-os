@@ -161,3 +161,24 @@ test('resumeAt never re-speaks what he heard when the fold rearranged the text',
   // the reveal on the line never appends a sentence it already holds
   assert.match(read('src/App.jsx'), /if \(piece\.trim\(\)\.length >= 12 && have\.includes\(piece\.trim\(\)\)\) return;/);
 });
+
+test('a directive line is never cut: its JSON may hold sentences, and the whole line rides with the turn (1 Nov, the rep-range plan)', () => {
+  const reply = [
+    "Understood, sir. I'll have the Coach set every exercise in the new plan to 6 to 12 reps, so the ranges stop jumping between 5 to 8, 8 to 12 and 12 to 15. Lighter isolation lifts like lateral raises are fine at 6 to 12 if you take them near failure, so heavy sets won't cost you growth. It goes as one batched proposal, and nothing changes until you approve.",
+    '',
+    'Still standing from before: Incline Dumbbell Bench is now first on Push A. Two cards are waiting, Incline Barbell Bench first on Push B and Weighted Pull-Up first on Pull B.',
+    '',
+    'PROPOSE {"kind":"plan","goal":"Standardise the rep range on every exercise to 6 to 12 reps, replacing the mixed ranges such as 5-8, 8-12, 10-12, 12-15 and 10-15. He will go heavy, so he cannot reach 10 to 12 reps on every lift. Keep sets, exercise order and heaviest-first ordering as they are."}',
+  ].join('\n');
+  const { said, held } = budgetFold(reply, 60);
+  const line = said.split('\n').find((l) => l.startsWith('PROPOSE'));
+  assert.ok(line, 'the directive is in the turn');
+  assert.doesNotThrow(() => JSON.parse(line.slice('PROPOSE '.length)));
+  assert.ok(!String(held || '').includes('PROPOSE') && !String(held || '').includes('heaviest-first'), 'nothing of the directive is held');
+  assert.ok(held && held.includes('Still standing'), 'the prose past the budget is still held');
+});
+
+test('the stream cut skips sentences inside a directive line', () => {
+  const s = `Short answer.\nPROPOSE {"kind":"plan","goal":"${'One sentence here. '.repeat(30)}"}`;
+  assert.equal(budgetCut(s, 10), -1);
+});
