@@ -192,3 +192,18 @@ test('a schedule change to a day the same rebuild creates draws that day, not a 
   const fri = S.card.change.diff.week.find((d) => d.day === 'Fri');
   assert.equal(fri.after, 'Upper C');
 });
+
+// ------------------------------- T5: "waiting on another card", said as such --
+
+import { staleLine } from '../../src/coachSuggestions.js';
+
+test('a card that waits on another is not "already changed"', () => {
+  assert.deepEqual(staleLine('Needs Upper C created first — say yes to that card'),
+    { waiting: true, lead: 'Waiting on another card', text: 'Upper C has to be created first. Say yes to that card' });
+  assert.deepEqual(staleLine('Seated Cable Row is no longer in Upper C'), { waiting: false, lead: 'Already changed', text: 'Seated Cable Row is no longer in Upper C' });
+  assert.equal(staleLine(null), null);
+  const carter = rebuildFixture().find((r) => r.decision.payload.addName === 'Carter Extension');
+  const { S } = build(fakeApp({ liveInbox: { items: [carter] } }));
+  assert.equal(S.card.staleLine.lead, 'Waiting on another card');
+  for (const f of ['src/screens/InboxSummary.jsx', 'src/CoachSuggestions.jsx']) assert.doesNotMatch(read(f), />Already changed: \{/, f);
+});

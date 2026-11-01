@@ -1,7 +1,7 @@
 import { sentLine } from '../videoDrop.js';
 import { quickCaptureModel } from './quickCapture.js';
 import { digestPending, subjectOf } from '../inboxDigest.js';
-import { isCoachSuggestion, buildSuggestion } from '../coachSuggestions.js';
+import { isCoachSuggestion, buildSuggestion, staleLine } from '../coachSuggestions.js';
 import { ROUTE_META } from './valsInbox.js';
 import {
   dayGroups, clockLabel, subjectCards, digestLine, deeperState, agoLabel, reportParts,
@@ -277,6 +277,8 @@ export function valsInboxSummary(app, ctx, v) {
       // the reason, else (a Coach card) where the change came from
       reason: sug?.why || item.reason || sug?.source || '',
       stale,
+      // "waiting on another card" or "already changed", said as what it is
+      staleLine: staleLine(stale),
       adjustments: item.adjustments || null,
       ship: item.ship || null,
       error: item.error || null,

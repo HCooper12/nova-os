@@ -4,6 +4,7 @@ import { Button, Meta } from './Controls.jsx';
 import { RingTile } from './RingTile.jsx';
 import { muscleVar } from './muscleHue.js';
 import { TickButton } from './TickButton.jsx';
+import { staleLine } from './coachSuggestions.js';
 
 // COACH'S SUGGESTIONS — the Train screen's one place to answer the Coach.
 // His ask, 25 Sep 2026: every suggested change, "to approve, discuss or
@@ -111,7 +112,7 @@ function SuggestionCard({ c, i, after, roomy }) {
           {c.why && <p style={css('margin:11px 0 0;font:500 14px/1.5 var(--nv-font-ui);color:var(--nv-ink60);text-wrap:pretty')}>{c.why}</p>}
           <div style={css('margin-top:7px;font:500 12px/1.3 var(--nv-font-ui);color:var(--nv-ink40)')}>{c.source}{c.when ? ` · ${c.when}` : ''}{c.via === 'draft' ? ' · a yes asks Coach to draft the exact change' : ''}</div>
           {/* his own edits have overtaken this card: say what changed, offer no yes */}
-          {c.stale && <Meta as="div" tone="gold" style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}>Already changed: {c.stale}. Clear it with ✕, or discuss.</Meta>}
+          {c.stale && <Meta as="div" tone="gold" style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}>{staleLine(c.stale).lead}: {staleLine(c.stale).text}. Clear it with ✕, or discuss.</Meta>}
           {/* THE ANSWER — at the foot of the card, so a row of cards answers on one line */}
           <div style={css('margin-top:auto;padding-top:13px;display:flex;align-items:center;gap:8px')}>
             {!c.stale && <TickButton state={c.state} onClick={c.yes} label={c.via === 'draft' ? 'Yes, plan it' : 'Yes'} ariaLabel={`Yes: ${c.headline}`} />}

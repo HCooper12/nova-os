@@ -288,6 +288,17 @@ export function staleReason(p, routines) {
   return null;
 }
 
+// WHAT A STALE LINE IS (1 Nov 2026). "Already changed: Needs Upper C created
+// first" read as though something had happened; it means the opposite, that
+// this card waits on another one. The lead word says which it is.
+export function staleLine(stale) {
+  const t = String(stale || '').trim();
+  if (!t) return null;
+  const m = /^Needs (.+) created first/.exec(t);
+  if (m) return { waiting: true, lead: 'Waiting on another card', text: `${m[1]} has to be created first. Say yes to that card` };
+  return { waiting: false, lead: 'Already changed', text: t };
+}
+
 export function buildSuggestion(r, { routines = [], schedule = {}, now = Date.now() } = {}) {
   const base = { id: r.id, createdAt: r.createdAt, when: whenLabel(r.createdAt, now), source: sourceLabel(r) };
   let c;

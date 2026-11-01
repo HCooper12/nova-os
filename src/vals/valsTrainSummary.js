@@ -6,6 +6,7 @@ import { todayPanels } from '../trainPanels.js';
 import { weekSetsView, uncountedView } from '../weekSets.js';
 import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, verdictRest, routineGlyph } from '../trainSummaryFacts.js';
 import { dayDoneText } from '../doneToday.js';
+import { staleLine } from '../coachSuggestions.js';
 
 // THE SUMMARY TRAIN PAGE'S VIEW MODEL — redesign round 1, variation A, his
 // pick (27 Sep 2026, design/mockups/58-redesign-train.html; the audit it
@@ -533,7 +534,7 @@ export function valsTrainSummary(app, ctx, v) {
     // ✕ ASKS WHY (UI-REDESIGN-SPEC 6, the audit's finding 6). A card his own
     // edits have overtaken is cleared with that as its reason, unasked.
     no: c.stale
-      ? () => app.inboxAction(c.id, 'discard', `Already changed: ${c.stale}`)
+      ? () => app.inboxAction(c.id, 'discard', `${staleLine(c.stale).lead}: ${c.stale}`)
       : () => app.setState({ trainSumAskWhy: askingId === c.id ? null : c.id, trainSumWhyPick: null, trainSumWhyText: '' }),
   }));
   const askingCard = cards.find((c) => c.id === askingId) || null;

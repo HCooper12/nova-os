@@ -289,7 +289,7 @@ function DeckCard({ card, ghosts, position }) {
               </ol>
             )}
             <ChangeDrawn change={card.change} />
-            {card.stale && <p className="nv-sum-ib-quiet gold">Already changed: {card.stale}. Clear it with ✕, or talk about it.</p>}
+            {card.staleLine && <p className="nv-sum-ib-quiet gold">{card.staleLine.lead}: {card.staleLine.text}. Clear it with ✕, or talk about it.</p>}
             {card.error && <p className="nv-sum-ib-err">{card.error}</p>}
             {/* THE DECISION FIRST (1 Nov 2026, his recording): the verbs sit
                 straight under what the card says; everything he might read
