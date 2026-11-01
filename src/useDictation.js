@@ -877,6 +877,20 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     return startEar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [earOn]);
+  // WHY THE EAR DID NOT RUN (1 Nov 2026, his first night on it: 42 turns,
+  // no ear row at all). When Nova starts speaking on a surface that wants the
+  // ear and it is not running, one 'barge-skip' row names the conditions, so
+  // the phone can be read instead of guessed at. Once per stretch of speech.
+  const earSkipRef = useRef(false);
+  useEffect(() => {
+    const speaking = !!bargeListen?.speaking;
+    if (!speaking) { earSkipRef.current = false; return; }
+    if (earOn || earSkipRef.current || !bargeListen) return;
+    earSkipRef.current = true;
+    const flags = { on: !!bargeListen.on, engine: engine || 'none', turnLive: !!(on || hearing), micBusy: !!bargeListen.micBusy, conversing: keepMicNow() };
+    reportBargeSkip('', `ear-off: ${Object.entries(flags).map(([k, v]) => `${k}=${v}`).join(' ')}`, { engine: 'nova' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bargeListen?.speaking, earOn]);
 
   // Returns the stop. Every exit gives the stream back through warmMic (the
   // recorder's release), so the conversation keeps it for his next turn.

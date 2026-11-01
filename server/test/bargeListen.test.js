@@ -203,3 +203,9 @@ test('Settings: on Nova\'s own ears Talk over needs neither the wake word nor th
   // elsewhere, unchanged: the wake word holds the microphone
   assert.equal(talkOver({ supported: true, wakeOn: false, bargeOn: true }).disabled, true);
 });
+
+test('when Nova speaks and the ear is wanted but off, one receipt names the conditions', () => {
+  const src = read('src/useDictation.js');
+  assert.match(src, /reportBargeSkip\('', `ear-off: \$\{Object\.entries\(flags\)/);
+  assert.match(src, /flags = \{ on: !!bargeListen\.on, engine: engine \|\| 'none', turnLive: !!\(on \|\| hearing\), micBusy: !!bargeListen\.micBusy, conversing: keepMicNow\(\) \}/);
+});
