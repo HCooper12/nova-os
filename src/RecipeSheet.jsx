@@ -263,6 +263,8 @@ export function RecipeSheet({ v }) {
                   <div className="nv-fs-sv" style={{ whiteSpace: 'normal', marginTop: '4px' }}>
                     <span className="nv-fs-p">{Math.round(R.tweak.preview.macros.p)} g</span> protein · <span className="nv-fs-k">{kc(R.tweak.preview.macros.kcal)}</span> kcal · {Math.round(R.tweak.preview.macros.c)} g carbs · {Math.round(R.tweak.preview.macros.f)} g fat
                   </div>
+                  {/* whose numbers these are: code's from the lines, or Nova's estimate */}
+                  {R.tweak.preview.computed != null && <div className="nv-fs-prodline">{R.tweak.preview.computed ? 'Worked out from the amounts and your products' : 'Nova’s estimate: a line could not be worked out'}</div>}
                   <ul style={{ margin: '8px 0 0', paddingLeft: '18px', font: '400 13px/1.5 var(--nv-font-ui)', color: 'var(--nv-ink60)' }}>
                     {R.tweak.preview.ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
                   </ul>

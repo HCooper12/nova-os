@@ -1,7 +1,7 @@
 // HIS PRODUCTS IN HIS RECIPES (1 Nov 2026, mockup 109): code does every sum,
 // his product is the truth for its line, a line it cannot work out leaves the
 // recipe as it was, and Undo puts the numbers back. No model, no network.
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -98,4 +98,15 @@ test('a line it cannot work out leaves the recipe exactly as it was', async () =
   const oats = await P.saveProduct({ name: 'Uncle Tobys Oats', per100: { p: 12, c: 58, f: 8, kcal: 370 } });
   await assert.rejects(P.linkProduct('/vault', 'pancakes', '200g oats', oats.id), (e) => e.code === 'unresolved');
   assert.deepEqual(written, []);
+});
+
+test('a tweak to 500 g is computed by code from the lines, never a guess', async () => {
+  const recipe = muffin();
+  stub(recipe);
+  const store = await P.ensureLines(recipe);
+  const before = P.computeRecipe(recipe, store, []).perServing;
+  const proposed = { ...recipe, ingredients: [{ qty: '', name: '500g extra lean beef mince' }, { qty: '', name: '3 eggs' }] };
+  const after = P.computeRecipe(proposed, await P.ensureLines(proposed), []).perServing;
+  assert.ok(after.p > before.p && after.kcal > before.kcal);
+  assert.match(readFileSync(new URL('../lib/tweakRecipe.js', import.meta.url), 'utf8'), /computedMacros\(recipe, job\.result\.ingredients\)/);
 });

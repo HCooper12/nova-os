@@ -118,7 +118,16 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
         ingredients: Array.isArray(parsed.ingredients) ? parsed.ingredients.map((s) => String(s).trim()).filter(Boolean) : [],
         method: Array.isArray(parsed.method) ? parsed.method.map((s) => String(s).trim()).filter(Boolean) : [],
       };
-      job.status = 'ready';
+      // THE NUMBERS ARE CODE'S (1 Nov 2026, his 500 g of mince that left the
+      // macros where a model guessed them): the proposed lines are summed by
+      // lib/products.js from their grams, his products and the recipe's own
+      // reference. Only when a line cannot be worked out do the model's
+      // numbers stand, and the result says so.
+      computedMacros(recipe, job.result.ingredients)
+        .then((m) => { if (m) job.result = { ...job.result, macros: m, computed: true }; else job.result = { ...job.result, computed: false }; })
+        .catch(() => { job.result = { ...job.result, computed: false }; })
+        .finally(() => { job.status = 'ready'; cleanup(); });
+      return;
     } catch (e) {
       job.status = 'error';
       job.error = 'Could not generate a tweak: ' + e.message;
@@ -132,6 +141,17 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
   });
 
   return jobId;
+}
+
+async function computedMacros(recipe, ingredients) {
+  if (!Array.isArray(ingredients) || !ingredients.length) return null;
+  const { ensureLines, computeRecipe, listProducts } = await import('./products.js');
+  // the reference is the recipe as it stands, taken before the proposal is read
+  await ensureLines(recipe);
+  const proposed = { ...recipe, ingredients: ingredients.map((name) => ({ qty: '', name })) };
+  const store = await ensureLines(proposed);
+  const out = computeRecipe(proposed, store, await listProducts());
+  return out.unresolved.length ? null : out.perServing;
 }
 
 export function getTweakJob(jobId) {
