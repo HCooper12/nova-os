@@ -12,11 +12,22 @@
 //                     is research the project may do; never a claim it ran
 
 /** The extra fields one Voice ask sends. Nothing at all when neither is set. */
-export function voiceAskExtras({ voiceProject = null, voiceIntake = null, sentProjectId = null } = {}) {
+// A document Tell me attached (T8) rides the FIRST turn as docRef and every
+// turn after as heldDocRef (the server re-sends its body only when it builds a
+// fresh context: server/lib/projectContext.js docPlacement).
+export function voiceAskExtras({ voiceProject = null, voiceIntake = null, sentProjectId = null, sentDocId = null } = {}) {
   if (voiceIntake?.sessionId) return { intakeSessionId: voiceIntake.sessionId };
-  if (voiceProject?.id) return { projectId: voiceProject.id, ...(sentProjectId !== voiceProject.id ? { projectFresh: true } : {}) };
-  return {};
+  if (!voiceProject?.id) return {};
+  const doc = voiceProject.doc?.id || null;
+  return {
+    projectId: voiceProject.id,
+    ...(sentProjectId !== voiceProject.id ? { projectFresh: true } : {}),
+    ...(doc ? (sentDocId === doc ? { heldDocRef: doc } : { docRef: doc }) : {}),
+  };
 }
+
+/** His Tell me tap, as his line in the thread (it is his action, never a spoken one). */
+export const tellMeLine = (title) => `Tell me about “${String(title || 'this document').trim()}”`;
 
 /** The intake after a reply: continued, or over (called off, or failed). */
 export function intakeAfter(result, current = null) {
@@ -51,7 +62,7 @@ export function voiceAttachOf(st, app) {
   if (st?.voiceIntake) return { intake: true, name: 'New project', detach: () => app.cancelVoiceIntake() };
   if (st?.voiceProject?.id) {
     const id = st.voiceProject.id;
-    return { intake: false, name: st.voiceProject.name || 'this project', detach: () => app.attachVoiceProject(null), open: () => app.openProject(id) };
+    return { intake: false, name: st.voiceProject.name || 'this project', doc: st.voiceProject.doc?.title || null, detach: () => app.attachVoiceProject(null), open: () => app.openProject(id) };
   }
   return null;
 }

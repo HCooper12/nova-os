@@ -6545,6 +6545,10 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 .nv-vattach { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; box-sizing: border-box; animation: nvVattachIn .32s var(--nv-ease) both; }
 .nv-vattach .nm { min-width: 0; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 .nv-vattach .x { margin-left: 6px; opacity: .7; }
+.nv-vattach .doc { color: var(--nv-ink60); font-weight: 500; }
+/* the phone has the whole row for it: the document title is not cut to 40vw */
+.nv-vattach.mob .nm, .nv-vattach.classic .nm { max-width: calc(100vw - 150px); }
+.nv-vattach.mob, .nv-vattach.classic { width: 100%; }
 .nv-vattach.mob { position: sticky; top: 0; z-index: 3; padding: 6px 16px 8px; }
 .nv-vattach.mac { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 30; width: max-content; max-width: 60vw; }
 .nv-vattach > :first-child { white-space: nowrap; flex: none; }

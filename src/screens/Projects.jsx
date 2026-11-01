@@ -136,12 +136,6 @@ function ProjectTalk({ c, name }) {
           {c.lines.map((m, i) => <Line key={`${m.at}-${i}`} i={i} m={m} fresh={i === c.lines.length - 1} onHold={null} onOpen={() => {}} onReplay={() => {}} />)}
         </div>
       ) : <Meta>Nothing said about {name} yet. Talk it through with Nova, or type below.</Meta>}
-      {c.speaking && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-          <Meta>{c.voiceOff ? 'Voice is off in Settings, so Nova answers in text' : 'Nova speaks his Tell me answers here'}</Meta>
-          <TextAction onClick={() => c.setSpeaking(false)}>{c.voiceOff ? 'Done' : 'Quiet'}</TextAction>
-        </div>
-      )}
       <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
         <Button onClick={c.talk} ariaLabel={`Talk to Nova about ${name}, in the Voice conversation`}>Talk about this</Button>
         <Meta>Opens Nova with {name} attached</Meta>

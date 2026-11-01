@@ -142,6 +142,8 @@ export function voiceRouter(vaultPath) {
   const projectIdOf = (body) => (typeof body?.projectId === 'string' && /^([0-9a-f]{8}|repo|atlas|wren)$/.test(body.projectId) ? body.projectId : null);
   // "Tell me" on a project's card (phase 2): the record id of the document
   const docRefOf = (body) => (typeof body?.docRef === 'string' && /^[0-9a-f]{8}$/.test(body.docRef) ? body.docRef : null);
+  // the document Tell me attached, on the turns after the tap (T8)
+  const heldDocOf = (body) => (typeof body?.heldDocRef === 'string' && /^[0-9a-f]{8}$/.test(body.heldDocRef) ? body.heldDocRef : null);
   const projectOpts = (pid, extra = {}) => (pid ? { ...extra, projectId: pid, repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') } : (Object.keys(extra).length ? extra : undefined));
 
   // PHOTOS AND VIDEOS WITH A QUESTION (lib/attachments.js): stored here,
@@ -417,7 +419,9 @@ export function voiceRouter(vaultPath) {
       // turns starts fresh — its deep context would be a snapshot of some
       // other day. The client persists whatever id comes back.
       const { guardAskSession } = await import('../lib/askSession.js');
-      const guard = guardAskSession(!docTurn && typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null);
+      // (T8) a Tell me turn keeps the Voice conversation's own session: the
+      // document goes on its live line instead (docPlacement, below)
+      const guard = guardAskSession(typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null);
       if (guard.reason) console.log(`ask: fresh session — ${guard.reason}`);
       const sessionId = guard.sessionId;
       // Resumed turns get the volatile refresh (today's numbers + the
@@ -435,12 +439,20 @@ export function voiceRouter(vaultPath) {
         const section = await projectContextSection(vaultPath, projectIdOf(req.body), { repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') }).catch(() => '');
         if (section) liveLine = liveLine ? `${liveLine}\n\n${section}` : section;
       }
+      // THE DOCUMENT TELL ME ATTACHED (T8): on a resumed turn it rides the live
+      // line once; on a fresh context it rides the context (src docPlacement)
+      const { docPlacement, projectDocSection } = await import('../lib/projectContext.js');
+      const docPlace = projectIdOf(req.body) ? docPlacement({ docRef: docRefOf(req.body), heldDocRef: heldDocOf(req.body), sessionId }) : { live: null, context: null };
+      if (docPlace.live) {
+        const doc = await projectDocSection(vaultPath, projectIdOf(req.body), docPlace.live).catch((e) => `NOTE — the document he asked about FAILED to load this turn (${e.message}). Say so.`);
+        if (doc) liveLine = liveLine ? `${liveLine}\n\n${doc}` : doc;
+      }
       // his own words to Nova: a Coach he consults may apply what they
       // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const pid = projectIdOf(req.body);
-      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid, docTurn ? { docRef: docRefOf(req.body) } : {})), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid, docPlace.context ? { docRef: docPlace.context } : {})), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
       watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });
