@@ -122,6 +122,7 @@ import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult, answeredBy } from './conversationSync.js';
+import { firstThingFits } from './firstThingFit.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -8313,9 +8314,10 @@ export default class App extends Component {
             const more = job.result.more || undefined;
             // the Researcher's briefs this answer was built on, for the Mac's
             // brief panel ("Open the brief"); kept on the line only, never
-            // in the conversation record
+            // in the conversation record. A card the Coach took back is a
+            // quiet receipt under the reply, never spoken (coachProposals.js)
             const briefIds = (Array.isArray(job.result.consult) ? job.result.consult : []).filter((a) => a?.agent === 'researcher' && a.recordId).map((a) => a.recordId);
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...via, ...(meta || {}) };
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -8810,7 +8812,12 @@ export default class App extends Component {
       }));
       if (kind === 'approve') this.toastMsg('Filed ✓ — ' + record.destination);
       else if (kind === 'discard') { /* the card leaving is the receipt — no toast */ }
-      else if (kind === 'retry') this.toastMsg('Retrying — Nova is running this again…');
+      else if (kind === 'retry') {
+        this.toastMsg('Retrying — Nova is running this again…');
+        // a plan's failed step running again: its new report comes back to
+        // the conversation, as the first run's did
+        if (record?.kind === 'plan') this.watchPlanRun(id);
+      }
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
       // Put the row back exactly where it was — an optimistic approve that
@@ -10878,17 +10885,32 @@ export default class App extends Component {
   // the record until it is pending, then put the plan itself in the
   // transcript with the same yes/no chip a proposal carries — so "yes"
   // (spoken or typed) approves it, and nothing runs before he has read it.
-  watchPlanProposal(recordId) {
+  //
+  // THE WATCH COUNTS ITS OWN POLLS, NOT THE CLOCK (1 Nov 2026). It gave up
+  // four minutes after it began by wall time; his phone slept from 00:00:28 to
+  // 00:04:25 while the revised plan was drawn, the first tick after waking was
+  // past the deadline, and the plan never came up. Timers do not run while iOS
+  // has the page frozen, so a tick budget only spends time he was here for.
+  // `quiet`: the line he just heard (a status answer) already said it is on
+  // screen. `redraw`: he said he cannot see it, so it is drawn even if an
+  // earlier line already holds it.
+  watchPlanProposal(recordId, { quiet = false, redraw = false } = {}) {
     const conn = getConnection();
     if (!conn) return;
-    const started = Date.now();
+    if (!redraw && this.planProposalWatch === recordId) return; // already on it
+    this.planProposalWatch = recordId;
+    let ticks = 0;
     const tick = async () => {
-      if (Date.now() - started > 4 * 60_000) return;
+      if (this.planProposalWatch !== recordId) return; // a newer plan took over
+      if ((ticks += 1) > 120) { this.planProposalWatch = null; return; }
       let rec = null;
       try { rec = await api.inboxItem(conn, recordId); } catch { /* keep polling */ }
       rec = rec?.record || rec;
       if (!rec || rec.status === 'classifying') { setTimeout(tick, 2000); return; }
+      this.planProposalWatch = null;
       if (rec.status !== 'pending') return; // errored: the Inbox says why
+      // never two copies of one plan, unless he asked to see it again
+      if (!redraw && (this.state.voiceChat || []).some((m) => m.proposal?.recordId === recordId)) return;
       const title = rec.decision?.title || 'The plan';
       const body = rec.decision?.body || '';
       const proposal = rec.planOk ? { recordId, title, status: 'pending', kind: 'plan' } : undefined;
@@ -10896,9 +10918,9 @@ export default class App extends Component {
         voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: body ? `${title}\n${body}` : title, proposal }],
         voicePendingProposal: proposal ? { recordId, title } : s.voicePendingProposal,
       }));
-      if (this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
+      if (!quiet && this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
     };
-    setTimeout(tick, 1500);
+    setTimeout(tick, redraw ? 0 : 1500);
   }
   // THE REPORT COMES BACK TO THE CONVERSATION.
   //
@@ -10950,7 +10972,11 @@ export default class App extends Component {
       if (rec.finishedAt) {
         stop();
         const opening = reportOpening(rec.decision?.payload?.body || '');
-        say(['The report is back.', opening].filter(Boolean).join('\n'), { recordId, status: 'open' });
+        // a step that failed can run again, and he is told how in one line
+        // (server/routes/voice.js: "retry" on a finished plan)
+        const failed = (rec.plan?.steps || []).filter((s) => s.status === 'failed' || s.status === 'skipped').length;
+        const retryLine = failed ? `Say retry to run the failed step${failed === 1 ? '' : 's'} again.` : '';
+        say(['The report is back.', opening, retryLine].filter(Boolean).join('\n'), { recordId, status: 'open' });
         if (this.state.voiceSpeak) this.speakTtsSentence('The report is back, sir — say the word and I will walk you through it.');
         return;
       }
@@ -11825,7 +11851,7 @@ export default class App extends Component {
     // THE ACK COMES FIRST (his call, 29 Oct 2026): a "one thing first" line is
     // said after Nova has acknowledged him (speakAckLine), or after the fast
     // reply when there is no ack, never ahead of either
-    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; }
+    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.firstThingDue = askSeq; this.firstThingWords = question; }
     asked.then((resp) => {
       if (askSeq !== this.askSeq) return;   // dropped for a continuation or a correction
       if (resp.text) {
@@ -11855,7 +11881,15 @@ export default class App extends Component {
               ? { ...m, proposal: { ...m.proposal, status: 'dismissed', replaced: true } } : m)),
             voicePendingProposal: s.voicePendingProposal?.recordId === replaces ? null : s.voicePendingProposal,
           }));
-          this.watchPlanProposal(resp.plan.recordId);
+          // HIS QUESTION ABOUT THE PLAN (server/lib/planFollowUp.js
+          // planStatusLine) re-attaches the watch his phone may have slept
+          // through: a run is followed to its report; a proposal is drawn
+          // (again, when he says he cannot see it), and the status line he
+          // just heard already said it is on screen
+          if (resp.plan.run) this.watchPlanRun(resp.plan.recordId);
+          else if (resp.plan.status !== 'finished' && resp.plan.status !== 'failed' && resp.plan.status !== 'refused') {
+            this.watchPlanProposal(resp.plan.recordId, { quiet: !!resp.plan.status, redraw: !!resp.plan.show });
+          }
         }
         const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
         const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
@@ -13180,10 +13214,12 @@ export default class App extends Component {
   sayFirstThingAfter(seq) {
     if (this.firstThingDue !== seq) return;
     this.firstThingDue = null;
-    this.sayFirstThing();
+    this.sayFirstThing(this.firstThingWords || '');
   }
-  sayFirstThing() {
-    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false);
+  // a reading of his body (HRV) is said only into a turn about his body; it
+  // stays a card otherwise (src/firstThingFit.js, 1 Nov)
+  sayFirstThing(hisWords = '') {
+    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false && firstThingFits(x, hisWords));
     if (!a || !this.state.voiceSpeak || this.standbyOn()) return;
     a.spokenAt = new Date().toISOString();
     this.speakTtsSentence(a.firstThing, null);

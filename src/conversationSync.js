@@ -179,6 +179,14 @@ export function providerNote(m) {
   return `answered on this Mac${m.fallback && r ? ` · ${r}` : ''}`;
 }
 
+// What code did beside the reply, said quietly in the same meta line and
+// never spoken: "took back 2 cards: …" (server/lib/coachProposals.js
+// withdrawnNote). Absent on every other line.
+export function receiptNote(m) {
+  const r = typeof m?.receipt === 'string' ? m.receipt.trim() : '';
+  return r || null;
+}
+
 // A job's consult roster (server/lib/consult.js) trimmed to what the record
 // keeps: who was asked, what, how long, whether it answered, and the answer.
 // Mirrors trimForRecord on the server, which the client cannot import.

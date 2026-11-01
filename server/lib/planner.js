@@ -24,11 +24,14 @@ import { describeForPlanner, CAPABILITIES } from './capabilities.js';
 import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, costLine, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
 import { salvageJson } from './jsonSalvage.js';
 import { parseEnvelope } from './modelSpend.js';
+import { plainCause } from './plainCause.js';
 import path from 'node:path';
 import os from 'node:os';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const POLL_MS = 5_000; // how often the plan checks on a step it is waiting for — never how long it waits
+// how often the plan checks on a step it is waiting for — never how long it
+// waits. The env override exists for the tests, which cannot sit out 5 s polls.
+const POLL_MS = Number(process.env.NOVA_PLAN_POLL_MS) > 0 ? Number(process.env.NOVA_PLAN_POLL_MS) : 5_000;
 
 // The planner's brief. The capability list is GENERATED (capabilities.js), never
 // written out here — a planner told about an agent that does not exist is the
@@ -345,15 +348,44 @@ async function dispatchStep(vaultPath, step, priorOutputs, record = null) {
     const { startIngest } = await import('./ingest.js');
     const meta = parseTitleAuthor(input);
     if (!meta) throw new Error('could not read a title and author for the Librarian');
-    return { id: startIngest(vaultPath)(null, undefined, meta) };
+    // A WEAVE IS A JOB, NOT A RECORD: its receipt files only when he approves
+    // the staged pages. So the plan follows the JOB (awaitJob) and never looks
+    // the job id up as a record, the mistake that failed every build step.
+    return { id: null, jobId: startIngest(vaultPath)(null, undefined, meta), jobLane: 'ingest' };
   }
   if (step.capability === 'build') {
-    const { startBuild } = await import('./builder.js');
+    const { startBuild, freeProjectName } = await import('./builder.js');
     // The brief carries everything: the step's own words plus whatever the
     // steps it depends on came back with, because the Builder has no path into
     // the vault and cannot go looking for the material itself.
     const handoff = withInherited(handoffFor(step, priorOutputs, { all: true }));
-    return { id: startBuild([stripPlaceholders(step.input) || step.what, handoff].filter(Boolean).join('\n\n'), { name: step.what }) };
+    const brief = [stripPlaceholders(step.input) || step.what, handoff].filter(Boolean).join('\n\n');
+    // THE RECORD FIRST, THEN THE BUILD (plan 0ae72205, 1 Nov 2026). startBuild
+    // returns a JOB id; this step used to hand that back as if it were a
+    // record id, so awaitRecord found nothing and failed the step at once
+    // ("the record vanished") while the build ran on and filed its receipt
+    // under a different id two minutes after the report had told him it
+    // broke. The plan now files the record the receipt lands on, exactly as
+    // the Coach step does.
+    const created = await createRecord({
+      id: randomUUID().slice(0, 8),
+      kind: 'build',
+      text: `Building: ${step.what}`,
+      source: 'nova',
+      mode: 'auto',
+      status: 'classifying',
+      createdAt: new Date().toISOString(),
+      parentPlanId,
+      buildBrief: brief,
+      buildName: step.what,
+    });
+    try {
+      startBuild(brief, { name: freeProjectName(step.what), recordId: created.id });
+    } catch (e) {
+      await updateRecord(created.id, { status: 'error', error: e.message }).catch(() => {});
+      throw e;
+    }
+    return created;
   }
   throw new Error(`no dispatcher for "${step.capability}"`);
 }
@@ -402,7 +434,10 @@ export function stripPlaceholders(s) {
 async function awaitRecord(id) {
   for (;;) {
     const r = await getRecord(id).catch(() => null);
-    if (!r) return { ok: false, why: 'the record vanished' };
+    // what code saw, said plainly: the step's Inbox record is not there, so
+    // nothing it produced can reach the plan (it used to read "the record
+    // vanished", which told him nothing)
+    if (!r) return { ok: false, why: `its Inbox record${id ? ` (${id})` : ''} could not be found, so the plan never saw what it made` };
     if (r.status === 'error') return { ok: false, why: r.error || 'the agent failed' };
     if (r.status === 'discarded') return { ok: false, why: r.declineReason ? `he stopped it — ${r.declineReason}` : 'he stopped it' };
     if (r.status === 'pending' || r.status === 'resolved' || r.status === 'filed') {
@@ -410,6 +445,46 @@ async function awaitRecord(id) {
     }
     await new Promise((res) => setTimeout(res, POLL_MS));
   }
+}
+
+// A step that is a JOB rather than a record (a Librarian weave). Settled when
+// the job is ready for his review, applied, or failed. `getJob` is injectable
+// for the tests.
+export async function awaitJob(step, { getJob = null, pollMs = POLL_MS } = {}) {
+  const read = getJob || (step.jobLane === 'ingest' ? (await import('./ingest.js')).getJob : null);
+  if (!read) return { ok: false, why: `there is no way to follow a "${step.jobLane}" job` };
+  for (;;) {
+    const j = await read(step.jobId).catch(() => null);
+    if (!j) return { ok: false, why: `its job (${step.jobId}) is gone from the Mac, so the plan never saw what it made` };
+    if (j.status === 'error') return { ok: false, why: j.error || 'the agent failed' };
+    if (j.status === 'undone') return { ok: false, why: 'he undid it' };
+    if (j.status === 'ready' || j.status === 'applied') {
+      const pages = (j.changes || []).map((c) => `- ${c.path}`).join('\n');
+      return { ok: true, output: [j.summary, pages ? `Pages staged for his review:\n${pages}` : ''].filter(Boolean).join('\n\n').slice(0, 24000) };
+    }
+    await new Promise((res) => setTimeout(res, pollMs));
+  }
+}
+
+// THE DOCUMENT, NOT ITS LINK. The Coach writes a long answer as a document and
+// leaves `[[artifact:id]]` in its reply; the plan handed THAT token to the
+// Builder, which then built a mockup of a plan it had never been shown ("the
+// Coach's review only links the full rebuild as [[artifact:8b7f33e1]]; the
+// document wasn't included", its own receipt, 1 Nov 2026). Each token a step
+// produced is replaced by the document it names. `read(id)` is injectable.
+const ARTIFACT_TOKEN = /\[\[artifact:([a-z0-9-]+)\]\]/gi;
+export async function expandArtifactTokens(text, read, { cap = 24000 } = {}) {
+  const src = String(text || '');
+  const ids = [...new Set([...src.matchAll(ARTIFACT_TOKEN)].map((m) => m[1].toLowerCase()))];
+  let out = src;
+  for (const id of ids) {
+    const doc = await Promise.resolve().then(() => read(id)).catch(() => null);
+    const body = String(doc?.body || '').trim();
+    if (!body) continue;
+    const block = `DOCUMENT "${doc.title || id}":\n${body.slice(0, cap)}${body.length > cap ? '\n…(the document continues)' : ''}`;
+    out = out.replace(ARTIFACT_TOKEN, (whole, got) => (got.toLowerCase() === id ? block : whole));
+  }
+  return out;
 }
 
 // What one agent hands the next, and eventually the report. Deliberately the
@@ -509,21 +584,26 @@ export async function resumePlan(vaultPath, recordId) {
         // PARTIAL INPUTS RUN, AND ARE NAMED. See missingInputsNote.
         if (unmet.length) step.missing = unmet;
         try {
-          if (!step.recordId) {
+          if (!step.recordId && !step.jobId) {
             const created = await dispatchStep(vaultPath, step, outputs, record);
             step.recordId = created?.id || null;
+            if (created?.jobId) { step.jobId = created.jobId; step.jobLane = created.jobLane; }
             step.status = 'running';
             step.error = null;
             await updateRecord(recordId, { plan });
           }
-          const settled = await awaitRecord(step.recordId);
+          const settled = step.jobId && !step.recordId ? await awaitJob(step) : await awaitRecord(step.recordId);
+          const output = settled.ok
+            ? await expandArtifactTokens(settled.output, async (id) => (await import('./artifacts.js')).getArtifact(vaultPath, id))
+            : null;
           step.status = settled.ok ? 'done' : 'failed';
-          step.output = settled.ok ? settled.output : null;
-          step.error = settled.ok ? null : settled.why;
-          if (settled.ok) outputs[step.id] = settled.output;
+          step.output = output;
+          // errors say what happened (lib/plainCause.js, his rule 24 Oct)
+          step.error = settled.ok ? null : plainCause(settled.why);
+          if (settled.ok) outputs[step.id] = output;
         } catch (e) {
           step.status = 'failed';
-          step.error = e.message;
+          step.error = plainCause(e);
         }
         await updateRecord(recordId, { plan });
       }));
@@ -542,6 +622,39 @@ export async function resumePlan(vaultPath, recordId) {
   } finally {
     plansRunning.delete(recordId);
   }
+}
+
+// RETRY WHAT FAILED. A finished plan whose steps failed or were skipped runs
+// those steps again, on the same record, and writes a new report; the steps
+// that worked are carried, never paid for twice (resumePlan's own rule). The
+// Retry on the plan's Inbox card lands here (inbox.js retryRecord). Returns the
+// record as it now stands; the run continues in the background.
+export function failedSteps(record) {
+  return (record?.plan?.steps || []).filter((s) => s.status === 'failed' || s.status === 'skipped');
+}
+
+export async function retryFailedSteps(vaultPath, recordId) {
+  const record = await getRecord(recordId);
+  if (!record || record.kind !== 'plan' || !record.plan) throw new Error('that is not a plan');
+  if (!record.planOk) throw new Error('that plan did not pass its checks');
+  if (plansRunning.has(recordId)) throw new Error('that plan is still running');
+  if (!failedSteps(record).length) throw new Error('nothing in that plan failed, so there is nothing to retry');
+  const plan = record.plan;
+  for (const s of plan.steps) {
+    if (s.status !== 'failed' && s.status !== 'skipped') continue;
+    s.status = 'waiting';
+    s.recordId = null;
+    s.jobId = null;
+    s.jobLane = null;
+    s.output = null;
+    s.error = null;
+    delete s.missing;
+  }
+  const updated = await updateRecord(recordId, { plan, status: 'classifying', finishedAt: null, error: null, retriedAt: new Date().toISOString() });
+  resumePlan(vaultPath, recordId).catch(async (e) => {
+    await updateRecord(recordId, { status: 'error', error: plainCause(e) }).catch(() => {});
+  });
+  return updated;
 }
 
 // THE REPORT. A plan without one is just several jobs — this is the step that

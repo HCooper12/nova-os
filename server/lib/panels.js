@@ -521,18 +521,36 @@ export async function buildPanel(vaultPath, directive) {
 //
 // Pure and total: the caller passes the names it knows about, so this can be
 // tested exhaustively without a vault.
+//
+// A NAME IN PASSING IS NOT THE SUBJECT (1 Nov 2026). He asked "Show me a
+// mock-up of what the new program would look like … the four-day split and
+// … a five-day split", and the answer came with a full Cable Bicep Curl card:
+// cues, ways to change it, a volume chart. Nothing he said named that curl.
+// The QUESTION this read was the one the model gets, which the client dresses
+// with what is on his screen ("[On his screen right now — … Cut Cable Bicep
+// Curl from Saturday arms, now …]"), and his "show" plus that card's curl
+// made an exercise panel. The same block carries a glass card's "HRV 112 ms"
+// footnote into every ask, and a pulse panel would follow it. So: only HIS
+// words are read (hisWordsForPanels), an exercise card needs the lift to be
+// the one thing he asked about, a question about the program as a whole or
+// about a hypothetical one never draws a single lift, and a bare mention
+// draws nothing.
 export function inferPanelDirective(question, { routines = [], exercises = [] } = {}) {
-  const q = String(question || '').toLowerCase();
+  const q = hisWordsForPanels(question).toLowerCase();
   if (!q.trim()) return null;
   const has = (re) => re.test(q);
 
-  // An exercise named outright wins — it is the most specific thing he can
-  // ask about. Longest name first so "Incline Dumbbell Bench" is not matched
-  // as plain "Bench".
-  const named = [...exercises]
-    .filter((n) => String(n || '').trim().length >= 4)
-    .sort((a, b) => b.length - a.length)
-    .find((n) => q.includes(String(n).toLowerCase()));
+  // A DRAFT, A MOCK-UP, A WHAT-IF: the subject is a program that does not
+  // exist yet, and every panel here draws his real data. None fits.
+  if (HYPOTHETICAL.test(q)) return null;
+
+  // An exercise named outright — the most specific thing he can ask about.
+  // Longest name first so "Incline Dumbbell Bench" is not matched as plain
+  // "Bench"; every lift he named is counted, because two named lifts are a
+  // comparison or a swap, and one lift's card answers neither.
+  const named = exercisesNamedIn(q, exercises);
+  const one = named.length === 1 ? named[0] : null;
+  const wholeProgram = PROGRAM_WIDE.test(q);
 
   // "my last few X sessions" — the routine view he actually asked for.
   const sessionish = has(/\b(session|workout|training)s?\b/) && has(/\b(recent|last|latest|previous|past|pull up|show|history|few)\b/);
@@ -540,13 +558,16 @@ export function inferPanelDirective(question, { routines = [], exercises = [] } 
     .sort((a, b) => b.length - a.length)
     .find((n) => q.includes(String(n).toLowerCase()));
   if (sessionish) return { panel: 'sessions', ...(routine ? { routine } : {}) };
-  if (routine && has(/\b(how|what|show|pull up|did|been)\b/) && !named) return { panel: 'sessions', routine };
+  if (routine && has(/\b(how|what|show|pull up|did|been)\b/) && !named.length) return { panel: 'sessions', routine };
 
-  if (named && has(/\b(how|what|show|progress|going|lift|heavy|strong|set|rep|weight|e1rm|pr)\b/)) {
-    return { panel: 'exercise', name: named };
+  if (one && !wholeProgram && has(/\b(how|what|show|progress|going|lift|heavy|strong|set|rep|weight|e1rm|pr)\b/)) {
+    return { panel: 'exercise', name: one };
   }
 
-  if (has(/\b(this week|week'?s|schedule|scheduled|training week|split|next session|what am i (doing|training)|rest day)\b/)) {
+  // his current week, for a question ABOUT his current week; a request to
+  // change the program ("cut", "swap", "add an accessory day") is about the
+  // program he wants, which this panel does not show
+  if (has(/\b(this week|week'?s|schedule|scheduled|training week|split|next session|what am i (doing|training)|rest day)\b/) && !CHANGE.test(q)) {
     return { panel: 'training-week' };
   }
   if (has(/\b(protein|calories?|kcal|macros?|carbs?|fats?|nutrition|eaten|ate|eating|diet|deficit|surplus)\b/)) {
@@ -555,6 +576,79 @@ export function inferPanelDirective(question, { routines = [], exercises = [] } 
   if (has(/\b(hrv|sleep|slept|steps?|resting heart|recovery|readiness|weight trend|body ?weight)\b/)) {
     return { panel: 'pulse' };
   }
-  if (named) return { panel: 'exercise', name: named };
+  // the lift and nothing else ("bench press?", "cable bicep curl") is a
+  // question about it; a lift inside a longer sentence that asked none of
+  // the above is a mention
+  if (one && q.replace(one.toLowerCase(), '').split(/\s+/).filter((w) => /\w/.test(w)).length <= 3) return { panel: 'exercise', name: one };
   return null;
+}
+
+// The program, or a version of it, as the subject: a lift named inside such
+// a question is one part of the answer, never the answer.
+const PROGRAM_WIDE = /\b(program|programme|split|layout|routines|(?:four|five|three|six|4|5|3|6)[- ]day|upper[ /-]?lower|days? a week|each day|every day|each workout|every workout|whole week|the week)\b/;
+const CHANGE = /\b(remove|drop|cut|swap|replace|add|change|switch|move|rebuild|work (?:that|it) in)\b/;
+const HYPOTHETICAL = /\b(mock-?ups?|draft|drafts|would look like|what if|example week|new program|new split|new layout|proposed|redesign)\b/;
+
+// Every lift named in his words, longest first, each match taken out of the
+// text so a shorter name inside a longer one is not counted twice.
+export function exercisesNamedIn(text, exercises = []) {
+  let rest = String(text || '').toLowerCase();
+  const out = [];
+  for (const n of [...exercises].filter((x) => String(x || '').trim().length >= 4).sort((a, b) => b.length - a.length)) {
+    const low = String(n).toLowerCase();
+    if (rest.includes(low)) {
+      out.push(n);
+      rest = rest.split(low).join(' ');
+    }
+  }
+  return out;
+}
+
+// HIS WORDS, WITHOUT WHAT THE PLUMBING WRAPPED ROUND THEM. Every block the
+// client or the route prepends opens with "[" and closes with its matching
+// "]" — balanced, because a block can itself hold brackets (a list item's
+// "[note]", a plan's "PLAN [finished, …]"). Leading blocks are cut until his
+// words begin. A block that never closes is left alone rather than eating
+// the question.
+export function hisWordsForPanels(question) {
+  let s = String(question || '');
+  for (;;) {
+    const t = s.replace(/^\s+/, '');
+    if (t.startsWith('LIVE UPDATE (recomputed')) { const nl = t.indexOf('\n'); s = nl === -1 ? '' : t.slice(nl + 1); continue; }
+    if (!t.startsWith('[')) return t.trim();
+    let depth = 0;
+    let end = -1;
+    for (let i = 0; i < t.length; i += 1) {
+      if (t[i] === '[') depth += 1;
+      else if (t[i] === ']') { depth -= 1; if (depth === 0) { end = i; break; } }
+    }
+    if (end === -1) return t.trim();
+    s = t.slice(end + 1);
+  }
+}
+
+// A PANEL THE MODEL ASKED FOR (`SHOW {...}`) passes the same relevance rule.
+// An exercise card is drawn only when that lift is in his words, or is the
+// one lift the answer is about (named in its first sentence, and the only lift
+// it names). A pulse card only when he, or the answer's opening, is about his
+// body's numbers. Everything else the model names is kept. Pure.
+export function panelOnTopic(directive, { question = '', reply = '', exercises = [] } = {}) {
+  const type = String(directive?.panel || '').toLowerCase();
+  const his = hisWordsForPanels(question).toLowerCase();
+  const said = String(reply || '').toLowerCase();
+  const opening = said.split(/(?<=[.!?])\s+/)[0] || '';
+  if (type === 'exercise') {
+    const name = String(directive?.name || '').toLowerCase().trim();
+    if (!name) return false;
+    const known = exercises.find((e) => String(e).toLowerCase() === name) || directive.name;
+    const inHis = his.includes(name) || exercisesNamedIn(his, exercises).some((n) => String(n).toLowerCase() === String(known).toLowerCase());
+    if (inHis) return true;
+    const inReply = exercisesNamedIn(said, exercises);
+    return opening.includes(name) && inReply.length <= 1;
+  }
+  if (type === 'pulse') {
+    const BODY = /\b(hrv|sleep|slept|steps?|resting heart|recovery|readiness|tired|fatigue|body ?weight|weight trend)\b/;
+    return BODY.test(his) || BODY.test(opening);
+  }
+  return true;
 }
