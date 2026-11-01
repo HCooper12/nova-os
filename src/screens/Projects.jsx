@@ -5,6 +5,12 @@ import { Group, GRow } from '../AppleLayout.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Line } from './NovaThread.jsx';
 import { LibraryFlag } from '../LibraryFlag.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { useDictation, reportTurnEnd } from '../useDictation.js';
+import { MicLevel } from '../motion/MicLevel.jsx';
+import '../motion/holdToTalk.css';
+import { haptic } from '../haptics.js';
+import { afterProjectTurn, hearingError, reopenDecision, micTap, micState, MIC_LABEL } from '../projectTalk.js';
 
 // PROJECTS (phase 1, 29 Oct 2026; design/PROJECTS-PLAN.md §4). Absorbs the
 // Code screen: the list is a rail of projects (the next tile peeks), a
@@ -125,24 +131,125 @@ function PhasePath({ phases }) {
 
 // THE PROJECT'S CONVERSATION (T7): the Nova thread's own lines (NovaThread
 // Line), on the ordinary /ask path with this project's context attached.
-function ProjectTalk({ c, name }) {
+//
+// THE MICROPHONE (T6, his ask 1 Nov 2026). The main thread's own machinery:
+// useDictation records and ends the turn on his chosen hold (Nova's own ears
+// on his iPhone: the phone records, the Mac writes it down), the receipt goes
+// to the turn log as surface 'project', and his words go out as a project
+// turn the moment they are heard. A tap while Nova speaks stops the speech
+// (App.stopSpeaking, which reveals rather than eats the unspoken text) and
+// opens the mic. Keep talking reopens it once per answer and goes quiet on
+// the same rule conversation mode uses. What each failure says is
+// src/projectTalk.js's; no line is ever spoken on a timer.
+function MicGlyph({ state }) {
+  if (state === 'transcribing' || state === 'thinking') {
+    return <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle className="nv-pj-mic-spin" cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="30 60" /></svg>;
+  }
+  if (state === 'listening') {
+    return <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2.5" fill="currentColor" /></svg>;
+  }
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ProjectTalk({ c, name, v }) {
+  const [err, setErr] = useState(null);
+  const errRef = useRef(null);
+  const ctxRef = useRef(c);
+  ctxRef.current = c;
+  const infoRef = useRef(null);
+  const emptiesRef = useRef(0);
+  const reopenedFor = useRef(c.answerSeq || 0);
+  const dict = useDictation(
+    () => '',
+    () => {},
+    // the end of his turn: send what was heard, or say plainly it was not
+    (said) => {
+      const cur = ctxRef.current;
+      const info = infoRef.current || {};
+      infoRef.current = null;
+      const r = afterProjectTurn({ words: said, projectId: cur.projectId, info, empties: emptiesRef.current });
+      emptiesRef.current = r.empties;
+      if (r.send) { setErr(null); cur.setHeardLine(null); cur.sendSpoken(r.send.text); return; }
+      if (errRef.current) return; // the failure already said what happened
+      if (r.keep === 'pause' && cur.keepTalking) {
+        cur.setKeepTalking(false);
+        cur.setHeardLine('Nothing heard, so Keep talking is off. Tap the mic when you want to talk.');
+        return;
+      }
+      if (r.line) cur.setHeardLine(r.line);
+    },
+    {
+      holdMs: v.voiceHoldMs,
+      leadMs: v.voiceLeadMs,
+      onError: (e) => { const h = hearingError(e); errRef.current = h; setErr(h); },
+      onTurnEnd: (info) => { infoRef.current = info; reportTurnEnd('project', v.voiceHold, info); },
+      keepMic: () => !!ctxRef.current.keepTalking,
+    },
+  );
+  // this page owns a microphone while it records: the wake word must not fight it
+  const reportMic = c.reportMic;
+  useEffect(() => { reportMic?.(dict.on); }, [dict.on]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { reportMic?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // KEEP TALKING: once per finished answer, after Nova has gone quiet
+  const toggle = dict.toggle;
+  useEffect(() => {
+    const d = reopenDecision({ keepTalking: c.keepTalking, answerId: c.answerSeq || null, reopenedFor: reopenedFor.current, busy: c.busy, speaking: c.novaSpeaking, listening: dict.on, hearing: dict.hearing });
+    if (d !== 'reopen') return undefined;
+    // the 300 ms the main thread waits, so Nova's last syllable is not his first word
+    const t = setTimeout(() => { reopenedFor.current = c.answerSeq; errRef.current = null; setErr(null); toggle({ trigger: 'auto' }); }, 300);
+    return () => clearTimeout(t);
+  }, [c.keepTalking, c.answerSeq, c.busy, c.novaSpeaking, dict.on, dict.hearing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const preview = import.meta.env.DEV && typeof window !== 'undefined' ? window.__projectMicPreview || null : null;
+  const state = preview || micState({ supported: dict.supported, offline: c.offline, on: dict.on, hearing: dict.hearing, speaking: c.novaSpeaking, busy: c.busy, error: err });
+  const canTap = !c.offline && dict.supported && state !== 'transcribing';
+  const tap = () => {
+    if (!canTap) return;
+    const t = micTap({ on: dict.on, speaking: c.novaSpeaking });
+    if (t.stopSpeech) c.stopSpeaking();
+    if (!dict.on) { errRef.current = null; setErr(null); c.setHeardLine(null); haptic('tick'); }
+    toggle();
+  };
+  const keepTalking = (on) => {
+    c.setKeepTalking(on);
+    if (on) { reopenedFor.current = c.answerSeq || 0; emptiesRef.current = 0; if (!dict.on && canTap) { if (c.novaSpeaking) c.stopSpeaking(); toggle({ trigger: 'conv-start' }); } }
+  };
+  const line = state === 'error' ? err?.line : MIC_LABEL[state];
+  const tone = state === 'listening' ? 'var(--nv-cy)' : state === 'error' ? 'var(--nv-warn)' : state === 'speaking' ? 'var(--nv-vi)' : 'var(--nv-ink60)';
   return (
     <div className="nv-pj-talk">
       {c.lines.length ? (
         <div className="nv-nt-thread">
           {c.lines.map((m, i) => <Line key={`${m.at}-${i}`} i={i} m={m} fresh={i === c.lines.length - 1} onHold={null} onOpen={() => {}} onReplay={() => {}} />)}
         </div>
-      ) : <Meta>Ask anything about {name}. Nova answers from its brief, its log and the pages it may read.</Meta>}
-      {c.speaking && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-          <span style={{ font: `600 12px ${UI}`, color: c.voiceOff ? 'var(--nv-ink60)' : 'var(--nv-cy)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {!c.voiceOff && <span className="nv-pj-live" />}{c.voiceOff ? 'Voice is off in Settings, so Nova answers in text' : 'Nova speaks his answers here'}
-          </span>
-          <TextAction onClick={() => c.setSpeaking(false)}>{c.voiceOff ? 'Done' : 'Quiet'}</TextAction>
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '14px', minWidth: 0 }}>
-        <textarea value={c.text} onChange={c.set} rows={1} placeholder={`Ask Nova about ${name}`} aria-label={`Ask Nova about ${name}`}
+      ) : <Meta>Ask anything about {name}, by voice or typed. Nova answers from its brief, its log and the pages it may read.</Meta>}
+      {c.heardLine && state === 'idle' && <div className="nv-deck-rise" style={{ marginTop: '10px', font: `500 13px ${UI}`, color: 'var(--nv-ink60)' }}>{c.heardLine}</div>}
+      <div className="nv-pj-micbar" data-state={state} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px', minWidth: 0, flexWrap: 'wrap', minHeight: '30px' }}>
+        <span key={state} className="nv-deck-rise" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: '1 1 120px', font: `600 12.5px ${UI}`, color: tone }}>
+          {state === 'listening' && <span className="nv-pj-lv"><MicLevel /></span>}
+          {(state === 'speaking' || state === 'listening') && <span className="nv-pj-live" style={state === 'speaking' ? { background: 'var(--nv-vi)' } : undefined} />}
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere', fontWeight: state === 'error' ? 500 : 600 }}>{line}</span>
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', flex: 'none' }}>
+          {c.speaking && !c.voiceOff && !c.keepTalking && <TextAction onClick={() => c.setSpeaking(false)}>Quiet</TextAction>}
+          {!c.offline && (dict.supported || preview) && (
+            <Chip active={c.keepTalking} onClick={() => keepTalking(!c.keepTalking)} title="Nova opens the mic again after each answer, until you go quiet">Keep talking</Chip>
+          )}
+        </span>
+      </div>
+      {c.voiceOff && (c.speaking || c.keepTalking) && <div style={{ marginTop: '6px' }}><Meta>Voice is off in Settings, so Nova answers in text.</Meta></div>}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '10px', minWidth: 0, alignItems: 'flex-end' }}>
+        <Interactive as="button" type="button" className="nv-pj-mic" data-state={state} onClick={canTap ? tap : undefined}
+          aria-label={state === 'listening' ? 'Stop and send' : state === 'speaking' ? 'Stop Nova and talk' : `Talk to Nova about ${name}`}
+          aria-pressed={state === 'listening'} disabled={!canTap}>
+          <MicGlyph state={state} />
+        </Interactive>
+        <textarea value={c.text} onChange={c.set} rows={1} placeholder={state === 'listening' ? 'Listening…' : 'Type, or tap the mic'} aria-label={`Ask Nova about ${name}`}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); c.send(); } }}
           style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', resize: 'none', background: 'var(--nv-well)', color: 'var(--nv-ink)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '20px', padding: '10px 14px', font: `400 16px/1.4 ${UI}`, outline: 'none' }} />
         <Button onClick={c.text.trim() && !c.busy ? c.send : undefined} disabled={!c.text.trim() || c.busy} style={{ flex: 'none' }}>{c.busy ? 'Asking' : 'Ask'}</Button>
@@ -259,7 +366,7 @@ function Section({ summary, label, trailing, children }) {
   );
 }
 
-function ProjectPage({ pg, summary }) {
+function ProjectPage({ pg, summary, v }) {
   if (pg.missing) {
     return (<div><TextAction onClick={pg.back}>‹ Projects</TextAction><div style={{ marginTop: '16px' }}><Meta>That project is not on this Mac.</Meta></div></div>);
   }
@@ -296,7 +403,7 @@ function ProjectPage({ pg, summary }) {
       {pg.research && <ResearchSection r={pg.research} summary={summary} name={p.name} />}
 
       <Section summary={summary} label={`Talk to Nova about ${p.name}`}>
-        <ProjectTalk c={pg.conversation} name={p.name} />
+        <ProjectTalk c={pg.conversation} name={p.name} v={v} />
       </Section>
 
       <Section summary={summary} label="Phases"><PhasePath phases={pg.phases} /></Section>
@@ -381,7 +488,7 @@ export function Projects({ v }) {
   const summary = !!v.summary;
   return (
     <div style={v.wrapStash} data-screen-label="Projects">
-      {P.page ? <ProjectPage pg={P.page} summary={summary} /> : (
+      {P.page ? <ProjectPage pg={P.page} summary={summary} v={v} /> : (
         <>
           <ScreenHead numeral="IV." label="Projects" />
           <h1 style={{ margin: '14px 0 0', font: `700 28px/1.15 ${UI}`, letterSpacing: 'var(--nv-display-track)' }}>

@@ -6770,7 +6770,9 @@ export default class App extends Component {
     push({ who: 'you', text, at });
     this.setState(opts.text != null ? { projectAskBusy: true } : { projectAskText: '', projectAskBusy: true });
     const sid = opts.docRef ? null : ((this.state.projectSessions || {})[id] || null);
-    const speaking = !!(this.state.voiceSpeak && (this.state.projectSpeaking || {})[id]);
+    // a SPOKEN turn (the page's microphone) is answered aloud, like Tell me
+    if (opts.spoken) this.setState((s) => ({ projectSpeaking: { ...(s.projectSpeaking || {}), [id]: true } }));
+    const speaking = !!(this.state.voiceSpeak && ((this.state.projectSpeaking || {})[id] || opts.spoken));
     const voice = { upTo: 0 };
     const sayNew = (reply, final) => {
       if (!speaking || this.state.projectOpen !== id) return;
@@ -6787,11 +6789,12 @@ export default class App extends Component {
     const done = (reply, sessionId) => {
       settle({ text: reply, streaming: false, typing: false });
       sayNew(reply, true);
-      this.setState((s) => ({ projectAskBusy: false, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
+      // answerSeq: Keep talking reopens the mic once per finished answer
+      this.setState((s) => ({ projectAskBusy: false, projectAnswerSeq: { ...(s.projectAnswerSeq || {}), [id]: ((s.projectAnswerSeq || {})[id] || 0) + 1 }, ...(sessionId ? { projectSessions: { ...s.projectSessions, [id]: sessionId } } : {}) }));
       api.saveConversation(conn, [{ who: 'you', text, at, via: 'app', projectId: id }, { who: 'nova', text: reply, at: new Date().toISOString(), via: 'app', projectId: id }]).catch(() => {});
     };
     const fail = (msg) => { settle({ who: 'system', text: msg, streaming: false }); this.setState({ projectAskBusy: false }); };
-    api.ask(conn, text, sid, { projectId: id, ...(opts.docRef ? { docRef: opts.docRef } : {}), ...(speaking ? { spoken: true } : {}) })
+    api.ask(conn, text, sid, { projectId: id, ...(opts.docRef ? { docRef: opts.docRef } : {}), ...(speaking || opts.spoken ? { spoken: true } : {}) })
       .then((resp) => {
         if (resp.text) { done(resp.text, resp.sessionId || sid); return; }
         if (!resp.jobId) { fail('Nova could not take that one. Try again.'); return; }
@@ -6859,6 +6862,14 @@ export default class App extends Component {
       .then(() => { haptic('commit'); this.toastMsg(`Watching ${urls.length} for the project, one at a time`); })
       .catch((e) => this.toastMsg(e.message || 'That did not start'))
       .finally(() => { this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [recordId]: false } })); this.refreshInbox(); if (this.state.projectOpen) this.loadProject(this.state.projectOpen); });
+  }
+  // KEEP TALKING (T6): the project page's microphone reopens after each answer
+  setProjectKeepTalking(projectId, on) {
+    if (on && this.state.voiceSpeak) this.primeSpeech();
+    this.setState((s) => ({
+      projectKeepTalking: { ...(s.projectKeepTalking || {}), [projectId]: !!on },
+      ...(on ? { projectSpeaking: { ...(s.projectSpeaking || {}), [projectId]: true } } : {}),
+    }));
   }
   setProjectSpeaking(projectId, on) {
     if (!on) this.resetTtsQueue();
