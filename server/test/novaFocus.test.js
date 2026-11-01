@@ -130,7 +130,7 @@ test('App feeds the clock at the instant each sentence\'s audio starts, on every
   assert.match(app, /this\.noteSpeechHeard\(\);\n[\s\S]{0,200}noteSpokenSentence\(head\.said, Number\.isFinite\(audio\.duration\) \? audio\.duration \* 1000 : null, \{ stance: head\.stance \}\);/);
   // the phone's own voice: as the utterance starts, estimated
   assert.match(app, /u\.onstart = \(\) => noteSpokenSentence\(text, null, \{ stance \}\);/);
-  assert.match(app, /stopSpeaking\(\) \{\n\s*cutSpeech\(\);/);
+  assert.match(app, /stopSpeaking\(opts\) \{\n\s*cutSpeech\(\);/);
   assert.match(app, /this\.resetGlass\(\);[^\n]*\n\s*beginReply\(\);/);
 });
 

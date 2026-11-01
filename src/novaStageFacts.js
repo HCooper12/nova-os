@@ -22,6 +22,8 @@
 //             only in the history view, beside "Stage", never at rest.
 //   briefMe — false: no Brief me (or ritual) pill on the stage; saying
 //             "brief me" still works.
+import { heardUpTo } from './interruptTurn.js';
+
 export const ONE_NOVA_CHROME = { tabBar: false, attach: true, status: true, briefMe: false };
 
 // ------------------------------------------------------------ the stage --
@@ -94,6 +96,8 @@ export function stageState(key, { contest = false } = {}) {
 // Nova's answer after them (none yet if he has not been answered: an older
 // answer is never shown as this one's). Text only, whitespace folded; the index lets a tap find
 // the line in the history. A line still arriving is not shown half-said.
+// A line he CUT INTO (1 Nov 2026) is shown as far as he heard it: up to the
+// sentence his voice came in on, then "…" (src/interruptTurn.js heardUpTo).
 export function lastExchange(lines) {
   const list = lines || [];
   const text = (m) => String(m?.text || '').replace(/\s+/g, ' ').trim();
@@ -102,7 +106,8 @@ export function lastExchange(lines) {
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
     if (!m || !text(m)) continue;
-    if (m.who === 'nova' && !nova && !m.streaming && !you) nova = { i, who: m.agent || 'Nova', text: text(m) };
+    // a line he cut into ends where his voice came in (src/interruptTurn.js)
+    if (m.who === 'nova' && !nova && !m.streaming && !you) nova = { i, who: m.agent || 'Nova', text: m.interrupted?.inAir ? heardUpTo(text(m), m.interrupted.inAir) : text(m) };
     else if (m.who === 'you' && !you) { you = { i, text: text(m) }; break; }
   }
   return { you, nova };

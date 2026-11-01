@@ -17,6 +17,11 @@ import { readSectionsSync } from './profile.js';
 // the model reads. The MORE line is a shared format: src/turnFold.js folds it
 // on the server and cuts it from the stream on the client. Change both or
 // neither.
+// HE CUTS IN (1 Nov 2026, his words: "if what it was going to continue saying
+// ... would contradict anything that I said during my interruption, it should
+// just make that clear to me"). The last line is the other half of
+// src/interruptTurn.js: code writes the bracket (what he heard, what was not
+// said), this line says what to do with it. Change them together.
 
 export const TURN_TAKING = `HOW YOU TAKE A TURN — this outranks any longer habit above:
 - A REPLY IS ONE TURN IN A CONVERSATION, NOT A BRIEFING. Say the answer, or ask the one thing you need, then stop and let him talk. Most turns are one or two sentences. Jarvis answers in about eight words; that is the feel.
@@ -29,7 +34,7 @@ export const TURN_TAKING = `HOW YOU TAKE A TURN — this outranks any longer hab
 - SPOKEN, NOT READ. Code says at most about sixty words of your turn aloud (more only when he asked for depth) and holds the rest for "go on". Put what he must hear first.
 - HIS CLOCK, NOT THE FILE'S. A stamp ending in Z (2026-11-01T04:13:57Z) is UTC. He is in Melbourne, 10 or 11 hours ahead. Say a time in his local time (a document's created_local), or do not say it.
 - WARN ONCE, IN ONE SENTENCE, then do what he asked. Do not argue the same point twice.
-- IF HE CUTS IN, follow him. Never restart what he stopped.`;
+- IF HE CUTS IN, take in what he said first. Code tells you what he heard and what you had not said. Finish what still stands, briefly; what is now wrong you retract in one plain line; never repeat what he heard.`;
 
 // HOW HE WANTS TO BE TALKED TO (27 Oct 2026, his ask: "ensure Nova is
 // undoubtedly referring to and using all of this information"). The "How to

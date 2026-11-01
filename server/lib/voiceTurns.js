@@ -42,7 +42,11 @@ const TURNS_PATH = () => path.join(TURNS_DIR(), 'turns.json');
 // 'tap', 'hidden', 'mic-timeout' (18 Oct 2026): his own tap (it was logged as
 // 'engine', which read as the engine failing), the screen going away mid-turn
 // (lock, app switch), and a microphone that never opened (src/useDictation.js).
-export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'barge-in', 'tap', 'hidden', 'mic-timeout', 'unknown']);
+// 'barge-skip' (1 Nov 2026): Nova's own ears read his voice over Nova's and
+// judged it NOT him (echo, the room, one stray word); src/bargeListen.js. Not
+// a turn either: with it, a phone that never barges can be told from one
+// that never hears.
+export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'barge-in', 'barge-skip', 'tap', 'hidden', 'mic-timeout', 'unknown']);
 // 'ask' (15 Oct 2026): one row per question sent, carrying how long he waited
 // for the ack, the first words and the first sound (scripts/voice-latency.mjs
 // reads them back). Its `reason` is 'unknown': an ask is not a turn ending.
@@ -100,6 +104,11 @@ export function listenFields(body = {}) {
   if (body.micReopened === true) out.micReopened = true;
   if (MIC_ROUTES.has(body.micRoute)) out.micRoute = body.micRoute;
   if (MIC_KEPT.has(body.micKept)) out.micKept = body.micKept;
+  // HE CUT IN (1 Nov 2026, src/interruptTurn.js): this ask carried the note
+  // of a reply he cut into; and, on a barge row, how much of what was heard
+  // was Nova's own words (bargeIn.echoScore, 0..1)
+  if (body.interrupted === true) out.interrupted = true;
+  if (typeof body.echo === 'number' && Number.isFinite(body.echo) && body.echo >= 0 && body.echo <= 1) out.echo = Math.round(body.echo * 100) / 100;
   return out;
 }
 const MIC_ROUTES = new Set(['builtin', 'bluetooth', 'unknown']);

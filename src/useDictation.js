@@ -10,6 +10,9 @@ import { tapOnOpenMic, isEmptyCapture, openedTurn, micWait, stallOf, holdAsDraft
 import { takeListen, noteListenEnd, novaSpeakingNow } from './listenCause.js';
 import { haptic } from './haptics.js';
 import { giveBackMic, warmHeld, dropWarm, micRoute } from './warmMic.js';
+import { bargeInDecision, echoScore } from './bargeIn.js';
+import { vadBlind } from './vad.js';
+import { openBurst, stepBurst, burstDue, rewindDue, carryHeard, keepCarry, skipReceiptDue, earWanted } from './bargeListen.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -73,7 +76,20 @@ export const speechRecognitionSupported = () => typeof window !== 'undefined'
 
 // The same rail, for the moment he talks OVER Nova rather than the moment his
 // turn ends — see server/lib/voiceTurns.js for why they are read together.
-export function reportBargeIn(heard, why) {
+// `extra` (1 Nov 2026): what Nova's own ears add to the row ({ engine:
+// 'nova', echo, vad, bytes, txMs }), so his phone's barge-ins can be told
+// from the Mac's and a false one read by how much of it was echo.
+export function reportBargeIn(heard, why, extra = null) {
+  postBargeRow('barge-in', heard, why, extra);
+}
+// …and the reads that were NOT him (reason 'barge-skip'): Nova's own voice
+// through the speaker, the room, a word or two. Only Nova's own ears write
+// these; without them a phone that never barges cannot be told from one
+// that never hears.
+export function reportBargeSkip(heard, why, extra = null) {
+  postBargeRow('barge-skip', heard, why, extra);
+}
+function postBargeRow(reason, heard, why, extra) {
   const conn = getConnection();
   if (!conn) return;
   try {
@@ -81,10 +97,19 @@ export function reportBargeIn(heard, why) {
       method: 'POST',
       keepalive: true,
       headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: 'barge-in', surface: 'barge', heard: true, ms: 0, restarts: 0, why, text: heard, ua: navigator.userAgent }),
+      body: JSON.stringify({ ...(extra || {}), reason, surface: 'barge', heard: true, ms: 0, restarts: 0, why, text: heard, ua: navigator.userAgent }),
     }).catch(() => {});
   } catch { /* a receipt must never be in the way of the conversation */ }
 }
+
+// ONE EAR AT A TIME. Two surfaces can hold the hook at once (the Nova page
+// and the presence overlay); only one may listen while Nova speaks. And a
+// turn that opens (his tap on the core while Nova talks) stops the ear
+// FIRST, on the same tick: the ear's effect would only stop it after the
+// next render, and by then the turn would be recording on the same stream.
+let earOwner = null;
+let earStopNow = null;
+const stopEar = () => { try { earStopNow?.(); } catch { /* already stopped */ } };
 
 // "LISTENING, GO AHEAD" (18 Oct 2026). A tap on a mic that has heard nothing
 // keeps the turn open (src/listenRules.js tapOnOpenMic); the hook calls
@@ -137,7 +162,14 @@ const sessionType = () => {
 // spoken conversation is still going. While it does, and he opened the mic
 // himself, the stream outlives the turn and the next one records on it at
 // once; the moment it does not, the stream is let go.
-export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept, judge = true, getAsked = null, onSound = null, keepMic = null } = {}) {
+// THE EAR WHILE NOVA SPEAKS (1 Nov 2026, src/bargeListen.js): `bargeListen`
+// is App's barge-in view model ({ on, speaking, micBusy, sayingNow(), fire(
+// text, why, info), listening(on) }, vals/valsChrome.js). On Nova's own ears,
+// in a conversation he opened, while Nova speaks and no turn is live, the
+// hook records on the held stream and reads each burst of speech; a read
+// that is him (src/bargeIn.js) is handed to `fire`, which stops Nova and
+// opens his turn with those words.
+export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept, judge = true, getAsked = null, onSound = null, keepMic = null, bargeListen = null } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const saidRef = useRef('');      // words from earlier engines in THIS turn
@@ -665,6 +697,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   };
 
   const startNova = (trigger = 'tap') => {
+    stopEar();   // his turn's microphone, never beside the ear's
     baseRef.current = getBase();
     saidRef.current = '';
     finalsRef.current = '';
@@ -718,6 +751,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   };
 
   const startTurn = (trigger = 'tap') => {
+    stopEar();
     metaRef.current = newMeta(trigger, Date.now());
     baseRef.current = getBase();
     saidRef.current = '';
@@ -830,6 +864,99 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   });
   // leaving the surface lets it go too
   useEffect(() => () => { dropWarm('left', ownerRef.current); }, []);
+
+  // ---- THE EAR WHILE NOVA SPEAKS (src/bargeListen.js) ---------------------
+  const blRef = useRef(bargeListen);
+  blRef.current = bargeListen;
+  const earOn = earWanted({
+    on: !!bargeListen?.on, speaking: !!bargeListen?.speaking, engine,
+    turnLive: on || hearing, micBusy: !!bargeListen?.micBusy, conversing: keepMicNow(),
+  });
+  useEffect(() => {
+    if (!earOn) return undefined;
+    return startEar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [earOn]);
+
+  // Returns the stop. Every exit gives the stream back through warmMic (the
+  // recorder's release), so the conversation keeps it for his next turn.
+  function startEar() {
+    const owner = ownerRef.current;
+    if (earOwner && earOwner !== owner) return undefined;   // another surface is listening
+    earOwner = owner;
+    const ear = { alive: true, handle: null, burst: openBurst(), lastReadAt: null, pending: false, clipAt: null, carry: null, skips: 0 };
+    const tell = (fn) => { try { fn?.(); } catch { /* the surface's business */ } };
+    tell(() => blRef.current?.listening?.(true));
+    const stop = () => {
+      if (earStopNow === stop) earStopNow = null;
+      if (!ear.alive) return;
+      ear.alive = false;
+      if (earOwner === owner) earOwner = null;
+      try { ear.handle?.cancel(); } catch { /* already gone */ }   // → giveBackMic
+      ear.handle = null;
+      tell(() => blRef.current?.listening?.(false));
+    };
+    earStopNow = stop;
+    const saying = () => { try { return String(blRef.current?.sayingNow?.() || ''); } catch { return ''; } };
+    const read = (handle) => {
+      const at = Date.now();
+      ear.pending = true;
+      ear.lastReadAt = at;
+      ear.burst = { ...ear.burst, read: true };
+      let bytes = 0;
+      Promise.resolve(handle.peek()).then((blob) => {
+        if (!blob || blob.size < 1024) throw new Error('nothing to read yet');
+        bytes = blob.size;
+        return transcribeRecording(blob, { vad: 'heard', timeoutMs: 6000 });
+      }).then((tx) => {
+        if (!ear.alive) return;
+        const now = Date.now();
+        const heard = carryHeard({ carry: ear.carry, text: tx.text, now });
+        const said = saying();
+        const d = bargeInDecision(heard, said);
+        const info = { engine: 'nova', echo: echoScore(heard, said), vad: 'heard', bytes, txMs: tx.ms };
+        if (d.barge) {
+          // the ear lets the microphone go FIRST, so the turn this opens
+          // records on the same held stream, never on a second one
+          stop();
+          try { blRef.current?.fire?.(heard, d.why, info); } catch { /* App's business */ }
+          return;
+        }
+        if (heard && skipReceiptDue(ear.skips)) { ear.skips += 1; reportBargeSkip(heard, d.why, info); }
+        ear.carry = keepCarry({ heard, saying: said, now });
+        // the next read holds only what comes after this one
+        Promise.resolve(handle.rewind?.()).then((ok) => { if (ok) ear.clipAt = Date.now(); });
+      }).catch(() => { /* a failed read is a read that said nothing */ })
+        .finally(() => { ear.pending = false; });
+    };
+    openRecording({
+      warm: {
+        owner,
+        trigger: 'barge-listen',   // not his: warmMic does not count this as him opening the mic
+        release: (stream) => { giveBackMic(stream, { owner, conversing: keepMicNow() }); },
+      },
+      onLevel: (vad) => {
+        const handle = ear.handle;
+        if (!ear.alive || !handle) return;
+        const now = Date.now();
+        ear.burst = stepBurst(ear.burst, { speaking: !!vad.speaking, now });
+        const b = ear.burst;
+        if (burstDue({ speakingMs: b.speechMs, lastReadAt: ear.lastReadAt, now, blind: vadBlind(vad), ended: b.ended, readThisBurst: b.read, pending: ear.pending })) { read(handle); return; }
+        if (rewindDue({ clipAt: ear.clipAt, now, inBurst: b.start !== null && !b.ended, pending: ear.pending })) {
+          ear.clipAt = now;
+          Promise.resolve(handle.rewind?.()).catch(() => {});
+        }
+      },
+    }).then((handle) => {
+      if (!ear.alive) { handle.cancel(); return; }   // Nova stopped before the mic opened
+      ear.handle = handle;
+      ear.clipAt = Date.now();
+    }).catch(() => {
+      // no microphone for the ear: Nova talks on, and a tap still stops him
+      if (ear.alive) stop();
+    });
+    return stop;
+  }
 
   // Leaving the screen mid-turn used to leave the recogniser running; with a
   // clock behind it that would also leave an interval ticking forever.

@@ -47,7 +47,12 @@ export function echoScore(heard, saying) {
 // words, said over the top, and they carry no content words at all, so the
 // evidence test above would throw them away. They are allowed through on their
 // own, unless Nova is in the middle of saying them.
-const INTERRUPTIONS = /^\s*(?:no[,\s]+no|no way|stop|wait|hang on|hold on|hold up|shut up|enough|pause|actually|hold the phone)\b/i;
+// A CORRECTION IS AN INTERRUPTION TOO (1 Nov 2026, his words: "I should be
+// able to interrupt it mid sentence and say 'no you are mistaken. Do it this
+// way instead.'"). "No, you're mistaken" carries one content word, so the
+// evidence test below threw it away; the phrases a person corrects with pass
+// on their own, under the same rule.
+const INTERRUPTIONS = /^\s*(?:no[,\s]+no|no way|stop|wait|hang on|hold on|hold up|shut up|enough|pause|actually|hold the phone|(?:no[,\s]+)?(?:you(?:'re| are)|that(?:'s| is)) (?:wrong|mistaken|not right)|no[,\s]+(?:that(?:'s| is) not|not that))\b/i;
 
 // The bar for ordinary speech: at least this many content words that Nova is
 // NOT saying. One stray word misheard out of the room is not an interruption;
@@ -68,10 +73,13 @@ export function bargeInDecision(heard, saying) {
   if (!text) return { barge: false, why: 'nothing heard' };
   const saidWords = new Set(contentWords(saying));
 
-  if (INTERRUPTIONS.test(text)) {
-    // ...unless that is what Nova is in the middle of saying
-    const first = contentWords(text)[0];
-    if (first && saidWords.has(first)) return { barge: false, why: `"${first}" is a word Nova is saying` };
+  const phrase = text.match(INTERRUPTIONS);
+  if (phrase) {
+    // ...unless that is what Nova is in the middle of saying: every content
+    // word of the phrase is one Nova is saying ("stop", or "you're mistaken")
+    const words = contentWords(phrase[0]);
+    const echoed = words.length && words.every((w) => saidWords.has(w));
+    if (echoed) return { barge: false, why: `"${words.join(' ')}" is what Nova is saying` };
     return { barge: true, why: 'an interruption word' };
   }
 

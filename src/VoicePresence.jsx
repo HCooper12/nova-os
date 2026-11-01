@@ -58,6 +58,8 @@ export function VoicePresence({ v }) {
       onNudge: nudge,
       // the stream stays warm between turns while the conversation runs (src/warmMic.js)
       keepMic: () => s.micConversation?.(),
+      // his voice over Nova's, heard by Nova's own ears on the iPhone (src/bargeListen.js)
+      bargeListen: v.bargeIn,
     },
   );
   const dictRef = useRef(dict);

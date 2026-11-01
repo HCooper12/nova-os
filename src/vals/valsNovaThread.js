@@ -57,6 +57,9 @@ export function valsNovaThread(app, ctx, v) {
     return {
       at: m.at, who, agent: AGENT[m.who] || null, text, brief: m.brief || null, ask: !!m.briefAsk,
       typing: !!m.typing, streaming: !!m.streaming,
+      // HE CUT IN (1 Nov 2026): where his voice came in, so the stage shows
+      // only what he heard (novaStageFacts.lastExchange)
+      interrupted: who === 'nova' && m.interrupted?.inAir ? { inAir: m.interrupted.inAir } : null,
       time: Number.isFinite(m.at) ? clock(m.at) : null,
       where: [Number.isFinite(m.at) ? whereLabel(m, { device: THIS_DEVICE }) : null, providerNote(m), receiptNote(m)].filter(Boolean).join(' · ') || null,
       via: m.via || null, on: m.on || null,

@@ -107,7 +107,14 @@ export function notifValue(pushState, quiet) {
 // microphone open; <WakeWord> carries barge-in and mounts only while the wake
 // word is on, so Talk over cannot run without it. It reads off, it is dimmed,
 // and the line under it says why, whatever its own stored value is.
-export function talkOver({ supported = true, wakeOn = false, bargeOn = false } = {}) {
+// …EXCEPT ON NOVA'S OWN EARS (1 Nov 2026, src/bargeListen.js): there the
+// conversation's own microphone listens while Nova speaks, so Talk over
+// needs neither the wake word nor the browser's speech engine. `ownEars` is
+// the hearing this device resolved to being 'nova' (his iPhone).
+export function talkOver({ supported = true, wakeOn = false, bargeOn = false, ownEars = false } = {}) {
+  if (ownEars) {
+    return { checked: !!bargeOn, disabled: false, sub: 'Start talking while Nova speaks and he stops to listen. In a conversation, Nova’s own ears listen while he talks.', why: '' };
+  }
   if (!supported) {
     return { checked: false, disabled: true, sub: 'This browser has no speech recognition, so this can’t run here.', why: 'This browser has no speech recognition, so Talk over can’t run here' };
   }

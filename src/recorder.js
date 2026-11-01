@@ -46,15 +46,17 @@ export async function openRecording({ onLevel, warm = null } = {}) {
   const stream = got.stream;
   if (warm) markInUse(stream, true);
   const type = pickRecordingType((t) => window.MediaRecorder.isTypeSupported?.(t));
+  const makeRec = () => (type ? new window.MediaRecorder(stream, { mimeType: type }) : new window.MediaRecorder(stream));
   let rec;
   try {
-    rec = type ? new window.MediaRecorder(stream, { mimeType: type }) : new window.MediaRecorder(stream);
+    rec = makeRec();
   } catch (e) {
     if (warm?.release) { markInUse(stream, false); warm.release(stream); } else stream.getTracks().forEach((tr) => tr.stop());
     throw e;
   }
   const chunks = [];
-  rec.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
+  const onChunk = (e) => { if (e.data?.size) chunks.push(e.data); };
+  rec.ondataavailable = onChunk;
   rec.start(1000);   // a slice a second: a crash mid-turn loses a second, not the turn
 
   // THE METER, sampled on a timer (not rAF, which stops when the screen
@@ -155,6 +157,36 @@ export async function openRecording({ onLevel, warm = null } = {}) {
         rec.addEventListener?.('dataavailable', onData);
         try { rec.requestData(); } catch { finish(); }
         setTimeout(finish, 400);   // an encoder that never answers: what we have
+      });
+    },
+    // THE CLIP STARTS AGAIN, ON THE SAME MICROPHONE (1 Nov 2026). The ear
+    // that listens while Nova speaks (src/bargeListen.js) reads only the
+    // seconds since its last read, not the whole reply: the recorder is
+    // stopped and a fresh one started on the same stream, so the next slice
+    // carries its own header (WebM or fragmented MP4) and every peek after
+    // it is a playable file. The stream itself is never let go. Resolves
+    // true when the new recorder is running; false when the handle is done.
+    rewind() {
+      if (stopped || rec.state === 'inactive') return Promise.resolve(false);
+      return new Promise((resolve) => {
+        const old = rec;
+        let done = false;
+        const next = () => {
+          if (done) return;
+          done = true;
+          if (stopped) { resolve(false); return; }
+          chunks.length = 0;
+          try {
+            rec = makeRec();
+            rec.ondataavailable = onChunk;
+            rec.start(1000);
+            resolve(true);
+          } catch { resolve(false); }
+        };
+        old.ondataavailable = null;   // the old clip's last slice is not the new clip's
+        old.onstop = next;
+        try { old.stop(); } catch { next(); }
+        setTimeout(next, 400);        // an encoder that never says it stopped
       });
     },
     // Abandon: the mic is released and nothing is kept.

@@ -133,6 +133,7 @@ import { reportBargeIn, reportTurnEnd } from './useDictation.js';
 import { markListen, lastListenEnd, noteNovaSpeaking, novaSpeakingNow } from './listenCause.js';
 import { isContinuation, continueWindowClosed, isCorrection, stripEcho, FIX_MS } from './turnSense.js';
 import { echoScore, contentWords } from './bargeIn.js';
+import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, capUnsaid } from './interruptTurn.js';
 import { countsAsEmpty, afterEmpty } from './listenRules.js';
 import { runMicCheck } from './micCheck.js';
 import { applyTrainToday, todayPlanFor } from './trainToday.js';
@@ -8055,6 +8056,9 @@ export default class App extends Component {
     // 14 Sep. The job id, not a boolean, so a late delivery from an older
     // job cannot clear a newer one's flag.
     this.replyStreaming = jobId;
+    // the rest this reply holds for "go on", known once it lands; until then
+    // a cut has none to carry (App.captureCut)
+    this.replyHeldInAir = '';
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
     // — Nova starts talking while still thinking, like a person does.
@@ -8095,6 +8099,10 @@ export default class App extends Component {
       // if the continuation lands (App.claimContinuation / sendContinuation)
       if (turn && this.lastSent?.claimed && this.lastSent.turn === turn) return;
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
+      // HE CUT INTO THIS REPLY (1 Nov 2026): what it is still writing is
+      // shown, never spoken over him; the note his next ask carries says it
+      // was not heard (App.keepInterrupt, below at delivery)
+      if (this.cutJob && this.cutJob === jobId) { onPlay(); return; }
       // the reply's first sound, stamped when its audio really starts
       const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); } : null;
       // What is SPOKEN is stripped of markdown; what is stored stays raw, so
@@ -8132,6 +8140,8 @@ export default class App extends Component {
         ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),
         ...(turn.preAskSlowest ? { preAskSlowest: turn.preAskSlowest } : {}),
         droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
+        // this ask carried the note of a reply he cut into (interruptTurn.js)
+        ...(turn.interrupted ? { interrupted: true } : {}),
       });
     };
     const speakNewSentences = (text, flushAll) => {
@@ -8345,7 +8355,9 @@ export default class App extends Component {
             // in the conversation record. A card the Coach took back is a
             // quiet receipt under the reply, never spoken (coachProposals.js)
             const briefIds = (Array.isArray(job.result.consult) ? job.result.consult : []).filter((a) => a?.agent === 'researcher' && a.recordId).map((a) => a.recordId);
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...(projectId ? { projectId } : {}), ...via, ...(meta || {}) };
+            // a line he cut into while it streamed keeps where his voice came in
+            const cutAt = idx !== -1 ? chat[idx].interrupted : null;
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...(projectId ? { projectId } : {}), ...(cutAt ? { interrupted: cutAt } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -8418,7 +8430,19 @@ export default class App extends Component {
           // still up and nobody will call this again. Nudge it once.
           if (spokenReveal && (this.speechActive || 0) === 0) this.maybeAutoListen();
         });
+        // A REPLY HE CUT INTO WHILE IT WAS STILL BEING WRITTEN: the words that
+        // arrived after his voice came in were never said, and neither was
+        // the held rest; both join the kept cut if his next ask has not yet
+        // taken it (src/interruptTurn.js)
+        if (this.cutJob === jobId && this.lastInterrupt?.job === jobId) {
+          const late = speakableText(unheardRest(spokenText, stream.spokenUpTo), { final: true });
+          const rec = this.lastInterrupt.rec;
+          this.lastInterrupt = { ...this.lastInterrupt, rec: { ...rec, unsaid: capUnsaid([rec.unsaid, late, job.result.more || ''].filter(Boolean).join(' ')) } };
+        }
         if (spokenReveal) {
+          // the line still streams while these play: a cut before the commit
+          // lands takes the held rest from here (App.captureCut)
+          this.replyHeldInAir = String(job.result.more || '');
           // remaining sentences queue with reveal-on-play; the commit rides
           // the queue as a barrier, landing when the last word is spoken
           // (or instantly if he interrupts — resetTtsQueue runs finalizers)
@@ -10003,7 +10027,8 @@ export default class App extends Component {
     if (ls.claimed) return true;
     if (!isContinuation({ sentAt: ls.sentAt, replySpeakingAt: this.replySpeakingOf(ls), now: at, novaSpeaking: novaSpeakingNow() })) return false;
     ls.claimed = true;
-    this.stopSpeaking();
+    // not a cut: the answer is dropped and asked again whole (sendContinuation)
+    this.stopSpeaking({ interrupt: false });
     return true;
   }
   releaseContinuation() { this.lastSent = null; }
@@ -10027,6 +10052,8 @@ export default class App extends Component {
     // its lines taken off the chat) and the whole thing is asked again.
     this.dropAnswerInFlight(ls, () => {
       this.spokenInput = true;
+      // the first ask's cut rides the whole question again (interruptTurn.js)
+      if (ls.cut) this.lastInterrupt = { at: Date.now(), rec: ls.cut };
       this.askNova(`${ls.text} ${more}`.replace(/\s+/g, ' ').trim());
     });
     return true;
@@ -10039,7 +10066,7 @@ export default class App extends Component {
     this.askPollJob = null;
     this.replyStreaming = null;
     try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ }
-    this.stopSpeaking();
+    this.stopSpeaking({ interrupt: false });
     if (ls?.turn) this.endAnswer(ls.turn);
     this.setState((s) => {
       const idx = ls?.youAt ? s.voiceChat.findIndex((m) => m.who === 'you' && m.at === ls.youAt) : -1;
@@ -11433,7 +11460,8 @@ export default class App extends Component {
   }
   maybeStandDown(text) {
     if (!App.STAND_DOWN.test(String(text || ''))) return false;
-    this.stopSpeaking();
+    this.stopSpeaking({ interrupt: false });
+    this.lastInterrupt = null;   // he told Nova to stop: nothing unsaid is owed
     this.setState({
       voiceConvMode: false, voiceConvPaused: true, voiceReplyWindow: false,
       liveTalkOn: false, liveTextOpen: false, liveMicOpen: false, liveInput: '', orbInput: '',
@@ -11827,7 +11855,7 @@ export default class App extends Component {
     const rest = { at: Date.now(), who: line.who, text: line.more, heldFrom: at };
     this.setState((s) => ({ voiceChat: [...s.voiceChat.map((m) => (m.at === at ? { ...m, moreSaid: true } : m)), rest] }));
     if (this.state.voiceSpeak) {
-      this.stopSpeaking();
+      this.stopSpeaking({ interrupt: false });   // he asked for the rest: not a cut
       // sentence-sized pieces, as a reply's flush speaks them: a held Coach
       // answer can run to hundreds of words, and one /api/tts call that long
       // times out into silence
@@ -11867,11 +11895,21 @@ export default class App extends Component {
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
+    // HE CUT IN (1 Nov 2026, src/interruptTurn.js). A reply still in the air
+    // as he asks (typed over it) is cut here, so this ask carries the note;
+    // a cut kept by a tap or his voice (stopSpeaking) rides this ask, once.
+    // The note goes in `sent` only: `raw` and the transcript are his words.
+    if (replyInAir({ nowSaying: this.ttsNowSaying, nowAck: !!this.ttsNowAck, queue: this.ttsQueue || [] })) this.stopSpeaking();
+    const cut = interruptFresh(this.lastInterrupt) ? this.lastInterrupt.rec : null;
+    this.lastInterrupt = null;
+    const cutNote = interruptNote(cut) || null;
+    if (cutNote) turn.interrupted = true;
     // the last reply held its rest and he did not ask for it: the model
-    // wrote that rest, so it is told he never heard it (src/turnFold.js)
+    // wrote that rest, so it is told he never heard it (src/turnFold.js).
+    // After a cut the note already carries that rest: never both.
     const last = this.latestReply();
-    const heldNote = last?.more && !last.moreSaid ? HELD_UNHEARD_LINE : null;
-    const sent = [context, situation, heldNote, question].filter(Boolean).join('\n\n');
+    const heldNote = !cutNote && last?.more && !last.moreSaid ? HELD_UNHEARD_LINE : null;
+    const sent = [context, situation, cutNote || heldNote, question].filter(Boolean).join('\n\n');
     // `raw` is his sentence undressed: the server matches the reflex, the
     // verbs and the lane against it, while the model still gets the
     // situation block. Without it, anything on screen silently disabled all
@@ -11919,7 +11957,7 @@ export default class App extends Component {
     const aboutProject = !this.state.voiceIntake && this.state.voiceProject?.id ? this.state.voiceProject.id : null;
     this.askProjectId = aboutProject;
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: youAt, who: 'you', text: question, attached: attached.length ? attached : undefined, ...(heardIt ? { heard: true } : {}), ...(aboutProject ? { projectId: aboutProject } : {}), ...(meta || {}) }], voiceBusy: true }));
-    if (heardIt) { this.offerFixFor(youAt); this.lastSent = { kind: 'ask', text: question, sentAt: youAt, youAt, turn, replySpeakingAt: null, claimed: false }; }
+    if (heardIt) { this.offerFixFor(youAt); this.lastSent = { kind: 'ask', text: question, sentAt: youAt, youAt, turn, replySpeakingAt: null, claimed: false, cut }; }
     this.stopSpeaking();
     // THE ACK COMES FIRST (his call, 29 Oct 2026): a "one thing first" line is
     // said after Nova has acknowledged him (speakAckLine), or after the fast
@@ -11986,6 +12024,7 @@ export default class App extends Component {
             ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),
             ...(turn.preAskSlowest ? { preAskSlowest: turn.preAskSlowest } : {}),
             droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
+            ...(turn.interrupted ? { interrupted: true } : {}),
           });
         };
         // held silent while he is adding to the question (claimContinuation)
@@ -12364,7 +12403,8 @@ export default class App extends Component {
     // A fresh page, not a deleted past: the record keeps every line and Nova
     // still reads it; this device just stops merging lines from before now.
     try { localStorage.setItem(CONV_FROM_KEY, new Date().toISOString()); } catch { /* best-effort */ }
-    this.stopSpeaking();
+    this.stopSpeaking({ interrupt: false });
+    this.lastInterrupt = null;   // a new chat answers nothing that was cut
     // a new chat is about nothing yet: the attached project goes, and a
     // project being set up is called off (its pending card withdrawn)
     if (this.state.voiceIntake) this.cancelVoiceIntake({ say: false });
@@ -12480,6 +12520,20 @@ export default class App extends Component {
     localStorage.setItem('novaos.bargeIn', on ? '1' : '0');
     this.setState({ bargeInOn: on });
   }
+  // What Nova's own ears judge a read against (src/bargeListen.js), read at
+  // the moment of judgement: the room's recent words and the sentence in the
+  // air (the window already carries it once it has started; never twice).
+  bargeSayingNow() {
+    const win = this.ttsSaidWindow || '';
+    const now = this.ttsNowSaying || '';
+    return now && !win.includes(now) ? `${win} ${now}`.trim() : win;
+  }
+  // The ear is listening (or stopped): the wake word's engine stands aside
+  // while it does, so the phone never has two microphones open.
+  setBargeListening(on) {
+    if (!!this.state.bargeListening === !!on) return;
+    this.setState({ bargeListening: !!on });
+  }
 
   // DUCK his other audio, or SPEAK over the ring switch. Not both — iOS has
   // no mixable category that survives the silent switch, and audioSession.js
@@ -12514,10 +12568,12 @@ export default class App extends Component {
   // it are not carried into the turn: the microphone reopens on his next
   // breath, and he is mid-sentence anyway. `why` is for the console, so a
   // false cut-off can be diagnosed rather than guessed at.
-  onBargeIn(heard, why) {
+  // `info` (1 Nov 2026): Nova's own ears add which ears, the echo share and
+  // the clip (src/useDictation.js), for the row; the browser engine sends none.
+  onBargeIn(heard, why, info = null) {
     if (!this.state.bargeInOn) return;
     console.log(`[barge-in] ${why} — heard ${JSON.stringify(String(heard).slice(0, 80))}`);
-    reportBargeIn(heard, why); // the console is not readable from a car
+    reportBargeIn(heard, why, info); // the console is not readable from a car
     this.lastTurnWasBargeIn = true; // if the turn it opens hears nothing, this was wrong
     // his interrupting words start the turn: they are demonstrably not echo,
     // which is the whole reason this fired
@@ -12564,14 +12620,22 @@ export default class App extends Component {
       }, 3000);
     }
   }
-  stopSpeaking() {
+  // HE CUT IN (1 Nov 2026, src/interruptTurn.js). Before the queue is
+  // dropped, what he heard start and what was never said are kept for his
+  // next ask (askNova sends them as a note), and the reply line is stamped
+  // with where his voice came in. `{ interrupt: false }` is a stop that is
+  // not him cutting in (a new chat, a voice preview, a continuation that
+  // re-asks): nothing is kept. A click event passed straight in is a cut.
+  stopSpeaking(opts) {
     cutSpeech(); // the captions stop where his voice did: the rest was never said
+    const cut = opts?.interrupt === false ? null : this.captureCut();   // the queue is still whole here
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
     this.currentAudio = null;
     try { this.currentSource?.stop(); } catch { /* already ended */ }
     this.currentSource = null;
     this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
+    if (cut) this.keepInterrupt(cut);
     this.speechActive = 0;
     noteNovaSpeaking(0);
     nowPlayingIdle();
@@ -12580,6 +12644,43 @@ export default class App extends Component {
     this.audioReleaseTimer = setTimeout(() => {
       if ((this.speechActive || 0) === 0 && !this.ttsPlaying) releaseAudioGraph();
     }, 3000);
+  }
+  // The cut, read from the queue as it stands: null unless a reply he could
+  // be answering was genuinely in the air. The line is the reply being
+  // spoken (the streaming one, else the newest settled reply); speech that
+  // is not that line's (a greeting, the Morning Show) makes no record,
+  // because the model never wrote it. The held rest comes from the reply
+  // still being spoken (replyHeldInAir, set at delivery) or the line itself.
+  captureCut() {
+    const air = { nowSaying: this.ttsNowSaying, nowAck: !!this.ttsNowAck, queue: this.ttsQueue || [] };
+    if (!replyInAir(air)) return null;
+    const line = this.lineInAir(this.state.voiceChat);
+    if (!line || line.brief) return null;
+    const base = captureInterrupt(air);
+    if (!base || !lineSpeaks(line.text, base)) return null;
+    const held = line.streaming ? (this.replyHeldInAir || '') : (line.more && !line.moreSaid ? line.more : '');
+    return captureInterrupt({ ...air, more: held });
+  }
+  lineInAir(chat = []) {
+    const list = chat || [];
+    for (let i = list.length - 1; i >= 0; i--) if (list[i]?.streaming && list[i].who !== 'you' && list[i].who !== 'system') return list[i];
+    return [...list].reverse().find((m) => m.who && m.who !== 'you' && m.who !== 'system' && !m.handoff) || null;
+  }
+  // Kept for his next ask (once, while fresh), and stamped on the line after
+  // the queue's finalizers have committed it (an updater queued behind theirs).
+  keepInterrupt(rec) {
+    // a reply still being written when he cut in: the rest of it is held
+    // silent (attachAskPoll's say) and joins this record when it lands
+    const job = this.replyStreaming || null;
+    this.cutJob = job;
+    this.lastInterrupt = { at: Date.now(), rec, job };
+    this.replyHeldInAir = '';
+    this.setState((s) => {
+      const chat = s.voiceChat || [];
+      const line = this.lineInAir(chat);
+      if (!line || !lineSpeaks(line.text, rec)) return null;
+      return { voiceChat: chat.map((m) => (m === line ? { ...m, interrupted: rec } : m)) };
+    });
   }
   // THE ACK THAT HEARD HIM (15 Oct 2026). His words: the prebuilt replies
   // that "pretend" to be quick "get old quickly and become too expected and
@@ -12775,7 +12876,7 @@ export default class App extends Component {
     this.ttsGen = (this.ttsGen || 0) + 1;
     this.ttsQueue = [];
     this.ttsInFlight = 0; // the old generation's fetches land and are ignored
-    this.ttsPlaying = false; this.ttsNowSaying = null;
+    this.ttsPlaying = false; this.ttsNowSaying = null; this.ttsNowAck = false;
     this.ttsVoiceLock = null; // the next reply chooses its voice afresh
     this.ttsSaidWindow = '';  // nothing has been spoken into the room yet
   }
@@ -12916,6 +13017,7 @@ export default class App extends Component {
       if (this.state.voiceSpeak && head.said) {
         this.ttsPlaying = true;          // the queue HOLDS: order survives
         this.ttsNowSaying = head.said;   // still owed to him if he leaves mid-sentence
+        this.ttsNowAck = !!head.ack;     // an ack in the air is not the reply (interruptTurn.js)
         this.noteSpokenAloud(head.said);
         try { head.onStart?.(); } catch { /* a receipt is best-effort */ }
         this.speakFallback(head.said, () => {
@@ -12932,6 +13034,7 @@ export default class App extends Component {
     // the sentence in the air — half of what an interrupted brief still owes
     // him (the queue behind it is the other half)
     this.ttsNowSaying = head.said || null;
+    this.ttsNowAck = !!head.ack;
     this.noteSpokenAloud(head.said);
     // his name and face in the iPhone's own Dynamic Island if he leaves while
     // he is talking (nowPlaying.js) — the island's pause stops him
@@ -13128,7 +13231,7 @@ export default class App extends Component {
     if (!before) return;
     const after = unspokenTexts(this.ttsNowSaying, this.ttsQueue);
     if (resumeVerdict(before, after) !== 'stalled') return; // still talking, or finished
-    this.stopSpeaking();
+    this.stopSpeaking({ interrupt: false });   // iOS cut it, not him
     this.noteSpeechUnavailable(before, 'the audio stopped when you left');
   }
   // Replay what he never heard, from inside the tap.
@@ -13138,7 +13241,7 @@ export default class App extends Component {
     this.speechBlockedTexts = [];
     this.primeSpeech();
     this.setState({ speechBlocked: null });
-    this.stopSpeaking();
+    this.stopSpeaking({ interrupt: false });
     for (const t of b.texts) { if (t) this.speakTtsSentence(t, () => {}); }
   }
   // ——— THE MODEL CHOICE GATE ———
@@ -13249,13 +13352,13 @@ export default class App extends Component {
     localStorage.setItem('novaos.speechVoiceURI', uri || '');
     this.setState({ speechVoiceURI: uri || '' });
     // a short preview so he hears the choice immediately
-    this.stopSpeaking();
+    this.stopSpeaking({ interrupt: false });
     if (this.state.voiceSpeak) setTimeout(() => this.speakFallback('This is how Nova will sound.', () => {}), 60);
   }
   setVoiceSpeak(on) {
     localStorage.setItem('novaos.voiceSpeak', on ? '1' : '0');
     this.setState({ voiceSpeak: on });
-    if (!on) this.stopSpeaking();
+    if (!on) this.stopSpeaking({ interrupt: false });   // he will read it: not a cut
   }
   // "Hey Nova" — opt-in, because it holds the mic open. Nothing in Nova
   // turns a microphone on without him saying so.
@@ -13473,7 +13576,7 @@ export default class App extends Component {
     // Debounced: flicking through the list previews only where he LANDS —
     // rapid stop/queue cycles on the shared element raced and went mute.
     this.setState({ voiceVoiceId: id }, () => {
-      this.stopSpeaking();
+      this.stopSpeaking({ interrupt: false });
       clearTimeout(this.voicePreviewTimer);
       this.voicePreviewTimer = setTimeout(() => {
         if (this.state.voiceVoiceId !== id) return; // he moved on — preview the final pick only

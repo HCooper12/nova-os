@@ -112,6 +112,8 @@ export function NovaThread({ v }) {
       onSound: cont.sound,
       // the stream stays warm between turns while the conversation runs (src/warmMic.js)
       keepMic: () => v.micConversation?.(),
+      // his voice over Nova's, heard by Nova's own ears on the iPhone (src/bargeListen.js)
+      bargeListen: v.bargeIn,
     },
   );
   cont.dictRef.current = dict;

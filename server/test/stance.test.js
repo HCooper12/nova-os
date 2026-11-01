@@ -335,7 +335,7 @@ test('App wires it: the poll keeps the stances, every piece carries its own, bot
   assert.match(app, /this\.offSpeechStance = onSpeech\(\(list\) => \{\n\s*const v = stanceNow\(list\);\n\s*if \(\(this\.state\.voiceStance \|\| null\) !== v\) this\.setState\(\{ voiceStance: v \}\);\n\s*\}\);/);
   assert.match(app, /this\.offSpeechStance\?\.\(\);/, 'unsubscribed on unmount');
   assert.match(app, /if \(this\.speechActive === 0\) \{[\s\S]{0,700}this\.setState\(\{ voiceSpeaking: false, voiceStance: null \}, \(\) => \{/);
-  assert.match(app, /stopSpeaking\(\) \{[\s\S]{0,600}if \(this\.state\.voiceSpeaking \|\| this\.state\.voiceStance\) this\.setState\(\{ voiceSpeaking: false, voiceStance: null \}\);/);
+  assert.match(app, /stopSpeaking\(opts\) \{[\s\S]{0,800}if \(this\.state\.voiceSpeaking \|\| this\.state\.voiceStance\) this\.setState\(\{ voiceSpeaking: false, voiceStance: null \}\);/);
   // and the stance is never app glass state: it lives on the sentence
   assert.doesNotMatch(app, /glassStances/);
 });

@@ -366,7 +366,7 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
   assert.match(app, /const glass = glassSnapshot\(s\.glassBeats, s\.glassVisuals\) \|\| undefined;/);
   // the door a turn came in by rides both of its rows (`meta`, 1 Oct)
   // (1 Nov) the Mac's brief ids and the quiet receipt of cards the Coach took back, never spoken
-  assert.match(app, /const line = \{ at: Date\.now\(\), who, text, more, panel, proposal, acted, research, evidence, glass, \.\.\.\(briefIds\.length \? \{ briefIds \} : \{\}\), \.\.\.\(from \? \{ from \} : \{\}\), \.\.\.\(job\.result\.receipt \? \{ receipt: String\(job\.result\.receipt\) \} : \{\}\), (?:\.\.\.\(projectId \? \{ projectId \} : \{\}\), )?\.\.\.via, \.\.\.\(meta \|\| \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');
+  assert.match(app, /const line = \{ at: Date\.now\(\), who, text, more, panel, proposal, acted, research, evidence, glass, \.\.\.\(briefIds\.length \? \{ briefIds \} : \{\}\), \.\.\.\(from \? \{ from \} : \{\}\), \.\.\.\(job\.result\.receipt \? \{ receipt: String\(job\.result\.receipt\) \} : \{\}\), (?:\.\.\.\(projectId \? \{ projectId \} : \{\}\), )?(?:\.\.\.\(cutAt \? \{ interrupted: cutAt \} : \{\}\), )?\.\.\.via, \.\.\.\(meta \|\| \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');
   assert.match(app, /chat\.push\(line\)/);
   // EVERY DOOR (1 Oct): the Nova button on another page runs the one
   // pipeline (doOrb → askNova), so everything its reply carried lands exactly

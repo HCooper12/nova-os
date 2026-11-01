@@ -114,7 +114,7 @@ export function valsSettings(app, ctx, v) {
     v.voiceEngineDetail ? 'For Nova’s own voice, add NOVA_TTS_LOCAL=1 (or an ElevenLabs key) to server/.env on the Mac.' : '',
   ].filter(Boolean).join(' ');
   const wakeSupported = v.wakeWordSupported !== false;
-  const barge = talkOver({ supported: wakeSupported, wakeOn: !!v.wakeWordOn, bargeOn: !!v.bargeInOn });
+  const barge = talkOver({ supported: wakeSupported, wakeOn: !!v.wakeWordOn, bargeOn: !!v.bargeInOn, ownEars: v.hearingNow === 'nova' });
   const bare = bareName({ supported: wakeSupported, wakeOn: !!v.wakeWordOn, bareOn: !!v.wakeBareOn });
   const hearingChoice = v.hearing || 'auto';
   const hearingHint = (v.hearingOptions || []).find((o) => o.value === hearingChoice)?.hint || '';

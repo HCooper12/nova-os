@@ -544,7 +544,9 @@ export function valsChrome(app, ctx) {
       // So it is blocked whenever the wake word is off, full stop. With the
       // wake word ON the microphone is already held, and barge-in costs
       // nothing extra — which was always the reason it could live here.
-      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient' || !st.wakeWordOn),
+      // …and while Nova's own ears listen over his voice (bargeListening,
+      // src/bargeListen.js): one microphone at a time
+      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.bargeListening || st.screen === 'ambient' || !st.wakeWordOn),
       // bare "Nova, …" too (src/wakePhrase.js) — his opt-in, unless this
       // session's false-wake valve turned it off (App.notifyEmptyListen)
       bare: !!st.wakeBareOn && !st.wakeBareSessionOff,
@@ -559,11 +561,19 @@ export function valsChrome(app, ctx) {
     // TALKING OVER NOVA. `saying` is everything spoken so far in this reply,
     // which is what the open microphone can have heard — the comparison that
     // separates his voice from the speaker's.
+    // ON HIS IPHONE (1 Nov 2026) the same model drives Nova's own ears
+    // (useDictation's `bargeListen`): `sayingNow` is read at the moment of
+    // each judgement, not at render; `micBusy` keeps the ear off while
+    // another surface's microphone is open; `listening` reports the ear so
+    // the wake word's engine never runs beside it.
     bargeIn: {
       on: !!st.bargeInOn,
       speaking: !!st.voiceSpeaking,
       saying: app.ttsSaidWindow || '',
-      fire: (heard, why) => app.onBargeIn(heard, why),
+      sayingNow: () => app.bargeSayingNow(),
+      micBusy: !!(st.liveMicOpen || st.voiceScreenMic),
+      listening: (on) => app.setBargeListening(on),
+      fire: (heard, why, info) => app.onBargeIn(heard, why, info),
     },
     novaListening: !!st.liveMicOpen,
     // the head's Thinking, app-wide (4 Oct 2026): a voice turn being worked
