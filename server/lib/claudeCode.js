@@ -164,6 +164,10 @@ function laneForKind(kind) {
 function spawnWarm(key, { cwd, args, env }) {
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
   const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now(), lastCostUsd: 0, sig: argsSig(args), effort: argValue(args, '--effort'), sessionId: argValue(args, '--resume') || argValue(args, '--session-id') };
+  // A CLI THAT DIED BEFORE READING (1 Nov 2026): the turn's write then fails
+  // with EPIPE, and with no listener that error was uncaught, a crash of the
+  // whole server. Kept as stderr; the exit handler fails the turn plainly.
+  child.stdin.on('error', (e) => { w.stderr += `\n(stdin: ${e.code || e.message})`; });
   let buf = '';
   child.stdout.on('data', (d) => {
     buf += d;
