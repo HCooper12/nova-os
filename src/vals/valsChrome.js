@@ -12,6 +12,7 @@ import { thinkingOf, contestOf } from '../novaThreadFacts.js';
 import { muscleVar, muscleHexStatic } from '../muscleHue.js';
 import { workoutLive } from '../liveActivityModel.js';
 import { api, getConnection } from '../api.js';
+import { speakableText } from '../artifactBlocks.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
 // command palette, settings (incl. appearance), agents (concept), and the
@@ -452,7 +453,7 @@ export function valsChrome(app, ctx) {
       ask: st.liveAsk || '',
       // since 1 Oct the presence's turn runs the conversation's own pipeline,
       // so its reply is the conversation's row after his words
-      reply: st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk),
+      reply: cleanReply(st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk)),
       // THE CARD HE WAS TOLD ABOUT (15 Oct 2026): Nova said, through this
       // panel, that a card was waiting for his yes, and nothing on screen
       // showed one (it lived only in the Nova thread). The proposal THIS
@@ -502,7 +503,7 @@ export function valsChrome(app, ctx) {
       speaking: !!st.voiceSpeaking,
       paused: !!st.voiceConvPaused,
       autoListenTick: st.voiceAutoListenTick,
-      lastAsk: st.liveAsk, lastReply: st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk),
+      lastAsk: st.liveAsk, lastReply: cleanReply(st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk)),
       notifyEmpty: () => app.notifyEmptyListen(),
       onError: (err) => app.toastMsg('Dictation: ' + err),
       verdictOffer: st.liveVerdictOffer,
@@ -917,6 +918,12 @@ function nudgeView(app, st, demoMode) {
 // bubble's mark alone says something is waiting.
 // The reply to his last words at the Nova button: the newest row of Nova's
 // (or the Coach's, the Leader's, a system failure) after his own. Pure.
+// A document Nova names rides in the reply as [[artifact:id]]; the phone's
+// one-line recap shows prose, so the token (and any document body) goes.
+export function cleanReply(text) {
+  return text ? speakableText(String(text), { final: true }) : '';
+}
+
 export function replyAfterAsk(chat, ask) {
   const q = String(ask || '').trim();
   if (!q || !Array.isArray(chat)) return '';
