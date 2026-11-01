@@ -126,6 +126,7 @@ import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult, answeredBy } from './conversationSync.js';
 import { firstThingFits } from './firstThingFit.js';
+import { dueFirstLine, heardOn, dayKey } from './firstLine.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -133,7 +134,7 @@ import { reportBargeIn, reportTurnEnd } from './useDictation.js';
 import { markListen, lastListenEnd, noteNovaSpeaking, novaSpeakingNow } from './listenCause.js';
 import { isContinuation, continueWindowClosed, isCorrection, stripEcho, FIX_MS } from './turnSense.js';
 import { echoScore, contentWords } from './bargeIn.js';
-import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, capUnsaid } from './interruptTurn.js';
+import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, capUnsaid, airWithBrowser } from './interruptTurn.js';
 import { countsAsEmpty, afterEmpty } from './listenRules.js';
 import { runMicCheck } from './micCheck.js';
 import { applyTrainToday, todayPlanFor } from './trainToday.js';
@@ -2155,7 +2156,7 @@ export default class App extends Component {
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('leader', (r) => this.setState({ liveLeader: r }));
     apply('standby', (r) => this.setStandbyLive(r));
-    apply('alerts', (r) => this.setAlertsLive(r.alerts));
+    apply('alerts', (r) => { this.setAlertsLive(r.alerts); this.firstLineLive = r.firstLine || null; });
     apply('practice', (r) => this.setPracticeLive(r));
     apply('journal', (r) => { this.setState({ liveJournalEntries: r.entries }); this.refreshNotionJournal(); });
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
@@ -10012,6 +10013,15 @@ export default class App extends Component {
     this.lastSent = heard && !continued && !retract ? { kind: 'profile', text, sentAt: youAt, youAt, turn: null, replySpeakingAt: null, claimed: false } : null;
     // a newer answer makes an older reply stale: it still files, it is not said
     const seq = (this.profileTalkSeq = (this.profileTalkSeq || 0) + 1);
+    // HE CUT IN HERE TOO (1 Nov 2026, src/interruptTurn.js). The About-you
+    // conversation builds its own prompt, so the note askNova sends never
+    // reached it: cut off mid-question, Nova lost what it had not said. The
+    // same record rides this turn once, as `note`, beside his words and never
+    // in them: the history row and the transcript keep only what he said.
+    if (replyInAir(this.airNow())) this.stopSpeaking();
+    const cut = interruptFresh(this.lastInterrupt) ? this.lastInterrupt.rec : null;
+    this.lastInterrupt = null;
+    const note = interruptNote(cut) || null;
     if (!retract && !continued && isProfileStopVoice(text)) {
       this.closeProfileTalk();
       return true;
@@ -10021,7 +10031,7 @@ export default class App extends Component {
     const history = pt.history;
     this.setState({ profileTalk: { ...pt, history: [...history, { who: 'you', text }] } });
     const refresh = () => api.profile(conn).then(({ profile }) => this.setState({ liveProfile: profile })).catch(() => {});
-    api.profileTalk(conn, history, text, { mode: pt.mode || 'interview', questionId: pt.questionId ?? null, retract, continued }).then((r) => {
+    api.profileTalk(conn, history, text, { mode: pt.mode || 'interview', questionId: pt.questionId ?? null, retract, continued, note }).then((r) => {
       if (!this.state.profileTalk) return; // he said stop while this was thinking
       const stale = seq !== this.profileTalkSeq;
       if (r?.error) { if (!stale) this.sayLine(`I couldn't take that in: ${r.error}`); return; }
@@ -11954,7 +11964,7 @@ export default class App extends Component {
     // as he asks (typed over it) is cut here, so this ask carries the note;
     // a cut kept by a tap or his voice (stopSpeaking) rides this ask, once.
     // The note goes in `sent` only: `raw` and the transcript are his words.
-    if (replyInAir({ nowSaying: this.ttsNowSaying, nowAck: !!this.ttsNowAck, queue: this.ttsQueue || [] })) this.stopSpeaking();
+    if (replyInAir(this.airNow())) this.stopSpeaking();
     const cut = interruptFresh(this.lastInterrupt) ? this.lastInterrupt.rec : null;
     this.lastInterrupt = null;
     const cutNote = interruptNote(cut) || null;
@@ -12690,6 +12700,7 @@ export default class App extends Component {
     cutSpeech(); // the captions stop where his voice did: the rest was never said
     const cut = opts?.interrupt === false ? null : this.captureCut();   // the queue is still whole here
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
+    this.browserSaying = [];   // the phone's own voice was cancelled with it
     try { this.currentAudio?.pause(); } catch { /* fine */ }
     this.currentAudio = null;
     try { this.currentSource?.stop(); } catch { /* already ended */ }
@@ -12712,7 +12723,7 @@ export default class App extends Component {
   // because the model never wrote it. The held rest comes from the reply
   // still being spoken (replyHeldInAir, set at delivery) or the line itself.
   captureCut() {
-    const air = { nowSaying: this.ttsNowSaying, nowAck: !!this.ttsNowAck, queue: this.ttsQueue || [] };
+    const air = this.airNow();
     if (!replyInAir(air)) return null;
     const line = this.lineInAir(this.state.voiceChat);
     if (!line || line.brief) return null;
@@ -12720,6 +12731,13 @@ export default class App extends Component {
     if (!base || !lineSpeaks(line.text, base)) return null;
     const held = line.streaming ? (this.replyHeldInAir || '') : (line.more && !line.moreSaid ? line.more : '');
     return captureInterrupt({ ...air, more: held });
+  }
+  // WHAT IS IN THE AIR, whichever voice is speaking: the engine's queue
+  // (ttsNowSaying + ttsQueue), else the phone's own voice, whose sentences
+  // never enter that queue (speakIncremental keeps them in browserSaying).
+  // One shape for captureCut and every replyInAir check (interruptTurn.js).
+  airNow() {
+    return airWithBrowser({ nowSaying: this.ttsNowSaying, nowAck: !!this.ttsNowAck, queue: this.ttsQueue || [] }, this.browserSaying || []);
   }
   lineInAir(chat = []) {
     const list = chat || [];
@@ -12778,10 +12796,24 @@ export default class App extends Component {
     return !!t?.configured && t.ready !== false;
   }
   // browser-synth chunk — used to speak sentences AS the reply streams in
-  speakIncremental(text, { stance = null } = {}) {
+  //
+  // A CUT ON THE PHONE'S OWN VOICE IS A CUT TOO (1 Nov 2026). With no TTS
+  // engine, every sentence goes straight to window.speechSynthesis, which
+  // keeps its own queue: nothing entered ttsQueue, so captureCut saw nothing
+  // in the air and his interruption left no record. Each sentence handed to
+  // the phone is kept here in order (`started` once its audio begins, gone
+  // when it ends), so airNow reads it as the engine's queue is read: the one
+  // being uttered, and the remainder still queued behind it.
+  speakIncremental(text, { stance = null, ack = false } = {}) {
     if (!this.state.voiceSpeak || !text.trim()) return;
     this.beginSpeech();
-    this.speakFallback(text, () => this.endSpeech(), { stance });
+    const entry = { said: text.trim(), ack: !!ack, started: false };
+    (this.browserSaying = this.browserSaying || []).push(entry);
+    const done = () => {
+      this.browserSaying = (this.browserSaying || []).filter((e) => e !== entry);
+      this.endSpeech();
+    };
+    this.speakFallback(text, done, { stance, onStart: () => { entry.started = true; } });
   }
   // conversation mode: when Nova finishes speaking (and nothing is running),
   // reopen the mic — the turn passes back without a tap
@@ -12954,7 +12986,7 @@ export default class App extends Component {
     const clean = (text || '').trim().slice(0, 2400);
     if (!clean) return;
     const conn = getConnection();
-    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean, { stance }); onStart?.(); return; }
+    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean, { stance, ack }); onStart?.(); return; }
     const gen = this.ttsGen || 0;
     // conversational output (replies, briefs, greetings) carries a reveal
     // callback; previews/acks/fillers don't — only the former earns a
@@ -13394,13 +13426,15 @@ export default class App extends Component {
     if (voices.length) { this.speechVoiceKey = key; this.speechVoiceCached = picked; }
     return picked;
   }
-  speakFallback(text, finish, { stance = null } = {}) {
+  speakFallback(text, finish, { stance = null, onStart = null } = {}) {
     try {
       const u = new SpeechSynthesisUtterance(text);
       u.voice = this.resolveSpeechVoice();
       // the captions' clock: the phone's own voice reports no length, so the
       // sentence is paced on an estimate and marked as one (speechClock.js)
       u.onstart = () => noteSpokenSentence(text, null, { stance });
+      // the phone's own queue (speakIncremental): this sentence is now the one in the air
+      if (onStart) { const clock = u.onstart; u.onstart = () => { try { onStart(); } catch { /* bookkeeping only */ } clock(); }; }
       u.onend = finish;
       u.onerror = finish;
       window.speechSynthesis.speak(u);
@@ -13546,7 +13580,31 @@ export default class App extends Component {
   sayFirstThingAfter(seq) {
     if (this.firstThingDue !== seq) return;
     this.firstThingDue = null;
+    // one thing first means ONE: a fault he has not heard today goes ahead
+    // of a tier-next alert, which keeps for his next turn
+    if (this.sayFaultFirst()) return;
     this.sayFirstThing(this.firstThingWords || '');
+  }
+  // A FAULT HE HAS NOT HEARD TODAY (1 Nov 2026, Wren's preflight first line;
+  // server/lib/firstLineFaults.js names the faults, src/firstLine.js picks).
+  // Said right after the ack (his 29 Oct call: the ack comes first), once per
+  // day per fault, in the source's own words through lintSpoken; the server
+  // keeps the day's heard list, and this device remembers what it just said
+  // until the next sync brings that list back. Tier now: it passes standby
+  // and every place, as a tier-now alert does. Nothing due, nothing said.
+  sayFaultFirst() {
+    if (!this.state.voiceSpeak) return false;
+    const now = Date.now();
+    const fl = this.firstLineLive;
+    const heardToday = heardOn(dayKey(now), fl ? { day: fl.day, ids: fl.heard } : null, this.firstLineHeardHere || null);
+    const due = dueFirstLine({ faults: fl?.faults, heardToday, now });
+    if (!due) return false;
+    this.firstLineHeardHere = { day: due.day, ids: [...heardToday.ids, due.id] };
+    this.speakTtsSentence(lintSpoken(due.line), null);
+    const conn = getConnection();
+    if (conn) api.firstLineHeard(conn, due.id).catch(() => { /* this device still remembers it for today */ });
+    if (due.alertId) this.alertActed(due.alertId, 'spoken-only');
+    return true;
   }
   // a reading of his body (HRV) is said only into a turn about his body; it
   // stays a card otherwise (src/firstThingFit.js, 1 Nov)

@@ -324,11 +324,12 @@ test('App wires it: the poll keeps the stances, every piece carries its own, bot
   assert.match(app, /const say = \(t, from = null, stance = null\) => \{/);
   assert.match(app, /if \(elevenPath\) this\.speakTtsSentence\(heard, onPlay, \{ stance(?:, onStart)? \}\);\n\s*else \{ this\.speakIncremental\(heard, \{ stance \}\);(?: onStart\?\.\(\);)? onPlay\(\); \}/);
   assert.match(app, /speakTtsSentence\(text, onPlay, \{ stance = null(?:, ack = false, onStart = null)? \} = \{\}\) \{/);
-  assert.match(app, /if \(!conn \|\| !this\.ttsUsable\(\)\) \{ onPlay\?\.\(\); this\.speakIncremental\(clean, \{ stance \}\);(?: onStart\?\.\(\);)? return; \}/);
+  assert.match(app, /if \(!conn \|\| !this\.ttsUsable\(\)\) \{ onPlay\?\.\(\); this\.speakIncremental\(clean, \{ stance(?:, ack)? \}\);(?: onStart\?\.\(\);)? return; \}/);
   assert.match(app, /const entry = \{ done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean, stance(?:, ack, onStart)? \};/);
   assert.match(app, /this\.endSpeech\(\); this\.drainTtsQueue\(gen\);\n\s*\}, \{ stance: head\.stance \}\);/, 'the engine failed: the phone\'s voice says it, stance and all');
-  assert.match(app, /speakIncremental\(text, \{ stance = null \} = \{\}\) \{[\s\S]{0,160}this\.speakFallback\(text, \(\) => this\.endSpeech\(\), \{ stance \}\);/);
-  assert.match(app, /speakFallback\(text, finish, \{ stance = null \} = \{\}\) \{/);
+  // (1 Nov 2026: the phone's own queue is kept for an interruption, src/interruptTurn.js browserAir)
+  assert.match(app, /speakIncremental\(text, \{ stance = null(?:, ack = false)? \} = \{\}\) \{[\s\S]{0,700}this\.speakFallback\(text, (?:\(\) => this\.endSpeech\(\)|done), \{ stance(?:, onStart: \(\) => \{ entry\.started = true; \})? \}\);/);
+  assert.match(app, /speakFallback\(text, finish, \{ stance = null(?:, onStart = null)? \} = \{\}\) \{/);
   // the stance in the air, mirrored into state from the captions' clock (one
   // render per change), and cleared with the speaking, ended or stopped
   assert.match(app, /voiceStance: null,\n/);

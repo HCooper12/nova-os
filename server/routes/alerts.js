@@ -14,7 +14,27 @@ export function alertsRouter() {
       const place = PLACES.includes(req.query.place) ? req.query.place : 'unknown';
       // the lines he may hear ride with each card, written here by code, so
       // the phone never composes a word of an alert
-      res.json({ place, alerts: pendingAlerts().map((a) => forPlace({ ...a, spoken: spokenAlert(a), firstThing: a.tier === 'next' ? firstThingLine(a) : null }, place)) });
+      // ONE THING FIRST, FOR A FAULT (lib/firstLineFaults.js): the faults Nova
+      // may open his next spoken turn with, in their source's own words, and
+      // which he has heard today. The phone picks one (src/firstLine.js).
+      const { firstLineState } = await import('../lib/firstLineFaults.js');
+      let firstLine = null;
+      try { firstLine = await firstLineState(); } catch { firstLine = null; }
+      res.json({ place, alerts: pendingAlerts().map((a) => forPlace({ ...a, spoken: spokenAlert(a), firstThing: a.tier === 'next' ? firstThingLine(a) : null }, place)), firstLine });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // he heard this fault's line today: never again today (lib/firstLineFaults.js)
+  router.post('/alerts/first-line/heard', async (req, res) => {
+    try {
+      const { markHeard, FAULT_ID } = await import('../lib/firstLineFaults.js');
+      const id = String(req.body?.id || '');
+      if (!FAULT_ID.test(id)) return res.status(400).json({ error: 'id must be a fault id (guardian:… or alert:…)' });
+      const heard = await markHeard(id);
+      try { (await import('../lib/events.js')).broadcast('alerts'); } catch { /* the next sync carries it */ }
+      res.json({ ok: true, day: heard.day, heard: heard.ids });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

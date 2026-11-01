@@ -12,7 +12,7 @@ process.env.NOVA_DATA_DIR = mkdtempSync(path.join(tmpdir(), 'nova-interrupt-'));
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, heardUpTo, capUnsaid, UNSAID_CAP, INTERRUPT_FRESH_MS } from '../../src/interruptTurn.js';
+import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, heardUpTo, capUnsaid, browserAir, airWithBrowser, UNSAID_CAP, INTERRUPT_FRESH_MS } from '../../src/interruptTurn.js';
 import { lastExchange } from '../../src/novaStageFacts.js';
 
 const { listenFields, turnRecord, END_REASONS } = await import('../lib/voiceTurns.js');
@@ -171,4 +171,67 @@ test('askNova joins the note into `sent`, never `raw`, sends it once, and stamps
   assert.match(app, /\.\.\.\(cutAt \? \{ interrupted: cutAt \} : \{\}\)/);
   // a continuation re-asks with the first ask's cut
   assert.match(body('sendContinuation'), /if \(ls\.cut\) this\.lastInterrupt = \{ at: Date\.now\(\), rec: ls\.cut \};/);
+});
+
+// ---- the phone's own voice (1 Nov 2026) ----
+// With no TTS engine, App.speakIncremental hands each sentence straight to
+// window.speechSynthesis and keeps it in `browserSaying`; nothing enters
+// ttsQueue, so before this a cut there left no record.
+const PHONE = [
+  { said: S3, ack: false, started: true },
+  { said: S4, ack: false, started: false },
+  { said: S5, ack: false, started: false },
+];
+
+test('the browser path reads as the engine queue does: the sentence in the air, the rest queued', () => {
+  const air = browserAir(PHONE);
+  assert.deepEqual(air, { nowSaying: S3, nowAck: false, queue: [{ said: S4 }, { said: S5 }] });
+  assert.equal(replyInAir(air), true);
+  const rec = captureInterrupt(air);
+  assert.deepEqual(rec, { inAir: S3, unsaid: `${S4} ${S5}` });
+  assert.match(interruptNote(rec), /He cut in while you were saying: "The new rest timer starts/);
+  // the held rest joins it exactly as on the engine path
+  assert.deepEqual(captureInterrupt({ ...air, more: HELD }), { inAir: S3, unsaid: `${S4} ${S5} ${HELD}` });
+});
+
+test('the browser path: an ack in the air is not the reply; nothing started means nothing heard', () => {
+  const ack = browserAir([{ said: 'Checking your lifts.', ack: true, started: true }, { said: S4, started: false }]);
+  assert.equal(ack.nowAck, true);
+  assert.deepEqual(captureInterrupt(ack), { inAir: null, unsaid: S4 });
+  const unstarted = browserAir([{ said: S4, started: false }, { said: S5, started: false }]);
+  assert.equal(unstarted.nowSaying, null);
+  assert.deepEqual(captureInterrupt(unstarted), { inAir: null, unsaid: `${S4} ${S5}` });
+  assert.equal(captureInterrupt(browserAir([])), null);
+  assert.equal(replyInAir(browserAir([])), false);
+});
+
+test('airWithBrowser: the engine wins while it speaks, else the phone, ahead of a barrier', () => {
+  const engine = { nowSaying: S3, nowAck: false, queue: [{ said: S4 }] };
+  assert.equal(airWithBrowser(engine, PHONE).nowSaying, S3);
+  assert.deepEqual(airWithBrowser(engine, PHONE).queue, [{ said: S4 }]);
+  const barrier = { done: true, finalize: () => {} };
+  const quiet = { nowSaying: null, nowAck: false, queue: [barrier] };
+  const both = airWithBrowser(quiet, PHONE);
+  assert.equal(both.nowSaying, S3);
+  assert.deepEqual(both.queue.slice(0, 2), [{ said: S4 }, { said: S5 }]);
+  assert.equal(both.queue[2], barrier);
+  assert.deepEqual(captureInterrupt(both), { inAir: S3, unsaid: `${S4} ${S5}` });
+  // nothing on either voice: the engine's (empty) shape, unchanged
+  assert.equal(replyInAir(airWithBrowser({ nowSaying: null, queue: [] }, [])), false);
+});
+
+test('the wiring: speakIncremental keeps the phone\'s sentences; captureCut and askNova read airNow', () => {
+  const si = body('speakIncremental');
+  assert.match(si, /const entry = \{ said: text\.trim\(\), ack: !!ack, started: false \};/);
+  assert.match(si, /\(this\.browserSaying = this\.browserSaying \|\| \[\]\)\.push\(entry\)/);
+  assert.match(si, /onStart: \(\) => \{ entry\.started = true; \}/);
+  assert.match(si, /this\.browserSaying = \(this\.browserSaying \|\| \[\]\)\.filter\(\(e\) => e !== entry\)/, 'gone when it ends');
+  assert.match(body('speakFallback'), /if \(onStart\) \{ const clock = u\.onstart; u\.onstart = \(\) => \{ try \{ onStart\(\); \}/);
+  assert.match(body('airNow'), /airWithBrowser\(\{ nowSaying: this\.ttsNowSaying, nowAck: !!this\.ttsNowAck, queue: this\.ttsQueue \|\| \[\] \}, this\.browserSaying \|\| \[\]\)/);
+  assert.match(body('captureCut'), /const air = this\.airNow\(\);/);
+  assert.match(body('askNova'), /if \(replyInAir\(this\.airNow\(\)\)\) this\.stopSpeaking\(\);/);
+  // the ack reaches the phone marked as one; a stop clears the list after the cut is read
+  assert.match(body('speakTtsSentence'), /this\.speakIncremental\(clean, \{ stance, ack \}\)/);
+  const st = body('stopSpeaking');
+  assert.ok(st.indexOf('this.captureCut()') < st.indexOf('this.browserSaying = [];'));
 });

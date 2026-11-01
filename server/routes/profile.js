@@ -26,6 +26,10 @@ const SPOKEN = {
   people: 'the people in your life', life: 'your life outside work', talk: 'how I should talk to you', taste: 'your taste',
 };
 
+// the interruption note is one bracketed paragraph (interruptTurn.js caps
+// what it quotes at 900 characters); anything longer is not that note
+const NOTE_MAX = 3000;
+
 // `deps.run` stubs the model lane in tests (lib/profileTalk.js's seam).
 export function profileRouter(vaultPath, deps = {}) {
   const router = Router();
@@ -172,6 +176,10 @@ export function profileRouter(vaultPath, deps = {}) {
     const { history, text, mode = null, questionId = null } = req.body || {};
     const retract = req.body?.retract === true;
     const continued = !retract && req.body?.continued === true;
+    // HE CUT IN (1 Nov 2026, src/interruptTurn.js): code's note of what he
+    // heard and what Nova had not said. It goes to the model beside his words
+    // and nowhere else; nothing here records it.
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, NOTE_MAX) : '';
     if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Say something first' });
     if (mode !== null && !MODES.includes(mode)) return res.status(400).json({ error: `mode must be one of: ${MODES.join(', ')}` });
     try {
@@ -193,7 +201,7 @@ export function profileRouter(vaultPath, deps = {}) {
       const out = await profileTalkTurn(vaultPath, {
         history: Array.isArray(history) ? history : [], text,
         mode, questionId: onTable?.id || null, nextQuestion, followUps,
-        retract, continued, lastTurnRecordIds: before.lastTurnRecordIds,
+        retract, continued, lastTurnRecordIds: before.lastTurnRecordIds, note,
       }, deps.run ? { run: deps.run } : {});
       if (out.error) {
         // an explicit retract already took the facts off: never twice

@@ -73,6 +73,36 @@ export function captureInterrupt({ nowSaying = null, nowAck = false, queue = [],
   return { inAir: inAir || null, unsaid };
 }
 
+// THE PHONE'S OWN VOICE (1 Nov 2026). With no TTS engine, App.speakIncremental
+// hands each sentence to window.speechSynthesis, which queues them itself;
+// App keeps them in order in `browserSaying` ({ said, ack, started }). This
+// reads that list in the engine queue's shape: the sentence whose audio has
+// started is the one in the air, those behind it are the queue. None started
+// yet (cut before the phone began) means nothing was in the air and all of it
+// is still unsaid.
+export function browserAir(spoken = []) {
+  const list = (spoken || []).filter((e) => e && squash(e.said));
+  const at = list.findIndex((e) => e.started);
+  const head = at >= 0 ? list[at] : null;
+  const rest = at >= 0 ? list.slice(at + 1) : list;
+  return {
+    nowSaying: head ? head.said : null,
+    nowAck: !!head?.ack,
+    queue: rest.map((e) => ({ said: e.said, ...(e.ack ? { ack: true } : {}) })),
+  };
+}
+
+// What is in the air, whichever voice is speaking: the engine's sentence when
+// it has one, else the phone's, with the phone's queue ahead of anything the
+// engine still holds (a finalize barrier). Pure; App.airNow calls it.
+export function airWithBrowser(engine = {}, spoken = []) {
+  const e = { nowSaying: engine?.nowSaying || null, nowAck: !!engine?.nowAck, queue: engine?.queue || [] };
+  if (squash(e.nowSaying)) return e;
+  const b = browserAir(spoken);
+  if (!squash(b.nowSaying) && !b.queue.length) return e;
+  return { nowSaying: b.nowSaying, nowAck: b.nowAck, queue: [...b.queue, ...e.queue] };
+}
+
 // Quotes inside the quote would end it early for a reader; the model reads
 // the same words either way.
 const q = (s) => squash(s).replace(/"/g, "'");

@@ -98,7 +98,11 @@ function interviewBlock({ mode, nextQuestion, lastQuestion, followUps = 0 }) {
 export const RETRACT_RULE = 'His last answer was misheard or wrong; the facts from it were removed. Treat this text as his real answer to the same question; acknowledge the correction in a few words.';
 export const CONTINUED_RULE = 'He had not finished; this continues his previous answer. Do not ask a new question until you have taken this in.';
 
-export function buildProfileTalkPrompt({ profile, history, text, today, mode = null, nextQuestion = null, lastQuestion = null, followUps = 0, talkPrefs = '', correction = null }) {
+// `note` (1 Nov 2026): the bracketed paragraph App.answerProfileTalk sends
+// when he cut Nova's last line off (src/interruptTurn.js interruptNote). It
+// sits with TURN_TAKING, whose last rule says what it means, before his
+// words; it is never his words and never joins the history.
+export function buildProfileTalkPrompt({ profile, history, text, today, mode = null, nextQuestion = null, lastQuestion = null, followUps = 0, talkPrefs = '', correction = null, note = '' }) {
   const sections = sectionsOf(profile);
   const interview = interviewBlock({ mode, nextQuestion, lastQuestion, followUps });
   return `${NOVA_LENS}
@@ -121,7 +125,7 @@ HOW THIS CONVERSATION WORKS:
 - If his new words correct what he said in his previous answer ("no, I said...", "that's wrong", "I meant..."), set "retract_last": true and record the corrected fact in "learned". Code removes what the previous answer filed.
 ${correction === 'retract' ? `\nA CORRECTION: ${RETRACT_RULE}\n` : correction === 'continued' ? `\nNOT FINISHED: ${CONTINUED_RULE}\n` : ''}${interview}
 ${talkPrefs ? `${talkPrefs}\n\n` : ''}${TURN_TAKING}
-
+${String(note || '').trim() ? `\n${String(note).trim()}\n` : ''}
 Ignore the MORE rule above for this conversation: everything you say is spoken.
 
 OUTPUT ONLY JSON, nothing else:
@@ -194,7 +198,7 @@ export function vetTurn(parsed, sections) {
 // the model's own `retract_last` undoes them after it answers, before the new
 // facts file. Both go through the Inbox undo, so the page comes back
 // byte-exact. `continued` tells the model he had not finished.
-export async function profileTalkTurn(vaultPath, { history = [], text = '', now = new Date(), mode = null, questionId = null, nextQuestion = null, followUps = 0, retract = false, continued = false, lastTurnRecordIds = [] } = {}, deps = {}) {
+export async function profileTalkTurn(vaultPath, { history = [], text = '', now = new Date(), mode = null, questionId = null, nextQuestion = null, followUps = 0, retract = false, continued = false, lastTurnRecordIds = [], note = '' } = {}, deps = {}) {
   const run = deps.run || runTextLane;
   const words = String(text || '').trim();
   if (!words) return { error: 'Say something first' };
@@ -213,7 +217,7 @@ export async function profileTalkTurn(vaultPath, { history = [], text = '', now 
     out = await run(LANE, buildProfileTalkPrompt({
       profile: before, history, text: words, today, talkPrefs,
       mode: interviewing ? mode : null, nextQuestion: interviewing ? nextQuestion : null, lastQuestion, followUps,
-      correction: retract ? 'retract' : continued ? 'continued' : null,
+      correction: retract ? 'retract' : continued ? 'continued' : null, note,
     }), { json: true, maxTokens: 700 });
     const m = firstBalancedObjectMatch(out?.text || '');
     if (!m) throw new Error('no JSON in the reply');

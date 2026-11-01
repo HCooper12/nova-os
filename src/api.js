@@ -195,7 +195,8 @@ export const api = {
   // questions) or one section; code files what he learned
   profileTalkStart: (conn, { mode = 'interview', key = null } = {}) => post(conn, '/api/profile/talk/start', { mode, key }, { timeoutMs: 60_000 }),
   // retract: his correction of a misheard answer; continued: he kept talking (27 Oct)
-  profileTalk: (conn, history, text, { mode = 'interview', questionId = null, retract = false, continued = false } = {}) => post(conn, '/api/profile/talk', { history, text, mode, questionId, ...(retract ? { retract: true } : {}), ...(continued ? { continued: true } : {}) }, { timeoutMs: 120_000 }),
+  // `note`: the cut he made in Nova's last line (src/interruptTurn.js), beside his words, never in them
+  profileTalk: (conn, history, text, { mode = 'interview', questionId = null, retract = false, continued = false, note = null } = {}) => post(conn, '/api/profile/talk', { history, text, mode, questionId, ...(retract ? { retract: true } : {}), ...(continued ? { continued: true } : {}), ...(note ? { note } : {}) }, { timeoutMs: 120_000 }),
   // where the interview stands: { pending: {q, key, askedAt} | null, learnedThisWeek, sessions }
   profileInterview: (conn) => call(conn, '/api/profile/interview'),
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),
@@ -603,6 +604,8 @@ export const api = {
   endStandby: (conn) => post(conn, '/api/voice/standby/end', {}),
   // the alert layer's receipt (server/lib/alerts.js): 'tapped' | 'dismissed' | 'spoken-only'
   alertActed: (conn, id, how) => post(conn, `/api/alerts/${encodeURIComponent(id)}/acted`, { how }),
+  // a fault's "one thing first" line was said: not again today (src/firstLine.js)
+  firstLineHeard: (conn, id) => post(conn, '/api/alerts/first-line/heard', { id }),
   // THE CONVERSATION RECORD (server/lib/conversationLog.js): every settled
   // voice-chat line goes up; the Voice screen reads the whole record back
   conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),
