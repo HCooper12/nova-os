@@ -869,7 +869,20 @@ export async function settleAskReply(cwd, replyText, turnJob, { question, noGlas
     const { cleanText, directive } = parseShowDirective(filed.text);
     let text = cleanText;
     let panel = null;
-    if (directive && !noGlass) {
+    // a panel the model named must be ABOUT what he asked or what the answer
+    // is about (panels.js panelOnTopic): a lift or a metric named in passing
+    // draws nothing (1 Nov: a Cable Bicep Curl card under a whole-program answer)
+    let onTopic = true;
+    if (directive && !noGlass && ['exercise', 'pulse'].includes(String(directive.panel || '').toLowerCase())) {
+      try {
+        const { panelOnTopic } = await import('./panels.js');
+        const { loadExerciseLibrary } = await import('./exercises.js');
+        const { exercises } = await loadExerciseLibrary(cwd);
+        onTopic = panelOnTopic(directive, { question, reply: cleanText, exercises: exercises.map((e) => e.name) });
+        if (!onTopic) console.log(`ask: SHOW ${directive.panel}${directive.name ? ` "${directive.name}"` : ''} dropped: not what he asked about`);
+      } catch { /* the rule could not be read: keep the old behaviour */ }
+    }
+    if (directive && !noGlass && onTopic) {
       try {
         panel = await buildPanel(cwd, directive);
       } catch (e) {
