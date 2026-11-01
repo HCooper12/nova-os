@@ -63,6 +63,18 @@ Stray copies tracked in git: lib/models.mjs.before-2026-09-20,
 lib/spawnBoundary.mjs.before-2026-09-20, tests/dock.test.mjs.before-2026-09-20,
 partner.out; untracked: "server 2.mjs", config.mjs.before-…, README.md.before-….
 
+## His decisions (1 Nov 2026, same day)
+
+1. "Wren never writes the repo" covers its conversation lanes only; builds
+   edit the Science Atlas repo on his go (stage, never commit). The docs are
+   reworded to say so. ("Okay.")
+2. Wren's pushes respect quiet hours; anything that needs him always gets
+   through. ("Sure.")
+3. Proceed with the plan from gap 1, pushing Wren's commits as they land.
+   And a rule for both, now a standing memory (interruption-semantics):
+   he can cut in mid-sentence; the AI takes in what he said, then finishes
+   what still stands or retracts plainly; nothing unsaid is lost.
+
 ## Order
 
 1, 2, 3 and the depth fix; then 5, 4, 6; then 7, 8; 9 and 10 only when a
