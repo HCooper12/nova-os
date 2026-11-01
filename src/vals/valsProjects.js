@@ -137,7 +137,7 @@ export function listProjects(st) {
   return { all, live, archivedCount: all.length - live.length };
 }
 
-export function valsProjects(app, { isOffline = false, demoMode = false } = {}) {
+export function valsProjects(app) {
   const st = app.state;
   const loaded = Array.isArray(st.liveProjects);
   const { all, live, archivedCount } = listProjects(st);
@@ -189,20 +189,8 @@ export function valsProjects(app, { isOffline = false, demoMode = false } = {}) 
         speaking: !!(st.projectSpeaking || {})[p.id],
         voiceOff: !st.voiceSpeak,
         setSpeaking: (on) => app.setProjectSpeaking(p.id, on),
-        // THE MICROPHONE (T6): his spoken turn goes the typed turn's way, with
-        // projectId; the hook and the rules live in the screen (src/projectTalk.js)
-        projectId: p.id,
-        sendSpoken: (text) => app.sendProjectAsk({ projectId: p.id, text, spoken: true }),
-        novaSpeaking: !!st.voiceSpeaking,
-        stopSpeaking: () => app.stopSpeaking(),
-        offline: !!isOffline,
-        demo: !!demoMode,
-        keepTalking: !!(st.projectKeepTalking || {})[p.id],
-        setKeepTalking: (on) => app.setProjectKeepTalking(p.id, on),
-        answerSeq: (st.projectAnswerSeq || {})[p.id] || 0,
-        heardLine: (st.projectHeardLine || {})[p.id] || null,
-        setHeardLine: (line) => app.setState((s) => ({ projectHeardLine: { ...(s.projectHeardLine || {}), [p.id]: line } })),
-        reportMic: (on) => app.setState((s) => (!!s.voiceScreenMic === !!on ? null : { voiceScreenMic: !!on })),
+        // Talk about this: the Voice conversation, with this project attached
+        talk: () => app.talkAboutProject({ id: p.id, name: p.name }),
       },
       // what happened, in the project's own log (code-written)
       thread: p.linked ? (d?.commits || []).map((c) => ({ at: String(c.at || '').slice(0, 16).replace('T', ' '), dry: false, text: c.subject })) : logLines.slice(-12).reverse(),

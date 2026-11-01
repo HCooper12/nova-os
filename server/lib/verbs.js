@@ -40,6 +40,9 @@ import { JOB_VERBS, parseJobCommand, screenFor, probeCard } from './verbJobs.js'
 // list is a SURE command (present data or not); anything else is a PROBE
 // candidate, a command only if it turns out to name a real lift
 import { CHECK_ALIASES } from './checks.js';
+// PROJECTS BY VOICE (1 Nov 2026): start, call off, research and watch for a
+// project, in the same registry (lib/projectVerbs.js)
+import { PROJECT_VERBS } from './projectVerbs.js';
 
 const SLOTS = ['preworkout', 'breakfast', 'lunch', 'dinner', 'snack', 'extra'];
 const TODO_CATS = ['personal', 'work', 'fitness', 'errands', 'later'];
@@ -1317,6 +1320,7 @@ verb({
 });
 
 for (const def of JOB_VERBS) verb(def);
+for (const def of PROJECT_VERBS) verb(def);
 
 export const VERB_IDS = Object.keys(VERBS);
 export const verbFor = (id) => VERBS[id] || null;
@@ -1344,7 +1348,10 @@ export function describeForModel() {
 // and nobody to answer a follow-up, so a verb that needs either says so and
 // the model-choice gate never asks. `gateAnswered`: he has already answered
 // it (/api/act) — "keep it" arrives as no model at all.
-export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false, direct = false, gateAnswered = false, forceConfirm = false } = {}) {
+// `projectId` / `intakeSessionId` (1 Nov 2026): the Voice conversation's attached
+// project and any project intake under way, for the project verbs; absent,
+// nothing about any other verb changes.
+export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false, direct = false, gateAnswered = false, forceConfirm = false, projectId = null, intakeSessionId = null } = {}) {
   const id = String(raw?.verb || '').trim();
   const v = VERBS[id];
   if (!v) throw new Error(`I don't have a verb called "${raw?.verb}"`);
@@ -1390,7 +1397,7 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice', from
     await createRecord(record);
     return { proposal: { recordId: record.id, title: record.decision.title, route: 'act' } };
   }
-  const out = await execute(vaultPath, { verb: id, args }, { fromMac, direct });
+  const out = await execute(vaultPath, { verb: id, args }, { fromMac, direct, ...(projectId ? { projectId } : {}), ...(intakeSessionId ? { intakeSessionId } : {}) });
   // a verb that changed nothing he owns (a screen opened, a session drafted
   // for his tap) lands no receipt: there is nothing to undo or to find later
   if (out.receipt === false) {

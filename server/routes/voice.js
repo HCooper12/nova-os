@@ -157,6 +157,32 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // A NEW PROJECT, BY HIS SPOKEN YES ("start a separate new project?"):
+  // the intake opened with his words, polled like any Nova turn.
+  router.post('/voice/intake', async (req, res) => {
+    try {
+      const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+      if (!text) return res.status(400).json({ error: 'say what the project is' });
+      const { startVoiceIntake } = await import('../lib/voiceIntake.js');
+      const { jobId, sessionId } = await startVoiceIntake(vaultPath, { text });
+      watchAnswerFor(jobId, 'nova');
+      res.json({ jobId, intake: { sessionId } });
+    } catch (e) {
+      res.status(e.code === 'intake' ? 400 : 500).json({ error: e.message });
+    }
+  });
+
+  // he called a spoken project setup off from the chip (or New chat): its
+  // pending card is withdrawn, nothing is created
+  router.post('/voice/intake/cancel', async (req, res) => {
+    try {
+      const { cancelVoiceIntake } = await import('../lib/voiceIntake.js');
+      res.json({ withdrawn: await cancelVoiceIntake(String(req.body?.sessionId || '')) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.post('/ask', async (req, res) => {
     try {
       let question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
@@ -244,6 +270,16 @@ export function voiceRouter(vaultPath) {
       // no reflex, verb, plan amend or specialist lane may take it, and it
       // starts its own conversation so the document is in its context
       const docTurn = !!(projectIdOf(req.body) && docRefOf(req.body));
+      // A PROJECT BEING SET UP BY VOICE (lib/voiceIntake.js): while the client
+      // holds an intake session, his words are the intake's next turn. Nothing
+      // else takes them; the job comes back in the shape every Nova turn has.
+      const intakeSid = typeof req.body?.intakeSessionId === 'string' && /^[0-9a-f-]{36}$/.test(req.body.intakeSessionId) ? req.body.intakeSessionId : null;
+      if (intakeSid) {
+        const { startVoiceIntake } = await import('../lib/voiceIntake.js');
+        const { jobId, sessionId: isid } = await startVoiceIntake(vaultPath, { text: raw, sessionId: intakeSid });
+        watchAnswerFor(jobId, 'nova');
+        return res.json({ jobId, intake: { sessionId: isid } });
+      }
       const reflex = attachmentPreamble || docTurn ? null : await tryReflex(raw).catch(() => null);
       if (reflex) {
         console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
@@ -390,13 +426,21 @@ export function voiceRouter(vaultPath) {
       // Nova blind to everything handed to the platform since (observed 20
       // Aug: "what's the last video I gave you?" answered from chat memory).
       const { resumedRefreshContext } = await import('../lib/askContext.js');
-      const liveLine = sessionId ? await resumedRefreshContext(vaultPath).catch(() => '') : '';
+      let liveLine = sessionId ? await resumedRefreshContext(vaultPath).catch(() => '') : '';
+      // A PROJECT ATTACHED MID-CONVERSATION (1 Nov 2026): a resumed turn carries
+      // no context, so the first turn after he attaches one carries its
+      // section on the live line, once (`projectFresh`). Absent, unchanged.
+      if (sessionId && req.body?.projectFresh === true && projectIdOf(req.body)) {
+        const { projectContextSection } = await import('../lib/projectContext.js');
+        const section = await projectContextSection(vaultPath, projectIdOf(req.body), { repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') }).catch(() => '');
+        if (section) liveLine = liveLine ? `${liveLine}\n\n${section}` : section;
+      }
       // his own words to Nova: a Coach he consults may apply what they
       // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const pid = projectIdOf(req.body);
-      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid, docTurn ? { docRef: docRefOf(req.body) } : {})), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid, docTurn ? { docRef: docRefOf(req.body) } : {})), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
       watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });

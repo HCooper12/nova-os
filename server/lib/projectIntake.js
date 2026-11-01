@@ -52,7 +52,9 @@ export function parseBriefLine(text) {
   }
 }
 
-export async function buildIntakePrompt(vaultPath, text) {
+// `note`: a door's own line, placed before TURN_TAKING (the Voice conversation's,
+// lib/voiceIntake.js). Absent, the prompt is exactly as before.
+export async function buildIntakePrompt(vaultPath, text, note = '') {
   const { NOVA_LENS } = await import('./lens.js');
   const { profileContext } = await import('./profile.js');
   const { TURN_TAKING, talkPrefsBlock } = await import('./talk.js');
@@ -61,7 +63,7 @@ export async function buildIntakePrompt(vaultPath, text) {
   let talk = '';
   try { talk = talkPrefsBlock(vaultPath); } catch { talk = ''; }
   const long = String(text || '').length > LONG_PASTE;
-  return [NOVA_LENS, who, PROJECT_INTAKE, long ? PASTED_NOTE : '', talk, TURN_TAKING, `HIS WORDS:\n${text}`].filter(Boolean).join('\n\n');
+  return [NOVA_LENS, who, PROJECT_INTAKE, long ? PASTED_NOTE : '', note, talk, TURN_TAKING, `HIS WORDS:\n${text}`].filter(Boolean).join('\n\n');
 }
 
 /**
@@ -98,6 +100,8 @@ export async function withdrawSuperseded(sessionId) {
 // per-session fix rounds; in memory like the warm pool itself
 const rounds = new Map();
 export const _resetIntake = () => rounds.clear();
+// a spoken intake he called off (lib/voiceIntake.js) keeps no fix-round count
+export const _forgetRounds = (sessionId) => rounds.delete(sessionId);
 
 /**
  * What code does with one finished reply. Exported for the test, which hands
@@ -163,13 +167,13 @@ export async function fileBriefCard({ brief, sessionId, status, errors = null })
  * Start or continue the intake. Returns {jobId, sessionId}; the client polls
  * the job like a code job. `runTurn` is injectable so tests never spawn.
  */
-export async function startIntake(vaultPath, { text, sessionId = null } = {}, { runTurn } = {}) {
+export async function startIntake(vaultPath, { text, sessionId = null, note = '' } = {}, { runTurn } = {}) {
   const words = String(text || '').trim();
   if (!words) { const e = new Error('say what the project is'); e.code = 'intake'; throw e; }
   if (words.length > 20000) { const e = new Error('that is too long to read in one turn'); e.code = 'intake'; throw e; }
   const sid = typeof sessionId === 'string' && /^[0-9a-f-]{36}$/.test(sessionId) ? sessionId : null;
   const run = runTurn || (await import('./claudeCode.js')).startProjectIntakeTurn;
-  const prompt = sid ? words : await buildIntakePrompt(vaultPath, words);
+  const prompt = sid ? words : await buildIntakePrompt(vaultPath, words, note);
   return run(vaultPath, {
     text: prompt,
     sessionId: sid,

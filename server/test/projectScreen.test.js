@@ -112,3 +112,14 @@ test('the glass: a project watch says its lens, a fallback, and its destination;
   // seen-once rule holds for the new kinds: a settled record seen first is history
   assert.deepEqual(newStages(research(), undefined).fresh, []);
 });
+
+test('the project page has no microphone of its own: "Talk about this" opens the Voice conversation with the project attached', () => {
+  const calls2 = [];
+  const p = { id: PID, name: 'Room', kind: 'life', stage: 'planning', folder: '/x', phases: [], allowances: {} };
+  const a = { ...app({ projectOpen: PID, liveProjects: [p], liveInbox: { items: [] } }), talkAboutProject: (x) => calls2.push(x) };
+  const c = valsProjects(a).page.conversation;
+  for (const k of ['sendSpoken', 'keepTalking', 'setKeepTalking', 'answerSeq', 'heardLine', 'reportMic', 'novaSpeaking']) assert.equal(k in c, false, k);
+  c.talk();
+  assert.deepEqual(calls2, [{ id: PID, name: 'Room' }]);
+  assert.equal(typeof c.send, 'function', 'the typed box stays');
+});

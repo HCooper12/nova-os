@@ -651,6 +651,9 @@ export const api = {
   // model: the model-choice gate's answer ('opus'/'sonnet') — omitted, the
   // lane's own standing default runs, same as always.
   research: (conn, question, model) => post(conn, '/api/research', { question, model }),
+  // a project set up by voice (1 Nov 2026): a new intake from his words, and calling one off
+  voiceIntakeStart: (conn, text) => post(conn, '/api/voice/intake', { text }),
+  voiceIntakeCancel: (conn, sessionId) => post(conn, '/api/voice/intake/cancel', { sessionId }),
   videoWatch: (conn, text, model) => post(conn, '/api/video', { text, model }),
   // the gate already has url/question split (a voice directive, a played
   // offer) — this skips the text-sniffing /api/video does for the other form

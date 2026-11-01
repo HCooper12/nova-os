@@ -20,6 +20,7 @@ import { audioLevel } from '../audioLevel.js';
 import { CAPTIONS_KEY, captionsOn } from '../novaFocusFacts.js';
 import { FiledRows } from '../motion/FiledRows.jsx';
 import { AskTaps } from '../QuickCapture.jsx';
+import { VoiceAttach } from '../VoiceAttach.jsx';
 
 // THE NOVA THREAD (29 Sep 2026) — design/mockups/63-redesign-nova-r2.html,
 // variation D · Rising, his pick: "The rising option D mock up seems to be the
@@ -296,6 +297,7 @@ export function NovaThread({ v }) {
     );
     return (
       <div ref={rootRef} className="nv-nt nv-nt-mac" data-screen-label="Voice">
+        <VoiceAttach a={v.voiceAttach} where="mac" />
         <NovaMac T={T} S={S} dict={dict} onTalk={startTalking} onSend={send} fieldRef={fieldRef} captions={captions} history={history}
           onStatus={ONE_NOVA_CHROME.status ? () => setStatusOpen(true) : null} />
         {statusOpen && <StatusSheet T={T} dict={dict} S={S} captions={captions} onCaptions={toggleCaptions} onClose={() => setStatusOpen(false)} />}
@@ -324,6 +326,7 @@ export function NovaThread({ v }) {
         {!shown && leaving && <Stage s={leaving} leaving onOpen={() => {}} onTuck={() => {}} />}
       </div>
 
+      <VoiceAttach a={v.voiceAttach} where="mob" />
       <div className="nv-nt-thread">
         {rows.length === 0 && !T.busy && (
           <p className="nv-nt-empty">Ask about anything in your vault: training, fuel, notes, the week. Answers come from what is actually written.</p>
