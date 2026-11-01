@@ -10774,17 +10774,32 @@ export default class App extends Component {
   // the record until it is pending, then put the plan itself in the
   // transcript with the same yes/no chip a proposal carries — so "yes"
   // (spoken or typed) approves it, and nothing runs before he has read it.
-  watchPlanProposal(recordId) {
+  //
+  // THE WATCH COUNTS ITS OWN POLLS, NOT THE CLOCK (1 Nov 2026). It gave up
+  // four minutes after it began by wall time; his phone slept from 00:00:28 to
+  // 00:04:25 while the revised plan was drawn, the first tick after waking was
+  // past the deadline, and the plan never came up. Timers do not run while iOS
+  // has the page frozen, so a tick budget only spends time he was here for.
+  // `quiet`: the line he just heard (a status answer) already said it is on
+  // screen. `redraw`: he said he cannot see it, so it is drawn even if an
+  // earlier line already holds it.
+  watchPlanProposal(recordId, { quiet = false, redraw = false } = {}) {
     const conn = getConnection();
     if (!conn) return;
-    const started = Date.now();
+    if (!redraw && this.planProposalWatch === recordId) return; // already on it
+    this.planProposalWatch = recordId;
+    let ticks = 0;
     const tick = async () => {
-      if (Date.now() - started > 4 * 60_000) return;
+      if (this.planProposalWatch !== recordId) return; // a newer plan took over
+      if ((ticks += 1) > 120) { this.planProposalWatch = null; return; }
       let rec = null;
       try { rec = await api.inboxItem(conn, recordId); } catch { /* keep polling */ }
       rec = rec?.record || rec;
       if (!rec || rec.status === 'classifying') { setTimeout(tick, 2000); return; }
+      this.planProposalWatch = null;
       if (rec.status !== 'pending') return; // errored: the Inbox says why
+      // never two copies of one plan, unless he asked to see it again
+      if (!redraw && (this.state.voiceChat || []).some((m) => m.proposal?.recordId === recordId)) return;
       const title = rec.decision?.title || 'The plan';
       const body = rec.decision?.body || '';
       const proposal = rec.planOk ? { recordId, title, status: 'pending', kind: 'plan' } : undefined;
@@ -10792,9 +10807,9 @@ export default class App extends Component {
         voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: body ? `${title}\n${body}` : title, proposal }],
         voicePendingProposal: proposal ? { recordId, title } : s.voicePendingProposal,
       }));
-      if (this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
+      if (!quiet && this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
     };
-    setTimeout(tick, 1500);
+    setTimeout(tick, redraw ? 0 : 1500);
   }
   // THE REPORT COMES BACK TO THE CONVERSATION.
   //
@@ -10846,7 +10861,11 @@ export default class App extends Component {
       if (rec.finishedAt) {
         stop();
         const opening = reportOpening(rec.decision?.payload?.body || '');
-        say(['The report is back.', opening].filter(Boolean).join('\n'), { recordId, status: 'open' });
+        // a step that failed can run again, and he is told how in one line
+        // (server/routes/voice.js: "retry" on a finished plan)
+        const failed = (rec.plan?.steps || []).filter((s) => s.status === 'failed' || s.status === 'skipped').length;
+        const retryLine = failed ? `Say retry to run the failed step${failed === 1 ? '' : 's'} again.` : '';
+        say(['The report is back.', opening, retryLine].filter(Boolean).join('\n'), { recordId, status: 'open' });
         if (this.state.voiceSpeak) this.speakTtsSentence('The report is back, sir — say the word and I will walk you through it.');
         return;
       }
@@ -11732,7 +11751,15 @@ export default class App extends Component {
               ? { ...m, proposal: { ...m.proposal, status: 'dismissed', replaced: true } } : m)),
             voicePendingProposal: s.voicePendingProposal?.recordId === replaces ? null : s.voicePendingProposal,
           }));
-          this.watchPlanProposal(resp.plan.recordId);
+          // HIS QUESTION ABOUT THE PLAN (server/lib/planFollowUp.js
+          // planStatusLine) re-attaches the watch his phone may have slept
+          // through: a run is followed to its report; a proposal is drawn
+          // (again, when he says he cannot see it), and the status line he
+          // just heard already said it is on screen
+          if (resp.plan.run) this.watchPlanRun(resp.plan.recordId);
+          else if (resp.plan.status !== 'finished' && resp.plan.status !== 'failed' && resp.plan.status !== 'refused') {
+            this.watchPlanProposal(resp.plan.recordId, { quiet: !!resp.plan.status, redraw: !!resp.plan.show });
+          }
         }
         const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
         const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
