@@ -10,6 +10,16 @@
 //     /v1/chat/completions) from the MLX venv that powers the Kokoro TTS
 //     sidecar (server/voice/env/, see lib/ttsLocal.js). Kept as the option:
 //     NOVA_LOCAL_LLM_BACKEND=mlx.
+//   - APPLE (1 Nov 2026, his yes that day): Apple's on-device model, the one
+//     behind Apple Intelligence, through a small Swift helper
+//     (server/apple-llm/main.swift → server/bin/nova-apple-llm) speaking JSON
+//     lines on stdin/stdout. Free, private, no download, and it does not
+//     share Ollama's memory, so it answers when the Mac has no room to load
+//     the Qwen model. Hard window of 4,096 tokens, and no tools. Pinned with
+//     NOVA_LOCAL_LLM_BACKEND=apple or his Settings pick 'apple:on-device';
+//     otherwise it is the STAND-IN for a short call when Ollama's headroom
+//     guard refuses a load (backendForCall below). design/LOCAL-NOVA-PLAN.md
+//     §4d and design/audits/2026-11-01-apple-model-eval.md.
 // Every caller reads ONE shape whichever backend answered: the OpenAI
 // message (content, tool_calls with `function.arguments` as a JSON string),
 // because lib/localAsk.js and lib/textLane.js were written against it.
@@ -31,9 +41,20 @@ import os from 'node:os';
 
 /* -------------------------------- backend --------------------------------- */
 
-/** 'ollama' (default) or 'mlx', read per call so a test can switch it. */
+// Apple's model has one id, whatever the Mac: it is not pulled or chosen by
+// size, it is the one the OS ships.
+export const APPLE_MODEL_ID = 'apple:on-device';
+
+/** The PREFERRED backend: 'ollama' (default), 'mlx' or 'apple', read per call
+ *  so a test can switch it. An explicit NOVA_LOCAL_LLM_BACKEND wins; then an
+ *  env-pinned model (an eval run) or his board pick of Apple's model says
+ *  apple; everything else is Ollama. A single call may still run elsewhere:
+ *  see backendForCall. */
 export function localBackend() {
-  return String(process.env.NOVA_LOCAL_LLM_BACKEND || 'ollama').toLowerCase() === 'mlx' ? 'mlx' : 'ollama';
+  const env = String(process.env.NOVA_LOCAL_LLM_BACKEND || '').toLowerCase();
+  if (env === 'mlx' || env === 'apple' || env === 'ollama') return env;
+  if (process.env.NOVA_LOCAL_LLM_MODEL) return process.env.NOVA_LOCAL_LLM_MODEL === APPLE_MODEL_ID ? 'apple' : 'ollama';
+  return preferredModel === APPLE_MODEL_ID ? 'apple' : 'ollama';
 }
 
 // A TEST RUN NEVER REACHES THE REAL OLLAMA (27 Oct 2026). Local-first made
@@ -150,22 +171,27 @@ export async function refreshOllama() {
 const sizeOf = (id) => ollamaState.models.find((m) => m.id === id)?.sizeBytes || null;
 const isLoaded = (id) => ollamaState.loaded.includes(id);
 
-/** The models Ollama has pulled that can answer: [{ id, sizeGB, name }].
- *  Empty on the MLX backend or when Ollama is not answering. */
+/** The models this Mac can answer with: what Ollama has pulled, and Apple's
+ *  on-device model when its helper is built and the framework says it is
+ *  available (1 Nov 2026) — [{ id, sizeGB, name }], Apple's sizeGB null
+ *  because it is the OS's, not a download. Empty on the MLX backend. */
 export async function listLocalModels() {
-  if (localBackend() !== 'ollama') return [];
+  if (localBackend() === 'mlx') return [];
   await refreshOllama();
+  if (appleConfigured()) await refreshApple();
   return cachedLocalModels();
 }
 
 /** The same list from the last reading, for a synchronous reader (the board). */
 export function cachedLocalModels() {
-  if (localBackend() !== 'ollama') return [];
-  return ollamaState.models.map((m) => ({
+  if (localBackend() === 'mlx') return [];
+  const list = ollamaState.models.map((m) => ({
     id: m.id,
     sizeGB: m.sizeBytes ? Math.round((m.sizeBytes / 1e9) * 10) / 10 : null,
     name: localModelName(m.id),
   }));
+  if (appleAvailable()) list.push({ id: APPLE_MODEL_ID, sizeGB: null, name: localModelName(APPLE_MODEL_ID) });
+  return list;
 }
 
 /* ------------------------------ memory headroom --------------------------- */
@@ -247,6 +273,9 @@ export function _setHeadroomForTests(fn) { headroomOverride = fn || null; }
 export function memoryHeadroom(opts) {
   if (!opts && headroomOverride) return headroomOverride();
   const backend = opts?.backend || localBackend();
+  // Apple manages the on-device model's memory itself, outside this
+  // process and outside Ollama: there is no load here to refuse
+  if (backend === 'apple') return { ok: true, freeMB: null, needMB: null, swapFreeMB: null, reason: null };
   if (backend === 'ollama') {
     const {
       readVm = readVmStatDefault, platform = process.platform, model = defaultModel(),
@@ -335,6 +364,8 @@ export function looksLikeModelId(id) {
 export function modelFitsBackend(id, backend = localBackend()) {
   if (!looksLikeModelId(id)) return false;
   const s = String(id);
+  // Apple's model runs on its own backend and nothing else does
+  if (s === APPLE_MODEL_ID || backend === 'apple') return s === APPLE_MODEL_ID && backend === 'apple';
   const mlxShaped = s.includes('/') && !s.includes(':');
   return backend === 'mlx' ? mlxShaped : !mlxShaped;
 }
@@ -353,6 +384,7 @@ export function setPreferredModel(id) {
 // hardwareProfile() picks — so the choice is derived from the Mac, never
 // hard-coded.
 export function defaultModel() {
+  if (localBackend() === 'apple') return APPLE_MODEL_ID;
   if (process.env.NOVA_LOCAL_LLM_MODEL) return process.env.NOVA_LOCAL_LLM_MODEL;
   if (preferredModel && modelFitsBackend(preferredModel)) return preferredModel;
   return hardwareProfile().recommendedModel;
@@ -362,6 +394,7 @@ export function defaultModel() {
 
 /** Is the server answering right now? (Not: is the model loaded.) */
 export async function healthy() {
+  if (localBackend() === 'apple') return (await refreshApple()).ok;
   if (localBackend() === 'ollama') {
     try {
       const res = await fetch(`${OLLAMA_URL()}/api/tags`, { signal: AbortSignal.timeout(1500) });
@@ -385,6 +418,7 @@ export async function healthy() {
 // chat call to an unloaded model would load it, and a load must pass the
 // headroom guard first.
 async function ready() {
+  if (localBackend() === 'apple') return !!appleChild && appleState.ok ? true : healthy();
   if (localBackend() !== 'ollama') return healthy();
   if (!(await healthy())) return false;
   await refreshOllama();
@@ -405,7 +439,10 @@ export async function localModelStatus() {
   if (localBackend() === 'ollama') await refreshOllama();
   const configured = localModelConfigured();
   const isReady = configured ? await ready() : false;
-  return { configured, ready: isReady, model, backend: localBackend(), headroom: memoryHeadroom() };
+  // the stand-in's own reading, so the board can say whether Apple's model
+  // would answer a short lane when Ollama has no room (a no-op once fresh)
+  if (localBackend() !== 'apple' && appleConfigured()) await refreshApple();
+  return { configured, ready: isReady, model, backend: localBackend(), headroom: memoryHeadroom(), appleAvailable: appleAvailable() };
 }
 
 /** Synchronous half of the status: is what this needs installed? A stat,
@@ -413,6 +450,7 @@ export async function localModelStatus() {
  *  Mac, or the server answered at the last reading (it can run elsewhere, a
  *  launchd service from a path not on PATH). MLX: the venv exists. */
 export function localModelConfigured() {
+  if (localBackend() === 'apple') return appleConfigured();
   if (localBackend() === 'ollama') return !!ollamaBin() || ollamaState.reachable;
   return existsSync(pythonBin());
 }
@@ -421,6 +459,7 @@ export function localModelConfigured() {
  *  → "Qwen3 4B". The model's own name, for a pill or a menu. */
 export function localModelName(id = defaultModel()) {
   const raw = String(id || '');
+  if (raw === APPLE_MODEL_ID) return "Apple's on-device model";
   if (raw.includes(':') || !raw.includes('/')) {
     const [name, tag = ''] = raw.split(':');
     const base = name.split('/').pop() || '';
@@ -556,9 +595,19 @@ async function bootOllama() {
 // Boot the server and load the model if it isn't answering. One shared
 // in-flight boot — several callers arriving at once share ONE spawn+load,
 // not a race of several.
+// Apple: the helper started and the framework saying the model is available.
+// No headroom guard: Apple manages that memory, not this process.
+async function bootApple() {
+  if (!appleConfigured()) throw new Error("Apple's model helper is not built on this Mac (bash server/apple-llm/build.sh)");
+  const st = await refreshApple();
+  if (!st.ok) throw new Error(`Apple's on-device model is not available: ${st.availability}`);
+  return true;
+}
+
 export function ensureLocalModel() {
   if (booting) return booting;
-  booting = (localBackend() === 'ollama' ? bootOllama() : bootMlx()).finally(() => { booting = null; });
+  const b = localBackend();
+  booting = (b === 'apple' ? bootApple() : b === 'ollama' ? bootOllama() : bootMlx()).finally(() => { booting = null; });
   return booting;
 }
 
@@ -582,13 +631,225 @@ export function stopLocalModel() {
     child.kill('SIGTERM');
     child = null;
   }
+  // the Apple helper too: nothing to unload (Apple holds the model), but the
+  // process is ours
+  if (appleChild) {
+    appleChild.kill('SIGTERM');
+    appleChild = null;
+  }
   return unload;
 }
 
 // The pid of the server we spawned, or null — for ops visibility only (e.g.
 // sampling RSS during an eval run). Never used for control flow.
 export function localModelPid() {
+  if (localBackend() === 'apple') return appleChild ? appleChild.pid : null;
   return child ? child.pid : null;
+}
+
+/* ------------------------- Apple's on-device model ------------------------ */
+
+// The helper binary: an explicit path (tests name a Node stub here), else the
+// one server/apple-llm/build.sh writes. Under `node --test` there is no
+// default, same rule as Ollama's: a test never reaches the real model.
+const APPLE_BIN_DEFAULT = () => path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'nova-apple-llm');
+function appleBin() {
+  if (process.env.NOVA_APPLE_LLM_BIN) return existsSync(process.env.NOVA_APPLE_LLM_BIN) ? process.env.NOVA_APPLE_LLM_BIN : null;
+  if (UNDER_TEST()) return null;
+  return existsSync(APPLE_BIN_DEFAULT()) ? APPLE_BIN_DEFAULT() : null;
+}
+
+/** Is the Apple helper built on this Mac? A stat. Not: is the model available
+ *  (Apple Intelligence can be off); that is appleState.ok after a reading. */
+export function appleConfigured() {
+  return !!appleBin();
+}
+
+// THE WINDOW (measured 1 Nov 2026): 4,096 tokens, prompt and answer
+// together; a ~4.2k-token prompt was refused outright. The stand-in rule only
+// sends a call it expects to fit with room to spare, by a chars/4 estimate
+// (English prose runs ~4 characters a token), so a near-miss goes to Claude
+// at once instead of after a refusal. A call PINNED to Apple is not
+// pre-judged: Apple counts exactly and its refusal names the number.
+const APPLE_WINDOW_BUDGET = 3500;
+export function estimateTokens(text) {
+  return Math.ceil(String(text || '').length / 4);
+}
+export function fitsAppleWindow({ prompt = '', system = '', maxTokens = 512 } = {}) {
+  return estimateTokens(prompt) + estimateTokens(system) + (Number(maxTokens) || 0) <= APPLE_WINDOW_BUDGET;
+}
+
+// The last health reading, for synchronous readers (the board, the model
+// list). `ok` is "the framework says the model is available".
+let appleState = { ok: false, availability: null, at: null };
+export function appleAvailable() {
+  return appleConfigured() && appleState.ok;
+}
+
+let appleChild = null;     // the long-lived helper, if running
+let appleSeq = 0;
+
+// Each helper process carries its OWN waiting requests (id → { resolve,
+// reject, timer }): a helper that was stopped and replaced exits a moment
+// later, and its exit must answer only its own waiters, never the new one's.
+const pendingOf = (proc) => proc.novaPending;
+
+// The helper holds the event loop only while a request is waiting on it, so
+// an idle helper never keeps a script, an eval or a test run from exiting.
+function appleHold(proc, on) {
+  if (!proc) return;
+  for (const h of [proc, proc.stdin, proc.stdout]) {
+    try { if (on) h?.ref?.(); else h?.unref?.(); } catch { /* a closed pipe */ }
+  }
+}
+
+function appleFailAll(proc, why) {
+  const pending = pendingOf(proc);
+  for (const [, p] of pending) { clearTimeout(p.timer); p.reject(new Error(why)); }
+  pending.clear();
+}
+
+function spawnApple(bin) {
+  const proc = spawn(bin, [], { stdio: ['pipe', 'pipe', 'inherit'] });
+  proc.novaPending = new Map();
+  let buf = ''; // stdout not yet split into lines
+  proc.stdout.setEncoding('utf8');
+  proc.stdout.on('data', (chunk) => {
+    buf += chunk;
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      let msg;
+      try { msg = JSON.parse(line); } catch { continue; }
+      const p = msg && msg.id != null ? pendingOf(proc).get(String(msg.id)) : null;
+      if (!p) continue;
+      pendingOf(proc).delete(String(msg.id));
+      clearTimeout(p.timer);
+      p.resolve(msg);
+    }
+    if (!pendingOf(proc).size) appleHold(proc, false);
+  });
+  // stdin can break under us when the helper dies mid-write: the exit event
+  // below answers every waiter, so the pipe's own error is not a crash
+  proc.stdin.on('error', () => {});
+  // liveness from the 'exit' event, the same idiom as watchChild above
+  proc.on('exit', (code, signal) => {
+    console.log(`Apple model helper exited (code ${code}, signal ${signal})`);
+    if (appleChild === proc) { appleChild = null; appleState = { ...appleState, ok: false }; }
+    appleFailAll(proc, `Apple's model helper stopped (code ${code}, signal ${signal})`);
+  });
+  proc.on('error', (e) => {
+    console.log(`Apple model helper failed to spawn: ${e.message}`);
+    if (appleChild === proc) appleChild = null;
+    appleFailAll(proc, `Apple's model helper could not start: ${e.message}`);
+  });
+  return proc;
+}
+
+// One request line, one reply line. A timeout kills the helper: it answers
+// serially, so a stuck generation would otherwise hold every later call
+// behind it. The next call starts a fresh one.
+function appleRequest(body, timeoutMs) {
+  const bin = appleBin();
+  if (!bin) return Promise.reject(new Error("Apple's model helper is not built on this Mac (bash server/apple-llm/build.sh)"));
+  if (!appleChild) appleChild = spawnApple(bin);
+  const proc = appleChild;
+  const pending = pendingOf(proc);
+  const id = `r${++appleSeq}`;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`Apple's model did not answer within ${Math.round(timeoutMs / 1000)}s`));
+      if (appleChild === proc) { proc.kill('SIGTERM'); appleChild = null; }
+    }, timeoutMs);
+    pending.set(id, { resolve, reject, timer });
+    appleHold(proc, true);
+    try {
+      proc.stdin.write(`${JSON.stringify({ ...body, id })}\n`);
+    } catch (e) {
+      pending.delete(id);
+      clearTimeout(timer);
+      if (!pending.size) appleHold(proc, false);
+      reject(new Error(`Apple's model helper could not be asked: ${e.message}`));
+    }
+  });
+}
+
+/** Ask the helper whether the model is available, and remember the answer.
+ *  Never throws: not built, or a helper that does not answer, reads as
+ *  { ok: false } with the reason. */
+export async function refreshApple() {
+  if (!appleConfigured()) {
+    appleState = { ok: false, availability: 'the helper is not built', at: Date.now() };
+    return appleState;
+  }
+  try {
+    const r = await appleRequest({ op: 'health' }, 15_000);
+    appleState = { ok: r.ok === true, availability: String(r.availability || (r.ok ? 'available' : 'unavailable')), at: Date.now() };
+  } catch (e) {
+    appleState = { ok: false, availability: e.message, at: Date.now() };
+  }
+  return appleState;
+}
+
+// A JSON reply wrapped in a markdown fence (Apple's model does this even when
+// told not to: measured 1 Nov, "```json\n{…}\n```") is unwrapped by code, so
+// a lane reads the same bare JSON Ollama's format:'json' hands it.
+export function unfenceJson(text) {
+  const t = String(text || '').trim();
+  const m = t.match(/^```[a-zA-Z]*\s*\n?([\s\S]*?)\n?```$/);
+  return m ? m[1].trim() : t;
+}
+
+async function appleComplete({ system, prompt, json, schema, maxTokens, temperature, timeoutMs }) {
+  const req = { prompt, maxTokens, temperature };
+  if (system) req.system = system;
+  if (json) req.json = true;
+  if (schema && typeof schema === 'object') req.schema = schema;
+  const started = Date.now();
+  const r = await appleRequest(req, timeoutMs);
+  const ms = Date.now() - started;
+  if (r.error) throw new Error(`Apple's on-device model: ${r.error}`);
+  const text = typeof r.text === 'string' ? (json ? unfenceJson(r.text) : r.text) : '';
+  if (!text.trim()) throw new Error("Apple's on-device model returned no text");
+  return { text, ms };
+}
+
+// An OpenAI-shaped message list → Apple's one instructions string and one
+// prompt. A single user turn is sent as it is; a longer history is written out
+// as labelled turns ahead of the last message, since a fresh session per
+// request is what keeps the 4,096-token window honest.
+function flattenMessages(messages) {
+  const system = messages.filter((m) => m?.role === 'system').map((m) => String(m.content ?? '')).join('\n\n');
+  const turns = messages.filter((m) => m?.role !== 'system');
+  if (turns.length === 1) return { system, prompt: String(turns[0].content ?? '') };
+  const label = (r) => (r === 'assistant' ? 'Nova' : r === 'tool' ? 'Tool result' : 'Hayden');
+  return { system, prompt: turns.map((m) => `${label(m.role)}: ${String(m.content ?? '')}`).join('\n\n') };
+}
+
+/** WHICH BACKEND ANSWERS THIS CALL (1 Nov 2026). The preferred backend
+ *  (localBackend) as a rule, with one exception: when Ollama is preferred,
+ *  this Mac has no room to load its model (the headroom guard refuses: it
+ *  already passes a model Ollama holds), and the call is short enough for
+ *  Apple's window and asks for no tools, Apple's model answers instead. The
+ *  result says so (`model: 'apple:on-device'`), so the ledger and the board
+ *  never credit the Qwen model with Apple's words. */
+//
+// NOVA_LOCAL_APPLE_STANDIN=0 switches the stand-in off (Ollama's own refusal
+// then escalates to Claude as before). The 1 Nov eval measured Apple below
+// the 4B on the inbox classifier (design/audits/2026-11-01-apple-model-eval.md),
+// so whether a no-room capture goes to Apple or to Claude is his call.
+export function backendForCall({ prompt = '', system = '', maxTokens = 512, tools = null } = {}) {
+  const pref = localBackend();
+  if (pref !== 'ollama') return pref;
+  if (process.env.NOVA_LOCAL_APPLE_STANDIN === '0') return pref;
+  if (tools && tools.length) return pref;
+  if (!appleConfigured()) return pref;
+  if (!fitsAppleWindow({ prompt, system, maxTokens })) return pref;
+  const room = headroomOverride ? headroomOverride() : memoryHeadroom({ backend: 'ollama' });
+  return room.ok ? pref : 'apple';
 }
 
 /* ------------------------------- completion ------------------------------- */
@@ -711,18 +972,45 @@ async function ollamaChat(model, messages, { tools, json, think, maxTokens, temp
   return fromNative(await postJson(`${OLLAMA_URL()}/api/chat`, body, timeoutMs));
 }
 
+// Apple is ready when its helper runs and the framework says the model is
+// available; no boot wait beyond that health line.
+async function appleReady() {
+  if (appleChild && appleState.ok) return;
+  const st = await refreshApple();
+  if (!st.ok) throw new Error(`Apple's on-device model is not available: ${st.availability}`);
+}
+
+// Read Ollama's state fresh before the stand-in rule judges it: the board's
+// reading can be 30 s old, and "is the model already loaded" decides it.
+async function chooseBackend(call) {
+  if (localBackend() === 'ollama' && appleConfigured() && !(call.tools && call.tools.length)) await refreshOllama();
+  return backendForCall(call);
+}
+
 // One completion call. A lane that has chosen the local model
 // (lib/textLane.js) passes `waitForBoot`: it waits for the load, capped by
 // NOVA_LOCAL_LLM_WAIT_MS, because the alternative is no answer at all.
 // `system` is sent as a system message ahead of the prompt; `json` asks
 // Ollama to constrain the output to JSON (ignored on MLX, which has no such
 // switch); `think` and `numCtx` are Ollama's too.
+//
+// Apple (1 Nov 2026): the call runs there when Apple is the preferred backend
+// or when backendForCall's stand-in rule picks it; `model` then reads
+// 'apple:on-device' whatever the preferred model is. `schema` (a JSON Schema
+// object) is Apple's guided generation, used only there; `think` and
+// `numCtx` mean nothing to it.
 export async function completeLocal(prompt, {
   maxTokens = 512, temperature = 0, timeoutMs = 90_000, waitForBoot = false, system = null,
-  think = false, json = false, numCtx = null,
+  think = false, json = false, numCtx = null, schema = null,
 } = {}) {
   const text = String(prompt || '');
   if (!text.trim()) throw new Error('completeLocal: empty prompt');
+  const sys = system && String(system).trim() ? String(system) : '';
+  if (await chooseBackend({ prompt: text, system: sys, maxTokens }) === 'apple') {
+    await appleReady();
+    const out = await appleComplete({ system: sys, prompt: text, json, schema, maxTokens, temperature, timeoutMs });
+    return { text: out.text, ms: out.ms, model: APPLE_MODEL_ID };
+  }
   const model = defaultModel();
   await readyOrBoot(waitForBoot);
   const messages = [];
@@ -762,6 +1050,20 @@ export async function chatLocal(messages, {
   think = false, numCtx = null,
 } = {}) {
   if (!Array.isArray(messages) || !messages.length) throw new Error('chatLocal: no messages');
+  const flat = flattenMessages(messages);
+  if (await chooseBackend({ prompt: flat.prompt, system: flat.system, maxTokens, tools }) === 'apple') {
+    // Apple's model takes no tools through this helper, and a faked tool
+    // call would be fiction: a plain 400, the same refusal an HTTP backend
+    // gives, so lib/localAsk.js's text-tool fallback or escalation handles it
+    if (tools && tools.length) {
+      const err = new Error("Apple's on-device model takes no tools on this backend");
+      err.status = 400;
+      throw err;
+    }
+    await appleReady();
+    const out = await appleComplete({ system: flat.system, prompt: flat.prompt, json: false, maxTokens, temperature, timeoutMs });
+    return { message: { role: 'assistant', content: out.text }, usage: null, ms: out.ms, model: APPLE_MODEL_ID };
+  }
   const model = defaultModel();
   await readyOrBoot(waitForBoot);
   const started = Date.now();

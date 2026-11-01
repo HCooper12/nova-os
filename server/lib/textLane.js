@@ -184,7 +184,9 @@ export async function runTextLane(lane, prompt, { maxTokens = 700, json = false,
     // nothing to run here: a stat says so, so Claude is asked at once (and
     // synchronously) rather than after a boot that cannot happen
     if (!localModelConfigured()) {
-      const why = localBackend() === 'ollama' ? 'Ollama is not installed on this Mac' : 'the local model is not installed';
+      const b = localBackend();
+      const why = b === 'ollama' ? 'Ollama is not installed on this Mac'
+        : b === 'apple' ? "Apple's model helper is not built on this Mac" : 'the local model is not installed';
       recordRun(lane, { usd: 0, ms: 0, model: null, provider: 'local', fallback: false, reason: null, error: why });
       return escalate(lane, prompt, why, spawnImpl);
     }

@@ -8,6 +8,7 @@ import { effortFlag } from './spawnBoundary.js';
 import {
   localModelStatus, localModelConfigured, defaultModel as localDefaultModel, localModelLabel,
   localBackend, cachedLocalModels, listLocalModels, setPreferredModel, looksLikeModelId, modelFitsBackend,
+  APPLE_MODEL_ID, appleConfigured, appleAvailable, refreshApple,
 } from './localModel.js';
 
 // ---------------------------------------------------------------------------
@@ -720,14 +721,29 @@ export function localFirst() {
 /** The board-level local settings: { first?, model? }, either alone.
  *  `model` is an Ollama tag or an MLX id that fits the running backend and,
  *  when Ollama lists what it has pulled, one of those; null clears the pick
- *  (the machine's tier chooses again). */
+ *  (the machine's tier chooses again). Since 1 Nov 2026 it may also be
+ *  'apple:on-device', Apple's model, when its helper is built here and the
+ *  framework says the model is available: picking it makes Apple the
+ *  preferred backend (lib/localModel.js localBackend). */
 export async function setLocalPrefs({ first, model } = {}) {
   if (first === undefined && model === undefined) throw new Error('send first, model, or both');
   if (first !== undefined && typeof first !== 'boolean') throw new Error('first must be true or false');
-  if (model !== undefined && model !== null) {
+  if (model === APPLE_MODEL_ID) {
+    if (!appleConfigured()) throw new Error("Apple's on-device model helper is not built on this Mac (bash server/apple-llm/build.sh)");
+    const st = await refreshApple();
+    if (!st.ok) throw new Error(`Apple's on-device model is not available on this Mac: ${st.availability}`);
+  } else if (model !== undefined && model !== null) {
     if (typeof model !== 'string' || !looksLikeModelId(model)) throw new Error('model must be a model name like qwen3.5:4b');
-    if (!modelFitsBackend(model)) throw new Error(`${model} is not a model the ${localBackend() === 'mlx' ? 'MLX' : 'Ollama'} backend runs`);
-    const have = await listLocalModels();
+    // the backend this pick would run on: an env pin, else Ollama. Not
+    // localBackend(), which reads 'apple' while Apple is the CURRENT pick and
+    // would refuse the switch back to a Qwen model.
+    const envBackend = String(process.env.NOVA_LOCAL_LLM_BACKEND || '').toLowerCase();
+    const target = ['mlx', 'apple'].includes(envBackend) ? envBackend : 'ollama';
+    if (!modelFitsBackend(model, target)) throw new Error(`${model} is not a model the ${target === 'mlx' ? 'MLX' : target === 'apple' ? 'Apple' : 'Ollama'} backend runs`);
+    // what Ollama has pulled: Apple's entry in the list is not a pull, and
+    // would otherwise make an unreachable Ollama look like one that has
+    // nothing but Apple's model
+    const have = (await listLocalModels()).filter((m) => m.id !== APPLE_MODEL_ID);
     if (have.length && !have.some((m) => m.id === model)) {
       throw new Error(`${model} is not on this Mac; pulled: ${have.map((m) => m.id).join(', ')}`);
     }
@@ -787,7 +803,10 @@ function watchLocal() {
   refreshLocalStatus().catch(() => {});
 }
 /** The board's `local` block. `models` is what Ollama has pulled, from the
- *  last reading (empty on MLX or before the first reading lands). */
+ *  last reading (empty on MLX or before the first reading lands), plus
+ *  Apple's model when available. `appleAvailable` (1 Nov 2026): Apple's
+ *  helper is built and the framework said the model is available at the last
+ *  reading, so a short lane has a stand-in when Ollama has no room. */
 export function localBoard() {
   const model = localDefaultModel();
   const file = loadFile();
@@ -802,6 +821,7 @@ export function localBoard() {
     preferredModel: typeof file.local?.model === 'string' ? file.local.model : null,
     headroom: localReading.headroom,
     checkedAt: localReading.checkedAt,
+    appleAvailable: appleAvailable(),
   };
 }
 

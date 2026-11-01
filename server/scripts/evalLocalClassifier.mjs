@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Measures a candidate local MLX model against Claude Haiku on the real
+// Measures a candidate local model (MLX, Ollama, or since 1 Nov 2026 Apple's
+// on-device model with --backend apple) against Claude Haiku on the real
 // inbox-classify task, before anything switches over to it. Groundwork for
 // Nova's "private lane" (see design/audits/2026-09-25-local-model-eval.md).
 //
@@ -51,7 +52,7 @@ function excerpt(text, n = 60) {
 /* ------------------------------- CLI args -------------------------------- */
 
 function parseArgs(argv) {
-  const out = { models: [], limit: 40, throughLane: false, baseline: null };
+  const out = { models: [], limit: 40, throughLane: false, baseline: null, backend: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--model') out.models.push(argv[++i]);
@@ -59,6 +60,7 @@ function parseArgs(argv) {
     else if (a === '--baseline') out.baseline = argv[++i];
     else if (a === '--limit') out.limit = Number(argv[++i]) || 40;
     else if (a === '--out') out.outDir = argv[++i];
+    else if (a === '--backend') out.backend = String(argv[++i] || '').toLowerCase();
   }
   return out;
 }
@@ -212,6 +214,9 @@ function summarize(results) {
   const knownOutcome = results.filter((r) => r.outcome.known && r.outcome.accepted === true);
   const agreeAccepted = knownOutcome.filter((r) => r.local.parsedOk && r.local.route === r.outcome.route);
   const localMs = results.map((r) => r.local.ms).filter((v) => typeof v === 'number').sort((a, b) => a - b);
+  // warm: every item after the first, so a cold start (a model load, a
+  // helper's process start) is reported on its own and not smeared into p90
+  const warmMs = results.slice(1).map((r) => r.local.ms).filter((v) => typeof v === 'number').sort((a, b) => a - b);
   const haikuMs = results.map((r) => r.haiku.ms).filter((v) => typeof v === 'number').sort((a, b) => a - b);
   return {
     n,
@@ -222,6 +227,9 @@ function summarize(results) {
     acceptedAgreementN: knownOutcome.length,
     localMsMedian: percentile(localMs, 50),
     localMsP90: percentile(localMs, 90),
+    firstItemMs: typeof results[0]?.local?.ms === 'number' ? results[0].local.ms : null,
+    warmMsMedian: percentile(warmMs, 50),
+    warmMsP90: percentile(warmMs, 90),
     haikuMsMedian: percentile(haikuMs, 50),
     haikuMsP90: percentile(haikuMs, 90),
   };
@@ -251,7 +259,8 @@ async function runModelEval(modelId, prepared, lib) {
   console.log(`\nbooting ${modelId} …`);
   const bootStarted = Date.now();
   await ensureLocalModel();
-  console.log(`  ready in ${Date.now() - bootStarted}ms`);
+  const bootMs = Date.now() - bootStarted;
+  console.log(`  ready in ${bootMs}ms`);
 
   // sample RSS in the background across the whole eval run for this model —
   // stops the moment the item loop below finishes, never a guessed duration
@@ -298,7 +307,7 @@ async function runModelEval(modelId, prepared, lib) {
   rssState.done = true;
   await rssWatch;
   stopLocalModel();
-  return { modelId, results, peakRssMB };
+  return { modelId, results, peakRssMB, bootMs };
 }
 
 /* --------------------------- through the real lane --------------------------- */
@@ -323,9 +332,17 @@ async function makeRefusingClaude() {
   return bin;
 }
 
-async function runThroughLaneEval(modelId, prepared, { captureForReview, setLanePref, refusingClaude }) {
+async function runThroughLaneEval(modelId, prepared, { captureForReview, setLanePref, refusingClaude, ensureLocalModel }) {
   process.env.NOVA_LOCAL_LLM_MODEL = modelId;
   await setLanePref('inbox-classify', { provider: 'local' });
+  // the cold start on its own: for Apple's backend this is the helper's
+  // process start and the framework's health line (1 Nov 2026); for Ollama
+  // a model load when it is not already resident
+  let bootMs = null;
+  if (ensureLocalModel) {
+    const t = Date.now();
+    try { await ensureLocalModel(); bootMs = Date.now() - t; console.log(`  ready in ${bootMs}ms`); } catch (e) { console.log(`  boot failed: ${e.message}`); }
+  }
   const hadClaude = process.env.CLAUDE_BIN;
   process.env.CLAUDE_BIN = refusingClaude;
   const results = [];
@@ -358,15 +375,24 @@ async function runThroughLaneEval(modelId, prepared, { captureForReview, setLane
   } finally {
     process.env.CLAUDE_BIN = hadClaude;
   }
-  return { modelId, results, peakRssMB: null };
+  return { modelId, results, peakRssMB: null, bootMs };
 }
 
 /* ---------------------------------- main ------------------------------------ */
 
 async function main() {
-  const { models, limit, outDir: outDirArg, throughLane, baseline } = parseArgs(process.argv.slice(2));
+  const { models, limit, outDir: outDirArg, throughLane, baseline, backend } = parseArgs(process.argv.slice(2));
+  // --backend apple (1 Nov 2026): Apple's on-device model through
+  // server/bin/nova-apple-llm. Its one model id is implied, so --model is
+  // optional with it. The env is set for the LOCAL pass only (below), after
+  // any Haiku baseline, which is Claude's whatever the backend.
+  if (backend && !['apple', 'ollama', 'mlx'].includes(backend)) {
+    console.error(`unknown --backend ${backend} (apple, ollama or mlx)`);
+    process.exit(1);
+  }
+  if (backend === 'apple' && !models.length) models.push('apple:on-device');
   if (!models.length) {
-    console.error('usage: evalLocalClassifier.mjs --model <model-id> [--model <another>] [--limit 40] [--through-lane] [--baseline <prepared-haiku-baseline.json>]');
+    console.error('usage: evalLocalClassifier.mjs --model <model-id> [--model <another>] [--backend apple|ollama|mlx] [--limit 40] [--through-lane] [--baseline <prepared-haiku-baseline.json>]');
     process.exit(1);
   }
 
@@ -416,11 +442,30 @@ async function main() {
     await writeFile(path.join(outDir, 'prepared-haiku-baseline.json'), JSON.stringify(prepared, null, 2), 'utf8');
   }
 
+  if (backend) process.env.NOVA_LOCAL_LLM_BACKEND = backend;
+
+  // how big the classify prompts are against Apple's 4,096-token window: the
+  // full one (the captured Claude prompt in the baseline) and the compact one
+  // the lane sends when it resolves to this Mac (lib/inbox.js
+  // classifyPromptFor), both by the chars/4 estimate lib/localModel.js uses
+  await prefsLib.setLanePref('inbox-classify', { provider: 'local' });
+  const tok = (t) => Math.ceil(String(t || '').length / 4);
+  const fullTok = prepared.map((p) => tok(p.prompt)).filter((n) => n > 0).sort((a, b) => a - b);
+  const compactTok = prepared.map((p) => tok(inboxLib.classifyPromptFor(p.text))).sort((a, b) => a - b);
+  const promptSize = {
+    fullTokensEst: fullTok.length ? { median: percentile(fullTok, 50), max: fullTok.at(-1) } : null,
+    compactTokensEst: compactTok.length ? { median: percentile(compactTok, 50), max: compactTok.at(-1) } : null,
+  };
+  await prefsLib.setLanePref('inbox-classify', { provider: 'claude' });
+  console.log(`prompt sizes (chars/4): ${JSON.stringify(promptSize)}`);
+
   const refusingClaude = throughLane ? await makeRefusingClaude() : null;
   const allSummaries = [];
   for (const modelId of models) {
-    const { results, peakRssMB } = throughLane
-      ? await runThroughLaneEval(modelId, prepared, { captureForReview: inboxLib.captureForReview, setLanePref: prefsLib.setLanePref, refusingClaude })
+    const { results, peakRssMB, bootMs } = throughLane
+      ? await runThroughLaneEval(modelId, prepared, {
+        captureForReview: inboxLib.captureForReview, setLanePref: prefsLib.setLanePref, refusingClaude, ensureLocalModel: localModelLib.ensureLocalModel,
+      })
       : await runModelEval(modelId, prepared, {
       ensureLocalModel: localModelLib.ensureLocalModel,
       completeLocal: localModelLib.completeLocal,
@@ -429,10 +474,15 @@ async function main() {
       normalizeDecision: inboxLib.normalizeDecision,
       jsonSalvage: jsonSalvageLib,
     });
-    const stats = { ...summarize(results), mode: throughLane ? 'through-lane' : 'replay', ...(throughLane ? { starFilled: results.filter((r) => r.local.starFilled).length } : {}) };
+    const stats = {
+      ...summarize(results), mode: throughLane ? 'through-lane' : 'replay', backend: backend || null, bootMs: bootMs ?? null, promptSize,
+      ...(throughLane ? { starFilled: results.filter((r) => r.local.starFilled).length } : {}),
+    };
     const slug = `${modelId.replace(/[^a-zA-Z0-9]+/g, '-')}${throughLane ? '-through-lane' : ''}`;
     await writeFile(path.join(outDir, `${slug}.json`), JSON.stringify({ modelId, stats, peakRssMB, results }, null, 2), 'utf8');
     allSummaries.push({ modelId, ...stats, peakRssMB });
+    // the Apple helper is this run's own process; an Ollama model is left as it was
+    if (throughLane && backend === 'apple') localModelLib.stopLocalModel();
     console.log(`\n=== ${modelId} ===`);
     console.log(JSON.stringify({ ...stats, peakRssMB }, null, 2));
   }
