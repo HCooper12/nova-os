@@ -479,6 +479,13 @@ function InboxClassic({ v }) {
                   {!item.expanded && !item.longForm && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
                   {item.expanded && (
                     <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
+                      {/* WHAT THIS MEANS (1 Nov 2026): code's plain sentence first */}
+                      {item.meaning && (
+                        <div>
+                          <Eyebrow tone="cyan">What this means</Eyebrow>
+                          <div style={css(`margin-top:3px;font:400 15px/1.5 ${S};color:var(--nv-ink);text-wrap:pretty`)}>{item.meaning}</div>
+                        </div>
+                      )}
                       {item.captured && (
                         <div>
                           <Eyebrow>You captured</Eyebrow>

@@ -2792,15 +2792,16 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-sum-ib-gauge .bar > i { display: block; height: 100%; border-radius: 4px; background: var(--ib-wait); }
 
 /* Details: one quiet disclosure under the verbs (1 Nov 2026); closed by default */
-.nv-sum-ib-more { margin-top: 2px; }
-.nv-sum-ib-moreb {
+.nv-sum-ib-meanbox { margin-top: 2px; }
+.nv-sum-ib-meanb {
   display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 2px; box-sizing: border-box;
   font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); background: none; border: 0; border-top: 1px solid var(--ib-sep); border-radius: 0;
 }
-.nv-sum-ib-moreb .x { margin-left: auto; width: 15px; height: 15px; transition: transform var(--nv-dur-fast) var(--nv-ease); }
-.nv-sum-ib-moreb.open .x { transform: rotate(180deg); }
-.nv-sum-ib-morebody { display: flex; flex-direction: column; gap: 12px; padding: 2px 2px 8px; }
+.nv-sum-ib-meanb .x { margin-left: auto; width: 15px; height: 15px; transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-sum-ib-meanb.open .x { transform: rotate(180deg); }
+.nv-sum-ib-meanbody { display: flex; flex-direction: column; gap: 12px; padding: 2px 2px 8px; }
 .nv-sum-ib-mrow { min-width: 0; }
+.nv-sum-ib-mean { margin: 0; font: 400 17px/1.45 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; overflow-wrap: anywhere; }
 .nv-sum-ib-bh { display: flex; align-items: center; gap: 6px; font: 600 13px/16px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; }
 .nv-sum-ib-bh .nv-sum-ib-ico { width: 14px; height: 14px; }
 .nv-sum-ib-full { display: block; margin-top: 6px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink); white-space: pre-wrap; overflow-wrap: anywhere; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; }

@@ -177,23 +177,26 @@ function DeeperSlot({ d }) {
   return null;
 }
 
-// DETAILS, ONE QUIET DISCLOSURE (1 Nov 2026). What started it and Will be
-// filed used to sit as two blocks ABOVE the verbs; on his phone they (and a
-// duplicate-key bug that copied them) stood between the sentence and
-// Discard. They are reference, not the decision: closed by default, one tap
-// opens both in full, nothing lost. The verbs now sit under the sentence.
+// WHAT THIS MEANS, ONE QUIET DISCLOSURE (1 Nov 2026). His words: "sometimes
+// I'm not able to actually open up the decision … in Laymans terms". Every
+// card opens, in place, to code's plain sentence (src/plainMeaning.js), then
+// what started it and where it files, in full. What started it and Will be
+// filed used to sit as two blocks ABOVE the verbs; they are reference, not
+// the decision, so they live here, closed by default. A tap on the sentence
+// or on this row opens it; nothing is lost.
 function Details({ card, open, onToggle }) {
   const hasCap = !!card.captured;
   const hasWill = card.will.lines.length > 0 || !!card.will.full;
-  if (!hasCap && !hasWill) return null;
+  if (!card.meaning && !hasCap && !hasWill) return null;
   const willText = [card.will.lines[0], card.will.full || card.will.lines.slice(1).join('\n')].filter(Boolean).join('\n\n');
   return (
-    <div className="nv-sum-ib-more">
-      <Interactive as="button" className={`nv-sum-ib-moreb${open ? ' open' : ''}`} aria-expanded={open} onClick={onToggle} haptic="tick" base={{ cursor: 'pointer' }}>
-        <span>Details</span><Ico name="down" className="nv-sum-ib-ico x" />
+    <div className="nv-sum-ib-meanbox">
+      <Interactive as="button" className={`nv-sum-ib-meanb${open ? ' open' : ''}`} aria-expanded={open} aria-controls={`mean-${card.id}`} onClick={onToggle} haptic="tick" base={{ cursor: 'pointer' }}>
+        <span>What this means</span><Ico name="down" className="nv-sum-ib-ico x" />
       </Interactive>
       <Disclose open={open}>
-        <div className="nv-sum-ib-morebody">
+        <div className="nv-sum-ib-meanbody" id={`mean-${card.id}`}>
+          {card.meaning && <p className="nv-sum-ib-mean">{card.meaning}</p>}
           {hasCap && (
             <div className="nv-sum-ib-mrow">
               <span className="nv-sum-ib-bh"><Ico name="quote" />{card.capturedLabel || 'You captured'}</span>
@@ -276,7 +279,9 @@ function DeckCard({ card, ghosts, position }) {
               </span>
               <span className="nv-sum-ib-when">{card.when}</span>
             </div>
-            <p className="nv-sum-ib-say">{card.sentence}</p>
+            {/* the sentence opens what it means (the row under the verbs is the same toggle) */}
+            <Interactive as="p" className="nv-sum-ib-say" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+              aria-label={`${card.sentence}. ${open ? 'Hide' : 'Show'} what this means`} base={{ cursor: 'pointer' }}>{card.sentence}</Interactive>
             {card.tldr && (
               <ol className="nv-sum-ib-tldr">
                 {card.tldr.items.map((t, i) => <li key={i}>{t}</li>)}

@@ -88,6 +88,7 @@ function destinationOf(r) {
   switch (route) {
     case 'routine-edit': return p.routineName ? `${p.routineName}, your program` : 'Your program';
     case 'schedule-edit': return 'Your training week';
+    case 'alert-tier': return 'How your alerts reach you';
     case 'train-today': return p.routineName ? `Today's ${p.routineName}` : "Today's session";
     case 'progression-tune': return p.exerciseName ? `${p.exerciseName}'s progression` : 'Your progression';
     case 'exercise-remap': return 'Your exercise library';
@@ -219,7 +220,8 @@ export function valsInboxSummary(app, ctx, v) {
       dest || null,
       sug ? (sug.sets ? `${sug.sets.before} → ${sug.sets.after} sets` : sug.routine ? 'The set count stays the same' : null)
         : (approveWhat ? cap1(approveWhat) : item.previewShort || null),
-    ].filter(Boolean);
+    // a preview with no words in it (" — ") is not a line
+    ].filter((l) => l && /\w/.test(l));
     const willFull = [approveWhat ? `Approving will ${approveWhat.replace(/^\w/, (c) => c.toLowerCase())}` : '', item.full || ''].filter(Boolean).join('\n\n');
 
     const approveRun = () => { if (item.busy) return; setReceipt([item.id], 'approve', sentence); item.approve(); };
@@ -267,6 +269,8 @@ export function valsInboxSummary(app, ctx, v) {
       tldr: item.tldr?.items?.length ? { items: item.tldr.items.slice(0, 3), more: (item.tldr.more || 0) + Math.max(0, item.tldr.items.length - 3) } : null,
       change,
       captured: item.captured && item.captured !== sentence ? item.captured : '',
+      // WHAT THIS MEANS (1 Nov 2026): code's plain sentence, opened in place
+      meaning: item.meaning || '',
       // his words where they are his; an agent's product says what started it
       capturedLabel: !r.source || ['voice', 'text', 'telegram', 'shortcut', 'typed'].includes(r.source) ? 'You captured' : 'What started it',
       will: { label: item.isModelChoice ? 'What it runs' : REPORT_KINDS.has(r.kind) ? 'Will be kept' : 'Will be filed', lines: willLines, full: willFull },

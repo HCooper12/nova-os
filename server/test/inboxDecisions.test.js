@@ -134,3 +134,61 @@ test('cupertino deck card: the tick and the cross come before the filing in full
     assert.ok(card.indexOf(later) > tick, `${later} must follow the verbs`);
   }
 });
+
+// ------------------------------------ T3: every decision opens, in plain words --
+
+import { plainMeaning } from '../../src/plainMeaning.js';
+
+const JARGON = /routine-edit|schedule-edit|alert-tier|\broute\b|payload|\btier\b|\bnew:|undefined|null|NaN|\[object/i;
+
+test('plainMeaning: the three Coach rebuild shapes read as he would say them', () => {
+  const items = rebuildFixture();
+  const carter = items.find((r) => r.decision.payload.addName === 'Carter Extension');
+  assert.equal(plainMeaning(carter), 'Adds Carter Extension (triceps) to your Upper C day: 4 sets of 8 to 12 reps. Why: your third triceps lift moves off Saturday and gains a set to hold triceps at 14.');
+  assert.equal(plainMeaning(items.find((r) => r.id === 'create-C')), 'Creates a new training day called Upper C. The lifts the Coach wants in it are separate cards.');
+  assert.match(plainMeaning(items.find((r) => r.id === 'sched-friday')), /^Makes Friday your Upper C day instead of Mobility \(Huberman\)\./);
+  const rest = { decision: { route: 'schedule-edit', payload: { action: 'schedule', day: 'saturday', routineId: null, beforeName: 'Arms Optional' } } };
+  assert.equal(plainMeaning(rest), 'Makes Saturday a rest day instead of Arms Optional.');
+});
+
+test('plainMeaning: every card in the fixtures, and every project kind, opens to a sentence with none of the machine words', () => {
+  const projects = ['project-create', 'project-stage', 'project-settings', 'project-watch-note', 'project-research', 'project-watch-candidates']
+    .map((route, i) => ({ id: `p${i}`, kind: route, status: 'pending', decision: { route, title: `Projects: ${route}`, payload: { name: 'Drone film', stage: 'shoot' } } }));
+  const all = [...rebuildFixture(), ...others, ...projects,
+    { id: 'bare', status: 'pending', text: 'something he said', decision: { route: 'teleport', title: 'Coach: an unknown change', reason: 'because' } },
+    { id: 'empty', status: 'pending' }];
+  for (const r of all) {
+    const m = plainMeaning(r);
+    assert.ok(m && m.trim().length > 12, `${r.id}: blank`);
+    assert.doesNotMatch(m, JARGON, `${r.id}: ${m}`);
+    assert.match(m, /^[A-Z"]/, `${r.id}: sentence case`);
+  }
+  assert.match(plainMeaning(others[0]), /^Your "calendar soon" alerts will reach you quietly, in your Inbox only, not as a card on your screen\./);
+  assert.match(plainMeaning(others[1]), /Spot Reduction/);
+  assert.match(plainMeaning(others[2]), /^The Leader is asking you a question/);
+});
+
+test('every pending card in both idioms carries its plain meaning, and the summary card can open it', () => {
+  const items = [...rebuildFixture(), ...others];
+  for (const r of items) {
+    const app = fakeApp({ liveInbox: { items: [r] } });
+    const { base, S } = build(app);
+    const item = base.inboxPending[0];
+    assert.ok(item.meaning, `${r.id}: cupertino has no meaning`);
+    assert.equal(item.canExpand, true, `${r.id}: cupertino card cannot open`);
+    assert.equal(item.expandLabel, 'What this means');
+    assert.equal(S.card.meaning, item.meaning);
+    assert.doesNotMatch(S.card.kindLabel, /does not name/, `${r.id}: ${S.card.kindLabel}`);
+    assert.doesNotMatch(S.card.will.lines.join(' '), /does not name/, `${r.id}: ${S.card.will.lines}`);
+  }
+  const coach = build(fakeApp({ liveInbox: { items: [rebuildFixture()[0]] } })).S.card;
+  assert.equal(coach.where.startsWith('You typed'), false, 'a Coach card is not his typing');
+});
+
+test('a schedule change to a day the same rebuild creates draws that day, not a rest day', () => {
+  const sched = rebuildFixture().find((r) => r.id === 'sched-friday');
+  const { S } = build(fakeApp({ liveInbox: { items: [sched] } }));
+  assert.equal(S.card.sentence, 'Train Upper C on Friday');
+  const fri = S.card.change.diff.week.find((d) => d.day === 'Fri');
+  assert.equal(fri.after, 'Upper C');
+});

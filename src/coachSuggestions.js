@@ -158,15 +158,18 @@ function routineChange(p, routines) {
 }
 
 function scheduleChange(p, routines, schedule) {
-  const label = (id) => (!id ? 'Rest' : id === 'active-rest' ? 'Active rest' : routines.find((r) => r.id === id)?.name || 'Rest');
+  // a day given to a training day the same reply creates (`new:` id) is named
+  // by the card; it used to read "Rest" and draw his Friday as a rest day
+  const label = (id, name) => (!id ? 'Rest' : id === 'active-rest' ? 'Active rest'
+    : routines.find((r) => r.id === id)?.name || (String(id).startsWith('new:') && name ? name : 'Rest'));
   const week = WEEK.map((d) => ({
     day: SHORT_DAY[d],
     before: label(schedule?.[d]),
-    after: d === p.day ? label(p.routineId) : label(schedule?.[d]),
+    after: d === p.day ? label(p.routineId, p.routineName) : label(schedule?.[d]),
     changes: d === p.day,
   }));
   const Day = cap(p.day);
-  const to = label(p.routineId);
+  const to = label(p.routineId, p.routineName);
   return {
     headline: !p.routineId ? `Make ${Day} a rest day` : p.routineId === 'active-rest' ? `Make ${Day} an active-rest day` : `Train ${to} on ${Day}`,
     diff: { type: 'schedule', week },
