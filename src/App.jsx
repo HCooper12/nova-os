@@ -4038,7 +4038,95 @@ export default class App extends Component {
       recipeTweakError: null, recipeTweakPreview: null, recipeTweakPhotos: [],
       recipeRemovals: [], recipeRemovalPrompt: false,
       recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
+      productSheet: null, productReceipt: null,
     }));
+    this.loadRecipeLineProducts(id);
+  }
+  // HIS PRODUCTS IN THE RECIPE (mockup 109, 1 Nov 2026). Which lines carry
+  // his product; one tap on a line opens the sheet; a product used recomputes
+  // the recipe by code on the Mac and lands with a receipt and Undo.
+  loadRecipeLineProducts(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    api.recipeProducts(conn, id).then((r) => { if (this.state.openRecipeId === id) this.setState({ recipeLineProducts: { id, lines: r.lines || {} } }); }).catch(() => {});
+  }
+  openProductSheet(recipeId, line) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ productSheet: { recipeId, line, stage: 'pick', matches: null, busy: false, error: null, results: [], query: '', read: null, form: { name: '', p: '', c: '', f: '', kcal: '' } } });
+    api.products(conn, line).then((r) => this.setState((s) => (s.productSheet?.line === line ? { productSheet: { ...s.productSheet, matches: r.matches || [] } } : null))).catch(() => this.setState((s) => (s.productSheet ? { productSheet: { ...s.productSheet, matches: [] } } : null)));
+  }
+  closeProductSheet() { this.stopPoll('productLabel'); this.setState({ productSheet: null }); }
+  productStage(stage) { this.setState((s) => (s.productSheet ? { productSheet: { ...s.productSheet, stage, error: null } } : null)); }
+  patchProductSheet(patch) { this.setState((s) => (s.productSheet ? { productSheet: { ...s.productSheet, ...patch } } : null)); }
+  // a product chosen (his, or just read, found or typed): link it, recompute
+  useProduct(productId) {
+    const conn = getConnection();
+    const ps = this.state.productSheet;
+    if (!conn || !ps || !productId) return;
+    this.patchProductSheet({ busy: true, error: null });
+    api.recipeProductLink(conn, ps.recipeId, ps.line, productId)
+      .then((r) => {
+        haptic('commit');
+        const was = r.was ? `Was ${r.was.p} g protein, ${Math.round(r.was.kcal)} kcal. ` : '';
+        this.setState((s) => ({
+          productSheet: null,
+          productReceipt: { id: ps.recipeId, text: `Recalculated from your products. ${was}Saved to the recipe in your vault.`, recordId: r.recordId },
+          liveRecipes: (s.liveRecipes || []).map((x) => (x.id === ps.recipeId ? { ...x, macros: r.macros } : x)),
+        }));
+        this.loadRecipeLineProducts(ps.recipeId);
+      })
+      .catch((e) => this.patchProductSheet({ busy: false, error: e.message || 'That did not save' }));
+  }
+  // a new product from what he gave (read off a label, found, or typed), then used
+  saveAndUseProduct(product, source) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.patchProductSheet({ busy: true, error: null });
+    api.productSave(conn, { name: product.name, per100: product.per100, servingGrams: product.servingGrams ?? null, source })
+      .then((r) => this.useProduct(r.product.id))
+      .catch((e) => this.patchProductSheet({ busy: false, error: e.message || 'That did not save' }));
+  }
+  async readProductLabel(files) {
+    const conn = getConnection();
+    const file = files && files[0];
+    if (!conn || !file) return;
+    this.patchProductSheet({ stage: 'label', busy: true, error: null, read: null });
+    try {
+      const image = await this.downscaleImageFile(file);
+      const { jobId } = await api.productLabel(conn, image);
+      this.startPoll('productLabel', () => api.productLabelJob(conn, jobId), {
+        intervalMs: 1200,
+        onReady: (j) => {
+          const r = j.result;
+          if (!r?.per100) { this.patchProductSheet({ busy: false, error: j.error || 'The label could not be read. Try again with the whole panel in frame.' }); return; }
+          this.patchProductSheet({ busy: false, read: { name: r.name || '', per100: r.per100, servingGrams: r.servingGrams ?? null, question: r.confidence === 'low' ? r.question : '' } });
+        },
+        onError: (msg) => this.patchProductSheet({ busy: false, error: msg }),
+      });
+    } catch (e) { this.patchProductSheet({ busy: false, error: e.message || 'The photo could not be sent' }); }
+  }
+  searchProducts() {
+    const conn = getConnection();
+    const q = String(this.state.productSheet?.query || '').trim();
+    if (!conn || !q) return;
+    this.patchProductSheet({ busy: true, error: null });
+    api.productSearch(conn, q)
+      .then((r) => this.patchProductSheet({ busy: false, results: r.results || [], searched: q }))
+      .catch((e) => this.patchProductSheet({ busy: false, error: e.message || 'Search did not answer' }));
+  }
+  undoProductLink(recipeId) {
+    const rec = this.state.productReceipt;
+    const conn = getConnection();
+    if (!conn || !rec?.recordId) return;
+    api.inboxUndo(conn, rec.recordId)
+      .then(() => {
+        this.setState({ productReceipt: null });
+        // the recipe's numbers as the Mac now has them
+        api.recipes?.(conn).then((d) => { if (d?.recipes) this.setState({ liveRecipes: d.recipes }); }).catch(() => {});
+        this.loadRecipeLineProducts(recipeId);
+      })
+      .catch((e) => this.setState({ productReceipt: { ...rec, text: `Undo did not go through: ${e.message}` } }));
   }
   // On its own entry, closing IS going back: popH closes it, and no dead
   // entry is left behind for the next swipe to spend itself on.

@@ -1,4 +1,5 @@
 import { mono } from './shared.js';
+import { lineKey } from '../productKey.js';
 import { kcalFromMacros } from '../fuelRead.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
@@ -155,6 +156,57 @@ export function cardMeta(r) {
 }
 
 // the noun the scale stepper counts in: "jars" for "6 jars", else servings
+// THE PRODUCT SHEET (mockup 109, B and C): his products that fit the line
+// first, then "Photograph a new label"; Search and Type it in under it. What
+// a label read, or a search found, is shown with what it means for this
+// recipe before he uses it. Pure over the sheet's state.
+const NUM = (x) => { const n = Number(String(x ?? '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
+export function productSheetOf(app, ps, id, live) {
+  const grams = (() => { const m = /(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\b/i.exec(ps.line); if (!m) return null; const n = Number(m[1]); return /^(kg|l)$/i.test(m[2]) ? n * 1000 : n; })();
+  const servings = Number(live?.servings) > 0 ? Number(live.servings) : 1;
+  const unit = scaleNoun(live?.makes, servings);
+  // what 400 g of this means across the recipe, said by code
+  const meaning = (per100) => (per100 && grams ? `${grams >= 1000 ? `${grams / 1000} kg` : `${grams} g`} of this in the recipe: ${Math.round(per100.p * grams / 100)} g protein, ${Math.round(per100.kcal * grams / 100)} kcal across ${servings} ${unit}.` : null);
+  const f = ps.form || {};
+  const typed = { p: NUM(f.p), c: NUM(f.c), f: NUM(f.f), kcal: NUM(f.kcal) };
+  const typedOk = String(f.name || '').trim() && Object.values(typed).every((v) => v != null && v >= 0);
+  return {
+    line: ps.line,
+    title: ps.line.toUpperCase(),
+    stage: ps.stage,
+    busy: !!ps.busy,
+    error: ps.error || null,
+    close: () => app.closeProductSheet(),
+    back: ps.stage === 'pick' ? null : () => app.productStage('pick'),
+    matches: ps.matches == null ? null : ps.matches.map((p) => ({ id: p.id, name: p.name, sub: `Per 100 g: ${p.per100.p} g protein · ${p.per100.kcal} kcal · ${p.source === 'label' ? 'from your label' : p.source === 'search' ? 'from search' : 'typed by you'}`, use: () => app.useProduct(p.id) })),
+    photo: (e) => app.readProductLabel(e.target.files),
+    toSearch: () => app.productStage('search'),
+    toType: () => app.productStage('type'),
+    read: ps.read ? {
+      name: ps.read.name,
+      setName: (e) => app.patchProductSheet({ read: { ...ps.read, name: e.target.value } }),
+      per100: ps.read.per100,
+      setValue: (k, v) => app.patchProductSheet({ read: { ...ps.read, per100: { ...ps.read.per100, [k]: NUM(v) ?? 0 } } }),
+      question: ps.read.question || '',
+      meaning: meaning(ps.read.per100),
+      use: () => app.saveAndUseProduct(ps.read, 'label'),
+    } : null,
+    search: {
+      query: ps.query || '',
+      set: (e) => app.patchProductSheet({ query: e.target.value }),
+      go: () => app.searchProducts(),
+      searched: ps.searched || null,
+      results: (ps.results || []).map((r, i) => ({ key: `${r.code || i}`, name: r.name, sub: `Per 100 g: ${r.per100.p} g protein · ${r.per100.kcal} kcal`, use: () => app.saveAndUseProduct(r, 'search') })),
+    },
+    type: {
+      form: f,
+      set: (k) => (e) => app.patchProductSheet({ form: { ...f, [k]: e.target.value } }),
+      meaning: typedOk ? meaning(typed) : null,
+      use: typedOk ? () => app.saveAndUseProduct({ name: String(f.name).trim(), per100: typed }, 'typed') : null,
+    },
+  };
+}
+
 function scaleNoun(makes, n) {
   const m = /^\s*(?:makes|serves)?\s*:?\s*\d+\s+([A-Za-z]+)/i.exec(String(makes || '').replace(/\*+/g, ''));
   const word = m && !/^(serv|portion|batch|people|person)/i.test(m[1]) ? m[1].toLowerCase() : null;
@@ -193,8 +245,13 @@ function buildRecipePage(app, st, { live, demo, activeAlt, effIngredients, effMe
     // or drop it from this version (the tweak pipeline recomputes the figures)
     const shop = live ? () => app.addToShoppingList([line], sourceName) : null;
     const drop = live ? () => app.toggleIngredientRemoval(name) : null;
+    // HIS PRODUCT ON THIS LINE (mockup 109): named under it, and a tap on the
+    // line opens the product sheet for it
+    const linked = live && st.recipeLineProducts?.id === id ? st.recipeLineProducts.lines?.[lineKey(name)] || null : null;
     return {
       key: `${i}-${name}`, line, amount, item, raw: name, dropped, shop, drop,
+      product: linked ? linked.product : null,
+      openProduct: live && !activeAlt ? () => app.openProductSheet(id, name) : null,
       hold: live ? { title: line, items: [
         { label: 'Add just this to the shopping list', run: shop },
         { label: dropped ? 'Keep it in this version' : 'Drop it from this version', run: drop },
@@ -254,6 +311,15 @@ function buildRecipePage(app, st, { live, demo, activeAlt, effIngredients, effMe
       reset: () => app.setState({ recipeScaleView: null }),
     } : null,
     ingredients: items,
+    // how many lines carry his product: said once, under the macros
+    products: live && !activeAlt && st.recipeLineProducts?.id === id ? (() => {
+      const lns = items.filter((it) => !it.group);
+      const n = lns.filter((it) => it.product).length;
+      const unit = scaleNoun(scalable.makes, 1) || 'serving';
+      return { line: `Per ${unit} · ${n} of ${lns.length} ${lns.length === 1 ? 'line' : 'lines'} from your products${n < lns.length ? `, ${lns.length - n} estimated` : ''}`, linked: n, total: lns.length };
+    })() : null,
+    productSheet: live && st.productSheet?.recipeId === id ? productSheetOf(app, st.productSheet, id, live) : null,
+    productReceipt: live && st.productReceipt?.id === id ? { ...st.productReceipt, undo: st.productReceipt.recordId ? () => app.undoProductLink(id) : null } : null,
     method,
     shopping: live ? {
       count: extra.wholeItem ? 1 : buyable.length,

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { ProductSheet } from './ProductSheet.jsx';
+import { NumberRoll } from './NumberRoll.jsx';
 import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
 import { useExit } from './useExit.js';
@@ -130,12 +132,24 @@ export function RecipeSheet({ v }) {
 
           {m && (
             <div className="nv-fs-m4" role="img" aria-label={`${one ? 'One portion' : `${portionLabel(f)} of a portion`}: ${m.p} grams protein, ${m.kcal} kilocalories, ${m.c} grams carbs, ${m.f} grams fat`}>
-              <div className="p"><b>{m.p}</b>g protein</div>
-              <div className="k"><b>{kc(m.kcal)}</b>kcal</div>
-              <div className="plain"><b>{m.c}</b>g carbs</div>
-              <div className="plain"><b>{m.f}</b>g fat</div>
+              {/* a recalculation rolls the numbers to their new values (NumberRoll) */}
+              <div className="p"><b><NumberRoll value={m.p} /></b>g protein</div>
+              <div className="k"><b><NumberRoll value={m.kcal} format={kc} /></b>kcal</div>
+              <div className="plain"><b><NumberRoll value={m.c} /></b>g carbs</div>
+              <div className="plain"><b><NumberRoll value={m.f} /></b>g fat</div>
             </div>
           )}
+
+          {/* HIS PRODUCTS (mockup 109): how many lines are his, said once;
+              after a change, what it was and Undo */}
+          {P?.productReceipt && (
+            <div className="nv-fs-receipt nv-deck-rise" role="status">
+              <span>{P.productReceipt.text}</span>
+              {P.productReceipt.undo && <button type="button" onClick={P.productReceipt.undo}>Undo</button>}
+            </div>
+          )}
+          {m && P?.products && <p className="nv-fs-prodline">{P.products.line}</p>}
+          {P?.productSheet && <ProductSheet s={P.productSheet} />}
 
           {/* MACROS NOT SET — filed without numbers (a reel that gave none),
               never a guess. Gold is "not yet decided"; Add macros opens the

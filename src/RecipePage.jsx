@@ -190,15 +190,29 @@ export function RecipeIngredients({ page, resetKey, onHold }) {
   const count = lines.filter((it) => done.has(it.key)).length;
   const toggle = (key) => setDone((d) => { const n = new Set(d); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const canHold = !!onHold && lines.some((it) => it.shop || it.drop);
+  const products = lines.some((it) => it.openProduct);
   return (
     <section className="nv-rp-sec" aria-label="Ingredients">
       <div className="nv-rp-sechead">
         <h3 className="nv-rp-eyebrow">Ingredients</h3>
-        <span className="nv-rp-count">{count ? `${count} of ${lines.length} in` : `${lines.length} ${lines.length === 1 ? 'line' : 'lines'}`}</span>
+        <span className="nv-rp-count">{count ? `${count} of ${lines.length} in` : products ? 'Tap a line for your product' : `${lines.length} ${lines.length === 1 ? 'line' : 'lines'}`}</span>
       </div>
       <div className="nv-rp-ings nv-stagger">
         {items.map((it) => (it.group ? (
           <div key={it.key} className="nv-rp-group"><span className="nv-rp-eyebrow">{it.label}</span></div>
+        ) : it.openProduct ? (
+          // HIS PRODUCT ON THE LINE (mockup 109): the line opens its product;
+          // the tick is its own 44pt target, as it goes in
+          <Interactive key={it.key} as="div" className="nv-rp-ing" role="button" data-done={done.has(it.key) ? 'true' : undefined} data-dropped={it.dropped ? 'true' : undefined}
+            onClick={it.openProduct} onLongPress={canHold ? () => onHold(it) : undefined} haptic="tick"
+            activeStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 5%, transparent)' }}
+            aria-label={`${it.line}${it.product ? `, your product ${it.product}` : ''}. Open its product`}>
+            <button type="button" className="nv-rp-tickbtn" role="checkbox" aria-checked={done.has(it.key)} aria-label={`${it.line} is in`}
+              onClick={(e) => { e.stopPropagation(); toggle(it.key); }}><span className="nv-rp-tick"><RGlyph n="check" /></span></button>
+            {it.amount && <span key={it.amount} className={`nv-rp-amt${touched.current ? ' tick' : ''}`}>{it.amount}</span>}
+            <span className="nv-rp-item">{it.item}{it.dropped && <em>Dropped</em>}{it.product && <span className="nv-rp-prod">{it.product}</span>}</span>
+            <span aria-hidden="true" style={{ flex: 'none', marginLeft: 'auto', color: 'var(--nv-ink40)', fontSize: '18px' }}>›</span>
+          </Interactive>
         ) : (
           <Interactive key={it.key} as="div" className="nv-rp-ing" role="checkbox" aria-checked={done.has(it.key)}
             data-done={done.has(it.key) ? 'true' : undefined} data-dropped={it.dropped ? 'true' : undefined}
@@ -211,7 +225,7 @@ export function RecipeIngredients({ page, resetKey, onHold }) {
           </Interactive>
         )))}
       </div>
-      <p className="nv-rp-hint">Tap a line as it goes in{canHold ? '. Hold one to add just it to the list, or drop it.' : '.'}</p>
+      <p className="nv-rp-hint">{products ? 'Tap the circle as it goes in' : 'Tap a line as it goes in'}{canHold ? '. Hold one to add just it to the list, or drop it.' : '.'}</p>
     </section>
   );
 }

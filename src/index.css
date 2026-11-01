@@ -2601,6 +2601,57 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-fs-m4 > .p b { color: var(--nv-fs-p); }
 .nv-fs-m4 > .k b { color: var(--nv-fs-k); }
 .nv-fs-m4 > .plain b { font-size: 20px; line-height: 30px; }
+/* HIS PRODUCTS IN A RECIPE (mockup 109): the count under the macros, the
+   receipt with Undo, a product named under its line, and the product sheet */
+.nv-fs-prodline { margin: 8px 0 0; font: 400 12.5px/1.4 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-fs-receipt { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); }
+.nv-fs-receipt > span { flex: 1; min-width: 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-fs-receipt > button { flex: none; min-height: 44px; padding: 0 6px; background: none; border: 0; color: var(--nv-fs-p); font: 600 15px var(--nv-font-ui); cursor: pointer; }
+.nv-rp-prod { display: block; margin-top: 2px; font: 400 12px/1.3 var(--nv-font-ui); color: var(--nv-fs-p); }
+.nv-ps-scrim { position: fixed; inset: 0; z-index: 150; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--nv-void) 60%, transparent); animation: fadeIn var(--nv-dur-base) var(--nv-ease); }
+.nv-ps-sheet { width: 100%; max-width: 560px; max-height: calc(100dvh - 60px - env(safe-area-inset-top)); overflow-y: auto; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px;
+  padding: 10px 16px calc(24px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: var(--nv-bg2, #1a2238); border-top: 1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);
+  animation: nvFsSheetIn 380ms var(--nv-spring-smooth) backwards; }
+@media (prefers-reduced-motion: reduce) { .nv-ps-sheet { animation: fadeIn 200ms ease backwards; } }
+.nv-ps-grabber { align-self: center; width: 36px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--nv-ink) 25%, transparent); }
+.nv-ps-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.nv-ps-head h2 { margin: 4px 0 0; font: 700 22px/1.2 var(--nv-font-ui); letter-spacing: -.015em; color: var(--nv-ink); }
+.nv-ps-eyebrow, .nv-ps-label { font: 600 12px/1.3 var(--nv-font-ui); letter-spacing: .08em; color: var(--nv-ink60); overflow-wrap: anywhere; }
+.nv-ps-label { letter-spacing: 0; font-weight: 400; }
+.nv-ps-list { display: flex; flex-direction: column; gap: 8px; }
+.nv-ps-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 12px; border-radius: 14px; width: 100%; box-sizing: border-box; text-align: left; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--nv-fs-p) 35%, transparent); background: color-mix(in srgb, var(--nv-fs-p) 8%, transparent); color: var(--nv-ink); font: inherit; }
+.nv-ps-rowtx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nv-ps-rowname { font: 600 15px/1.3 var(--nv-font-ui); overflow-wrap: anywhere; }
+.nv-ps-rowsub { font: 400 12.5px/1.35 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ps-use { flex: none; color: var(--nv-fs-p); font: 600 15px var(--nv-font-ui); }
+.nv-ps-primary { min-height: 52px; border-radius: 26px; border: 0; width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  background: var(--nv-fs-p); color: var(--nv-void); font: 700 16px var(--nv-font-ui); }
+.nv-ps-primary[aria-disabled="true"] { opacity: .4; cursor: default; }
+.nv-ps-alts { display: flex; justify-content: center; gap: 28px; }
+.nv-ps-text { min-height: 44px; padding: 0 8px; background: none; border: 0; color: var(--nv-fs-p); font: 400 15px var(--nv-font-ui); cursor: pointer; }
+.nv-ps-field { display: block; }
+.nv-ps-field > span { font: 400 12px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ps-field > input, .nv-ps-input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 10px 12px; border-radius: 10px; font: 400 16px var(--nv-font-ui); color: var(--nv-ink);
+  background: color-mix(in srgb, var(--nv-void) 55%, transparent); border: 1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent); outline: none; }
+.nv-ps-searchrow { display: flex; gap: 8px; align-items: center; }
+.nv-ps-searchrow .nv-ps-input { margin-top: 0; flex: 1; min-width: 0; }
+.nv-ps-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.nv-ps-cell { display: block; border-radius: 12px; padding: 10px 8px; background: color-mix(in srgb, var(--nv-void) 55%, transparent); }
+.nv-ps-cell > input { width: 100%; box-sizing: border-box; background: none; border: 0; outline: none; padding: 0; font: 700 20px var(--nv-font-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; }
+.nv-ps-cell.p > input { color: var(--nv-fs-p); }
+.nv-ps-cell.k > input { color: var(--nv-fs-k); }
+.nv-ps-cell > span { font: 400 12px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ps-note, .nv-ps-foot { margin: 0; font: 400 12.5px/1.45 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ps-foot { font-size: 12px; text-align: center; color: var(--nv-ink50); }
+.nv-ps-meaning { padding: 12px; border-radius: 14px; font: 400 14px/1.4 var(--nv-font-ui); color: var(--nv-ink);
+  background: color-mix(in srgb, var(--nv-fs-k) 8%, transparent); border: 1px solid color-mix(in srgb, var(--nv-fs-k) 30%, transparent); }
+.nv-ps-error { margin: 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-warn); }
+.nv-ps-skel { height: 56px; border-radius: 14px; background: color-mix(in srgb, var(--nv-ink) 6%, transparent); animation: nvPsPulse 1.4s ease-in-out infinite; }
+@keyframes nvPsPulse { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .nv-ps-skel { animation: none; } }
+/* the tick is its own target now: a tap on the line opens its product */
+.nv-rp-tickbtn { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -6px -10px -12px; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; }
 .nv-fs-portion { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
 .nv-fs-portion > span { display: grid; place-items: center; height: 44px; border-radius: 22px; cursor: pointer; font: 600 15px var(--nv-font-round); color: var(--nv-ink);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 18%, transparent); -webkit-tap-highlight-color: transparent; }
