@@ -135,7 +135,8 @@ export function runLocalLane(lane, prompt, { maxTokens = 700, json = false, fall
 const LOCAL_PREFIX = /^the local model could not answer: /;
 
 /** WHO WROTE IT, as the fields a lane stamps on the record it files (27 Oct
- *  2026): `provider` and `fallback` as before, and, only when this Mac could
+ *  2026): `provider` and `fallback` as before, `model` when this Mac answered (28 Oct 2026, so
+ *  "Apple's model" can be named), and, only when this Mac could
  *  not answer and Claude did, `escalated: true` with `escalationReason` (the
  *  plain reason from escalate below). Not `reason`: an Inbox record already
  *  uses a top-level `reason` ('retried', lib/inbox.js retryRecord), so the
@@ -147,6 +148,10 @@ export function laneVia(out) {
   return {
     provider: out.provider,
     fallback: !!out.fallback,
+    // which model on this Mac, only when this Mac answered ('apple:on-device'
+    // or the Ollama tag), so the Inbox can name Apple's model; Claude's id is
+    // never stamped, so an ordinary Claude sort writes no new key
+    ...(out.provider === 'local' && typeof out.model === 'string' && out.model ? { model: out.model } : {}),
     ...(out.escalated === true ? { escalated: true, ...(out.reason ? { escalationReason: String(out.reason) } : {}) } : {}),
   };
 }

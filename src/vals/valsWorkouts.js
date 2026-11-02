@@ -5,6 +5,7 @@ import { coachSuggestions, suggestionsSummary } from '../coachSuggestions.js';
 import { coachWeekRows } from '../coachWeek.js';
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
+import { providerNote } from '../conversationSync.js';
 import { dtf } from './fmt.js';
 import { vtStyle } from '../vtName.js';
 import { doneTodayCard, dayDoneMarks } from '../doneToday.js';
@@ -872,6 +873,9 @@ export function valsWorkouts(app, ctx) {
     planNoteOn: !!st.planNote, planNote: st.planNote,
     coachMsgs: st.coachChat.map(m => Object.assign({
       text: m.text, typing: m.typing, panel: m.panel || null, at: m.at,
+      // who answered, in the Nova chat's own words (conversationSync providerNote);
+      // null for an ordinary Claude answer, so such a reply shows no line
+      where: providerNote(m),
       // a program change Coach drafted — acceptable right here, no detour
       proposal: m.proposal && !m.proposals ? {
         ...m.proposal,

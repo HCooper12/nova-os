@@ -484,6 +484,20 @@ test('an ordinary Claude sort adds no new keys to the record and says nothing in
   assert.equal(inboxProviderNote({ provider: 'local', fallback: true }), 'sorted on this Mac · Claude was out of usage');
 });
 
+test("laneVia names the model only when this Mac answered, and the meta line says \"Apple's model\" for the on-device one", async () => {
+  const { laneVia } = await import('../lib/textLane.js');
+  const { inboxProviderNote } = await import('../../src/vals/valsInbox.js');
+  const apple = laneVia({ provider: 'local', model: 'apple:on-device', fallback: false });
+  assert.deepEqual(apple, { provider: 'local', fallback: false, model: 'apple:on-device' });
+  assert.equal(laneVia({ provider: 'local', model: 'qwen3:4b', fallback: true }).model, 'qwen3:4b');
+  // Claude's id is never stamped: an ordinary run keeps exactly its two keys
+  assert.deepEqual(laneVia({ provider: 'claude', model: 'claude-haiku', fallback: false }), { provider: 'claude', fallback: false });
+  assert.equal('model' in laneVia({ provider: 'claude', model: 'x', escalated: true, reason: 'why' }), false);
+  assert.equal(inboxProviderNote(apple), "sorted on this Mac · Apple's model");
+  assert.equal(inboxProviderNote({ ...apple, fallback: true }), "sorted on this Mac · Apple's model · Claude was out of usage");
+  assert.equal(inboxProviderNote({ provider: 'local', model: 'qwen3:4b', fallback: false }), 'sorted on this Mac');
+});
+
 test('the inbox lane picks its prompt by who runs it: compact for this Mac, the full one for Claude', async () => {
   const { classifyPromptFor } = await import('../lib/inbox.js');
   assert.equal(providerFor('inbox-classify'), 'claude');

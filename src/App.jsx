@@ -14027,6 +14027,10 @@ export default class App extends Component {
               proposal: job.result.proposal ? { ...job.result.proposal, status: job.result.proposal.status || 'open' } : undefined,
               // every change Coach proposed, each its own card (coach.js parseCoachProposals)
               proposals: job.result.proposals?.length > 1 ? job.result.proposals.map((p) => ({ ...p, status: p.status || 'open' })) : undefined,
+              // who answered, said in the meta line under the reply: this Mac, or
+              // Claude after this Mac could not (src/conversationSync.js
+              // answeredBy; an ordinary Claude answer carries none)
+              ...answeredBy(job.result),
             }, { coachBusy: false });
             // new cards, or Coach taking one back: the deck redraws either way
             if (job.result.proposal || job.result.withdrawn?.length) this.refreshInbox();

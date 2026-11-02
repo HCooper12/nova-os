@@ -280,6 +280,7 @@ function classify(text, onDone) {
 const viaFields = (via) => (via ? {
   provider: via.provider,
   fallback: !!via.fallback,
+  ...(via.model ? { model: via.model } : {}),
   ...(via.escalated === true ? { escalated: true, ...(via.escalationReason ? { escalationReason: via.escalationReason } : {}) } : {}),
 } : {});
 

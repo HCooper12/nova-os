@@ -417,7 +417,7 @@ export function inboxProviderNote(r) {
     const phrase = !why || /^(Claude|Nova|Anthropic|Ollama|I)\b/.test(why) ? why : why.charAt(0).toLowerCase() + why.slice(1);
     return `sorted by Claude${phrase ? ` · ${phrase}` : ''}`;
   }
-  if (r?.provider === 'local') return `sorted on this Mac${r.fallback ? ' · Claude was out of usage' : ''}`;
+  if (r?.provider === 'local') return `sorted on this Mac${r.model === 'apple:on-device' ? " · Apple's model" : ''}${r.fallback ? ' · Claude was out of usage' : ''}`;
   return '';
 }
 

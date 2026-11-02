@@ -1260,6 +1260,9 @@ function GoalsCoachPane({ v }) {
               <div key={i} style={m.wrapStyle}>
                 <div style={m.bubbleStyle}>
                   <span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}
+                  {/* who answered, quietly, as the Nova chat says it: "answered on this Mac"
+                      or "asked Claude · why" (v.coachMsgs where; none for an ordinary Claude reply) */}
+                  {m.where && !m.typing && <Meta as="div" tone="faint" style={{ marginTop: '6px', textTransform: 'none', letterSpacing: 0 }}>{m.where}</Meta>}
                   {/* Coach answers questions ABOUT DATA — the figure belongs on
                     screen beside the words, same as everywhere else. */}
                 {m.panel && (
