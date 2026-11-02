@@ -75,6 +75,7 @@ import { startOvernightScheduler } from './lib/overnight.js';
 import { startTelegramBridge } from './lib/telegram.js';
 import { overnightRouter } from './routes/overnight.js';
 import { perfRouter } from './routes/perf.js';
+import { drillRouter } from './routes/drill.js'; // the Wi-Fi-off drill: outbound hosts per turn + what still needs the internet
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -181,6 +182,12 @@ async function main() {
     }
     next();
   });
+
+  // A write the phone's Outbox sends again (it timed out, but landed) is
+  // answered with the first answer instead of filing twice (lib/idempotency.js).
+  // Before the broadcast below, so a replayed repeat nudges nobody.
+  const { idempotency } = await import('./lib/idempotency.js');
+  app.use('/api', idempotency());
 
   // "a broadcast() every write path calls" — made TRUE at one chokepoint:
   // every successful mutating request nudges open apps (the sweep found ~half
@@ -314,6 +321,7 @@ async function main() {
   app.use('/api', intakeRouter(process.env.VAULT_PATH)); // THE INTAKE — his numbers, computed by code, approved by him
   app.use('/api', wrapRouter(process.env.VAULT_PATH)); // WRAP THE DAY — the end-of-day sentence, counted not composed
   app.use('/api', formCheckRouter(process.env.VAULT_PATH)); // FORM CHECK — one set, read against a rubric, refused when unreadable
+  app.use('/api', drillRouter({ token })); // THE WI-FI-OFF DRILL — scripts/drill.mjs, scripts/preflight.mjs (lib/outbound.js, lib/internetNeeds.js)
 
   // Reap orphans BEFORE the schedulers tick: a record stuck in 'classifying'
   // from before the restart can never resolve and would block today's loops.
