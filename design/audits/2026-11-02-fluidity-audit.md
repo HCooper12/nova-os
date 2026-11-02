@@ -799,3 +799,95 @@ pair caught the after build mid-entrance and his log changed between the two
 numbers and the same rows, and differ only by the Dynamic Island's HRV toast
 and the clock. Home and Inbox differ by 15,000-24,000 px of orb, clock and
 live phase. `scripts/guard-cupertino.mjs`: unchanged (2 panes, 1487 px).
+
+## Round 3 results, 3 Nov 2026: a local change re-renders what owns it
+
+Nothing here is committed; the parent session owns the commit.
+
+**The attribution, measured first** (`fluidity.mjs`, production build over
+HEAD 22bf8481, his data read-only, the "which builders ran" and top-component
+readouts). Per interaction at 1x, before any change:
+
+- **Tick a set** (262 renders, 10 commits): the click itself carried the
+  urgent App commit for the set (workouts, mission, the chrome and the
+  session stage rebuilding, then the whole session page, ~95 Interactives,
+  51 icons), and every commit also re-rendered the tab bar (5 tabs, 5 icons).
+- **Fuel, open the week** (225 renders, 0 builders ran): the week is
+  FuelSummary's own state, and opening it re-rendered the whole page under
+  the sheet (61 FuelIcons, 27 tiles, every log row), because `sheets` was a
+  new object every render and FuelPage had no boundary.
+- **Settings, open Appearance** (290 renders, misc + settings ran): mostly
+  the new page mounting; the staged mount then re-rendered every Mini's
+  ~30 shapes on each stage (60 `B` renders).
+- **Every tab switch**: the tab bar re-rendered on each of 5-7 commits
+  (15-25 SummaryDock/TabIcon renders a switch).
+- **Entering a session** (286 renders, 4 commits, longest task 18 / 74 ms):
+  a mount, not a re-render; no boundary can skip it.
+
+**What changed.**
+- `src/vals/valsSessionSummary.js`: the tick's whole tap (pad value, the set,
+  the hand-off, the rest) is one `startTransition`. TickButton already flips
+  its own look on the press, so the set did not need an urgent App commit.
+  The haptic and the receipt still fire inside the tap.
+- `src/SummaryDock.jsx`: `Tab` is `memo`; its handlers are five stable slots
+  made once, each reading the live tabs through a ref at call time, so a tab
+  whose screen, label, count and lit state are unchanged is skipped.
+- `src/screens/FuelSummary.jsx`: `sheets` is made once (`useMemo`) and
+  `FuelPage` is `memo`, so a sheet opening re-renders the sheet, not the page.
+- `src/screens/SettingsMini.jsx`: `Inner` (drawn from `style` alone) is `memo`.
+- `server/test/indexRows.test.js`: its source match for "More is the Index"
+  follows the stable slot.
+- Not done, on purpose: no state moved out of App, and no boundary at the
+  screen level (`<X v={v} />`): every screen reads the whole merged model,
+  and in each measured interaction the slice that changed is the screen's
+  own, so a screen boundary would not have held.
+
+**Numbers** (single runs per cell, back to back, nothing else running; click
+processing is the interaction's event `processingEnd - processingStart`; the
+before column is this round's re-measure of HEAD, which reads lower than
+round 2's table on the same code: run-to-run spread is wide at 4x).
+
+| Interaction | Renders before / after | Click work 1x, before / after | Click work 4x, before / after | Longest task 4x, before / after |
+|---|---|---|---|---|
+| Tick a set | 262 / 144 (1x), 353 / 212 (4x) | 8.1 / 0.4 ms | 33.0 / 2.7 ms | 50.8 / 53.5 ms |
+| Fuel, open the week | 225 / 27 | 6.0 / 4.9 ms | 25.7 / 20.5 ms | 31.9 / 27.4 ms |
+| Settings, open Appearance | 290 / 217 | 7.5 / 7.2 ms | 31.0 / 29.3 ms | 35.7 / 33.8 ms |
+| Train, open readiness | 146 / 131 | 2.6 / 2.5 ms | 8.9 / 10.0 ms | 22.0 / 24.0 ms |
+| Switch to Home | 363 / 165 | | | 45.5 / 41.1 ms |
+| Switch to Train | 188 / 150 | | | 41.3 / 41.0 ms |
+| Switch to Fuel | 274 / 258 | | | 42.0 / 39.2 ms |
+| Switch to Inbox | 93 / 84 | | | 21.5 / 26.0 ms |
+| Entering a session | 286 / 241 | | | 75.3 / 73.9 ms |
+
+**Against the frame budget, what missed:**
+- **The tick meets the click budget** (0.4 / 2.7 ms) and the set shows its
+  new state on the first frame (TickButton), but the work did not go away: it
+  runs after that paint as one transition task of ~50 ms at 4x (renderVals
+  ~31 ms of it: workouts, mission, the chrome three times, the session stage).
+  React cannot yield inside `App.render`, so a frame is still dropped after
+  the tick paints. Shrinking it means the chrome and mission builders not
+  reading the live session, a builder-level change for a later round.
+- **"A local change re-renders the component that owns it"**: met for Fuel's
+  sheets (27 renders, all the sheet) and the tab bar; not met for the tick
+  (the session page re-renders, because its whole model is rebuilt from the
+  session) or Appearance (a mount).
+- **Settings, Appearance**: 7.2 ms at 1x (met), 29.3 ms at 4x (met, by
+  3.7 ms); what is left is the new page mounting.
+- **Fuel's week**: 4.9 / 20.5 ms, met at both rates.
+- **Entering a session**: 18 / 74 ms, misses both (16 / 60). A mount of the
+  session page plus workouts rebuilding twice; out of reach of a memo.
+- **Settings switch at 4x** read 25.0 before and 58.6 ms after, with
+  renderVals 25.4 vs 45.6 ms and one more commit in the after run; nothing in
+  this round touches the Settings root or its builders, and 1x read 7.8 / 7.6,
+  so this is read as a run where the Mac's settings data landed mid-window,
+  not a regression. Re-measure before trusting either number.
+
+**Looks and behaves the same.** `shot.mjs --readonly --style summary` from
+the dev server on each tree (HEAD from a `git archive` in a scratch folder):
+Home, Fuel, Fuel with the week open, Settings › Appearance, and a live
+session after one tick. The week sheet and Appearance differ by 968 and
+197 px (the clock and the orb); Home and Fuel by the Dynamic Island's
+calorie card arriving at a different moment; the tick shot is the same set
+logged, the same hand-off to set 2 and the same rest ring, differing in the
+rest's seconds and the island's phase. `server/test/valsMemo.test.js`: 11/11.
+`scripts/guard-cupertino.mjs`: unchanged (2 panes, 1487 px).

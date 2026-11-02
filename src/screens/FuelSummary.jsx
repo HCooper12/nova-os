@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { afterLayout } from '../afterLayout.js';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -939,7 +939,12 @@ function Doors({ keys, F, i }) {
   );
 }
 
-function FuelPage({ F, sheets }) {
+// THE PAGE UNDER A SHEET STAYS PUT (the fluidity audit, round 3, 3 Nov 2026).
+// Opening the week, the kitchen or Add a meal is FuelSummary's own state; it
+// re-rendered this whole page (~220 components: every log row, every tile)
+// under the sheet. With `sheets` made once and F the memo's same object when
+// nothing fed Fuel changed, the page is skipped.
+const FuelPage = memo(function FuelPage({ F, sheets }) {
   const live = F.state === 'live';
   const C = F.cards;
   // a Likely-now tap that ticks the rotation shows its receipt and Undo
@@ -1005,7 +1010,7 @@ function FuelPage({ F, sheets }) {
       </div>
     </>
   );
-}
+});
 
 export function FuelSummary({ v }) {
   const F = v.fuelSummary;
@@ -1013,12 +1018,12 @@ export function FuelSummary({ v }) {
   const [kitchenOpen, setKitchenOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const plateRef = useRef(null);
-  const sheets = {
+  const sheets = useMemo(() => ({
     openWeek: () => setWeekOpen(true),
     openKitchen: () => setKitchenOpen(true),
     openAdd: () => setAddOpen(true),
     plateRef,
-  };
+  }), []);
   const page = F.recipesPage;
   return (
     <div className="nv-fs" style={v.wrapRecipes} data-screen-label="Recipes">

@@ -259,19 +259,25 @@ export function valsSessionSummary(app, ctx, v) {
     // THE TICK. Logs the set (toggleSessionSetDone, its own haptic), hands
     // the card to the next open set, and — when his Settings row says so —
     // starts the rest on the tick's own spot. A reopened set unticks.
+    // THE WHOLE TAP IS ONE TRANSITION (the fluidity audit, round 3, 3 Nov
+    // 2026). TickButton flips its own look on the press, so the set no longer
+    // has to be an urgent App commit: it was, and the click waited on the
+    // page, the chrome and the mission rebuilding (57 ms at 4x) before the
+    // first frame. The haptic and the receipt still fire inside the tap
+    // (toggleSessionSetDone calls them synchronously); the set, the hand-off
+    // and the rest ring commit together after that paint.
     const tick = () => {
       const cur = liveSet();
       if (!cur) return;
-      if (pad && (pad.field === 'weight' || pad.field === 'reps')) {
-        const raw = cur[pad.field];
-        if (typeof raw === 'string') app.updateSessionSet(exIdx, setIdx, pad.field, Number(raw) || 0);
-      }
-      app.toggleSessionSetDone(exIdx, setIdx);
-      if (cur.done) { app.setState({ sessionSumPad: null }); return; }
-      // the set itself is urgent (toggleSessionSetDone above, and TickButton
-      // shows it on the first frame); the hand-off and the rest ring follow
-      // as a transition, after that paint (2 Nov 2026, fluidity audit)
-      startTransition(() => app.setState({ sessionSumSel: null, sessionSumPad: null, sessionSumLift: exIdx, sessionRest: startRest() }));
+      startTransition(() => {
+        if (pad && (pad.field === 'weight' || pad.field === 'reps')) {
+          const raw = cur[pad.field];
+          if (typeof raw === 'string') app.updateSessionSet(exIdx, setIdx, pad.field, Number(raw) || 0);
+        }
+        app.toggleSessionSetDone(exIdx, setIdx);
+        if (cur.done) { app.setState({ sessionSumPad: null }); return; }
+        app.setState({ sessionSumSel: null, sessionSumPad: null, sessionSumLift: exIdx, sessionRest: startRest() });
+      });
     };
     // "Same as last" is "same again" by tap: the set just logged on this lift
     const prevDone = [...sets.slice(0, setIdx)].reverse().find((x) => x.done)

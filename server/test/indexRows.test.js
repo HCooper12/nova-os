@@ -246,7 +246,10 @@ test('the tab bar\'s Nova is the dock\'s Nova: tap to talk; hold opens Nova list
   assert.match(css, /\.nv-sum-nova-orb \{ display: block; width: 58px; height: 58px;/);
   assert.match(css, /\.nv-sum-nova\[data-listening="true"\] \.nv-sum-nova-orb \{ transform: translateY\(-7px\) scale\(\.586\); \}/, 'listening, it still steps up to 34px');
   assert.match(dock, /v\.tabs\.slice\(0, 4\)/, 'four of his tabs, in his order');
-  assert.match(dock, /go=\{v\.goIndex\}/, 'More is the Index');
+  // since 3 Nov (fluidity round 3) the tabs' handlers are stable slots that
+  // read the live tabs at call time; the fifth slot is the Index
+  assert.match(dock, /idx === 4 \? live\.current\.goIndex\?\.\(\.\.\.a\)/, 'More is the Index');
+  assert.match(dock, /<Tab screen="more" label="More" count=\{null\} active=\{moreOn\} go=\{slots\[4\]\.go\}/, 'More is the Index');
   assert.match(dock, /haptic="tick"/, 'a tab he cannot feel is the dock bug again (haptics.test.js)');
   assert.match(read('src/vals/valsChrome.js'), /goIndex: go\('index'\)/);
 });

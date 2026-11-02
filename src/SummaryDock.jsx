@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { TabIcon } from './TabIcon.jsx';
 import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
@@ -62,7 +62,13 @@ function useLensStretch(index) {
   return ref;
 }
 
-function Tab({ screen, label, count, active, go, warm, press }) {
+// A TAB RE-RENDERS WHEN WHAT IT SHOWS CHANGES (the fluidity audit, round 3,
+// 3 Nov 2026). The bar is on screen on every page and was re-rendered by every
+// App commit (five tabs, five icons, five Interactives a commit, ~10 commits a
+// set tick). Its handlers are now stable (SummaryDock reads the live ones
+// through a ref), so a tab whose screen, label, count and lit state are the
+// same is skipped.
+const Tab = memo(function Tab({ screen, label, count, active, go, warm, press }) {
   return (
     <Interactive as="div" onClick={go} onPointerDown={(e) => { press?.(e); warm?.(e); }}
       onPointerCancel={press ? () => press(null) : undefined} haptic="tick"
@@ -77,7 +83,7 @@ function Tab({ screen, label, count, active, go, warm, press }) {
       <span className="nv-sum-tab-lbl" aria-hidden="true">{label}</span>
     </Interactive>
   );
-}
+});
 
 // FULL SCREEN HAS NO TAB BAR (his call, 4 Oct 2026). While the full-screen
 // Nova is open the bar slides away, and once it is out of sight the orb is
@@ -124,7 +130,15 @@ export function SummaryDock({ v }) {
     const id = setTimeout(() => setPending(null), 900);
     return () => clearTimeout(id);
   }, [pending]);
-  const press = (idx) => (e) => setPending(e ? idx : null);
+  // stable per slot, made once: each reads the live tabs at call time, so a
+  // memoised Tab never holds a stale screen's go (see Tab)
+  const live = useRef(null);
+  live.current = { tabs, goIndex: v.goIndex };
+  const slots = useMemo(() => [0, 1, 2, 3, 4].map((idx) => ({
+    go: (...a) => (idx === 4 ? live.current.goIndex?.(...a) : live.current.tabs[idx]?.go?.(...a)),
+    warm: (...a) => live.current.tabs[idx]?.warm?.(...a),
+    press: (e) => setPending(e ? idx : null),
+  })), []);
   const lensAt = pending ?? litIndex;
   const lens = useLensStretch(lensAt);
   return (
@@ -133,9 +147,9 @@ export function SummaryDock({ v }) {
       <nav className="nv-sum-tabbar" aria-label="Tabs">
         <span ref={lens} className="nv-sum-lens" style={{ '--i': lensAt }} aria-hidden="true" />
         {tabs.map((t, idx) => (
-          <Tab key={t.screen} screen={t.screen} label={t.label} count={t.count} active={t.active} go={t.go} warm={t.warm} press={press(idx)} />
+          <Tab key={t.screen} screen={t.screen} label={t.label} count={t.count} active={t.active} go={slots[idx].go} warm={slots[idx].warm} press={slots[idx].press} />
         ))}
-        <Tab screen="more" label="More" count={null} active={moreOn} go={v.goIndex} press={press(4)} />
+        <Tab screen="more" label="More" count={null} active={moreOn} go={slots[4].go} press={slots[4].press} />
       </nav>
       {/* NOVA, detached. The same Interactive the dock's centre orb is: tap
           starts talking right here. While the mic is open the orb steps up

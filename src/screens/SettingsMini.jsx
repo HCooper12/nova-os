@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 // HIS HOME, IN MINIATURE (mockup 72's Appearance preview: "a setting that
 // changes a look should show the look", audit finding 6). Drawn at 200 x 420
@@ -30,7 +30,10 @@ const Bars = ({ h, on }) => (
 const MRow = ({ h }) => <span className="nvm-row" style={{ '--h': h }}><u /><b /><s /></span>;
 const B = ({ w, cls = '', style }) => <span className={`nvm-b nvm-${w} ${cls}`} style={style} />;
 
-function Inner({ style }) {
+// drawn from `style` alone, so a Mini re-rendered by its page (each stage of
+// Appearance's staged mount, a picked palette) skips its ~30 shapes when the
+// style is the same (the fluidity audit, round 3)
+const Inner = memo(function Inner({ style }) {
   if (style === 'summary') {
     return (
       <>
@@ -99,7 +102,7 @@ function Inner({ style }) {
       {float}
     </>
   );
-}
+});
 
 function Face({ look, className = '' }) {
   return (
