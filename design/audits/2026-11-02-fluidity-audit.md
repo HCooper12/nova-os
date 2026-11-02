@@ -616,3 +616,186 @@ the same level on his data. The ring's glow reads the same at 2x crop.
 Reduced motion: the global rule and the per-screen blocks still cover the
 new `::after` ping and the ring's arc, the core still draws one still frame,
 and the lens keeps `transition: none`.
+
+## The dependency map (finding 2)
+
+`renderVals()` is 16 base builders, each taking `(app, ctx)`, then 8 (since
+round 2: 9) stage builders, each taking `(app, ctx, merged-so-far)`. A builder
+talks to the ones after it in two ways only: by writing `ctx` (the
+Object.assign contract) and, for a stage, through the merged view model. The
+map below was read from the source first, before any code changed (`grep` of
+`ctx.` writes and reads and of each stage's `v.`/`m.` reads), and written up
+here once it had been checked against what each builder
+actually read on his data (`valsMemo.inspect()`, stored by
+`scripts/fluidity.mjs` as `result.memoDeps`). The order is the contract; the
+memo keeps it (`BASE` and `STAGES` in `src/vals/compose.js`, pinned to the
+reference composition by `server/test/valsMemo.test.js`).
+
+**Base builders, in order** (App.state keys: the most one build read on his
+data; ctx: what it reads that an earlier builder wrote, and what it writes):
+
+| # | Builder | App.state keys | Reads from ctx | Writes to ctx | Other inputs |
+|---|---|---|---|---|---|
+| 1 | valsRecipes | 84 | demoMode | usingLiveRecipes, rotation, profile, proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled, kcalCurrent, targetKcal | `app.recipes` (demo) |
+| 2 | valsWorkouts | 56 | demoMode | usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest | `app.basePlan` |
+| 3 | valsNotes (+ valsJournal, valsReview) | 38 | demoMode | usingLiveNotes, reviewPage, journalDays, review | `app.notes`, `app.journalDemoDays()` (demo) |
+| 4 | valsLibrary | 7 | isOffline | libraryCount | |
+| 5 | valsDocuments | 3 | | | artifactClient's metadata cache (`artifactMeta`) |
+| 6 | valsWishlist | 1+ | demoMode, isOffline | | getConnection (localStorage) |
+| 7 | valsLeader | 10 | | | localStorage `novaos.leaderSince` |
+| 8 | valsPractice | 8 | demoMode | | |
+| 9 | valsBriefing | 3 | | | |
+| 10 | valsMisc | 79 | demoMode, isOffline, wakeWord | shoppingItems | localStorage `novaos.connection`, `novaos.hapticTiers`; `history.state` depth and the last edge gesture (the back-swipe readout) |
+| 11 | valsInbox | 33 | demoMode, isOffline | inboxPendingCount, inboxNewCount | `app._inboxItemsMemo` (its own cache) |
+| 12 | valsTodos | 5 | demoMode, isOffline | todosOpenCount | |
+| 13 | valsMoney | 11 | demoMode, isOffline | | |
+| 14 | valsMission | 54 | recipes' 7 (usingLiveRecipes, protein*, kcalCurrent, targetKcal), workouts' 4, notes' usingLiveNotes + reviewPage, inbox's 2, lastSyncLabel, go | statusChip, missionStatusItems, agentsLiveCount, agentsGroupLabel | localStorage `novaos.prMomentSeen`, `novaos.landedSeen` |
+| 15 | valsOps | 29 | demoMode, isOffline | | |
+| 16 | valsChrome | 90 | recipes' usingLiveRecipes; workouts' usingLiveWorkouts, liveRoutines; notes' usingLiveNotes, journalDays; libraryCount; shoppingItems; inboxPendingCount; todosOpenCount; mission's statusChip, agentsGroupLabel; go, warm, userName, wakeWord | | localStorage `novaos.screenVisits`; `app.ttsSaidWindow`; `jobClock` marks (it writes them); the island reads the clock to the second |
+
+**Stage builders, in order** (each reads the merged model of everything
+before it; the producer of each key it reads in brackets):
+
+| Stage | Merged-model keys it reads | ctx | Other inputs |
+|---|---|---|---|
+| valsMiscScreens (round 2) | codeModelOptions [misc] | demoMode, isOffline | |
+| valsSummary | 41: planToday, instruments, commandDeck, landedMoment, prMoment, ... [mission, 31 of them]; goWorkouts, workoutCardLabel/Meta/K [workouts]; practiceCard [practice]; review [notes]; moneyMoment [money]; macSessionsHeadline [ops]; leaderBox [chrome] | demoMode, go | localStorage `novaos.pinned` |
+| valsIndex | 16: navMain/System/Vault, goSettings, systemsLabel [chrome]; inboxPendingCount [inbox]; money*, ringVitals, todayTechnique [mission/money]; practiceCard; review; leaderBox; workoutCardLabel | go, warm, userName | |
+| valsTrainSummary | 34 [workouts]; trainingCard (via valsSummary's helper) | demoMode, todayRoutine | its own module memo of the week view |
+| valsFuelSummary | 121 [recipes] | recipes' proteinCurrent, proteinTarget, kcalCurrent, targetKcal, rotation; workouts' todayRoutine | |
+| valsInboxSummary | 29 [inbox, misc, mission] | | |
+| valsSessionSummary | 16 [workouts]: sessionExercises, exercisePicker*, finishSession, ... | | localStorage `novaos.restTimer` |
+| valsSettings | 64 [misc, chrome, recipes' profile]: voice, hearing, hapticTiers, backSwipe, navMain, ... | demoMode, isOffline, userName | the check page's diagnostics: `history.state`, the last edge gesture, switches counted in the DOM |
+| valsNovaThread | 25 [chrome, misc]: glass, jobTray, statusChip, voiceLive, sendOrb, ... | demoMode, isOffline | |
+
+**Keys two builders write** (the later spread wins, so the order decides
+them): `openIngestModal` (library, then misc), `stageCard` (misc, then
+chrome), `heroTaglineTopic` (mission, then valsSummary). Round 2 moved no key
+past another writer of the same key.
+
+**What this means for a memo.** A hand-written list of slices per builder
+would have to name 84 keys for Recipes and 90 for the chrome, and stay right
+as the builders change: that is the fragility the 9 Aug note named. So the
+memo does not use one. It records, while each builder runs, every App.state
+key, instance field, ctx key, merged key and localStorage key it reads, and
+skips the builder only when every one of them is unchanged (by identity) and
+the minute has not turned. A skipped builder replays the ctx it wrote, so the
+builders after it see exactly what they saw. The inputs no recorder can see
+were found by the in-app verify mode (`fluidity.mjs --verify`, which builds
+the old way beside the memo on every commit of a run on his data) and are
+listed by name in `compose.js` (`EXTERNAL`): the back-swipe readout, the
+documents viewer's metadata cache and the Settings check page's diagnostics.
+
+## Round 2 results, 3 Nov 2026: finding 2, the view model built only where something changed
+
+Nothing here is committed; the parent session owns the commit.
+
+**What changed.**
+- `src/vals/compose.js` (new): the composition moved out of `App.renderVals`.
+  `composeVals()` is the reference (every builder on every call);
+  `createValsMemo()` is what App now renders through. Each builder runs
+  against recording proxies (App.state keys, instance fields, ctx, the merged
+  model, localStorage) and is skipped when all of it is unchanged and the
+  minute has not turned; a skipped builder replays its ctx writes. Stages read
+  a layered view of the merged model (no `{ ...prev, ...next }` copy per
+  stage, one copy at the end). Three inputs no proxy sees are listed by name
+  (`EXTERNAL`). The minute is rebuilt in idle time just after it turns
+  (`warmEachMinute`), so a tap does not pay for it. The island is rebuilt on
+  every commit (it reads the clock to the second).
+- `src/App.jsx`: `renderVals` builds ctx and calls the memo; `ctx.go` and
+  `ctx.warm` are made once per instance (a new function per render would make
+  every reader of them a miss); the minute warm starts and stops with the app;
+  `window.__novaValsVerify` builds both ways and records differences.
+- Cheap caches: `vtName` (a Map per prefix+id), `bubbleProse` (the last 500
+  texts), the Journal's, Review's, Notes' and the exercise picker's dates
+  through the cached `dtf` formatters instead of `toLocaleDateString` per row.
+- One structural move: valsMisc's screen-only models (Code, Projects, Stash,
+  summary Shopping) are a stage of their own (`valsMiscScreens`), and the
+  `isLibrary`/`isInbox`/`isTodos` flags moved to valsChrome. Those `st.screen`
+  reads made valsMisc, valsLibrary, valsInbox and valsTodos rebuild on every
+  tab switch. Same keys, same values.
+- `scripts/fluidity.mjs`: every window reports renderVals time inside it
+  (`rvMs`/`rvN`/`rvMax`) and which builders ran (`ran`); `--verify`;
+  `result.memo` and `result.memoDeps`.
+
+**Proof the view model is the same.**
+- `server/test/valsMemo.test.js`: four states (demo-home, captured from the
+  app in a fresh profile; demo-session, demo-home plus an invented training
+  slice with a live session; the Train page without it; demo-home offline under
+  cupertino) times every screen key but `code` (valsCode reads Vite's
+  `import.meta.env`, which node lacks; the in-app verify covers it), one memo
+  carried across all 92 views, each deep-compared with the reference
+  (functions by source) and as JSON. Plus: nothing changed runs no builder;
+  one slice changed reruns its readers only; the minute and a day turning;
+  a localStorage input; and the mechanism with the test's own builders (ctx
+  replay, stage reads, outside inputs, live closures). Two deliberate mutants
+  (skip the state check; skip the ctx replay) each fail 5-6 of the 11 tests.
+- Against HEAD's builders, the old way (a one-off script over a `git archive`
+  of HEAD): 92 views, 0 differed.
+- On his data (`fluidity.mjs --verify`, 68-76 commits per run, every screen
+  and action of the run): the only differences are time read finer than a
+  minute: `todosOpenGroups[].items[].staleness` (a continuous age fraction,
+  differing in the 7th significant digit) and once `ambientSyncMin` (1 vs 2,
+  a "minutes since" that rounds on its own phase). The first verify run also
+  found `backSwipe.depth`, the Settings check page's `swipeStages` and
+  `copyLine` (switches counted from the DOM): those are the `EXTERNAL` inputs,
+  and they no longer differ.
+
+**How it was measured.** As round 1: two production builds with sourcemaps
+(*before* = HEAD's `src/`, *after* = this tree), `vite preview` on 5183,
+`fluidity.mjs` on his real data read-only (6-8 writes blocked per run), run
+before 1x, after 1x, before 4x, after 4x back to back with nothing else
+running. Blink, not WebKit; headless 60 Hz. Single runs per cell: an
+earlier pair (same code minus the layered view) agrees in direction.
+
+| Metric | Before, 1x / 4x | After, 1x / 4x |
+|---|---|---|
+| `renderVals` on an empty setState (`--rendercost`, median) | 9.8-11.3 / 40.9-48.0 ms | 0.4-0.5 / 1.6-1.8 ms |
+| whole commit on an empty setState (median) | 11.0-12.6 / 46.4-53.8 ms | 1.2-1.9 / 4.4-7.0 ms |
+| Tab to Home: renderVals / longest task | 13.6 / 14.0, 64.7 / 67.1 ms | 2.9 / 12.6, 11.7 / 41.1 ms |
+| Tab to Train | 12.4 / 15.5, 57.3 / 59.7 ms | 4.0 / 11.3, 13.2 / 46.7 ms |
+| Tab to Fuel | 13.3 / 13.6, 61.6 / 63.4 ms | 2.7 / 10.5, 12.2 / 42.6 ms |
+| To Inbox | 19.5 / 19.9, 59.1 / 61.0 ms | 4.6 / 12.2, 16.7 / 28.3 ms |
+| To Settings (5 / 4 commits): renderVals sum / longest task | 67.2 / 15.4, 252 / 68.4 ms | 7.7 / 11.4, 28.0 / 19.9 ms |
+| Train: open readiness, click processing | 15.9 / 76.7 ms | 3.2 / 11.1 ms |
+| Fuel: open the week, click processing | 9.9 / 54.0 ms | 9.0 / 27.5 ms |
+| Settings: open Appearance, click processing | 29.1 / 116.3 ms | 11.2 / 41.9 ms |
+| Tick a set, click processing | 32.2 / 139.8 ms | 10.0 / 57.3 ms |
+| Tick a set, renderVals (3 commits) | 39.6 / 169.9 ms | 6.6 / 42.8 ms |
+| Entering a session, longest task | 48.8 / 190.4 ms | 23.2 / 102.4 ms |
+| Components rendered per interaction | unchanged (190, 188, 221, 85, 565/452, 262) | unchanged |
+| Idle main thread | unchanged within noise | unchanged within noise |
+
+**Against the frame budget, what did not reach target:**
+- **"A local change re-renders the component that owns it": not met, and not
+  attempted.** The memo removes the view-model cost; React still reconciles
+  the whole visible tree on every App commit (component counts above are
+  unchanged). Meeting it needs the state to move out of App into the
+  components that own it, or `React.memo` boundaries fed stable view-model
+  slices (the memo now hands back the same objects for unchanged builders, so
+  such boundaries would hold). A larger change; his call.
+- **Local change under 8 ms at 1x / 33 ms at 4x of click work:** met for Train
+  readiness (3.2 / 11.1). Fuel's week (9.0 / 27.5) misses at 1x by 1 ms; its
+  cost is the sheet's own render, not renderVals (0 builders ran). Settings
+  Appearance (11.2 / 41.9) and the set tick (10.0 / 57.3) miss: what is left is
+  reconciliation of ~290 and ~260 components and, for the tick, workouts +
+  mission + chrome + the session page rerunning (they all read the session).
+- **Tab switch under 16 ms at 1x / 60 ms at 4x:** met for Home, Train, Fuel,
+  Inbox and Settings (longest task 10.5-12.6 / 19.9-46.7 ms). Entering a
+  session misses at 4x (102 ms).
+- **`renderVals` under 3 ms at 1x:** met for an unchanged commit (0.4-0.5) and
+  for switches to Home and Fuel; Train, Inbox and the session's commits are
+  4-7 ms, because a switch still reruns every builder that reads `st.screen`
+  (the chrome, the summary stages, money, ops) and Notes (~2 ms a run) reruns
+  whenever a sync touches `lastSyncAt`.
+- One 4x Fuel window in an earlier run saw a data push land mid-window (372
+  renders, 40 ms of renderVals); not in the final run.
+
+**Looks the same.** `shot.mjs --readonly --style summary` of Home, Train,
+Fuel, Inbox and Settings from each build, back to back. Train and Settings
+differ only in the clock and the orb's phase (3,900-4,500 px). Fuel's first
+pair caught the after build mid-entrance and his log changed between the two
+(he logged a meal); retaken back to back, they are the same plate, the same
+numbers and the same rows, and differ only by the Dynamic Island's HRV toast
+and the clock. Home and Inbox differ by 15,000-24,000 px of orb, clock and
+live phase. `scripts/guard-cupertino.mjs`: unchanged (2 panes, 1487 px).

@@ -260,7 +260,11 @@ test('the Coach sheet is its own history entry, and the back swipe closes it', (
   assert.match(app, /\.\.\.this\.recipeFromHistory\(\), \.\.\.this\.pagesFromHistory\(\) \}(?:\);|, \(\) =>)/);
   assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.captureTagFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
   assert.match(app, /novaOverlay: 'traincoach'/);
-  assert.match(app, /const withTrain = \{ \.\.\.withIndex, \.\.\.valsTrainSummary\(this, ctx, withIndex\) \};/, 'spread after the Index in renderVals');
+  // 2 Nov 2026: the composition moved to src/vals/compose.js (the memoised
+  // view model); the reference keeps the spreads, STAGES keeps the order
+  const compose = read('src/vals/compose.js');
+  assert.match(compose, /const withTrain = \{ \.\.\.withIndex, \.\.\.valsTrainSummary\(app, ctx, withIndex\) \};/, 'spread after the Index in renderVals');
+  assert.match(compose, /\['index', valsIndex\], \['trainSummary', valsTrainSummary\],/, 'and after the Index in the memoised order');
 });
 
 test('the hero verdict never says "earned 0 reps": zero or less is a hold (his Push day, 28 Sep)', () => {

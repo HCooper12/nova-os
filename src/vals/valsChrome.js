@@ -201,6 +201,10 @@ export function valsChrome(app, ctx) {
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWishlist: st.screen === 'wishlist', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isProjects: st.screen === 'projects', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     // THE INDEX (P3): the More tab under `summary` — every screen, grouped
     isIndex: st.screen === 'index',
+    // (2 Nov 2026) these three were set by their own builders, which made
+    // valsLibrary, valsInbox and valsTodos rebuild on every tab switch for
+    // one boolean each; the chrome reads the screen anyway (src/vals/compose.js)
+    isLibrary: st.screen === 'library', isInbox: st.screen === 'inbox', isTodos: st.screen === 'todos',
     dateLabel: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date()).toUpperCase().replace(/,/g, ''),
     greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
     // ONE saved order drives both the phone's dock and the Mac's sidebar
@@ -985,7 +989,7 @@ export function workoutProgress(ws) {
   return { done, total, next };
 }
 
-function islandView(app, st, demoMode) {
+export function islandView(app, st, demoMode) {
   const out = { workout: null, speaking: null, nudge: null, pocket: null, liveWorkout: null, standby: null };
   // STANDING BY ("take five", server/lib/standby.js): a resident readout, the
   // pause mark and the time it ends, for as long as it lasts. While it is on,

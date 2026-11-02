@@ -299,7 +299,11 @@ test('the new files add no network path: every write is an existing app method',
 test('App renders the sheet only under summary, and the Fuel vals go last', () => {
   const app = read('src/App.jsx');
   assert.match(app, /\{v\.recipeOpen && <Suspense fallback=\{null\}>\{v\.fuelSummary\?\.recipeSheet \? <RecipeSheet v=\{v\} \/> : <RecipeOverlay v=\{v\} \/>\}<\/Suspense>\}/);
-  assert.match(app, /const withFuel = \{ \.\.\.withTrain, \.\.\.valsFuelSummary\(this, ctx, withTrain\) \};/);
+  // 2 Nov 2026: the composition moved to src/vals/compose.js (the memoised
+  // view model); the reference keeps the spreads, STAGES keeps the order
+  const compose = read('src/vals/compose.js');
+  assert.match(compose, /const withFuel = \{ \.\.\.withTrain, \.\.\.valsFuelSummary\(app, ctx, withTrain\) \};/);
+  assert.match(compose, /\['trainSummary', valsTrainSummary\],\s*\['fuelSummary', valsFuelSummary\],/);
   // the Recipes list is its own history entry, and popstate closes it
   assert.match(app, /novaView: 'fuelRecipes'/);
   assert.match(app, /\.\.\.this\.pagesFromHistory\(\)/);

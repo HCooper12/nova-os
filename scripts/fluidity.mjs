@@ -39,6 +39,13 @@
 //   --ablate      price the orb canvases and the backdrop blur by switching
 //                 each off in the test page only (idle + scroll, 4 variants)
 //   --explore     list what can be tapped on each screen
+//   --verify      (2 Nov, finding 2) build the view model the old way beside
+//                 the memoised one on EVERY commit of the run and report any
+//                 difference (result.verify). Doubles each commit: never
+//                 read timings from a --verify run.
+// Every window also reports renderVals time inside it (rvMs, rvN, rvMax:
+// the instance's renderVals wrapped), and the end of a run the memo's
+// per-builder hits and runs (result.memo; builder ms with --verify off).
 // Flags: --url --port --dist (build dir, for sourcemaps) --out (json)
 //   --traces <dir> (save every window's raw trace, loadable in DevTools)
 //   --screens mission,workouts,recipes,inbox,settings,session
@@ -90,6 +97,7 @@ try {
   localStorage.setItem('novaos.style', ${JSON.stringify(style)});
 } catch (e) {}
 try { navigator.sendBeacon = function(){ return false; }; } catch (e) {}
+${argv.includes('--verify') ? 'window.__novaValsVerify = true;' : 'window.__novaValsTiming = true;'}
 window.__fl = { commits: 0, renders: 0, byType: new Map(), raf: [], loaf: [], events: [], paints: [], lcp: 0, mark: 0 };
 // a counting devtools hook: React calls onCommitFiberRoot after every commit,
 // in production builds too. A component "rendered" when its fiber carries
@@ -367,14 +375,23 @@ function analyse(events, viewportArea) {
 }
 
 // ---------- page helpers ----------
-const resetCounters = () => ev(`(function(){ var f = window.__fl; f.commits = 0; f.renders = 0; f.byType = new Map(); f.raf = []; f.loaf = []; f.events = []; f.mark = performance.now(); return true; })()`);
+const resetCounters = () => ev(`(function(){ var f = window.__fl; f.commits = 0; f.renders = 0; f.byType = new Map(); f.raf = []; f.loaf = []; f.events = []; f.rv = []; f.mark = performance.now();
+  var a = window.__flApp && window.__flApp();
+  window.__flMemo0 = a && a.valsMemo ? JSON.stringify(a.valsMemo.stats.builders) : null;
+  if (a && !a.__flRv) { var orig = a.renderVals; a.__flRv = true; a.renderVals = function () { var t = performance.now(); var r = orig.call(this); (window.__fl.rv || (window.__fl.rv = [])).push(performance.now() - t); return r; }; }
+  return true; })()`);
 async function readCounters() {
   const v = await ev(`(function(){
     var f = window.__fl; var r = f.raf; var gaps = [];
     for (var i = 1; i < r.length; i++) if (r[i - 1] > f.mark) gaps.push(r[i] - r[i - 1]);
     var top = Array.from(f.byType.entries()).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 12);
     window.__flTop = top.map(function (e) { return e[0]; });
+    var rv = f.rv || [];
+    // which builders ran inside this window, and for how long (the memo's own
+    // tally, before vs after)
+    var ran = null; try { var app = window.__flApp(); if (app && app.valsMemo && window.__flMemo0) { var b0 = JSON.parse(window.__flMemo0), b1 = app.valsMemo.stats.builders; ran = {}; Object.keys(b1).forEach(function (k) { var r = b1[k].runs - ((b0[k] || {}).runs || 0); if (r > 0) ran[k] = r + 'x ' + (b1[k].ms - ((b0[k] || {}).ms || 0)).toFixed(1) + 'ms'; }); } } catch (e) {}
     return { commits: f.commits, renders: f.renders, top: top.map(function (e) { return e[1]; }),
+      ran: ran, rvN: rv.length, rvMs: +rv.reduce(function (x, y) { return x + y; }, 0).toFixed(2), rvMax: +Math.max.apply(null, [0].concat(rv)).toFixed(2),
       frames: gaps.length, missed: gaps.filter(function (g) { return g > 25; }).length, worstGap: +Math.max.apply(null, [0].concat(gaps)).toFixed(1),
       loaf: f.loaf.filter(function (l) { return l.start > f.mark; }).slice(0, 8),
       events: f.events.filter(function (e) { return e.start > f.mark; }).slice(0, 8) };
@@ -672,6 +689,14 @@ for (const s of SCREENS) {
 }
 
 if (!sawFetch) { console.error(`${TOOL}: the read-only interception never engaged: refusing the result`); clearDeadline(); await cleanup(); process.exit(3); }
+// the memo's own account (2 Nov): per builder, how often it ran and how often
+// its last result was handed back; and with --verify, every difference found
+result.memo = await ev(`(function(){ var a = window.__flApp(); var m = a && a.valsMemo; if (!m) return null; var b = m.stats.builders; var o = {}; Object.keys(b).forEach(function (k) { o[k] = { runs: b[k].runs, hits: b[k].hits, ms: +b[k].ms.toFixed(1) }; }); return { composes: m.stats.composes, builders: o }; })()`).catch(() => null);
+result.memoDeps = await ev(`(function(){ var a = window.__flApp(); return a && a.valsMemo && a.valsMemo.inspect ? a.valsMemo.inspect() : null; })()`).catch(() => null);
+if (argv.includes('--verify')) {
+  result.verify = await ev(`JSON.parse(JSON.stringify(window.__novaValsDiffs || null))`).catch((e) => ({ error: e.message }));
+  console.error(`${TOOL}: verify: ${result.verify ? `${result.verify.checked} commits checked, ${result.verify.differed} differed` : 'no verify log (an old build?)'}`);
+}
 result.blockedWrites = [...new Set(blocked)];
 result.blockedWriteCount = blocked.length;
 await writeFile(out, JSON.stringify(result, null, 2));

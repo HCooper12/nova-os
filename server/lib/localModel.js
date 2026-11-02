@@ -233,6 +233,21 @@ export function parseVmStat(text) {
   return Math.round((total * pageSize) / (1024 * 1024));
 }
 
+/** Pure: `memory_pressure` output ("System-wide memory free percentage: 66%")
+ *  and the Mac's total → MB the kernel itself counts as available, or null
+ *  when the text is not that shape. THE RIGHT GAUGE (2 Nov 2026): vm_stat's
+ *  free + inactive + speculative read 5,209 MB while the kernel said 66 % of
+ *  16 GB (10.8 GB), because 4.8 GB of file-backed pages sat outside those
+ *  three buckets; the 9B (6.1 GB resident, loaded fine at 62 % on 27 Oct)
+ *  was refused all day on the lower number. The swap reading was the wrong
+ *  instrument on 27 Oct; this was the second. */
+export function parseMemoryPressure(text, totalMB) {
+  const m = String(text || '').match(/memory free percentage:\s*(\d+(?:\.\d+)?)\s*%/i);
+  const pct = m ? Number(m[1]) : NaN;
+  if (!Number.isFinite(pct) || !Number.isFinite(totalMB) || totalMB <= 0) return null;
+  return Math.round((pct / 100) * totalMB);
+}
+
 /** What a model needs free before it loads, in MB: its file size × 1.15 +
  *  512 (the runner and its context), or, before Ollama has listed it, a floor
  *  by its parameter count. The 4B measured 3.1 GB resident on 27 Oct. */
@@ -250,6 +265,7 @@ export function memoryNeedMB(id, sizeBytes = null) {
 
 const readSwapDefault = () => execFileSync('sysctl', ['-n', 'vm.swapusage'], { encoding: 'utf8', timeout: 2000 });
 const readVmStatDefault = () => execFileSync('vm_stat', [], { encoding: 'utf8', timeout: 2000 });
+const readPressureDefault = () => execFileSync('memory_pressure', [], { encoding: 'utf8', timeout: 4000 });
 let headroomOverride = null;
 // Tests replace the whole reading (a function returning the headroom object)
 // so ensureLocalModel can be driven without touching sysctl. null restores it.
@@ -278,13 +294,18 @@ export function memoryHeadroom(opts) {
   if (backend === 'apple') return { ok: true, freeMB: null, needMB: null, swapFreeMB: null, reason: null };
   if (backend === 'ollama') {
     const {
-      readVm = readVmStatDefault, platform = process.platform, model = defaultModel(),
+      // a caller that injects a vm_stat reading (a test) means that reading
+      readVm = readVmStatDefault, readPressure = opts?.readVm && !opts?.readPressure ? null : readPressureDefault, totalMB = Math.round(os.totalmem() / (1024 * 1024)),
+      platform = process.platform, model = defaultModel(),
       sizeBytes = sizeOf(model), loaded = isLoaded(model),
     } = opts || {};
     const needMB = memoryNeedMB(model, sizeBytes);
     let freeMB = null;
     if (platform === 'darwin') {
-      try { freeMB = parseVmStat(readVm()); } catch { freeMB = null; }
+      // the kernel's own figure first (memory_pressure); vm_stat only when
+      // that cannot be read: it undercounts by the file cache (2 Nov 2026)
+      if (readPressure) { try { freeMB = parseMemoryPressure(readPressure(), totalMB); } catch { freeMB = null; } }
+      if (freeMB == null) { try { freeMB = parseVmStat(readVm()); } catch { freeMB = null; } }
     }
     if (loaded || freeMB == null || freeMB >= needMB) return { ok: true, freeMB, needMB, swapFreeMB: null, reason: null };
     return {

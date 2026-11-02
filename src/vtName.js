@@ -46,9 +46,22 @@ function hash36(s) {
  * @returns {string|null}  null when there is no id, so a caller can spread
  *                         `?? {}` rather than mint a name for nothing.
  */
+// The names are pure functions of (prefix, id) and the Notes list mints one
+// per note on every view-model build: Unicode normalize plus four regexes,
+// ~1.2 ms a build on his vault (fluidity audit, 2 Nov 2026). Kept once each.
+const minted = new Map();
 export function vtName(prefix, id) {
   if (!id && id !== 0) return null;
   const raw = String(id);
+  const key = `${prefix}\u0000${raw}`;
+  const hit = minted.get(key);
+  if (hit !== undefined) return hit;
+  if (minted.size > 4000) minted.clear();
+  const name = mint(prefix, raw);
+  minted.set(key, name);
+  return name;
+}
+function mint(prefix, raw) {
   const slug = raw
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')   // strip accents rather than drop the letter

@@ -362,7 +362,11 @@ test('Voice.jsx hands over to the thread under summary only; the station is a se
 test('App: the thread spreads last; a reply keeps its glass; a line from the Nova button keeps its page and what it carried', () => {
   const app = read('src/App.jsx');
   // 7 Oct: Settings A's view model spreads between the session and the thread
-  assert.match(app, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(this, ctx, withSettings\) \};\n  \}/);
+  // 2 Nov 2026: the composition moved to src/vals/compose.js (the memoised
+  // view model); the reference keeps the spreads, STAGES keeps the order
+  const compose = read('src/vals/compose.js');
+  assert.match(compose, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(app, ctx, withSettings\) \};\n\}/);
+  assert.match(compose, /\['settings', valsSettings\], \['novaThread', valsNovaThread\],\s*\];/);
   assert.match(app, /const glass = glassSnapshot\(s\.glassBeats, s\.glassVisuals\) \|\| undefined;/);
   // the door a turn came in by rides both of its rows (`meta`, 1 Oct)
   // (1 Nov) the Mac's brief ids and the quiet receipt of cards the Coach took back, never spoken

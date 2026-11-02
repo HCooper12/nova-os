@@ -117,12 +117,6 @@ export function valsMisc(app, ctx) {
     },
   ];
 
-  // THE SUMMARY SHOPPING PAGE (mockup 92, built 10 Oct 2026): everything it
-  // draws is computed by src/shopModel.js from the list, the day's price
-  // reads, the rewards offers and the rotation; demo draws the invented week
-  // (src/shopDemo.js). Under cupertino and command the classic list stays.
-  const shopSum = st.novaStyle === 'summary' && st.screen === 'shopping' ? shopSummary(app, st, { demoMode, isOffline }) : null;
-
   // shared with valsChrome (nav count)
   Object.assign(ctx, { shoppingItems });
 
@@ -140,7 +134,6 @@ export function valsMisc(app, ctx) {
     instrumentsError: st.instrumentsError || null,
     refreshInstruments: () => app.refreshInstruments(),
     // shopping list
-    shopSum,
     shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} item${shoppingItems.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',
     shoppingCategories,
     shoppingCheckedCount,
@@ -604,13 +597,31 @@ export function valsMisc(app, ctx) {
     stashAddError: st.stashAddError,
     submitStashAdd: () => app.addStashItem(),
   };
-  // the Code screen (round 3): one model, built only while it is on screen
-  out.code = st.screen === 'code' ? valsCode(app, ctx, { modelOptions: out.codeModelOptions }) : null;
-  // Projects (phase 1): one model, built only while it is on screen
-  out.projects = st.screen === 'projects' ? valsProjects(app) : null;
-  // the summary Stash (10 Oct 2026): one model, built only while it is on screen
-  out.stashSum = st.screen === 'stash' ? valsStash(app, ctx) : null;
   return out;
+}
+
+// THE SCREEN-ONLY MODELS, a stage of their own (2 Nov 2026, fluidity audit
+// finding 2). Each is built only while its screen shows; while they lived
+// inside valsMisc, their st.screen reads made all of valsMisc (~1.7 ms on his
+// data) rebuild on every tab switch. The same four keys, the same values:
+// runs first of the stages in src/vals/compose.js, before anything reads the
+// merged model.
+export function valsMiscScreens(app, ctx, v) {
+  const st = app.state;
+  const { demoMode, isOffline } = ctx;
+  return {
+    // THE SUMMARY SHOPPING PAGE (mockup 92, built 10 Oct 2026): everything it
+    // draws is computed by src/shopModel.js from the list, the day's price
+    // reads, the rewards offers and the rotation; demo draws the invented week
+    // (src/shopDemo.js). Under cupertino and command the classic list stays.
+    shopSum: st.novaStyle === 'summary' && st.screen === 'shopping' ? shopSummary(app, st, { demoMode, isOffline }) : null,
+    // the Code screen (round 3): one model, built only while it is on screen
+    code: st.screen === 'code' ? valsCode(app, ctx, { modelOptions: v.codeModelOptions }) : null,
+    // Projects (phase 1): one model, built only while it is on screen
+    projects: st.screen === 'projects' ? valsProjects(app) : null,
+    // the summary Stash (10 Oct 2026): one model, built only while it is on screen
+    stashSum: st.screen === 'stash' ? valsStash(app, ctx) : null,
+  };
 }
 
 function shopSummary(app, st, { demoMode, isOffline }) {

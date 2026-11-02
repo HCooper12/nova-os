@@ -55,35 +55,15 @@ import { startSkyRest } from './skyRest.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { wishChip } from './vals/quickCapture.js';
-import { valsRecipes, CURRENT_VERSION, eatOutParams, eatOutHasBudget } from './vals/valsRecipes.js';
-import { valsWorkouts } from './vals/valsWorkouts.js';
-import { valsNotes } from './vals/valsNotes.js';
-import { valsLibrary } from './vals/valsLibrary.js';
-import { valsLeader } from './vals/valsLeader.js';
+import { CURRENT_VERSION, eatOutParams, eatOutHasBudget } from './vals/valsRecipes.js';
 import { startDecision, tickedSets } from './sessionGuard.js';
-import { valsPractice, PRACTICE_SCENE_KEY, stripPracticeDirective, stillPreparing, shorten as shortenPractice } from './vals/valsPractice.js';
-import { valsBriefing } from './vals/valsBriefing.js';
+import { PRACTICE_SCENE_KEY, stripPracticeDirective, stillPreparing, shorten as shortenPractice } from './vals/valsPractice.js';
 import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
-import { valsMisc } from './vals/valsMisc.js';
-import { valsInbox } from './vals/valsInbox.js';
-import { valsTodos, linkify as todoLabel } from './vals/valsTodos.js';
-import { valsMoney } from './vals/valsMoney.js';
+import { linkify as todoLabel } from './vals/valsTodos.js';
 import { stashFromHistory } from './stashActions.js';
-import { valsMission } from './vals/valsMission.js';
-import { valsOps } from './vals/valsOps.js';
-import { valsChrome } from './vals/valsChrome.js';
-import { valsSummary } from './vals/valsSummary.js';
-import { valsTrainSummary } from './vals/valsTrainSummary.js';
-import { valsIndex } from './vals/valsIndex.js';
-import { valsSettings } from './vals/valsSettings.js';
-import { valsFuelSummary } from './vals/valsFuelSummary.js';
-import { valsInboxSummary } from './vals/valsInboxSummary.js';
-import { valsSessionSummary } from './vals/valsSessionSummary.js';
-import { valsNovaThread } from './vals/valsNovaThread.js';
+import { createValsMemo, verifyVals } from './vals/compose.js';
 import { glassSnapshot, bindGlassSentences } from './novaThreadFacts.js';
-import { valsDocuments } from './vals/valsDocuments.js';
-import { valsWishlist } from './vals/valsWishlist.js';
 import { wishlistFromHistory } from './wishlistActions.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
@@ -928,6 +908,10 @@ export default class App extends Component {
     this.healthSyncNow();
     this.healthVisH = () => { if (document.visibilityState === 'visible') this.healthSyncNow(); };
     document.addEventListener('visibilitychange', this.healthVisH);
+    // the view model's minute, rebuilt in idle time just after it turns, so
+    // a tap never pays for it (src/vals/compose.js, 2 Nov 2026)
+    if (!this.valsMemo) this.valsMemo = createValsMemo();
+    this.stopValsWarm = this.valsMemo.warmEachMinute(() => this.renderVals());
     noteScreen(this.state.screen);
     try { const d = localStorage.getItem('novaos.wrap.dismissed'); if (d) this.setState({ wrapDismissedOn: d }); } catch { /* private mode */ }
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
@@ -1288,6 +1272,7 @@ export default class App extends Component {
   }
   componentWillUnmount() {
     if (this.healthVisH) document.removeEventListener('visibilitychange', this.healthVisH);
+    if (this.stopValsWarm) this.stopValsWarm();
     clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
     clearTimeout(this.convSyncT); clearTimeout(this.convRetryT);
     clearTimeout(this.eatOutDebounce); clearTimeout(this.eatOutPoll);
@@ -10549,7 +10534,11 @@ export default class App extends Component {
   // src/vals/. Order matters: earlier builders add shared derived values to
   // ctx (rotation, todayRoutine, reviewPage, shoppingItems, ...) that later
   // builders consume — valsMission reads from all three data domains, and
-  // valsChrome builds the nav counts last.
+  // valsChrome builds the nav counts last. The order and the composition live
+  // in src/vals/compose.js; since 2 Nov 2026 (fluidity audit finding 2) a
+  // builder whose inputs did not change since the last commit is not run
+  // again: its last result is handed back. composeVals() there is the old
+  // every-builder version, kept as the reference the memo is tested against.
   renderVals() {
     const st = this.state;
     const ctx = {
@@ -10580,61 +10569,26 @@ export default class App extends Component {
       // Glass and snapshots are incompatible, and no amount of naming fixes
       // it. The content animates instead (see navigate()), which leaves the
       // bar and dock as live DOM that is never captured at all.
-      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false, instant: true }); },
+      // (2 Nov 2026) made once per instance, not per render: a builder that
+      // reads ctx.go would otherwise see a new function on every commit and
+      // could never be skipped (src/vals/compose.js).
+      go: this.ctxGo || (this.ctxGo = (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false, instant: true }); }),
       // …and again on pointerdown, which lands ~100ms before the click. Idle
       // prefetch has usually loaded everything already, so both are normally
       // no-ops (import() is memoized) — this only earns its keep on a tap
       // that beats the prefetch, which is exactly the cold-boot tap that
       // used to stall on a chunk parse.
-      warm: (screen) => () => warmScreen(screen),
+      warm: this.ctxWarm || (this.ctxWarm = (screen) => () => warmScreen(screen)),
     };
-    const all = {
-      ...valsRecipes(this, ctx),
-      ...valsWorkouts(this, ctx),
-      ...valsNotes(this, ctx),
-      ...valsLibrary(this, ctx),
-      ...valsDocuments(this, ctx),
-      ...valsWishlist(this, ctx),
-      ...valsLeader(this, ctx),
-      ...valsPractice(this, ctx),
-      ...valsBriefing(this, ctx),
-      ...valsMisc(this, ctx),
-      ...valsInbox(this, ctx),
-      ...valsTodos(this, ctx),
-      ...valsMoney(this, ctx),
-      ...valsMission(this, ctx),
-      ...valsOps(this, ctx),
-      ...valsChrome(this, ctx),
-    };
-    // the summary Home reads fields from four of the builders above
-    // (practiceCard, macSessionsHeadline, goWorkouts, and valsMission's), so
-    // it takes the merged view model and goes last; null off `summary`
-    const withSummary = { ...all, ...valsSummary(this, ctx, all) };
-    // the Index (P3) reads eight builders' fields — the sidebar's counts, the
-    // protein ring, the Home cards' labels — so it takes everything, last of
-    // all; null off the Index screen
-    const withIndex = { ...withSummary, ...valsIndex(this, ctx, withSummary) };
-    // the summary Train page (redesign variation A) reads valsWorkouts and the
-    // Home's Training card (valsSummary's trainingCard) from the merged view
-    // model; the summary Fuel page (mockup 59 A) reshapes valsRecipes'
-    // composer, log, rotation and recipe overlay with Home's own plate
-    // fields; the summary Inbox (mockup 60) reads the Inbox's own rows, the
-    // loops, the ladder and the proposals. Each takes the whole merged model
-    // and spreads nothing another builder set; all three null off `summary`.
-    const withTrain = { ...withIndex, ...valsTrainSummary(this, ctx, withIndex) };
-    const withFuel = { ...withTrain, ...valsFuelSummary(this, ctx, withTrain) };
-    const withInbox = { ...withFuel, ...valsInboxSummary(this, ctx, withFuel) };
-    // the summary live session (Train round B, mockup 61) reshapes the
-    // classic session's rows and the mid-session Coach fields; last of all,
-    // and null off `summary` or whenever the session is not on screen
-    const withSession = { ...withInbox, ...valsSessionSummary(this, ctx, withInbox) };
-    // the Nova thread (mockup 63 D) reads the classic Voice fields, the glass
-    // and the chrome's talk door from everything above; last of all, and null
-    // off `summary` or off the Nova tab
-    // Settings (direction A, 7 Oct 2026) reads the voice slice, the settings
-    // slice and the rest timer from everything above; null off Settings
-    const withSettings = { ...withSession, ...valsSettings(this, ctx, withSession) };
-    return { ...withSettings, ...valsNovaThread(this, ctx, withSettings) };
+    if (!this.valsMemo) this.valsMemo = createValsMemo();
+    // the in-app proof (scripts/fluidity.mjs --verify): build it the old way
+    // too, from the same untouched ctx, and record any difference; off unless
+    // the flag is set
+    const verify = typeof window !== 'undefined' && !!window.__novaValsVerify;
+    const pristine = verify ? { ...ctx } : null;
+    const v = this.valsMemo.compose(this, ctx);
+    if (verify) verifyVals(this, pristine, v);
+    return v;
   }
 
   // A research job dispatched from the conversation: poll the SAME pending

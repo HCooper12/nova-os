@@ -1,6 +1,7 @@
 import { NOTE_TYPE_COLOR } from './shared.js';
 import { pickReviewItem } from '../reviewPick.js';
 import { GAPS, nextStep, parseISO, shiftISO, localISO, demoReviewToday, demoScenarioFromUrl, DEMO_UNREVIEWED } from '../reviewDemo.js';
+import { dtf } from './fmt.js';
 
 // THE DAILY REVIEW's view model (mockup 96, audit 27). ONE shape, read by the
 // summary Moment, the grouped Group, the classic pane and the sheet. Demo
@@ -22,10 +23,14 @@ export const GRADE = {
 const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const word = (n) => WORDS[n] || String(n);
 
-export const fmtDay = (iso) => parseISO(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
-export const fmtShort = (iso) => parseISO(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const fmtWeekday = (iso) => parseISO(iso).toLocaleDateString('en-GB', { weekday: 'long' });
-const fmtDow = (iso) => parseISO(iso).toLocaleDateString('en-GB', { weekday: 'short' });
+// cached formatters (fmt.js); an invalid date reads as toLocaleDateString's
+// own 'Invalid Date' (fluidity audit, 2 Nov 2026)
+const fmtWith = (opts) => (iso) => { const d = parseISO(iso); return Number.isNaN(d.getTime()) ? 'Invalid Date' : dtf('en-GB', opts).format(d); };
+const dayFmt = fmtWith({ weekday: 'short', day: 'numeric', month: 'short' });
+export const fmtDay = (iso) => dayFmt(iso).replace(',', '');
+export const fmtShort = fmtWith({ day: 'numeric', month: 'short' });
+const fmtWeekday = fmtWith({ weekday: 'long' });
+const fmtDow = fmtWith({ weekday: 'short' });
 export const gapWord = (n) => (n === 1 ? 'Tomorrow' : `${n} days`);
 const hm = (iso) => {
   const d = iso ? new Date(iso) : null;

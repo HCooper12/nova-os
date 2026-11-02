@@ -2,6 +2,7 @@ import { NOTE_TYPE_COLOR } from './shared.js';
 import { buildJournal } from './valsJournal.js';
 import { vtStyle } from '../vtName.js';
 import { buildReview } from './valsReview.js';
+import { dtf } from './fmt.js';
 
 // Notes domain: the notes browser, the daily-review pick (+ reflect composer),
 // and the journal. Adds to ctx: usingLiveNotes, reviewPage, journalDays.
@@ -81,6 +82,7 @@ export function valsNotes(app, ctx) {
     heading: s.heading ? s.heading.replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/^Reflection on /, 'Concept reflection — ') : null,
     text: s.text,
   });
+  const todayIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const journalDays = (st.liveJournalEntries || [])
     .map((d) => {
       const sections = d.sections.filter((s) => jFilter === 'all' || (s.category || 'personal') === jFilter);
@@ -90,10 +92,10 @@ export function valsNotes(app, ctx) {
       // the screen give today the weight it has.
       const dt = new Date(`${d.date}T12:00:00`);
       const valid = !Number.isNaN(dt.getTime());
-      const todayIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
       return {
         date: d.date,
-        dayLabel: valid ? dt.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : d.date,
+        // a cached formatter (fmt.js), not one built per day (2 Nov 2026)
+        dayLabel: valid ? dtf('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).format(dt) : d.date,
         isToday: d.date === todayIso,
         open: st.journalOpenDate === d.date,
         toggle: () => app.toggleJournalDay(d.date),

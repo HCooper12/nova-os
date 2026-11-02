@@ -1,4 +1,5 @@
 import { DEMO_LIFE_SOURCES, journalScenarioFromUrl } from '../journalDemo.js';
+import { dtf } from './fmt.js';
 
 // HIS JOURNAL's view model (mockup 95). ONE shape, read by the Journal page
 // and by the Daily review on both Homes. Two places from one list: Mine is
@@ -26,8 +27,10 @@ const lower = (n) => word(n).toLowerCase();
 
 const pad = (n) => String(n).padStart(2, '0');
 const localISO = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const dayLabel = (iso) => { const d = new Date(`${iso}T12:00:00`); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', ''); };
-const longDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '');
+// cached formatters (fmt.js), not a toLocaleDateString per day: ~1.2 ms of
+// every build on his journal (fluidity audit, 2 Nov 2026)
+const dayLabel = (iso) => { const d = new Date(`${iso}T12:00:00`); return Number.isNaN(d.getTime()) ? iso : dtf('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(',', ''); };
+const longDay = (iso) => { const d = new Date(`${iso}T12:00:00`); return Number.isNaN(d.getTime()) ? 'Invalid Date' : dtf('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(d).replace(',', ''); };
 const daysAgo = (iso, today) => Math.round((new Date(`${today}T12:00:00`) - new Date(`${iso}T12:00:00`)) / 86400000);
 
 const isHis = (s) => s.author === 'hayden';

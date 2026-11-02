@@ -305,15 +305,18 @@ test('Workouts.jsx renders the summary session only under summary, after the Tra
 });
 
 test('App spreads the session view model after the Inbox, then only the Nova thread after it', () => {
-  const app = read('src/App.jsx');
-  assert.match(app, /const withInbox = \{ \.\.\.withFuel, \.\.\.valsInboxSummary\(this, ctx, withFuel\) \};/);
+  // 2 Nov 2026: the composition moved to src/vals/compose.js (the memoised
+  // view model); the reference keeps the spreads, STAGES keeps the order
+  const app = read('src/vals/compose.js');
+  assert.match(app, /\['inboxSummary', valsInboxSummary\],\s*\['sessionSummary', valsSessionSummary\], \['settings', valsSettings\], \['novaThread', valsNovaThread\],\s*\];/);
+  assert.match(app, /const withInbox = \{ \.\.\.withFuel, \.\.\.valsInboxSummary\(app, ctx, withFuel\) \};/);
   // 29 Sep: the Nova thread (novaThread.test.js) takes the session's place as
   // the last spread; the session still reads everything before it
-  assert.match(app, /const withSession = \{ \.\.\.withInbox, \.\.\.valsSessionSummary\(this, ctx, withInbox\) \};/);
+  assert.match(app, /const withSession = \{ \.\.\.withInbox, \.\.\.valsSessionSummary\(app, ctx, withInbox\) \};/);
   // 7 Oct: Settings A's view model (valsSettings) reads the session's rest
   // timer, so it spreads after the session and before the Nova thread
-  assert.match(app, /const withSettings = \{ \.\.\.withSession, \.\.\.valsSettings\(this, ctx, withSession\) \};/);
-  assert.match(app, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(this, ctx, withSettings\) \};\n  \}/);
+  assert.match(app, /const withSettings = \{ \.\.\.withSession, \.\.\.valsSettings\(app, ctx, withSession\) \};/);
+  assert.match(app, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(app, ctx, withSettings\) \};\n\}/);
 });
 
 test('the new files reach no network: every write is an app method the classic session already calls', () => {

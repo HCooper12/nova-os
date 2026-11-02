@@ -578,9 +578,12 @@ export function valsWorkouts(app, ctx) {
     .sort((a, b) => (pickerGroups.has(b.muscleGroup) - pickerGroups.has(a.muscleGroup)) || b.lastDate.localeCompare(a.lastDate))
     .slice(0, 8);
   const pickerShort = !st.exercisePickerShowAll && !pickerQuery && pickerMuscle === 'Any' && pickerRecent.length >= 3;
+  // cached formatters (fmt.js): a toLocaleDateString per row built a new
+  // Intl formatter each time (fluidity audit, 2 Nov 2026)
+  const pickerToday = Date.parse(dtf('en-CA', {}).format(new Date()));
   const pickerWhen = (d) => {
-    const days = Math.round((Date.parse(new Date().toLocaleDateString('en-CA')) - Date.parse(d)) / 864e5);
-    return days <= 0 ? 'Today' : days < 7 ? new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short' }) : `${Math.round(days / 7)} wk ago`;
+    const days = Math.round((pickerToday - Date.parse(d)) / 864e5);
+    return days <= 0 ? 'Today' : days < 7 ? dtf('en-AU', { weekday: 'short' }).format(new Date(d + 'T12:00:00')) : `${Math.round(days / 7)} wk ago`;
   };
   const exercisePickerRecent = pickerShort ? pickerRecent.map((e) => ({
     id: e.id, name: e.name, muscleGroup: e.muscleGroup,

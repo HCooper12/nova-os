@@ -172,7 +172,6 @@ export function valsLibrary(app, ctx) {
   ctx.libraryCount = items.length;
 
   return {
-    isLibrary: st.screen === 'library',
     libraryView: st.libraryView || 'grid',
     setLibraryView: (v) => app.setLibraryView(v),
     libraryHeaderLabel: st.liveLibrary

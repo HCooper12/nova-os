@@ -27,6 +27,7 @@ import nodePath from 'node:path';
 process.env.NOVA_VOICE_DIR = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-localmodel-'));
 
 const {
+  parseMemoryPressure,
   hardwareProfile, defaultModel, localModelStatus, completeLocal, healthy, ensureLocalModel,
   stopLocalModel, localModelPid,
 } = await import('../lib/localModel.js');
@@ -658,4 +659,19 @@ test('localModelLabel: Ollama tags and MLX ids both read as a short name', async
   assert.equal(localModelLabel('mlx-community/Qwen3-4B-Instruct-2507-4bit'), 'Qwen3 4B on this Mac');
   assert.equal(localModelName('llama3:latest'), 'Llama3');
   assert.equal(localModelName('qwen3.5:9b-q8_0'), 'Qwen3.5 9B');
+});
+
+
+test('memoryHeadroom reads the kernel\'s own free figure first; vm_stat is the fallback (2 Nov 2026)', async () => {
+  const { memoryHeadroom } = await import('../lib/localModel.js');
+  assert.equal(parseMemoryPressure('System-wide memory free percentage: 66%\n', 16384), 10813);
+  assert.equal(parseMemoryPressure('nothing useful', 16384), null);
+  const vm = 'Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 6208.\nPages inactive: 325568.\nPages speculative: 640.\n';
+  const common = { backend: 'ollama', platform: 'darwin', model: 'qwen3.5:9b', sizeBytes: 6.6 * 1024 ** 3, loaded: false, totalMB: 16384, readVm: () => vm };
+  const byKernel = memoryHeadroom({ ...common, readPressure: () => 'System-wide memory free percentage: 66%' });
+  assert.equal(byKernel.ok, true, 'the kernel counts the file cache the 9B can have');
+  assert.equal(byKernel.freeMB, 10813);
+  const byVm = memoryHeadroom({ ...common, readPressure: () => { throw new Error('no memory_pressure'); } });
+  assert.ok(byVm.freeMB < byVm.needMB, 'vm_stat alone undercounts (misses the file cache)');
+  assert.equal(byVm.ok, false, 'and refuses on that lower number');
 });
