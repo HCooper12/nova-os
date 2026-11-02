@@ -248,20 +248,27 @@ try {
 // ------------------------------------------------------------------ hear
 try {
   const tr = await import('../server/lib/transcribe.js');
+  const stt = await import('../server/lib/sttLocal.js');
   const be = await tr.loadWhisperBackend();
-  if (!be) report('warn', 'ears', null, 'no transcriber is configured on the Mac (~/.config/watch/.env has no key)');
-  else if (be.backend === 'groq' || be.backend === 'openai') report('warn', 'ears', null, `${be.backend === 'groq' ? 'Groq' : 'OpenAI'} (internet), not exercised: no local transcriber is wired yet`);
-  else if (!clip) report('warn', 'ears', null, `${be.backend} on this Mac, but there was no voice clip to hear`);
+  // Since 2 Nov the Mac has its own ears (lib/sttLocal.js); in shadow mode
+  // Groq is still the answer, so the ears are timed here on the LOCAL
+  // transcriber whenever it is installed (booting it is the point of a
+  // preflight), and the cloud backend is named as what the live turn uses.
+  const local = stt.localSttConfigured();
+  if (!local && !be) report('warn', 'ears', null, 'no transcriber is configured on the Mac (~/.config/watch/.env has no key, and server/voice-stt is not built)');
+  else if (!local) report('warn', 'ears', null, `${be.backend === 'groq' ? 'Groq' : be.backend} (internet), not exercised: the local ears are not built (server/voice-stt/setup.sh)`);
+  else if (!clip) report('warn', 'ears', null, 'the local ears are built, but there was no voice clip to hear');
   else {
     const t0 = Date.now();
-    const r = await tr.transcribeBuffer(clip, { mime: 'audio/mpeg', prompt: '' });
+    const r = await stt.transcribeLocal(clip, { mime: 'audio/mpeg', prompt: '' });
     const ms = Date.now() - t0;
     budget.hear = ms;
-    const said = words(ttsSentence);
     const heard = new Set(words(r.text));
+    const said = words(ttsSentence);
     const hit = said.filter((w) => heard.has(w)).length / Math.max(1, said.length);
-    if (hit >= 0.8) report('pass', 'ears', ms, `the voice and the ears agree (${Math.round(hit * 100)}% of words): "${r.text}"`);
-    else report('fail', 'ears', ms, `the ears heard ${Math.round(hit * 100)}% of the words: "${r.text}"`);
+    const live = be ? ` (live turns: ${tr.sttProvider?.() || process.env.NOVA_STT_PROVIDER || 'shadow'} mode, ${be.backend === 'groq' ? 'Groq' : be.backend} answers)` : '';
+    if (hit >= 0.8) report('pass', 'ears', ms, `the voice and the ears agree on this Mac (${Math.round(hit * 100)}% of words${r.cold ? ', cold boot included' : ''}): "${r.text}"${live}`);
+    else report('fail', 'ears', ms, `the ears on this Mac heard ${Math.round(hit * 100)}% of the words: "${r.text}"`);
   }
 } catch (e) {
   report('fail', 'ears', null, e.message);
