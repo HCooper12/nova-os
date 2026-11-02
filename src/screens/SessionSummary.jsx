@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { afterLayout } from '../afterLayout.js';
 import { Interactive } from '../Interactive.jsx';
 import { CountUp } from '../CountUp.jsx';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
@@ -12,7 +14,7 @@ import { useFlipList } from '../useFlipList.js';
 import { useSheetDrag } from '../useSheetDrag.js';
 import { useDictation } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
-import { restState } from '../sessionSummaryFacts.js';
+import { restState, clockLabel } from '../sessionSummaryFacts.js';
 import { ConsultFlow } from '../motion/ConsultFlow.jsx';
 import { RecordBanner } from '../motion/RecordBanner.jsx';
 import { WeekSetsSheet } from '../WeekSets.jsx';
@@ -121,15 +123,26 @@ export function SessionSummary({ v, parts }) {
   const S = v.sessionSummary;
   // a new session never opens on the last one's lift, set, sheet or rest
   useEffect(() => { if (!S.fresh) S.adopt(); }, [S.key, S.fresh]); // eslint-disable-line react-hooks/exhaustive-deps
-  // the minute in the header, and the rest ring's second
+  // THE PAGE KNOWS THE REST'S PHASE, NOT ITS SECOND (the fluidity audit,
+  // 2 Nov 2026, finding 9): `now` here used to tick every second while
+  // resting, which re-rendered the whole page (~50 components) for one
+  // digit. The ring now owns its own second (RestRing below); the page wakes
+  // once, at the moment the rest ends (the tick comes back), and otherwise
+  // every 30 s as before.
   const [now, setNow] = useState(() => Date.now());
-  const resting = !!S.rest;
+  const endsAt = S.rest && Number.isFinite(S.rest.endsAt) ? S.rest.endsAt : null;
   useEffect(() => {
-    const ms = resting ? 1000 : 30000;
-    const id = setInterval(() => setNow(Date.now()), ms);
+    const left = endsAt != null ? endsAt - Date.now() : -1;
+    if (left > 0) {
+      const id = setTimeout(() => setNow(Date.now()), left + 15);
+      return () => clearTimeout(id);
+    }
+    const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
-  }, [resting]);
-  const rs = restState(S.rest, now);
+  }, [endsAt]);
+  // read at this render (a new rest arrives with the App commit, after `now`
+  // was last set), so the phase is never a stale second behind
+  const rs = restState(S.rest, Math.max(now, Date.now()));
   // AT ZERO THE TICK COMES BACK, with one pulse (the native shell and
   // Android feel it; iOS web only fires a haptic for a finger on a switch)
   const wasResting = useRef(false);
@@ -161,9 +174,13 @@ export function SessionSummary({ v, parts }) {
   const [top, setTop] = useState(null);
   useLayoutEffect(() => {
     const measure = () => { const el = pageRef.current; if (el) setTop(Math.round(el.getBoundingClientRect().top + (window.scrollY || 0))); };
-    measure();
+    // the first read waits until the browser has laid the page out (still
+    // before the first paint, and flushed so that paint has the card in its
+    // place), not inside the commit, where it forced the session page's
+    // layout: 11.8 ms at 4x (fluidity audit, finding 3)
+    const cancel = afterLayout(pageRef.current, () => flushSync(measure));
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    return () => { cancel(); window.removeEventListener('resize', measure); };
   }, []);
 
   const minutes = S.minutes;
@@ -369,17 +386,66 @@ function Pills({ S }) {
   );
 }
 
-function RestRing({ rest, rs }) {
+// THE RING OWNS ITS SECOND (fluidity audit, finding 9). Its clock wakes on
+// each whole second of the rest (aligned to when it ends, so the digit turns
+// exactly as the second does) and re-renders only this button. The glow is a
+// separate, still layer that moves once a second, under the crisp arc that
+// glides: the drop-shadow used to sit on the gliding stroke itself, so the
+// blur was redrawn on every frame of the countdown.
+function RestRing({ rest }) {
   const C = 2 * Math.PI * 29.5;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!Number.isFinite(rest.endsAt)) return undefined;
+    let id = 0;
+    const next = () => {
+      const ms = rest.endsAt - Date.now();
+      if (ms <= 0) return;
+      id = setTimeout(() => { setNow(Date.now()); next(); }, (ms % 1000 || 1000) + 5);
+    };
+    next();
+    return () => clearTimeout(id);
+  }, [rest.endsAt]);
+  const live = restState(rest, Math.max(now, Date.now()));
+  const rs = live.phase === 'resting' ? live : { label: clockLabel(0), frac: 0 };
+  const off = C * (1 - rs.frac);
   return (
     <button type="button" className="nv-ss-rest" style={{ '--h': rest.hue }} onClick={rest.skip} data-ss-keep
       aria-label={`Resting, ${rs.label} left. Tap to skip the rest`}>
-      <svg viewBox="0 0 64 64" aria-hidden="true">
+      <svg className="glow" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="29.5" style={{ strokeDasharray: C, strokeDashoffset: off }} />
+      </svg>
+      <svg className="ring" viewBox="0 0 64 64" aria-hidden="true">
         <circle className="trk" cx="32" cy="32" r="29.5" />
-        <circle className="arc" cx="32" cy="32" r="29.5" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - rs.frac) }} />
+        <circle className="arc" cx="32" cy="32" r="29.5" style={{ strokeDasharray: C, strokeDashoffset: off }} />
       </svg>
       <span className="nv-ss-rt"><b>{rs.label}</b><small>rest</small></span>
     </button>
+  );
+}
+
+// THE TICK SHOWS ITS NEW STATE UNDER THE FINGER (the fluidity audit, 2 Nov
+// 2026, finding 4). The tap's commit (the set, the rest, the receipt, the
+// island) took 141 ms at 4x before the next frame, so the tick looked the
+// same until all of it had rendered, while the haptic (the native switch at
+// touch end) had already fired. The press flips the look locally, in its own
+// tiny commit; it lets go when the set's real state arrives, when the touch
+// is cancelled, or after a beat if the tap never landed.
+function TickButton({ s }) {
+  const [pending, setPending] = useState(false);
+  useEffect(() => { setPending(false); }, [s.done, s.key]);
+  useEffect(() => {
+    if (!pending) return undefined;
+    const id = setTimeout(() => setPending(false), 1200);
+    return () => clearTimeout(id);
+  }, [pending]);
+  const looksDone = pending ? !s.done : s.done;
+  const off = () => setPending(false);
+  return (
+    <Interactive as="button" type="button" haptic="tick" className={`nv-ss-tick${looksDone ? ' logged' : ''}`} onClick={s.tick} aria-label={s.tickAria} data-ss-keep
+      onPointerDown={(e) => { if (e.button === 0 || e.pointerType !== 'mouse') setPending(true); }} onPointerCancel={off}>
+      <Ico p={P.check} size={30} />
+    </Interactive>
   );
 }
 
@@ -413,10 +479,8 @@ function SetCard({ S, rs }) {
           <button type="button" className={`nv-ss-numbox${s.reps.editing ? ' on' : padUp ? ' dim' : ''}`} onClick={s.reps.open} aria-label={s.reps.aria} data-ss-keep>
             <span className="bn">{s.reps.text}{s.reps.editing && <span className="caret" aria-hidden="true" />}</span><span className="u">{s.reps.unit}</span>
           </button>
-          {showRest ? <RestRing rest={S.rest} rs={rs} /> : (
-            <Interactive as="button" type="button" haptic="tick" className={`nv-ss-tick${s.done ? ' logged' : ''}`} onClick={s.tick} aria-label={s.tickAria} data-ss-keep>
-              <Ico p={P.check} size={30} />
-            </Interactive>
+          {showRest ? <RestRing rest={S.rest} /> : (
+            <TickButton s={s} />
           )}
         </div>
         {/* under the pad these fold away IN PLACE (hidden, not removed), so
@@ -491,7 +555,7 @@ function DoneCard({ S, rs }) {
             {!d.next && <button type="button" className="nv-ss-next" onClick={S.openFinish}>Finish the session</button>}
           </div>
         </div>
-        {showRest && <RestRing rest={S.rest} rs={rs} />}
+        {showRest && <RestRing rest={S.rest} />}
       </div>
     </section>
   );

@@ -384,7 +384,7 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
 
 test('NovaCore and StageCard draw exactly as before unless the thread asks', () => {
   const core = read('src/NovaCore.jsx');
-  assert.match(core, /formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false \}\) \{/);
+  assert.match(core, /formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false, restFps = 0, pauseOnScroll = false \}\) \{/);
   // formOnly keeps Nova's blue: the grain engine (0d5b89c) reads it as rest
   assert.match(core, /const turn = st\.formOnly \? REST : turnOf\(st\);/);
   const card = read('src/StageCard.jsx');

@@ -67,7 +67,9 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
     }
     const first = originEl && document.body.contains(originEl) ? originEl.getBoundingClientRect() : null;
     if (!first) {
-      el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-in' }).finished.catch(() => {}).then(onClose);
+      // a UI exit eases out, quick (never ease-in: it holds the sheet still
+      // for the first beat of a dismiss he asked for; fluidity audit, 2 Nov)
+      el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'cubic-bezier(.23,1,.32,1)' }).finished.catch(() => {}).then(onClose);
       return;
     }
     const last = el.getBoundingClientRect();

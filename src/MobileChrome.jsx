@@ -213,7 +213,7 @@ export function MobileChrome({ v }) {
           )}
           {/* ONE Nova icon on the phone, and it is this one: his chosen core,
               always drawn (never the ✦ glyph), live-dynamic while talking */}
-          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} style={{ pointerEvents: 'none' }} />
+          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} restFps={30} pauseOnScroll style={{ pointerEvents: 'none' }} />
           <HoldRing ringRef={hold.ringRef} />
         </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}

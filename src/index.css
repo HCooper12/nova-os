@@ -2453,8 +2453,14 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-fs-lk .nv-fs-nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Right now */
 .nv-fs-now { margin-top: 14px; padding: 14px 16px 16px; }
-.nv-fs-live { width: 7px; height: 7px; border-radius: 50%; background: var(--nv-cy); animation: nvFsPing 1.8s ease-out infinite; }
-@keyframes nvFsPing { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--nv-cy) 55%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+/* the live dot's ping: the same halo, 0 to 8px round the 7px dot, fading
+   from 55% cyan, drawn as a disc that scales (23 / 7) and fades on the
+   compositor. It was an animated box-shadow, a paint property, so Fuel
+   repainted every frame at rest: 238 paints in 2 s (fluidity audit,
+   2 Nov 2026, finding 7) */
+.nv-fs-live { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--nv-cy); }
+.nv-fs-live::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: color-mix(in srgb, var(--nv-cy) 55%, transparent); pointer-events: none; animation: nvFsPing 1.8s ease-out infinite; }
+@keyframes nvFsPing { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.286); opacity: 0; } }
 .nv-fs-nowl { margin: 10px 0 0; font: 400 18px/1.3 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
 .nv-fs-nowy { margin: 6px 0 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); }
 .nv-fs-proj { margin-top: 12px; }
@@ -2520,7 +2526,7 @@ button.nv-ts-cd[disabled] { cursor: default; }
 .nv-fs-plus { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--nv-ink) 9%, transparent); color: var(--nv-ink60); }
 .nv-fs-plus > .nv-fs-ico { width: 20px; height: 20px; }
 @media (prefers-reduced-motion: reduce) {
-  .nv-fs-live, .nv-fs-mt > i, .nv-fs-rt-nm { animation: none; }
+  .nv-fs-live, .nv-fs-live::after, .nv-fs-mt > i, .nv-fs-rt-nm { animation: none; }
   .nv-fs-fb, .nv-fs-chev, .nv-fs-opts > span:first-child > i { transition-duration: 1ms; }
 }
 
@@ -3425,7 +3431,15 @@ button.nv-ts-cd[disabled] { cursor: default; }
 @keyframes nvSsRipple { from { transform: scale(1); opacity: .75; } to { transform: scale(1.6); opacity: 0; } }
 .nv-ss-rest > svg { position: absolute; inset: 0; width: 64px; height: 64px; transform: rotate(-90deg); }
 .nv-ss-rest .trk { fill: none; stroke: color-mix(in srgb, var(--h) 20%, transparent); stroke-width: 5; }
-.nv-ss-rest .arc { fill: none; stroke: var(--h); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--h) 55%, transparent)); }
+/* the arc glides on its own layer, with no filter on it; its glow is a
+   separate copy underneath that steps once a second (fluidity audit,
+   2 Nov 2026, finding 9: the drop-shadow on the gliding stroke re-blurred
+   every frame of the countdown) */
+.nv-ss-rest > svg.ring { will-change: transform; }
+.nv-ss-rest .arc { fill: none; stroke: var(--h); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+/* it takes the arc's target for this second, which the gliding arc reaches
+   only at the second's end, so the copy is never ahead of the arc's tip */
+.nv-ss-rest > svg.glow circle { fill: none; stroke: var(--h); stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--h) 55%, transparent)); }
 .nv-ss-rt { position: relative; display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .nv-ss-rt b { font: 700 20px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; }
 .nv-ss-rt small { margin-top: 3px; font: 400 13px/1 var(--nv-font-ui); color: var(--nv-ink60); }
@@ -3648,6 +3662,7 @@ button.nv-ts-cd[disabled] { cursor: default; }
 /* Calm: the glow goes, the depth stays */
 :root[data-nv-calm="1"] .nv-ss-tick { box-shadow: inset 0 1px 0 color-mix(in srgb, white 45%, transparent); }
 :root[data-nv-calm="1"] .nv-ss-rest .arc, :root[data-nv-calm="1"] .nv-ss-prg .past { filter: none; }
+:root[data-nv-calm="1"] .nv-ss-rest > svg.glow { display: none; }
 :root[data-nv-calm="1"] .nv-ss-vmic.on { animation: none; }
 /* less transparency: the pad and the receipt go solid */
 @media (prefers-reduced-transparency: reduce) {

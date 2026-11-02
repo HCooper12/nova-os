@@ -62,9 +62,10 @@ function useLensStretch(index) {
   return ref;
 }
 
-function Tab({ screen, label, count, active, go, warm }) {
+function Tab({ screen, label, count, active, go, warm, press }) {
   return (
-    <Interactive as="div" onClick={go} onPointerDown={warm} haptic="tick"
+    <Interactive as="div" onClick={go} onPointerDown={(e) => { press?.(e); warm?.(e); }}
+      onPointerCancel={press ? () => press(null) : undefined} haptic="tick"
       className={active ? 'nv-sum-tab on' : 'nv-sum-tab'}
       aria-current={active ? 'page' : undefined}
       aria-label={count != null ? `${label}, ${count}` : label}
@@ -108,16 +109,33 @@ export function SummaryDock({ v }) {
   const capture = v.inboxSummary?.capture;
   const listening = !!(v.novaListening || v.novaThread?.micOpen);
   const litIndex = moreOn ? 4 : tabs.findIndex((t) => t.active);
-  const lens = useLensStretch(litIndex);
+  // THE LENS ANSWERS THE FINGER, NOT THE SCREEN (the fluidity audit, 2 Nov
+  // 2026, finding 5): it used to move only once the new screen had committed,
+  // 121-199 ms after touch end at 4x, so the one thing under his finger waited
+  // for the slowest part of the switch. Now the press itself sets where the
+  // lens is going (local state: only this bar re-renders, and the glide is a
+  // compositor transition that keeps running while the screen renders); it
+  // lets go when the screen catches up, when the touch is cancelled, or after
+  // a beat if the press led nowhere.
+  const [pending, setPending] = useState(null);
+  useEffect(() => { setPending(null); }, [litIndex]);
+  useEffect(() => {
+    if (pending == null) return undefined;
+    const id = setTimeout(() => setPending(null), 900);
+    return () => clearTimeout(id);
+  }, [pending]);
+  const press = (idx) => (e) => setPending(e ? idx : null);
+  const lensAt = pending ?? litIndex;
+  const lens = useLensStretch(lensAt);
   return (
     <>
     <div className="nv-sum-dock" data-away={away ? 'true' : undefined} aria-hidden={away || undefined} inert={away}>
       <nav className="nv-sum-tabbar" aria-label="Tabs">
-        <span ref={lens} className="nv-sum-lens" style={{ '--i': litIndex }} aria-hidden="true" />
-        {tabs.map((t) => (
-          <Tab key={t.screen} screen={t.screen} label={t.label} count={t.count} active={t.active} go={t.go} warm={t.warm} />
+        <span ref={lens} className="nv-sum-lens" style={{ '--i': lensAt }} aria-hidden="true" />
+        {tabs.map((t, idx) => (
+          <Tab key={t.screen} screen={t.screen} label={t.label} count={t.count} active={t.active} go={t.go} warm={t.warm} press={press(idx)} />
         ))}
-        <Tab screen="more" label="More" count={null} active={moreOn} go={v.goIndex} />
+        <Tab screen="more" label="More" count={null} active={moreOn} go={v.goIndex} press={press(4)} />
       </nav>
       {/* NOVA, detached. The same Interactive the dock's centre orb is: tap
           starts talking right here. While the mic is open the orb steps up
@@ -142,7 +160,7 @@ export function SummaryDock({ v }) {
         <span className="nv-sum-nova-orb" data-hold-bounce="">
           {/* under the wall (Ambient covers the bar) it holds one still frame: an
               orb nobody can see drew every frame there (audit 21 §5) */}
-          {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} style={{ pointerEvents: 'none' }} />}
+          {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} restFps={30} pauseOnScroll style={{ pointerEvents: 'none' }} />}
         </span>
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
         <HoldRing ringRef={hold.ringRef} inset="-3px" />

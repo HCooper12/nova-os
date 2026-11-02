@@ -36,6 +36,9 @@ const dayLabel = (iso) => {
 };
 const kg = (n) => `${Number(n).toLocaleString('en-AU')} kg`;
 
+// a UI exit: fast out, eased at the end (never ease-in on UI)
+const EXIT = 'cubic-bezier(.23,1,.32,1)';
+
 // the geometry, in the SVG's own units
 const W = 280; const BASE = 112; const TOP = 10; const BW = 26;
 
@@ -80,8 +83,12 @@ export function ChartMorph({ points, hue = 'var(--nv-cy)', title }) {
       if (tag) go(tag, [{ opacity: start.tag, transform: start.tag > 0.5 ? 'none' : 'translateY(6px) scale(.7)' }, { opacity: 1, transform: 'none' }], { duration: P.ms, easing: P.easing, delay: 1260 });
     } else {
       if (tag) go(tag, [{ opacity: start.tag }, { opacity: 0 }], { duration: 200, easing: 'ease-out' });
-      if (line) go(line, [{ strokeDashoffset: start.line }, { strokeDashoffset: 1 }], { duration: 400, easing: 'ease-in' });
-      dots.forEach((c, i) => go(c, [{ transform: `scale(${start.dots[i]})` }, { transform: 'scale(0)' }], { duration: 220, easing: 'ease-in', delay: 200 }));
+      // the way out leaves on an ease-out, and a dot fades as it shrinks to
+      // .4 rather than collapsing to a point (nothing real vanishes from
+      // nothing; the fluidity audit's motion notes, 2 Nov 2026). The base
+      // CSS (scale 0) takes over unseen once its opacity is gone.
+      if (line) go(line, [{ strokeDashoffset: start.line }, { strokeDashoffset: 1 }], { duration: 400, easing: EXIT });
+      dots.forEach((c, i) => go(c, [{ transform: `scale(${start.dots[i]})`, opacity: 1 }, { transform: 'scale(.4)', opacity: 0 }], { duration: 180, easing: EXIT, delay: 200 }));
       rects.forEach((r, i) => go(r, [{ transform: `scaleY(${start.rects[i]})` }, { transform: 'scaleY(1)' }], { duration: B.ms, easing: B.easing, delay: 380 + i * 50 }));
       if (hint) go(hint, [{ opacity: start.hint }, { opacity: 1 }], { duration: 240, easing: 'ease-out', delay: 380 });
     }

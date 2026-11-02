@@ -1070,12 +1070,19 @@ function makeHoloDraw(ctx, size, opts, getState) {
 // And one for the one-canvas stage (31 Oct 2026, mockup 106 option A):
 //   speakGold — speaking wears gold (the rings, the grain body, the heart)
 //               instead of Living jade, as the approved mockup draws it.
+// And two for the small cores that sit on every screen (2 Nov 2026, the
+// fluidity audit finding 1: the dock orb drew 120 times a second at rest and
+// was the most expensive thing on the main thread on every screen):
+//   restFps        — the cap while nothing is happening (no listening,
+//                    speaking, thinking or contest, and no finger on the
+//                    orb); any of those and it draws every frame again.
+//   pauseOnScroll  — at rest, hold the last frame while <main> scrolls.
 // When more than one turn is set, listening wins, then speaking, then
 // thinking. `formOnly` keeps the forms and Nova's blue. A still core (`still`
 // or reduced motion) draws the turn's final form as one frame in its colour,
 // and once more when the turn changes; at rest, the frame it always drew.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false }) {
+export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0, speakGold = false, restFps = 0, pauseOnScroll = false }) {
   const ref = useRef(null);
   const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
@@ -1123,10 +1130,35 @@ export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'fila
     // the cap: a frame is drawn only once its slot has come round (a 1 ms
     // slack so a 60 Hz display lands every second frame, not every third)
     const minGap = fps > 0 ? 1000 / fps - 1 : 0;
+    // the rest cap: only while the core is quiet. A turn (listening,
+    // speaking, thinking, contest) or a finger on the orb (pointerdown on the
+    // control around it, held 1.5 s) draws every frame from the next one.
+    const restGap = restFps > 0 ? 1000 / restFps - 1 : 0;
+    let touchedUntil = 0;
+    const host = canvas.closest('[data-nova-core]') || canvas.parentElement;
+    const onTouch = () => { touchedUntil = performance.now() + 1500; };
+    if (restGap) host?.addEventListener('pointerdown', onTouch, { passive: true });
+    let scrolling = false;
+    let scrollT = 0;
+    const scroller = pauseOnScroll ? document.querySelector('main') : null;
+    const onScroll = () => {
+      scrolling = true;
+      clearTimeout(scrollT);
+      scrollT = setTimeout(() => { scrolling = false; }, 150);
+    };
+    scroller?.addEventListener('scroll', onScroll, { passive: true });
+    const quiet = () => {
+      const st = stateRef.current;
+      return !(st.speaking || st.listening || st.thinking || st.contest);
+    };
     let lastDraw = -Infinity;
     const loop = (ts = performance.now()) => {
       raf = requestAnimationFrame(loop);
       if (minGap && ts - lastDraw < minGap) return;
+      if ((restGap || scroller) && quiet() && ts > touchedUntil) {
+        if (scrolling) return; // the last frame stays on the canvas
+        if (restGap && ts - lastDraw < restGap) return;
+      }
       lastDraw = ts;
       if (frames++ % 30 === 0 && canvas.checkVisibility) covered = !canvas.checkVisibility({ visibilityProperty: true, opacityProperty: true });
       if (!covered) draw(performance.now() / 1000);
@@ -1152,8 +1184,11 @@ export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'fila
       cancelAnimationFrame(raf);
       io?.disconnect();
       document.removeEventListener('visibilitychange', onVis);
+      host?.removeEventListener('pointerdown', onTouch);
+      scroller?.removeEventListener('scroll', onScroll);
+      clearTimeout(scrollT);
     };
-  }, [size, variant, engine, still, tintStill, fps, pixelRatio]);
+  }, [size, variant, engine, still, tintStill, fps, pixelRatio, restFps, pauseOnScroll]);
   // a still core draws its one frame again when the turn changes: the
   // turn's form in its colour (and, on the full screen, the rings' tint);
   // back at rest, the very frame it drew before

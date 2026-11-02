@@ -1,5 +1,6 @@
 import { OfflineCard } from '../OfflineCard.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { StepsHistory } from '../StepsHistory.jsx';
@@ -571,18 +572,39 @@ function TodayStrip({ slots }) {
   // the one the line under the rail names
   const leadIdx = shown.some((x) => x.kind === 'now') ? -1 : shown.findIndex((x) => x.kind === 'next');
   // measured after every fit (a new `fit` object, including the resize reset
-  // below), before paint; each step is one notch, so it settles in a few
+  // below), before paint; each step is one notch, so it settles in a few.
+  // NOT ON MOUNT (the fluidity audit, 2 Nov 2026, finding 3): the first read
+  // of a fresh Home forced the whole screen's layout inside the commit, 51 ms
+  // at 4x on every switch to Home. The first measure is the observer's below,
+  // which runs once the browser has laid the page out, before it paints; and
+  // only if the rail overflows does it start the steps (flushed, so the cut
+  // rail is never painted). On his data it fits, and nothing re-renders.
+  const mounted = useRef(false);
+  const sigRef = useRef(sig);
+  sigRef.current = sig;
   useLayoutEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
     const el = ref.current;
     if (!el || el.scrollWidth <= el.clientWidth + 1) return;
     if (level < 2 || count > 3) setFit({ sig, level: level + 1 });
   }, [fit, sig, level, count]);
-  // a new width (rotation, the Mac window) earns a fresh fit from the top
-  useEffect(() => {
+  // the first fit, and a new width (rotation, the Mac window) earns a fresh
+  // fit from the top
+  useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    let w = el.clientWidth;
+    if (!el) return undefined;
+    if (typeof ResizeObserver === 'undefined') {
+      // no observer: the old way, one read in the commit
+      if (el.scrollWidth > el.clientWidth + 1) setFit({ sig: sigRef.current, level: 1 });
+      return undefined;
+    }
+    let w = -1;
     const ro = new ResizeObserver(() => {
+      if (w < 0) {
+        w = el.clientWidth;
+        if (el.scrollWidth > el.clientWidth + 1) flushSync(() => setFit({ sig: sigRef.current, level: 1 }));
+        return;
+      }
       if (Math.abs(el.clientWidth - w) > 1) { w = el.clientWidth; setFit({ sig: '', level: 0 }); }
     });
     ro.observe(el);
@@ -918,7 +940,7 @@ export function MissionSummary({ v }) {
           <span style={{ minWidth: 0, font: `600 13px ${UI}`, letterSpacing: '.02em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{S.date}</span>
           <Interactive onClick={v.openVoice} aria-label="Talk to Nova" haptic="tick"
             base={{ flex: 'none', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer' }}>
-            <NovaCore size={36} engine={v.coreStyle} speaking={!!v.novaSpeaking} listening={!!v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} />
+            <NovaCore size={36} engine={v.coreStyle} speaking={!!v.novaSpeaking} listening={!!v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} restFps={30} />
           </Interactive>
         </div>
         <h1 className="nv-sum-rise" style={{ '--i': 1, margin: '2px 4px 4px', font: `700 34px/1.1 ${UI}`, letterSpacing: '-.025em', textWrap: 'balance' }}>{S.greeting}</h1>

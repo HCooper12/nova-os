@@ -84,23 +84,37 @@ export function Switch({ on, onToggle, label, disabled, why }) {
 export function Seg({ label, options, value, onPick, off, why }) {
   const ref = useRef(null);
   const th = useRef(null);
-  const place = () => {
+  // where each button sits, read only where reading is free: in the
+  // observer's callback, after the browser's own layout (the fluidity audit,
+  // 2 Nov 2026, finding 3: this read ran after EVERY render, four pickers on
+  // a page, 25 ms each at 4x). A new value moves the thumb from the cache.
+  const geo = useRef(null);
+  const place = (fresh) => {
     const el = ref.current;
     const t = th.current;
     if (!el || !t) return;
-    const on = el.querySelector('button[aria-checked="true"]');
-    if (!on || !on.offsetWidth) { t.style.opacity = '0'; return; }
+    const btns = el.querySelectorAll('button[role="radio"]');
+    if (fresh || !geo.current || geo.current.length !== btns.length) {
+      geo.current = Array.from(btns, (b) => [b.offsetLeft, b.offsetWidth]);
+    }
+    const idx = Array.from(btns).findIndex((b) => b.getAttribute('aria-checked') === 'true');
+    const g = geo.current[idx];
+    if (!g || !g[1]) { t.style.opacity = '0'; return; }
     t.style.opacity = '1';
-    t.style.width = `${on.offsetWidth}px`;
-    t.style.transform = `translateX(${on.offsetLeft}px)`;
+    t.style.width = `${g[1]}px`;
+    t.style.transform = `translateX(${g[0]}px)`;
   };
-  useLayoutEffect(place);
-  useEffect(() => {
-    if (typeof ResizeObserver !== 'function' || !ref.current) return undefined;
-    const ro = new ResizeObserver(() => place());
-    ro.observe(ref.current);
+  // on mount the observer's first callback places it (before the first
+  // paint); after that a new value is placed from the cache
+  useLayoutEffect(() => { if (geo.current || typeof ResizeObserver !== 'function') place(false); }, [value, options.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (typeof ResizeObserver !== 'function' || !el) return undefined;
+    const ro = new ResizeObserver(() => place(true));
+    ro.observe(el);
+    for (const b of el.querySelectorAll('button[role="radio"]')) ro.observe(b);
     return () => ro.disconnect();
-  }, []);
+  }, [options.length]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="nv-set-segw">
       <div ref={ref} className={`nv-set-seg${off ? ' off' : ''}`} role="radiogroup" aria-label={label}>

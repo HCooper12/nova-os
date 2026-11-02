@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Children, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { haptic } from './haptics.js';
@@ -299,17 +299,22 @@ export function Rail({ children, gap = '6px', style, ariaLabel }) {
     const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
     setEdges((p) => (p.left === left && p.right === right ? p : { left, right }));
   };
-  // re-measured after each render (new chips can change what overflows) ...
-  useLayoutEffect(() => { measure(); });
-  // ... and when its own size changes. One observer for the rail's life: it
-  // was rebuilt on every render (the 4 Oct lag survey)
+  // measured when the rail or any chip in it changes size (a chip that
+  // arrives, leaves or relabels), and on scroll. The observer's callbacks run
+  // once the browser has laid the page out, before paint, so the read costs
+  // nothing extra. It used to re-measure in a layout effect after EVERY
+  // render, which forced a layout inside every App commit while Train was
+  // showing: 11-14 ms at 4x (the fluidity audit, 2 Nov 2026, finding 3).
+  const count = Children.toArray(children).length;
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    if (!el) return undefined;
+    if (typeof ResizeObserver === 'undefined') { measure(); return undefined; }
     const ro = new ResizeObserver(() => measure());
     ro.observe(el);
+    for (const c of el.children) ro.observe(c);
     return () => ro.disconnect();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [count]); // eslint-disable-line react-hooks/exhaustive-deps
   const fade = '28px';
   const mask = edges.left && edges.right
     ? `linear-gradient(90deg, transparent 0, #000 ${fade}, #000 calc(100% - ${fade}), transparent 100%)`

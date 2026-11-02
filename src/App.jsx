@@ -1,4 +1,4 @@
-import { Component, createRef, lazy, Suspense } from 'react';
+import { Component, createRef, lazy, Suspense, startTransition } from 'react';
 import { Button } from './Controls.jsx';
 import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatDispatchesHere, planWorthy } from './chatLanes.js';
@@ -1443,7 +1443,13 @@ export default class App extends Component {
       });
       if (growSnap) grow(growSnap, growTap); else this.riseMain();
     });
-    apply();
+    // A screen switch renders as a transition (2 Nov 2026, fluidity audit
+    // finding 4/5): the touch's own frame, the lens under the tabs and the
+    // press, paints first and the 120-199 ms commit (at 4x) follows. A card
+    // that grows into its page stays urgent: freeze() has already photographed
+    // the frame it grows from. renderVals cannot yield partway, so this moves
+    // the cost after the first paint rather than removing it (finding 2).
+    if (changed && !growSnap) startTransition(apply); else apply();
     if (changed) this.noteScreenVisit(screen);
     if (changed && screen === 'voice') this.maybeGreet('voice');
     if (changed && screen === 'voice') this.loadConversationRecord();

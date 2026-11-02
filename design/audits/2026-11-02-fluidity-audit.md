@@ -527,3 +527,92 @@ setup, `fluidity.mjs`):
 - **Motion:** `transform`/`opacity`/`filter`/`clip-path` only; springs from
   `--nv-spring-*`; reduced motion checked; and a recording
   (`scripts/rec.mjs --slow 8`) for anything whose value is how it moves.
+
+## Round 1 results, 2 Nov 2026, measured on the uncommitted tree over HEAD 1709d2fc
+
+Round 1 covered findings 1, 3 (the parts outside App.jsx), 4 and 5 (the parts outside App.jsx), 7, 9 and the ease-in exits. Nothing here is committed; the parent session owns the commit.
+
+**How it was measured.** One snapshot of the working tree was built twice
+with `vite build --sourcemap`: *before* is the snapshot with the round's 11
+files put back to HEAD, and *after* is the snapshot as it stands. Everything
+else in the tree was the same in both builds, including the offline work in
+flight at the time (since committed as 1bd4d994). Both were served by
+`vite preview` on 5183 and run through `scripts/fluidity.mjs` (his real data,
+read-only: 8 writes blocked per run) in the order before 1x, after 1x,
+before 4x, after 4x, back to back, so both builds ran under the same
+background load. An earlier pair of runs is set aside because a server test
+suite and the cupertino guard were running alongside them. The JSON is in
+the session scratchpad (`r2-{before,after}-{1x,4x}.json`). The audit's
+caveats still apply: this is Blink, not WebKit, and headless vsync is 60 Hz.
+A 30 fps rest cap therefore halves the orb's work here; on his 120 Hz phone
+it should quarter it, but that has not been measured on the device.
+
+| Finding | Metric | Before, 1x / 4x | After, 1x / 4x |
+|---|---|---|---|
+| 1 orb at rest | Home idle, main thread ms per 2 s | 319 / 1,141 | 182 / 599 |
+| | Home idle, NovaCore + canvas ms | 187 / 686 | 90 / 303 |
+| | Home idle, tasks over 8.3 ms | 0 / 102 | 0 / 51 |
+| | Home idle, GPU ms | 302 / 261 | 158 / 140 |
+| | Train / Fuel / Inbox / Settings / session idle main ms, 4x | 836 / 791 / 864 / 714 / 900 | 463 / 462 / 453 / 464 / 519 |
+| | Scroll, main ms / tasks over 8.3, 4x: Home | 2,405 / 138 | 1,163 / 9 |
+| | the same for Train | 2,707 / 126 | 1,207 / 4 |
+| | the same for Fuel | 1,971 / 66 | 949 / 0 |
+| | the same for Settings | 2,058 / 98 | 1,030 / 37 |
+| 3 forced layout | `MissionSummary.jsx:577`, Home switch | 7.4 / 40.7 ms | not in `forcedBy` |
+| | `FuelSummary.jsx:608`, Fuel switch | 3.1 / 19.0 ms | not in `forcedBy` |
+| | `Controls.jsx:298` (Rail), Train switch | 5.0 / 17.9 ms | not in `forcedBy` |
+| | `SettingsKit.jsx:92` (Seg), open Appearance | 5.1 / 33.3 ms | not in `forcedBy` |
+| | `SessionSummary.jsx:163`, entering a session | 1.8 / 9.4 ms | not in `forcedBy` |
+| | Open Appearance, click processing | 36.2 / 181.9 ms | 27.4 / 110.0 ms |
+| | Train: open readiness, click processing | 20.0 / 126.8 ms | 17.1 / 106.2 ms |
+| | Tab switch click processing, 4x: Home / Train / Fuel | 171 / 148 / 149 ms | 152 / 134 / 133 ms |
+| 5 lens | lens target (`--i`) after pointerdown | moves only when the screen commits | moves in the first frame after pointerdown (CDP check, demo data), with the screen not yet switched |
+| | pointerdown processing, tab tap, 4x | 1.7-1.9 ms | 2.5-3.3 ms (the bar's own small commit) |
+| 4 tick | tick click processing, 4x | 154 ms | 168 ms (within noise; this is the App commit, finding 2) |
+| 7 Fuel ping | Fuel idle paints per 2 s / paint ms | 234 / 16.4 (1x), 213 (4x) | 0 / 0 (1x), 0 (4x) |
+| 9 rest ring | session idle renders / commits per 2 s | 100 / 2 | 2 / 2 |
+| | session idle paints per 2 s | 238 (1x) | 242 (1x), unchanged |
+| | session idle raster ms, 1x | 208.8 | 110.3 (the orb's cap is part of this) |
+
+**What did not improve, and why:**
+- **Finding 1 missed the brief's own targets at 4x.** Home idle core and
+  canvas came to 303 ms, against a target under 150; Home idle tasks over
+  8.3 ms came to 51, against a target under 30. Home has two cores (the dock
+  and the 36 px header core), both capped at 30, and headless Chrome draws at
+  60 Hz, so the cap halves the work here instead of quartering it. The Home
+  scroll's core time in the *before* run of this pair, 205 ms, is out of line
+  with the audit's 1,147 and with this session's first run (1,163). The after
+  figure is 379 ms, the core held still for the scroll. Compare Home scroll
+  with that caveat; the other screens' scroll rows are consistent.
+- **Finding 3 moved the layout cost more than it removed it on tab
+  switches.** The five lines are gone from `forcedBy`, and a picker or rail
+  no longer re-reads layout on every App commit, which is where the large
+  wins are (opening Appearance: -72 ms at 4x). On a fresh screen, though, the
+  browser still has to lay the page out before the first paint. That work
+  now happens in its own layout pass, or at the next reader (Inbox's
+  Segmented at `Controls.jsx:458` still forces, 13.9 ms at 4x). Tab-switch
+  click processing at 1x is unchanged: Home 33.1 to 33.5 ms, Train 36.7 to
+  37.8, Fuel 32.5 to 29.3. What is left of a switch is `renderVals`
+  (finding 2).
+- **Finding 4: the tick's own commit is unchanged.** The tick now shows its
+  logged look on pointerdown, in a commit of its own. The click still runs
+  the whole App commit, and the `startTransition` on the follow-on
+  `setState` is App/vals work that was left for the parent (see the report).
+  No `rec.mjs` recording was taken of the tick or the lens.
+- **Finding 9: the paint count did not fall.** The ring's
+  `stroke-dashoffset` glide (1 s, linear) is itself a paint animation, about
+  60 paints a second. The drop-shadow is now on a separate copy that steps
+  once a second. The brief's renders target was met (2 per 2 s); its
+  "paints roughly halved" was not, and meeting it would mean changing how
+  the ring glides.
+
+**Looks the same.** `scripts/shot.mjs --readonly --style summary`, before and
+after, on Home, Train, Fuel, Settings › Appearance (the Glow picker and the
+Nova Core picker) and a live session with the rest ring running (Push A,
+started in memory, the tick's write blocked). The remaining pixel
+differences are the Dynamic Island toast, the clock, the live phase of the
+orb and the Fuel ping, and the countdown's second. The Today rail fits at
+the same level on his data. The ring's glow reads the same at 2x crop.
+Reduced motion: the global rule and the per-screen blocks still cover the
+new `::after` ping and the ring's arc, the core still draws one still frame,
+and the lens keeps `transition: none`.

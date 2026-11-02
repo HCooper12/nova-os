@@ -1,3 +1,4 @@
+import { startTransition } from 'react';
 import { muscleVar } from '../muscleHue.js';
 import { parseRestText } from '../restText.js';
 import { sessionMinutes, isPaused } from '../sessionClock.js';
@@ -267,7 +268,10 @@ export function valsSessionSummary(app, ctx, v) {
       }
       app.toggleSessionSetDone(exIdx, setIdx);
       if (cur.done) { app.setState({ sessionSumPad: null }); return; }
-      app.setState({ sessionSumSel: null, sessionSumPad: null, sessionSumLift: exIdx, sessionRest: startRest() });
+      // the set itself is urgent (toggleSessionSetDone above, and TickButton
+      // shows it on the first frame); the hand-off and the rest ring follow
+      // as a transition, after that paint (2 Nov 2026, fluidity audit)
+      startTransition(() => app.setState({ sessionSumSel: null, sessionSumPad: null, sessionSumLift: exIdx, sessionRest: startRest() }));
     };
     // "Same as last" is "same again" by tap: the set just logged on this lift
     const prevDone = [...sets.slice(0, setIdx)].reverse().find((x) => x.done)
