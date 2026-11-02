@@ -396,6 +396,12 @@ questions answered on the Mac, all grounded; 13 to Claude by code in 0.5 s;
 the exercise-choice rule added after the 4B mis-mapped lateral raises to rear
 delts). The 9B bench still waits for ~7.7 GB free.
 
+**2 Nov, late: the 9B measured at last** (guard fixed to the kernel's figure,
+Mac at 72 % free): better than the 4B on debrief/plan/briefing, still wrong
+on health-insight and daily-review (inverted a met protein floor into a
+"gap"; 74 minutes read as metres). No default moved. Next lever: a model
+per lane on the board (design/audits/2026-11-02-phase-b-lanes.md).
+
 Order: Apple model as backend 3 (cheap to build, measured already), then the
 Chrome-read research lane, then Gemini only if he wants a free cloud brain
 for public questions.

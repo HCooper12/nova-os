@@ -203,3 +203,36 @@ What did change for him even with the defaults on Claude:
 
 Re-bench before any lane moves: `node server/scripts/benchTextLanes.mjs`
 (add `--model qwen3.5:9b` on a quiet Mac).
+
+## The 9B, benched 2 Nov 23:30 (the Mac finally quiet: 72 % free)
+
+Same inputs, `qwen3.5:9b` (sheets: `2026-11-02-phase-b-bench-9b.md`,
+`2026-11-02-local-coach-bench-9b.md`). Read by a person against the inputs:
+
+- **session-debrief (6):** short and mostly sound ("volume dropped compared
+  to last week", the adductor pad note carried); thinner than Claude's, no
+  invented numbers. Grade: shallow, none wrong.
+- **briefing-plan (7):** six sound; #6 turned "74 minutes" into "74 meters"
+  three times. Grade: one wrong, the same input the 4B got wrong.
+- **health-insight (2):** "178 g of protein against the 167 g floor, so eat
+  45 g+ now to close the gap": the floor was met; the reasoning inverted.
+  Grade: wrong.
+- **plan-today (3):** the stale to-do now gets a two-minute first step (the
+  4B's fault fixed); "109 g consumed" at 07:00 is read from the day's log;
+  shallow but no rule broken. Grade: shallow.
+- **daily-review (2):** 20:00: "eat a named dinner with 45 g+ protein now to
+  balance today's high calories and hit the daily floor" with protein 178 g
+  over a 167 g floor. Grade: wrong.
+- **Coach (5 local of 17):** #13 answered "you are hitting your targets"
+  without a lookup and told him to check a tool; #7 gave generic 30–40 g
+  numbers not in his data. 17–22 s a turn. Grade: not better than the 4B
+  behind the rules.
+- **Speed:** debrief 4–6 s, briefing 10–18 s, insight 30–38 s, plan and
+  review 30–39 s a run (prompts of 4–5.6k tokens).
+
+**Verdict:** the 9B reads numbers better than the 4B on three lanes and
+still inverts a comparison on two (the floor "gap", minutes as metres).
+No lane's default moves. If he picks the 9B on the board, session-debrief,
+plan-today and briefing angles are acceptable on this Mac; health-insight
+and daily-review are not. Nothing can pin a model per lane today; that is
+the next lever if he wants these on the Mac.
