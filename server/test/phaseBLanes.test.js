@@ -196,13 +196,15 @@ test('health-insight on this Mac: the compact prompt, a grounded sentence accept
 
 test('health-insight: a local sentence with an invented number goes to Claude with the full prompt, and the slot says so', async () => {
   await onThisMac();
-  localSays = '{"hasInsight": true, "insight": "Your HRV fell 23% overnight."}';
+  // a number no clock or date in the TODAY block can contain (CI ran at
+  // 23:19 UTC on 2 Nov and "23%" read as grounded from the timestamp)
+  localSays = '{"hasInsight": true, "insight": "Your HRV fell 61.7% overnight."}';
   await claudeSays('{"hasInsight": false, "insight": ""}');
   const stored = await insight.generateInsightNow(vault, 'evening');
   assert.equal(stored.evening.hasInsight, false);
   assert.equal(stored.evening.via.provider, 'claude');
   assert.equal(stored.evening.via.escalated, true);
-  assert.match(stored.evening.via.escalationReason, /23/);
+  assert.match(stored.evening.via.escalationReason, /61\.7/);
   const call = (await claudeCalls())[0];
   assert.match(call.argv[call.argv.indexOf('-p') + 1], /thoughtful, holistic health coach/, 'Claude got the full prompt');
 });
