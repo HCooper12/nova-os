@@ -90,6 +90,7 @@ export function ExerciseSheet({ v }) {
           </span>
         </div>
         {s.loading && <SheetSkeleton name={s.name} />}
+        {s.asOf && <div role="status" style={css('padding:2px 6px 8px;font:500 12.5px var(--nv-font-ui);color:var(--nv-ink60)')}>Offline · the card as you last opened it, {new Date(s.asOf).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>}
         {s.error && (
           <div style={css(`padding:18px 6px;font:500 13px var(--nv-font-ui);color:var(--nv-warn)`)}>Couldn't pull that up — {s.error}</div>
         )}

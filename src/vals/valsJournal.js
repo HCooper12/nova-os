@@ -62,6 +62,8 @@ export function buildJournal(app, ctx) {
   const ns = demo ? { state: scen.notion || 'synced', error: scen.notion === 'error' ? 'Notion cannot see the Journal database (share it with the Nova connection)' : null, entries: {} } : st.liveNotionJournal;
   const notionState = !ns ? 'unknown' : ns.state;
   const syncOf = (s) => {
+    // written with no Mac: waiting in the Outbox (outboxOverlay.js)
+    if (s.queued) return { kind: 'wait', words: 'Waiting for your Mac' };
     const landing = st.journalLanding?.[s.novaId];
     if (notionState === 'not-connected') return { kind: 'none' };
     if (offline && landing === 'busy') return { kind: 'wait', words: 'Waiting on this phone' };

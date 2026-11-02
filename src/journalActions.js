@@ -1,6 +1,7 @@
-import { api, getConnection } from './api.js';
-import { isOfflineError } from './outbox.js';
+import { api, getConnection, withIdempotencyKey } from './api.js';
+import { isOfflineError, newIdempotencyKey } from './outbox.js';
 import { tickReceipt } from './receipt.js';
+import { isQueuedId, queuedItemId } from './outboxOverlay.js';
 import { haptic } from './haptics.js';
 import { DEMO_DEEP, DEMO_REVIEW, DEMO_LIFE, DEMO_LIFE_SOURCES, demoJournalEntries, journalScenarioFromUrl } from './journalDemo.js';
 
@@ -162,7 +163,8 @@ export const journalActions = {
     const conn = getConnection();
     if (!conn) return;
     this.setState({ journalSaveBusy: true, journalSaveError: null, journalComposerText: '', journalStep: nextStep });
-    api.addJournalEntry(conn, text, null, body).then(({ entry }) => {
+    const idemKey = newIdempotencyKey('journal');
+    withIdempotencyKey(idemKey, () => api.addJournalEntry(conn, text, null, body)).then(({ entry }) => {
       this.setState((s) => ({ journalSaveBusy: false, journalLanding: { ...s.journalLanding, [entry.novaId]: 'busy' } }));
       this.journalSavedReceipt(entry.novaId, body.tag, cur);
       this.refreshJournalEntries();
@@ -172,7 +174,7 @@ export const journalActions = {
     }).catch((e) => {
       if (isOfflineError(e)) {
         this.setState({ journalSaveBusy: false });
-        this.enqueueOutbox('journal', text.slice(0, 44), { text, ...body });
+        this.enqueueOutbox('journal', text.slice(0, 44), { text, ...body }, idemKey);
         return;
       }
       // a real rejection must never eat what he wrote
@@ -190,6 +192,8 @@ export const journalActions = {
     });
   },
   unsaveJournalEntry(novaId) {
+    // a line still waiting in the Outbox is taken back by leaving it
+    if (isQueuedId(novaId)) { this.discardOutboxItem(queuedItemId(novaId)); return; }
     if (this.journalIsDemo()) {
       this.setJournalDemoDays((days) => days.map((d) => ({ ...d, sections: d.sections.filter((s) => s.novaId !== novaId) })).filter((d) => d.sections.length));
       return;

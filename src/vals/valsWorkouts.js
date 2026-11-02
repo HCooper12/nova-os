@@ -749,6 +749,9 @@ export function valsWorkouts(app, ctx) {
     exercises: s.exercises.map((e) => ({ name: e.name, setsLabel: setsLabel((exercisesById.get(e.exerciseId) || {}).trackingType || 'weight_reps', e.sets) })),
     coachSaid: s.coachSaid || null, // the Coach's reaction, where the session was logged (server: debriefMemory)
     cutShort: s.cutShort || null,
+    // finished with no Mac: it is in the history he will have, not yet filed
+    // (outboxOverlay.js); edit and delete wait until it is a real session
+    queued: !!s.queued,
     onEdit: () => app.editHistorySession(s),
     deleteConfirm: st.sessionDeleteConfirmId === s.id,
     requestDelete: () => app.setState({ sessionDeleteConfirmId: s.id }),
@@ -1117,7 +1120,15 @@ export function valsWorkouts(app, ctx) {
 
     historyRoutineName: historyRoutine ? historyRoutine.name : (st.workoutsView === 'history' && !st.historyRoutineId ? 'All sessions' : ''),
     historySessions,
-    historyLoading: st.workoutsView === 'history' && st.liveWorkoutHistory === null,
+    historyLoading: st.workoutsView === 'history' && st.liveWorkoutHistory === null && !st.workoutHistoryOffline,
+    // offline mode (2 Nov 2026): the history shown is the phone's copy, or
+    // there is none on this phone yet — never "no sessions logged"
+    historyOffline: st.workoutHistoryOffline
+      ? (st.workoutHistoryOffline.savedAt
+        ? `Offline. This is the history kept on this phone, as of ${new Date(st.workoutHistoryOffline.savedAt).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}.`
+        : 'Offline. Your history lives on your Mac, and none is kept on this phone yet. It will be after the next time Nova reaches your Mac.')
+      : null,
+    historyNone: !!st.workoutHistoryOffline && !st.workoutHistoryOffline.savedAt,
     backFromWorkoutHistory: () => app.backFromWorkoutHistory(),
     openAllSessions: () => app.openWorkoutHistory(null),
   };

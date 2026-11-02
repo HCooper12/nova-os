@@ -43,7 +43,9 @@ function wishlistExtras(r, app) {
 export function quickCaptureModel(st, app) {
   const items = st.liveInbox?.items || [];
   const byId = new Map(items.map((r) => [r.id, r]));
-  const rows = (st.qcRecent || []).map((id) => byId.get(id)).filter(Boolean)
+  // what he captured with no Mac sits at the top, saying it is waiting
+  const queued = items.filter((r) => r.queued).map((r) => r.id);
+  const rows = [...queued, ...(st.qcRecent || []).filter((id) => !queued.includes(id))].map((id) => byId.get(id)).filter(Boolean)
     .map((r) => {
       const tag = captureTag(r);
       if (!tag) return null;

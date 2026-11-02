@@ -712,6 +712,24 @@ const bodyMetrics = demoMode
         bar: { ok: st.syncDegraded.ok, total: st.syncDegraded.total } }
       : null;
 
+  // THE QUIET OFFLINE MARK (offline mode, 2 Nov 2026). Off Home, "offline"
+  // used to be a red pill floating over the tab bar: the bright banner the
+  // eye learns to skip, and it hid the one thing worth knowing (how old is
+  // what I am reading). Now it is a line in the screen's own type at the top
+  // of the page. Screens that already say it in their own words keep theirs.
+  const OWN_OFFLINE_LINE = ['mission', 'shopping', 'inbox', 'journal', 'money', 'settings', 'voice'];
+  const waitingCount = (st.outbox || []).filter((i) => i.status === 'queued').length;
+  const offlineMark = isOffline && !OWN_OFFLINE_LINE.includes(st.screen) ? {
+    text: `Offline · as of ${(() => {
+      if (!st.lastSyncAt) return 'your last sync';
+      const d = new Date(st.lastSyncAt);
+      return d.toDateString() === new Date().toDateString()
+        ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : lastSyncLabel;
+    })()}`,
+    waiting: waitingCount ? `${waitingCount} waiting to file` : null,
+    open: waitingCount ? () => app.setState({ outboxOpen: true }) : null,
+  } : null;
+
   // shared with valsChrome (sidebar status card reuses the same truth)
   Object.assign(ctx, { statusChip, missionStatusItems, agentsLiveCount, agentsGroupLabel: agentsWorking.group });
 
@@ -834,6 +852,7 @@ const bodyMetrics = demoMode
     missionStatusItems,
     statusBanner,
     offlineCard,
+    offlineMark,
     suggestedFocus,
     planToday,
     stuckCard,

@@ -27,12 +27,14 @@ import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } f
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
 import { css } from './css.js';
-import { api, getConnection, setConnection, testConnection, OFFLINE_MESSAGE } from './api.js';
+import { api, getConnection, setConnection, testConnection, OFFLINE_MESSAGE, withIdempotencyKey } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { replyOnReturn, pendingWorthResuming, unheardRest } from './replyReturn.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
-import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
-import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
+import { loadLiveCache, saveLiveCache, clearLiveCache, hasLiveCache, idbGet, idbSet } from './liveStore.js';
+import { queuedPatch, historyWithQueued, isQueuedId, queuedItemId } from './outboxOverlay.js';
+import { OfflineMark } from './OfflineCard.jsx';
+import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem, newIdempotencyKey, drainItems, idemSafe } from './outbox.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { pauseSession, resumeSession, isPaused } from './sessionClock.js';
 import { syncHealth } from './healthSync.js';
@@ -464,6 +466,9 @@ const CACHED_LIVE_KEYS = [
   'liveOps', 'liveOvernight', 'liveSkills', 'livePulse',
   // the daily technique — cached so the card survives the Mac sleeping
   'liveRepertoire',
+  // offline mode (2 Nov 2026): Train's "on today's card", Fuel's check against
+  // training and the evening wrap read these, and each went blank with no Mac
+  'liveTrainToday', 'liveFuelCross', 'liveWrap', 'liveInstruments', 'liveCommitments',
   'liveStuck',
   // the Stream self-labels with timestamps, so a cached copy degrades honestly
   'liveOpsStream',
@@ -937,19 +942,24 @@ export default class App extends Component {
     // (no cache yet — wait for real data, capped so an unreachable backend
     // can't hang the splash forever) and demo mode (the scripted intro).
     const bootConn = getConnection();
-    const cached = bootConn ? loadLiveCache() : null;
+    // the copy itself lives in IndexedDB (liveStore.js); whether there IS one
+    // is known synchronously, which is all the splash timing needs
+    const cached = bootConn ? hasLiveCache() : false;
     const minBootTime = new Promise((resolve) => { this.bootT = setTimeout(resolve, cached ? 350 : 1700); });
     let dataReady = Promise.resolve();
     if (bootConn) {
-      // Hydrate last-known-good data immediately so an unreachable backend
-      // shows real (stale) content behind the offline banner, never demo data.
-      const hydrate = { settingsBaseUrl: bootConn.baseUrl, settingsToken: bootConn.token };
-      if (cached) {
-        for (const key of CACHED_LIVE_KEYS) if (cached.slices[key] !== undefined) hydrate[key] = cached.slices[key];
-        hydrate.lastSyncAt = cached.savedAt;
-      }
-      this.setState(hydrate);
-      const fetchDone = this.refreshLiveData();
+      this.setState({ settingsBaseUrl: bootConn.baseUrl, settingsToken: bootConn.token });
+      // Hydrate last-known-good data BEFORE the first sync starts, so an
+      // unreachable backend shows real (stale) content, never demo data, and
+      // a fast sync can never be overwritten by the older copy landing late.
+      // The Outbox's queued rows are drawn back in (outboxOverlay.js).
+      const hydrated = loadLiveCache().catch(() => null).then((copy) => {
+        if (!copy) return;
+        const hydrate = { lastSyncAt: copy.syncedAt || copy.savedAt };
+        for (const key of CACHED_LIVE_KEYS) if (copy.slices[key] !== undefined) hydrate[key] = copy.slices[key];
+        return new Promise((resolve) => this.setState(hydrate, () => { this.applyQueuedRows(); resolve(); }));
+      });
+      const fetchDone = hydrated.then(() => this.refreshLiveData());
       // the voice chat is the record's window: bring in what other devices
       // and Siri added, and send up anything this device never delivered
       this.loadConversationRecord();
@@ -958,6 +968,10 @@ export default class App extends Component {
       if (!cached) {
         const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
         dataReady = Promise.race([fetchDone, fetchTimeout]);
+      } else {
+        // the copy is a local read (~tens of ms); capped so a stuck
+        // IndexedDB can never hold the splash
+        dataReady = Promise.race([hydrated, new Promise((resolve) => setTimeout(resolve, 1500))]);
       }
     }
     // A BOOK ANALYSIS SURVIVES A RELOAD. A 15-40 minute read must not become
@@ -1561,46 +1575,59 @@ export default class App extends Component {
       .then((answers) => saveBests(answers.reduce((kept, r) => mergeBests(kept, r?.bests), loadBests())))
       .catch(() => { this.bestsWarmedAt = 0; });
   }
-  enqueueOutbox(kind, label, payload) {
-    const item = makeOutboxItem(kind, label, payload);
+  enqueueOutbox(kind, label, payload, key = null) {
+    const item = makeOutboxItem(kind, label, payload, key);
     this.setState((s) => {
       const outbox = [...s.outbox, item];
       saveOutbox(outbox);
       return { outbox };
-    });
-    this.toastMsg(`Backend unreachable — “${item.label}” saved to the Outbox, syncs when Nova reconnects`);
+    }, () => { this.applyQueuedRows(); this.saveOfflineCopy(); });
+    // Notes-like (his ask, 2 Nov): it is saved, and the screen still shows it
+    this.toastMsg(`“${item.label}” is saved on this phone. It files when your Mac is back.`);
   }
-  // Drain FIFO, single-flight. Connectivity failure stops the drain (retry on
-  // the next reconnect); a server REJECTION marks that item failed-for-review
-  // and moves on — never a silent drop, never an infinite retry.
+  // what is waiting in the Outbox, drawn back into its list (outboxOverlay.js)
+  applyQueuedRows() {
+    this.setState((s) => {
+      const p = queuedPatch(s);
+      return Object.keys(p).length ? p : null;
+    });
+  }
+  // The phone's copy follows a write made with no Mac, so the meal he just
+  // logged is still on the plate after the app is killed and reopened. Only
+  // once there is a real copy in state (hydrated or synced): saving the empty
+  // boot state would overwrite the good copy with nothing.
+  saveOfflineCopy() {
+    if (!this.state.lastSyncAt) return;
+    const slices = {};
+    for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
+    saveLiveCache(slices, this.state.lastSyncAt);
+  }
+  // Drain FIFO, single-flight (outbox.js drainItems). Connectivity failure
+  // stops the drain (retry on the next reconnect); a server REJECTION marks
+  // that item failed-for-review and moves on — never a silent drop, never an
+  // infinite retry. Every replay carries the item's Idempotency-Key.
   async drainOutbox() {
     if (this.outboxDraining) return;
     const conn = getConnection();
     if (!conn || !this.state.outbox.some((i) => i.status === 'queued')) return;
     this.outboxDraining = true;
     const fns = this.outboxDrainFns();
+    const bound = Object.fromEntries(Object.entries(fns).map(([k, fn]) => [k, (p) => fn(conn, p)]));
     let sent = 0;
     try {
-      for (const item of [...this.state.outbox]) {
-        if (item.status !== 'queued') continue;
-        const fn = fns[item.kind];
-        try {
-          if (fn) await fn(conn, item.payload);
-          this.setState((s) => {
-            const outbox = s.outbox.filter((i) => i.id !== item.id);
-            saveOutbox(outbox);
-            return { outbox };
-          });
-          sent++;
-        } catch (e) {
-          if (isOfflineError(e)) return; // still unreachable — keep everything queued
-          this.setState((s) => {
-            const outbox = s.outbox.map((i) => (i.id === item.id ? { ...i, status: 'failed', error: e.message } : i));
-            saveOutbox(outbox);
-            return { outbox };
-          });
-        }
-      }
+      ({ sent } = await drainItems([...this.state.outbox], bound, {
+        send: (key, run) => withIdempotencyKey(key, run),
+        onSent: (item) => this.setState((s) => {
+          const outbox = s.outbox.filter((i) => i.id !== item.id);
+          saveOutbox(outbox);
+          return { outbox };
+        }),
+        onFailed: (item, e) => this.setState((s) => {
+          const outbox = s.outbox.map((i) => (i.id === item.id ? { ...i, status: 'failed', error: e.message } : i));
+          saveOutbox(outbox);
+          return { outbox };
+        }),
+      }));
     } finally {
       this.outboxDraining = false;
       if (sent) {
@@ -1614,7 +1641,7 @@ export default class App extends Component {
       const outbox = s.outbox.filter((i) => i.id !== id);
       saveOutbox(outbox);
       return { outbox };
-    });
+    }, () => { this.applyQueuedRows(); this.saveOfflineCopy(); });
   }
   retryOutboxItem(id) {
     this.setState((s) => {
@@ -2205,6 +2232,9 @@ export default class App extends Component {
     apply('overnight', (r) => this.setState({ liveOvernight: r }));
     apply('skills', (r) => this.setState({ liveSkills: r.departments }));
     apply('pulse', (r) => this.setState({ livePulse: r.topics }));
+    // the server's lists replace the slices wholesale; what is still waiting
+    // in the Outbox goes back into them (outboxOverlay.js)
+    this.applyQueuedRows();
     return ok;
   }
   // A write nudge arrived. If the server told us WHICH slices it touched
@@ -2402,6 +2432,7 @@ export default class App extends Component {
           syncWidgets(conn); // the Home Screen widgets redraw with what just landed
           this.drainOutbox(); // the backend is answering — flush queued writes
           this.warmBests();
+          this.warmHistory();
           // the doorman meets him at whatever door he came in — the due
           // check (once a day / 3h gap) keeps this from re-greeting on the
           // routine syncs that also land here
@@ -2609,6 +2640,8 @@ export default class App extends Component {
   // rotation dish that has since left today's slot cannot be un-ticked
   // there, so today it is deleted plainly instead.
   removeFoodLogRow(entry) {
+    // a meal still waiting in the Outbox comes off by leaving the Outbox
+    if (isQueuedId(entry?.id)) { this.discardOutboxItem(queuedItemId(entry.id)); return; }
     const plan = removalFor(entry);
     const date = this.logDate();
     if (plan.kind === 'untick' && (date || (this.state.liveRotation?.options?.[plan.slot] || []).some((d) => d.id === plan.recipeId))) {
@@ -2941,7 +2974,9 @@ export default class App extends Component {
       this.applyFoodLogDay({ ...previousDay, entries: [...previousDay.entries, { id: `pending-${Date.now()}`, name, macros, source, pending: true }] });
     }
     this.setState({ ...clearForm, foodLogBusy: true, foodLogError: null });
-    api.addFoodLogEntry(conn, { name, macros, source, date, items }).then((day) => {
+    // one key for the try AND any replay: a timed-out log that landed is not filed twice
+    const idemKey = newIdempotencyKey('food');
+    withIdempotencyKey(idemKey, () => api.addFoodLogEntry(conn, { name, macros, source, date, items })).then((day) => {
       this.noteLocalWrite('foodLog');
       this.applyFoodLogDay(day); // whole-day replace — the temp row is gone
       this.setState({ foodLogBusy: false });
@@ -2957,7 +2992,7 @@ export default class App extends Component {
         // still needs re-typing. `source` is the captured value, not a state
         // read — the form has already been cleared by this point.
         this.setState({ foodLogBusy: false });
-        this.enqueueOutbox('food', name, { name, macros, source, date, items });
+        this.enqueueOutbox('food', name, { name, macros, source, date, items }, idemKey);
         return;
       }
       // a real rejection: give him his numbers back so nothing typed is lost
@@ -2965,6 +3000,7 @@ export default class App extends Component {
     });
   }
   deleteFoodLogEntry(id) {
+    if (isQueuedId(id)) { this.discardOutboxItem(queuedItemId(id)); return; }
     const conn = getConnection();
     if (!conn) return;
     const date = this.logDate();
@@ -4564,9 +4600,18 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn || !items.length) return;
     this.toastMsg(`Adding ${items.length} item${items.length > 1 ? 's' : ''} to shopping list…`);
-    api.addShoppingItems(conn, items.map((name) => ({ name, source })))
+    const idemKey = newIdempotencyKey('shopping');
+    withIdempotencyKey(idemKey, () => api.addShoppingItems(conn, items.map((name) => ({ name, source }))))
       .then(({ jobId }) => this.pollShoppingAdd(conn, jobId))
-      .catch((e) => this.toastMsg('Could not add to shopping list: ' + e.message));
+      .catch((e) => {
+        // with no Mac the lines wait in the Outbox and stay on the list,
+        // marked, like the Shopping screen's own box (offline mode, 2 Nov)
+        if (isOfflineError(e)) {
+          this.enqueueOutbox('shopping', items[0] + (items.length > 1 ? ` +${items.length - 1}` : ''), { items: items.map((name) => ({ name, source: source || null })) }, idemKey);
+          return;
+        }
+        this.toastMsg('Could not add to shopping list: ' + e.message);
+      });
   }
   pollShoppingAdd(conn, jobId) {
     this.startPoll('shoppingAdd', () => api.addShoppingItemsJob(conn, jobId), {
@@ -4602,6 +4647,7 @@ export default class App extends Component {
       category: 'Household & Other', pending: true,
     }));
     this.setState({ shoppingAddBusy: true, shoppingAddError: null });
+    const idemKey = newIdempotencyKey('shopping');
     this.optimisticWrite({
       tag: 'shoppingList',
       snapshot: () => ({ liveShoppingList: previous, shoppingAddInput: text, shoppingAddBusy: false }),
@@ -4611,14 +4657,14 @@ export default class App extends Component {
           ? { ...st.liveShoppingList, items: [...(st.liveShoppingList.items || []), ...provisional] }
           : st.liveShoppingList,
       })),
-      call: (c) => api.addShoppingItems(c, items.map((name) => ({ name, source: null })))
+      call: (c) => withIdempotencyKey(idemKey, () => api.addShoppingItems(c, items.map((name) => ({ name, source: null }))))
         .then(({ jobId }) => this.pollShoppingAdd(c, jobId)),
       failMessage: 'Could not add to shopping list',
     }).catch((e) => {
       // offline is not a failure — it is a queued write, and the outbox owns it
       if (isOfflineError(e)) {
         this.setState({ shoppingAddBusy: false, shoppingAddInput: '' });
-        this.enqueueOutbox('shopping', items[0] + (items.length > 1 ? ` +${items.length - 1}` : ''), { items: items.map((name) => ({ name, source: null })) });
+        this.enqueueOutbox('shopping', items[0] + (items.length > 1 ? ` +${items.length - 1}` : ''), { items: items.map((name) => ({ name, source: null })) }, idemKey);
         return;
       }
       this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
@@ -5263,7 +5309,27 @@ export default class App extends Component {
       }, () => this.toastMsg(filled && p.from?.length
         ? `${lib.name} added — this session only, from ${p.from.join(' + ')}.`
         : `${lib.name} added — this session only.`));
-    }).catch(() => this.toastMsg(`${lib.name} added — this session only.`));
+    }).catch(async () => {
+      // no Mac: the last sets of this lift from the history kept on this
+      // phone (warmHistory), said as such; nothing known, nothing guessed
+      const copy = await this.readHistoryCopy();
+      const last = (copy?.sessions || []).find((x) => (x.exercises || []).some((e) => e.exerciseId === lib.id && e.sets?.length));
+      const ex = last?.exercises.find((e) => e.exerciseId === lib.id);
+      let filled = false;
+      if (ex) {
+        this.setState((s) => {
+          const ws = s.workoutSession;
+          const i = ws?.exercises?.findIndex((e) => e.exerciseId === lib.id && e.adhoc) ?? -1;
+          if (i === -1 || ws.exercises[i].sets !== fresh) return null;
+          filled = true;
+          const sets = ex.sets.map((x) => ({ weight: x.weight, reps: x.reps, done: false }));
+          const next = { ...ws.exercises[i], targetSets: sets.length, sets, last: { date: last.date, sets: ex.sets.map((x) => ({ weight: x.weight, reps: x.reps })) } };
+          return { workoutSession: { ...ws, exercises: ws.exercises.map((e, j) => (j === i ? next : e)) } };
+        }, () => this.toastMsg(filled ? `${lib.name} added — this session only, from your ${last.date} sets kept on this phone.` : `${lib.name} added — this session only.`));
+        return;
+      }
+      this.toastMsg(`${lib.name} added — this session only.`);
+    });
   }
   // A LIFT'S OWN REST (16 Oct 2026, his ask: "if I change bench press to 2
   // minutes rest it should save and apply to that exercise on all days").
@@ -5664,7 +5730,7 @@ export default class App extends Component {
     // the Finish button shows it is saving and cannot be tapped twice (13 Oct)
     this.setState({ sessionFinishing: true });
     this.finishingSessionAt = session.startedAt;
-    api.completeWorkoutSession(conn, payload).finally(() => { this.finishingSessionAt = null; this.setState({ sessionFinishing: false }); }).then(({ prs } = {}) => {
+    withIdempotencyKey(idemSafe(payload.clientKey), () => api.completeWorkoutSession(conn, payload)).finally(() => { this.finishingSessionAt = null; this.setState({ sessionFinishing: false }); }).then(({ prs } = {}) => {
       // THE PERSONAL-BEST MOMENT (src/RecordMoment.jsx): the server's records,
       // compared at the resolution shown and joined to this session's lifts
       // for the hue and the kit. It stays until he dismisses it — no timer
@@ -5701,7 +5767,8 @@ export default class App extends Component {
           finishMissedDate: tomorrow,
           finishMissedRoutine: session.sourceRoutineName || session.routineName,
         });
-        this.enqueueOutbox('session', `${session.routineName} session`, { payload, carryoverId });
+        this.enqueueOutbox('session', `${session.routineName} session`, { payload, carryoverId }, idemSafe(payload.clientKey));
+        this.noteOfflineSets(payload);
         this.toastMsg(missed.length
           ? `Saved on this phone; it files when your Mac is back. ${missed.length} exercise${missed.length === 1 ? '' : 's'} not done; push ${missed.length === 1 ? 'it' : 'them'} to a day below`
           : 'Saved on this phone; it files when your Mac is back');
@@ -5767,14 +5834,15 @@ export default class App extends Component {
   pushMissedToDay() {
     const conn = getConnection();
     if (!conn || !this.state.finishMissed) return;
-    api.addCarryover(conn, { forDate: this.state.finishMissedDate, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed })
+    const idemKey = newIdempotencyKey('carryover');
+    withIdempotencyKey(idemKey, () => api.addCarryover(conn, { forDate: this.state.finishMissedDate, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed }))
       .then(() => { const d = this.state.finishMissedDate; this.setState({ finishMissed: null }); this.loadCarryovers(); this.toastMsg(`Pushed to ${d} — it's waiting on Train`); })
       .catch((e) => {
         if (isOfflineError(e)) {
           // offline: the push waits in the Outbox behind the session it came
           // from, and reaches Train when the Mac answers (14 Oct)
           const d = this.state.finishMissedDate;
-          this.enqueueOutbox('carryover', `Push to ${d}`, { forDate: d, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed });
+          this.enqueueOutbox('carryover', `Push to ${d}`, { forDate: d, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed }, idemKey);
           this.setState({ finishMissed: null });
           this.toastMsg(`Saved on this phone; it reaches Train for ${d} when your Mac is back`);
           return;
@@ -5856,9 +5924,55 @@ export default class App extends Component {
     if (!conn) return;
     // no routineId → ALL sessions, which is the only way impromptu ('impromptu')
     // and makeup ('carryover') sessions are visible/editable at all
+    // OFFLINE MODE (2 Nov 2026): a failed read used to set an empty history,
+    // which the screen rendered as "No sessions logged yet" — a false
+    // sentence about 80+ real sessions. Now a miss falls back to the copy
+    // kept on this phone (warmHistory), says how old it is, or says there is
+    // none here yet. Sessions finished offline join it, marked.
     api.workoutSessions(conn, routineId ? { routineId } : undefined)
-      .then(({ sessions }) => this.setState({ liveWorkoutHistory: sessions }))
-      .catch(() => this.setState({ liveWorkoutHistory: [] }));
+      .then(({ sessions }) => {
+        this.setState((s) => ({ liveWorkoutHistory: historyWithQueued(sessions, s.outbox, routineId), workoutHistoryOffline: null }));
+        if (!routineId) this.keepHistory(sessions);
+      })
+      .catch(() => this.historyFromCopy(routineId));
+  }
+  keepHistory(sessions) {
+    if (!Array.isArray(sessions)) return;
+    this.historyCopy = { savedAt: new Date().toISOString(), sessions };
+    idbSet('workoutHistory', this.historyCopy).catch(() => {});
+  }
+  async readHistoryCopy() {
+    if (this.historyCopy) return this.historyCopy;
+    try { this.historyCopy = await idbGet('workoutHistory'); } catch { this.historyCopy = null; }
+    return this.historyCopy;
+  }
+  async historyFromCopy(routineId) {
+    const copy = await this.readHistoryCopy();
+    if (!copy?.sessions) { this.setState((s) => ({ liveWorkoutHistory: historyWithQueued([], s.outbox, routineId), workoutHistoryOffline: { savedAt: null } })); return; }
+    const list = routineId ? copy.sessions.filter((x) => x.routineId === routineId) : copy.sessions;
+    this.setState((s) => ({ liveWorkoutHistory: historyWithQueued(list, s.outbox, routineId), workoutHistoryOffline: { savedAt: copy.savedAt } }));
+  }
+  // the phone keeps his whole history after a sync (at most every 6 h), so
+  // Train's history, an added lift's prefill and its card work with no Mac
+  warmHistory() {
+    const conn = getConnection();
+    if (!conn || Date.now() - (this.historyWarmedAt || 0) < 6 * 3600_000) return;
+    this.historyWarmedAt = Date.now();
+    api.workoutSessions(conn).then(({ sessions }) => this.keepHistory(sessions)).catch(() => { this.historyWarmedAt = 0; });
+  }
+  // A session finished with no Mac moves the next prefill now, the way the
+  // Mac would once it files: each lift's last sets become what he just did.
+  // The next real sync replaces this with the Mac's own numbers.
+  noteOfflineSets(payload) {
+    const done = new Map((payload?.exercises || []).map((e) => [e.exerciseId, e.sets.map((x) => ({ weight: x.weight, reps: x.reps }))]));
+    if (!done.size) return;
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    this.setState((s) => ({
+      liveWorkoutRoutines: (s.liveWorkoutRoutines || []).map((r) => (!(r.exercises || []).some((e) => done.has(e.exerciseId)) ? r : {
+        ...r, exercises: r.exercises.map((e) => (done.has(e.exerciseId) ? { ...e, lastSets: done.get(e.exerciseId), lastDate: today } : e)),
+      })),
+    }), () => this.saveOfflineCopy());
   }
   backFromWorkoutHistory() {
     if (typeof window !== 'undefined' && window.history.state?.novaView === 'trainPage' && window.history.state?.page === 'history' && window.history.state?.novaOverlay == null) { window.history.back(); return; }
@@ -7478,11 +7592,12 @@ export default class App extends Component {
         liveTodos: { ...s.liveTodos, items: [...s.liveTodos.items, { raw: tempRaw, text, checked: false, category: null, pending: true }] },
       };
     });
-    api.todoAdd(conn, text).then((data) => {
+    const idemKey = newIdempotencyKey('todo');
+    withIdempotencyKey(idemKey, () => api.todoAdd(conn, text)).then((data) => {
       this.noteLocalWrite('todos');
       this.setState({ liveTodos: data });
     }).catch((e) => {
-      if (isOfflineError(e)) { this.enqueueOutbox('todo', text, { text }); return; } // the row stays; the outbox will land it
+      if (isOfflineError(e)) { this.enqueueOutbox('todo', text, { text }, idemKey); return; } // the queued row takes its place (outboxOverlay.js)
       this.setState({ liveTodos: previous, todoInput: text }); // give the words back
       haptic('warn');
       this.toastMsg('Could not add: ' + e.message);
@@ -8934,7 +9049,8 @@ export default class App extends Component {
         ? { ...st.liveInbox, items: (st.liveInbox.items || []).filter((r) => r.id !== localId) }
         : st.liveInbox,
     }));
-    api.inboxCapture(conn, t, this.state.inboxMode, source, dest).then(({ id }) => {
+    const idemKey = newIdempotencyKey('capture');
+    withIdempotencyKey(idemKey, () => api.inboxCapture(conn, t, this.state.inboxMode, source, dest)).then(({ id }) => {
       this.setState((st) => ({ qcRecent: [id, ...st.qcRecent.filter((x) => x !== id)].slice(0, 5) }));
       this.refreshInbox();
       this.startPoll('inboxCapture:' + id, () => api.inboxItem(conn, id), {
@@ -8955,7 +9071,7 @@ export default class App extends Component {
       // the card came back off the board — it was never real
       dropProvisional();
       this.setState({ inboxCaptureBusy: false });
-      if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source, dest }); return; }
+      if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source, dest }, idemKey); return; }
       this.toastFail('Capture failed: ' + e.message);
     });
   }
@@ -11666,10 +11782,29 @@ export default class App extends Component {
   openExerciseCard(name, vtKey = null) {
     const conn = getConnection();
     if (!conn || !name) return;
-    this.withTransition(() => this.setState({ exerciseSheet: { name, vtKey, loading: true, panel: null, error: null } }));
+    // The answer can beat the sheet: withTransition defers the open, and with
+    // no Mac the request fails at once, so the failure found no sheet to land
+    // in and the skeleton spun forever (found by the offline walk, 2 Nov).
+    // Whichever comes second reads the other's result.
+    this.exerciseSheetResult = null;
+    this.withTransition(() => this.setState(() => ({
+      exerciseSheet: this.exerciseSheetResult?.name === name ? this.exerciseSheetResult : { name, vtKey, loading: true, panel: null, error: null },
+    })));
+    const land = (result) => {
+      this.exerciseSheetResult = result;
+      this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: result } : null));
+    };
+    // every card he has opened is kept on this phone, so with no Mac it
+    // opens as it was, saying when (offline mode, 2 Nov 2026)
+    const kept = `panel:exercise:${name.toLowerCase()}`;
     api.panel(conn, { panel: 'exercise', name })
-      .then((panel) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, vtKey, loading: false, panel, error: null } } : null)))
-      .catch((e) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, vtKey, loading: false, panel: null, error: e.message } } : null)));
+      .then((panel) => { land({ name, vtKey, loading: false, panel, error: null }); idbSet(kept, { savedAt: new Date().toISOString(), panel }).catch(() => {}); })
+      .catch(async (e) => {
+        const copy = isOfflineError(e) ? await idbGet(kept).catch(() => null) : null;
+        land(copy?.panel
+          ? { name, vtKey, loading: false, panel: copy.panel, error: null, asOf: copy.savedAt }
+          : { name, vtKey, loading: false, panel: null, error: e.message });
+      });
   }
   closeExerciseCard() { this.setState({ exerciseSheet: null }); }
   focusCard(card) {
@@ -14592,6 +14727,7 @@ export default class App extends Component {
                 navigation that beat the idle prefetch. ScreenFallback is a
                 calm centred pulse (never a white flash), and it honours calm
                 mode / reduced motion like every other animation here. */}
+            <OfflineMark m={v.offlineMark} />
             <Suspense fallback={<ScreenFallback />}>
               {v.isMission && <MissionControl v={v} />}
               {v.isInbox && <Inbox v={v} />}
@@ -14659,7 +14795,9 @@ export default class App extends Component {
         )}
         <ContextMenuHost menu={this.state.ctxMenu} isMobile={v.isMobile} close={() => this.closeContextMenu()} />
 
-        {v.statusBanner && !(v.isMission && v.offlineCard) && (
+        {/* offline is said quietly in the page now (OfflineMark, or the
+            screen's own line); the pill stays for the slow-sync and demo truths */}
+        {v.statusBanner && this.state.connectionStatus !== 'offline' && !(v.isMission && v.offlineCard) && (
           <div style={{
             position: 'fixed', left: 0, right: 0, marginInline: 'auto', width: 'fit-content',
             bottom: v.isMobile ? 'calc(76px + env(safe-area-inset-bottom))' : '18px', zIndex: 80,

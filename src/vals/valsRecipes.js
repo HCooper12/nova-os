@@ -1,3 +1,4 @@
+import { isQueuedId, QUEUED_WORDS } from '../outboxOverlay.js';
 import { mono } from './shared.js';
 import { lineKey } from '../productKey.js';
 import { kcalFromMacros } from '../fuelRead.js';
@@ -941,6 +942,8 @@ export function valsRecipes(app, ctx) {
       remove: () => app.removeFoodLogRow(e),
       fromRotation: e.source === 'rotation',
       edited: !!e.edited,
+      // logged with no Mac, waiting in the Outbox (outboxOverlay.js)
+      queued: isQueuedId(e.id) ? QUEUED_WORDS : null,
       edit: () => app.startFoodEntryEdit({ id: e.id, name: e.name, p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal) }),
       editing: st.foodEditId === e.id,
     })),

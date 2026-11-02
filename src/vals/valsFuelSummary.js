@@ -1,3 +1,4 @@
+import { isQueuedId, QUEUED_WORDS } from '../outboxOverlay.js';
 import { dtf } from './fmt.js';
 import { plateInstrument, proteinLine, logRows, tonightRotation, rotationStrip, rotationSlotTiles, likelyNow } from '../fuelSummaryFacts.js';
 import { fuelRead } from '../fuelRead.js';
@@ -78,6 +79,9 @@ export function valsFuelSummary(app, ctx, v) {
       id: e.id, name: e.name, time: s.time || null, p: e.p, kcal: e.kcal, tail: s.tail || '',
       sub: s.sub || `${e.p} g protein · ${kc(e.kcal)} kcal`,
       fromRotation: !!s.fromRotation, edited: e.edited,
+      // logged with no Mac: on the plate and in the totals, filed when it is
+      // back (outboxOverlay.js); delete takes it out of the Outbox
+      queued: isQueuedId(e.id) ? QUEUED_WORDS : null,
       // the lines are the entry's own; its figures are the server's sum of them
       lines: e.items.map((it) => ({ id: it.id, name: it.grams ? `${it.name}, ${it.grams} g` : it.name, sub: it.macros.replace(/(\d+)P · /, '$1 g protein · '), remove: it.remove })),
       relog: () => app.relogFoodItem({ name: e.name, macros }),

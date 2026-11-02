@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { afterLayout } from '../afterLayout.js';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { useDictation } from '../useDictation.js';
@@ -379,7 +380,7 @@ function LogRow({ row, open, onToggle, edit }) {
             <Tile n="plate" a={row.fromRotation ? 'var(--nv-fs-k)' : 'var(--nv-fs-p)'} />
             <span className="nv-fs-lx">
               <span className="nv-fs-nm">{row.name}</span>
-              <span className="nv-fs-sv"><span className="nv-fs-p">{row.p} g</span> protein · <span className="nv-fs-k">{kc(row.kcal)}</span> kcal{row.tail ? ` · ${row.tail}` : ''}{row.edited ? ' · edited' : ''}</span>
+              <span className="nv-fs-sv">{row.queued && <span style={{ color: 'var(--nv-gold)' }}>{row.queued} · </span>}<span className="nv-fs-p">{row.p} g</span> protein · <span className="nv-fs-k">{kc(row.kcal)}</span> kcal{row.tail ? ` · ${row.tail}` : ''}{row.edited ? ' · edited' : ''}</span>
             </span>
             <span className="nv-fs-tm">{time ? <>{time.clock}<small>{time.ampm}</small></> : <small>—</small>}</span>
           </Interactive>
@@ -599,13 +600,19 @@ function SlotRail({ rot, onOpen, onAdd, i }) {
   const T = rot.tiles;
   useLayoutEffect(() => {
     const rail = railRef.current;
-    if (!rail || !T.nextKey) return;
+    if (!rail || !T.nextKey) return undefined;
     // the rail starts at the start (mockup 101) unless dishes he has already
     // eaten sit before the next one; an empty slot is never scrolled past
     const before = T.tiles.slice(0, T.tiles.findIndex((t) => t.key === T.nextKey));
-    if (!before.some((t) => !t.empty && t.eaten)) { rail.scrollLeft = 0; return; }
-    const el = rail.querySelector(`[data-tile="${CSS.escape(T.nextKey)}"]`);
-    if (el) rail.scrollLeft = Math.max(0, el.offsetLeft - parseFloat(getComputedStyle(rail).paddingLeft || '0'));
+    if (!before.some((t) => !t.empty && t.eaten)) { rail.scrollLeft = 0; return undefined; }
+    // read where the next tile sits once the browser has laid the page out
+    // (still before the first paint), not inside the commit: here it forced
+    // the whole Fuel screen's layout, 32 ms at 4x (fluidity audit, finding 3)
+    const key = T.nextKey;
+    return afterLayout(rail, () => {
+      const el = rail.querySelector(`[data-tile="${CSS.escape(key)}"]`);
+      if (el) rail.scrollLeft = Math.max(0, el.offsetLeft - parseFloat(getComputedStyle(rail).paddingLeft || '0'));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [T.dayKey]);
   return (

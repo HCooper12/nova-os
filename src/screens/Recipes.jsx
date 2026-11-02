@@ -912,6 +912,7 @@ function RecipesPage({ v }) {
                       row's right edge at 375px (measured, not guessed) */}
                   <span style={css("min-width:0;flex:1;display:flex;flex-direction:column;gap:2px")}>
                     <span style={css("overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500")}>{e.name}</span>
+                    {e.queued && <span style={css("font:500 11px var(--nv-font-ui);color:var(--nv-gold)")}>{e.queued}</span>}
                     <span style={css("display:flex;align-items:center;gap:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>
                       <span><span style={css("color:color-mix(in srgb, var(--nv-cy) 80%, transparent)")}>{e.p}P</span> · <span style={css("color:color-mix(in srgb, var(--nv-gold) 80%, transparent)")}>{e.c}C</span> · <span style={css("color:color-mix(in srgb, var(--nv-vi) 80%, transparent)")}>{e.f}F</span> · {e.kcal}kcal</span>
                       {e.edited && <Tag tone="gold" title="amended after logging" style={{ flex: 'none' }}>Edited</Tag>}

@@ -48,9 +48,53 @@ export function macUnreachable(err) {
   return !Number.isFinite(err?.status) && isOfflineError(err);
 }
 
-export function makeOutboxItem(kind, label, payload) {
+// ONE KEY PER WRITE, stamped before the first try and carried by every
+// replay as the Idempotency-Key header (api.js withIdempotencyKey), so a
+// write that timed out but landed is answered, not filed again, when the
+// Outbox sends it a second time (server/lib/idempotency.js).
+export function newIdempotencyKey(kind) {
+  const rand = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '').slice(0, 20) : Math.random().toString(36).slice(2, 14) + Date.now().toString(36);
+  return `nova-${String(kind || 'w').replace(/[^A-Za-z0-9]/g, '').slice(0, 16)}-${rand}`;
+}
+
+// a key built from data (a session's clientKey) made safe for the header
+export function idemSafe(raw) {
+  const k = String(raw || '').replace(/[^A-Za-z0-9._:-]/g, '').slice(0, 80);
+  return k.length >= 8 ? k : null;
+}
+
+// the key an item replays under; items queued before keys existed get one
+// derived from their own id, stable across every replay of that item
+export function keyOf(item) {
+  return item?.key || `outbox-${item?.id}`;
+}
+
+// Drain FIFO. Each item replays through its kind's function; a connectivity
+// failure stops the whole drain with everything after it still queued (the
+// next reconnect resumes in order), a server REJECTION marks that one item
+// failed for him to see and the drain goes on. Pure over its arguments so the
+// order and the stop rule are tested (server/test/outboxDrain.test.js).
+export async function drainItems(items, fns, { send, onSent, onFailed }) {
+  let sent = 0;
+  for (const item of items) {
+    if (item.status !== 'queued') continue;
+    const fn = fns[item.kind];
+    try {
+      if (fn) await send(keyOf(item), () => fn(item.payload));
+      onSent(item);
+      sent++;
+    } catch (e) {
+      if (isOfflineError(e)) return { sent, stopped: true };
+      onFailed(item, e);
+    }
+  }
+  return { sent, stopped: false };
+}
+
+export function makeOutboxItem(kind, label, payload, key = null) {
   return {
     id: Math.random().toString(36).slice(2, 10),
+    key: key || newIdempotencyKey(kind),
     kind,
     label: String(label || kind).slice(0, 60),
     payload,

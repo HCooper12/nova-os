@@ -77,10 +77,25 @@ async function call(conn, path, { timeoutMs } = {}) {
   return res.json();
 }
 
+// ONE WRITE, HOWEVER MANY TIMES IT IS SENT (offline mode, 2 Nov 2026). A
+// write the Outbox may replay carries an Idempotency-Key, the same on the
+// first try and on every replay, and the server answers a repeat with the
+// first answer (server/lib/idempotency.js). Set for exactly one call:
+// `withIdempotencyKey(key, () => api.addFoodLogEntry(conn, entry))`. post()
+// takes the key synchronously, before its first await, so no other request
+// can pick it up.
+let nextIdempotencyKey = null;
+export function withIdempotencyKey(key, fn) {
+  nextIdempotencyKey = key || null;
+  try { return fn(); } finally { nextIdempotencyKey = null; }
+}
+
 async function post(conn, path, body, { timeoutMs } = {}) {
+  const idemKey = nextIdempotencyKey;
+  nextIdempotencyKey = null;
   const res = await macFetch(baseOf(conn) + path, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json', ...(idemKey ? { 'Idempotency-Key': idemKey } : {}) },
     body: body ? JSON.stringify(body) : undefined,
     signal: reqSignal(timeoutMs),
   });

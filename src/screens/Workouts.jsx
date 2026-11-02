@@ -950,16 +950,17 @@ function HistoryView({ v }) {
       <TextAction tone="quiet" onClick={v.backFromWorkoutHistory} style={{ marginTop: '18px', marginLeft: '-8px' }}>← Back</TextAction>
       <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.historyRoutineName} <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>history.</span></h1>
 
+      {v.historyOffline && <Meta as="div" tone="faint" role="status" style={{ marginTop: '10px', textTransform: 'none', letterSpacing: 0, lineHeight: 1.45 }}>{v.historyOffline}</Meta>}
       {v.historyLoading ? (
         <div style={css("margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Loading…</div>
-      ) : v.historySessions.length === 0 ? (
+      ) : v.historyNone && v.historySessions.length === 0 ? null : v.historySessions.length === 0 ? (
         <div style={css("margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>No sessions logged yet.</div>
       ) : (
         <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:12px")}>
           {v.historySessions.map((s) => (
             <div key={s.id} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
-                <span style={css("font-size:13.5px;font-weight:500")}>{s.date}</span>
+                <span style={css("font-size:13.5px;font-weight:500")}>{s.date}{s.queued && <span style={css("margin-left:8px;font-size:11.5px;font-weight:500;color:var(--nv-gold)")}>Waiting for your Mac</span>}</span>
                 <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{s.totalSets} sets · {s.totalVolume}kg volume</Meta>
               </div>
               <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:3px")}>
@@ -974,7 +975,7 @@ function HistoryView({ v }) {
                   <div style={css("margin-top:4px;font:400 12.5px/1.5 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>{s.coachSaid}</div>
                 </div>
               )}
-              <div style={css("margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+              {!s.queued && <div style={css("margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
                 <TextAction tone="cyan" onClick={s.onEdit}>Edit</TextAction>
                 {!s.deleteConfirm ? (
                   <TextAction tone="faint" onClick={s.requestDelete}>Delete</TextAction>
@@ -985,7 +986,7 @@ function HistoryView({ v }) {
                     <TextAction tone="faint" onClick={s.cancelDelete}>Keep</TextAction>
                   </>
                 )}
-              </div>
+              </div>}
             </div>
           ))}
         </div>

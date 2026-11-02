@@ -77,6 +77,8 @@ export function buildLines(items) {
       aisle: aisleOf(first.category),
       got: its.every((i) => i.checked),
       pending: !!first.pending,
+      // added with no Mac: waiting in the Outbox (outboxOverlay.js)
+      queued: !!first.queued,
       items: its,
       need,
       keep,
@@ -215,7 +217,8 @@ export function buildShopView({
   const rowOf = (l) => {
     const d = l.d;
     const meta = [];
-    if (l.pending) meta.push({ text: 'finding its aisle' });
+    if (l.queued) meta.push({ text: 'waiting for your Mac' });
+    else if (l.pending) meta.push({ text: 'finding its aisle' });
     else if (l.typed) {
       const it = l.items[0];
       if (it.amount) meta.push({ b: `${it.amount}${l.items.length > 1 ? ` × ${l.items.length}` : ''}` });

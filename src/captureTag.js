@@ -31,6 +31,8 @@ function whenLabel(iso, now = new Date()) {
 export function captureTag(record, now = new Date()) {
   if (record?.kind === 'wishlist') return wishlistTag(record);
   if (!record || record.kind) return null;
+  // captured with no Mac: in the Outbox, sorted once it is back (outboxOverlay.js)
+  if (record.queued) return { label: 'Waiting for your Mac', tone: 'quiet', movable: false };
   if (record.status === 'classifying') return { label: 'Sorting…', tone: 'quiet', movable: false };
   if (record.status === 'undone') return { label: 'Undone', tone: 'quiet', movable: false };
   if (record.status === 'discarded') return null;

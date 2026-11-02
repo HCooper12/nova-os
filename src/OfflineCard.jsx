@@ -29,3 +29,34 @@ export function OfflineCard({ c }) {
     </section>
   );
 }
+
+// THE QUIET OFFLINE MARK (offline mode, 2 Nov 2026): one line at the top of
+// any screen that does not already say it in its own words. The dot is the
+// warn hue because it means one thing only, "your Mac is out of reach"; the
+// words say how old the page is. With writes waiting it is a button that
+// opens the Outbox. Never a floating pill (banner blindness, his six laws).
+export function OfflineMark({ m }) {
+  if (!m) return null;
+  const Tag = m.open ? 'button' : 'div';
+  // The page moves down by the mark's own height (26px) and the mark sits
+  // in the band just under the top bar, where every screen keeps its own
+  // clearance (measured by scripts/offline-walk.mjs: the first line of each
+  // screen starts at or below the mark's foot). It scrolls away with the
+  // page, the way a note's date line does in Notes.
+  return (
+    <div style={{ position: 'relative', height: '26px', zIndex: 2 }}>
+      <Tag type={m.open ? 'button' : undefined} role="status" onClick={m.open || undefined} className="nv-deck-rise nv-offline-mark"
+        aria-label={m.waiting ? `${m.text}, ${m.waiting}. Open the Outbox` : m.text}
+        style={{
+          position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 46px)', left: '18px', right: '18px',
+          display: 'flex', alignItems: 'center', gap: '8px', height: '26px', padding: 0, margin: 0,
+          background: 'none', border: 0, font: '500 12.5px var(--nv-font-ui)', color: 'var(--nv-ink60)',
+          cursor: m.open ? 'pointer' : 'default', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+        <i aria-hidden="true" style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--nv-warn)', flex: 'none' }} />
+        <span>{m.text}</span>
+        {m.waiting && <span style={{ color: 'var(--nv-gold)' }}>· {m.waiting} ›</span>}
+      </Tag>
+    </div>
+  );
+}
