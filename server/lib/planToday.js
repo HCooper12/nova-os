@@ -5,8 +5,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
-import os from 'node:os';
+import { runTextLane, laneVia, assertGrounded } from './textLane.js';
 import { NOVA_LENS } from './lens.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
@@ -14,8 +13,7 @@ import { composeDispatch } from './dispatch.js';
 import { listTodos } from './todos.js';
 import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
-import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
-import { parseEnvelope } from './modelSpend.js';
+import { laneSkipped } from './modelPrefs.js';
 
 // PLAN TODAY — each morning, one model pass turns the day's real picture
 // (calendar, recovery, fuel, carry-overs, open to-dos, standing instructions)
@@ -28,14 +26,6 @@ import { parseEnvelope } from './modelSpend.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CONFIG_PATH = () => path.join(dataRoot(), 'plan-today.json');
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const PLAN_DISALLOWED = [
-  'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
-  'WebFetch', 'WebSearch', 'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
-  'EnterWorktree', 'ExitWorktree', 'NotebookEdit', 'PushNotification', 'RemoteTrigger',
-  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'Monitor',
-  'Edit', 'Write',
-].join(',');
 
 // REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('plan-today') — a mode config the
 // trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
@@ -79,10 +69,35 @@ export async function setPlanConfig(patch) {
 // Leaner than the review's context on purpose: the plan needs the shape of
 // TODAY (schedule, body, debts, open loops), not the month's trends.
 export async function buildPlanContext(vaultPath, now = new Date()) {
+  return (await gatherContext(planSections(vaultPath, now).filter((s) => !s.compactOnly))).text;
+}
+
+// THE COMPACT PLAN (2 Nov 2026, Phase B), the review's twin
+// (dailyReview.js COMPACT_REVIEW_SECTIONS): the plan is local-first now and
+// its full context is ~25k characters. The compact one keeps what the three
+// are picked FROM (his rules, today's picture, carry-overs, to-dos, goals,
+// the week's changes, the last review, yesterday's three, the stuck list,
+// what he is working toward) and leaves out the whole profile, the shelf and
+// the learned tendencies. Sections load once and both contexts share them.
+export const COMPACT_PLAN_SECTIONS = new Set([
+  'standing', 'aims', 'morning', 'carryovers', 'todos', 'goals', 'week-changes', 'latest-review', 'yesterday-plan', 'stuck',
+]);
+export async function buildPlanContexts(vaultPath, now = new Date()) {
+  const sections = planSections(vaultPath, now);
+  const full = (await gatherContext(sections.filter((s) => !s.compactOnly))).text;
+  const compact = (await gatherContext(sections.filter((s) => COMPACT_PLAN_SECTIONS.has(s.label)))).text;
+  return { full, compact };
+}
+
+const once = (fn) => { let p = null; return () => (p ||= Promise.resolve().then(fn)); };
+
+function planSections(vaultPath, now) {
   // a section that FAILS is named to the model, one that is empty says
   // nothing — the add() used to swallow both the same way (lib/contextSections.js)
   const sections = [];
-  const add = (label, load) => sections.push({ label, load });
+  const add = (label, load, { compactOnly = false } = {}) => sections.push({ label, load: once(load), compactOnly });
+  // the compact context's stand-in for the whole profile
+  add('aims', () => profileContext(vaultPath, { only: ['toward'] }), { compactOnly: true });
 
   add('profile', () => profileContext(vaultPath));
   // what he has been putting into his own head belongs in the day's plan —
@@ -163,7 +178,7 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
     if (staleTodos.length) out.push(`TO-DOS OPEN 14+ DAYS: ${staleTodos.map((t) => `${t.text} (${t.days}d)`).join('; ')} — same rule: a two-minute first step or nothing.`);
     return out.length ? out.join('\n\n') : null;
   });
-  return (await gatherContext(sections)).text;
+  return sections;
 }
 
 /* ------------------------------- compose --------------------------------- */
@@ -190,6 +205,63 @@ ${context || '(context unavailable — say so and keep it brief)'}
 If yesterday's plan is in the picture, its outcomes are real data: build on what got done, and carry a skipped priority forward only if it still matters today — never re-list it out of habit.
 
 Output ONLY a JSON object: {"priorities": [{"do": "the concrete action", "why": "one line tied to the data"}]}. No code fences, no commentary.`;
+}
+
+// The same contract for the model on this Mac (2 Nov 2026, Phase B): the
+// lens first, the job and five rules, the compact context, the JSON last.
+export function buildCompactPlanPrompt(context, now = new Date()) {
+  const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+  // the clock, said (2 Nov 2026, the first bench): with no time in the
+  // prompt the 4B told him to eat breakfast "now" at 20:00
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return `${NOVA_LENS}
+
+You are Nova picking Hayden's TOP 3 PRIORITIES for ${dateLong}: what today is for. It is ${clock} now.
+
+Rules:
+- Every priority must still be doable after ${clock} today; something the facts show already done is not a priority.
+- 1 to 3 priorities, most important first. Two is fine; never invent work to fill a slot.
+- Each is one concrete action he can finish today, with a one-line why tied to a fact below.
+- Pick from the facts below: fixed calendar blocks, training debt, protein gaps, open loops with dates. Fit around the calendar.
+- Use numbers exactly as written below; never calculate a new one.
+- Follow the STUCK, NOT NOW and LET GO notes below exactly when they are there.
+
+${context || '(context unavailable — say so and keep it brief)'}
+
+Reply with only JSON: {"priorities": [{"do": "the concrete action", "why": "one line tied to the data"}]}`;
+}
+
+// The lane's check on an answer, either model's: salvage-parsed JSON (the
+// August unescaped-quote failures), composed by composePlanText (which
+// refuses an empty plan). This Mac's priorities must say no number it was not
+// shown. Throws with the offending excerpt so a failure names its cause.
+export function readPlan(text, { provider = 'claude', prompt = '', now = new Date(), todos = null } = {}) {
+  const t = String(text || '').trim();
+  const salvage = salvageJson(t);
+  if (!salvage.value) {
+    throw Object.assign(new Error(salvage.error || 'no JSON in plan response'), { excerpt: failureExcerpt(t, salvage.error) });
+  }
+  if (salvage.repaired) console.log('plan-today: the model\'s JSON needed repairing before it would parse');
+  const composed = composePlanText(salvage.value, now, { todos });
+  if (provider === 'local') assertGrounded(composed.priorities.map((p) => `${p.do} ${p.why}`).join('\n'), prompt, 'the plan');
+  return composed;
+}
+
+// ONE CALL, EITHER MODEL (2 Nov 2026). Local-first through runTextLane: the
+// compact prompt to this Mac; the full prompt, with Read/Grep/Glob on his
+// vault, to Claude when this Mac cannot answer or its plan fails readPlan.
+export async function composePlan(vaultPath, { full, compact }, now = new Date(), { run = runTextLane, todos = null } = {}) {
+  const prompt = buildPlanPrompt(full, now);
+  const localPrompt = buildCompactPlanPrompt(compact, now);
+  const out = await run('plan-today', prompt, {
+    json: true,
+    maxTokens: 700,
+    localPrompt,
+    claudeTools: 'Read Grep Glob',
+    cwd: vaultPath,
+    validate: (text, { provider }) => readPlan(text, { provider, prompt: provider === 'local' ? localPrompt : prompt, now, todos }),
+  });
+  return { composed: out.value, via: laneVia(out) };
 }
 
 // PRIORITY → TO-DO LINKAGE, containment only. Replayed on his real record
@@ -235,81 +307,43 @@ async function todayPlanRecord() {
   return todays.length >= 3 ? todays[0] : null;
 }
 
-function startPlanJob(vaultPath, context, mode, recordId, now) {
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildPlanPrompt(context, now),
-    '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'Read Grep Glob',
-    '--disallowedTools', PLAN_DISALLOWED,
-    '--strict-mcp-config',
-    '--output-format', 'json',
-    // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. The pin
-    // now comes from the model board (lib/modelPrefs.js) so it is settable
-    // in Settings; the default is the 'sonnet' this lane has always run on.
-    '--model', modelFor('plan-today'),
-    ...effortArgs('plan-today'),
-    '--session-id', randomUUID(),
-  ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
-
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', async (code) => {
-    try {
-      const outer = parseEnvelope(stdout, { lane: 'plan-today', code, stderr });
-      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
-      const text = (outer.result || '').trim();
-      // Seven identical failures between 22 and 31 August — "Expected ',' or
-      // ']' after array element" — and no morning plan on any of those days.
-      // The cause is a model writing an unescaped quote inside a string while
-      // describing his calendar. salvageJson repairs that ONLY after an honest
-      // parse has already failed, and only if the repair itself parses.
-      const salvage = salvageJson(text);
-      if (!salvage.value) {
-        // keep the offending text this time, so an eighth failure names its
-        // own cause instead of teaching nothing
-        throw Object.assign(new Error(salvage.error || 'no JSON in plan response'), {
-          excerpt: failureExcerpt(text, salvage.error),
-        });
-      }
-      if (salvage.repaired) console.log('plan-today: the model\'s JSON needed repairing before it would parse');
-      let todos = null;
-      try { todos = (await listTodos(vaultPath)).items; } catch { /* no linkage without the list — the plan still stands */ }
-      const { title, text: body, priorities } = composePlanText(salvage.value, now, { todos });
-      const decision = {
-        route: 'journal',
-        confidence: 'high',
-        title,
-        reason: "Plan Today — the day's top 3, picked from the real picture.",
-        // priorities ride the decision so the Home card can render them
-        // without re-parsing the markdown
-        payload: { text: body, category: 'personal', author: 'nova', label: 'Plan today', priorities },
-      };
-      if (mode === 'auto') {
-        const { destination, undo } = await fileDecision(vaultPath, decision);
-        await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
-        import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
-        // tier later (lib/alerts.js): the Inbox record already says it, so
-        // this is a receipt and never a second card or a push
-        import('./alerts.js').then(({ raiseAlert }) => raiseAlert({
-          tier: 'later', label: 'PLAN', kind: 'plan-today', recordId,
-          what: decision.title || "Today's top 3 are in your journal",
-          where: 'in your journal', source: 'from Plan Today',
-          action: { label: 'Open', open: '#/journal' },
-          dedupeKey: `plan:${recordId}`,
-        })).catch(() => {});
-      } else {
-        await updateRecord(recordId, { status: 'pending', decision });
-      }
-    } catch (e) {
-      await planFailed(recordId, e.message, now, e.excerpt || null);
+function startPlanJob(vaultPath, contexts, mode, recordId, now) {
+  (async () => {
+    // the open to-dos are read BEFORE the model runs (they were read after
+    // it, inside the close handler): readPlan links priorities to them
+    let todos = null;
+    try { todos = (await listTodos(vaultPath)).items; } catch { /* no linkage without the list — the plan still stands */ }
+    const { composed, via } = await composePlan(vaultPath, contexts, now, { todos });
+    const { title, text: body, priorities } = composed;
+    const decision = {
+      route: 'journal',
+      confidence: 'high',
+      title,
+      reason: "Plan Today — the day's top 3, picked from the real picture.",
+      // priorities ride the decision so the Home card can render them
+      // without re-parsing the markdown
+      payload: { text: body, category: 'personal', author: 'nova', label: 'Plan today', priorities },
+    };
+    // who wrote it, the Inbox's shared shape (lib/textLane.js laneVia)
+    const who = via || {};
+    if (mode === 'auto') {
+      const { destination, undo } = await fileDecision(vaultPath, decision);
+      await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision, ...who });
+      import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
+      // tier later (lib/alerts.js): the Inbox record already says it, so
+      // this is a receipt and never a second card or a push
+      import('./alerts.js').then(({ raiseAlert }) => raiseAlert({
+        tier: 'later', label: 'PLAN', kind: 'plan-today', recordId,
+        what: decision.title || "Today's top 3 are in your journal",
+        where: 'in your journal', source: 'from Plan Today',
+        action: { label: 'Open', open: '#/journal' },
+        dedupeKey: `plan:${recordId}`,
+      })).catch(() => {});
+    } else {
+      await updateRecord(recordId, { status: 'pending', decision, ...who });
     }
-  });
-  child.on('error', async (err) => {
-    await planFailed(recordId, err.message, now);
+  })().catch(async (e) => {
+    await planFailed(recordId, e.message, now, e.excerpt || null);
   });
 }
 
@@ -339,7 +373,7 @@ export async function runPlanToday(vaultPath, { force = false } = {}) {
   if (existing && !force) return { skipped: true, record: existing };
 
   const now = new Date();
-  const context = await buildPlanContext(vaultPath, now);
+  const contexts = await buildPlanContexts(vaultPath, now);
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
     kind: 'plan-today',
@@ -349,7 +383,7 @@ export async function runPlanToday(vaultPath, { force = false } = {}) {
     status: 'classifying', // in-flight while the model reasons
     createdAt: now.toISOString(),
   });
-  startPlanJob(vaultPath, context, config.mode, record.id, now);
+  startPlanJob(vaultPath, contexts, config.mode, record.id, now);
   return { record };
 }
 

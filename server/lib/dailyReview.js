@@ -5,8 +5,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
-import os from 'node:os';
+import { runTextLane, laneVia, assertGrounded } from './textLane.js';
 import { NOVA_LENS } from './lens.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
@@ -21,8 +20,7 @@ import { listTodos } from './todos.js';
 import { preferencesContext } from './learning.js';
 import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
-import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
-import { parseEnvelope } from './modelSpend.js';
+import { laneSkipped } from './modelPrefs.js';
 
 // THE DAILY REVIEW — Nova's flagship intelligent surface. Once a day, a model
 // reasons across everything (profile, health, training, nutrition, calendar,
@@ -35,14 +33,6 @@ import { parseEnvelope } from './modelSpend.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CONFIG_PATH = () => path.join(dataRoot(), 'daily-review.json');
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const REVIEW_DISALLOWED = [
-  'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
-  'WebFetch', 'WebSearch', 'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
-  'EnterWorktree', 'ExitWorktree', 'NotebookEdit', 'PushNotification', 'RemoteTrigger',
-  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'Monitor',
-  'Edit', 'Write',
-].join(',');
 
 // REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('review') — a mode config the
 // trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
@@ -87,11 +77,41 @@ export async function setReviewConfig(patch) {
 // composers (which already gather health/fuel/training/calendar/money) and
 // adds the coaching-specific specifics the model needs to reason well.
 export async function buildReviewContext(vaultPath, now = new Date()) {
+  return (await gatherContext(reviewSections(vaultPath, now).filter((s) => !s.compactOnly))).text;
+}
+
+// THE COMPACT REVIEW (2 Nov 2026, Phase B). The review is local-first now
+// (lib/textLane.js), and its full context is ~31k characters: a 4B reads that
+// badly. The compact context keeps what the day's read and adjustments are
+// built FROM (his standing rules, today's picture, training, recovery,
+// streaks, to-dos, the plan, yesterday's review, goals, carry-overs, weight,
+// the calendar, money, and what he is working toward) and leaves out the
+// month's texture (the whole profile, the weekly debrief, the fleet, the
+// library and shelf, food patterns, the week ahead). Every section loads
+// ONCE (`once` below) and both contexts share it, so building both costs
+// what building one did. Claude, as the escalation or his pick, gets the full one.
+export const COMPACT_REVIEW_SECTIONS = new Set([
+  'standing', 'aims', 'morning', 'evening', 'sessions', 'deload', 'streaks', 'todos', 'today-plan',
+  'yesterday-review', 'goals', 'carryovers', 'weight', 'calendar-detail', 'money',
+]);
+export async function buildReviewContexts(vaultPath, now = new Date()) {
+  const sections = reviewSections(vaultPath, now);
+  const full = (await gatherContext(sections.filter((s) => !s.compactOnly))).text;
+  const compact = (await gatherContext(sections.filter((s) => COMPACT_REVIEW_SECTIONS.has(s.label)))).text;
+  return { full, compact };
+}
+
+const once = (fn) => { let p = null; return () => (p ||= Promise.resolve().then(fn)); };
+
+function reviewSections(vaultPath, now) {
   // a section that FAILS is named to the model, one that is empty says
   // nothing — the add() used to swallow both the same way, so a crashed money
   // read became "no money logged" (lib/contextSections.js)
   const sections = [];
-  const add = (label, load) => sections.push({ label, load });
+  const add = (label, load, { compactOnly = false } = {}) => sections.push({ label, load: once(load), compactOnly });
+  // what he is working toward, alone: the compact context's stand-in for the
+  // whole profile (the full context carries the whole profile below)
+  add('aims', () => profileContext(vaultPath, { only: ['toward'] }), { compactOnly: true });
 
   add('profile', () => profileContext(vaultPath));
   add('learning', () => preferencesContext(vaultPath)); // what he tends to do
@@ -232,7 +252,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     const vsPrev = m.prevSpent ? ` (last month $${Math.round(m.prevSpent)})` : '';
     return `MONEY THIS MONTH: $${Math.round(m.spent)} spent${vsPrev}${over.length ? '; ' + over.join(', ') : ''}.`;
   });
-  return (await gatherContext(sections)).text;
+  return sections;
 }
 
 /* ------------------------------- compose --------------------------------- */
@@ -260,6 +280,67 @@ The whole picture:
 ${context || '(context unavailable — say so and keep it brief)'}
 
 Output ONLY a JSON object: {"read": "the 2-3 sentence read", "adjustments": [{"do": "the concrete action", "why": "one line tied to the data"}]}. No code fences, no commentary.`;
+}
+
+// The same contract for the model on this Mac (2 Nov 2026, Phase B): the
+// lens first (identical every call, so Ollama reuses its cache), the job and
+// six rules, the compact context, the JSON line last. No vault reads: every
+// fact it may use is below.
+export function buildCompactReviewPrompt(context, now = new Date()) {
+  const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+  // the clock, said (2 Nov 2026, the first bench): with no time in the
+  // prompt the 4B told him to eat breakfast "now" at 20:00
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return `${NOVA_LENS}
+
+You are Nova writing Hayden's DAILY REVIEW for ${dateLong}: a short honest read of where he is today, and 1 to 3 things worth doing today. It is ${clock} now.
+
+Rules:
+- Everything you suggest must still be doable after ${clock} today: nothing that belonged earlier in the day.
+- Use only the facts below. Use numbers exactly as written; never calculate a new one.
+- If YESTERDAY'S REVIEW is below, start the read by saying, for each adjustment it set, whether today's data shows it happened.
+- Adjustments are concrete and doable today, each with a one-line why tied to a fact below.
+- An ordinary day gets one gentle nudge at most. Never invent a problem.
+- A gap is said plainly ("no protein logged"); a section that failed to load is not his fault.
+- Only journal entries marked by Hayden are his words; never tell him "you said" about anything else.
+
+${context || '(context unavailable — say so and keep it brief)'}
+
+Reply with only JSON: {"read": "2-3 sentences", "adjustments": [{"do": "the concrete action", "why": "one line tied to the data"}]}`;
+}
+
+// The lane's check on an answer, either model's: the JSON, composed by the
+// tested composeReviewText (which refuses an empty review). This Mac's
+// answer is held to more: a read of sane length and no number it was not
+// shown (lib/textLane.js assertGrounded).
+export function readReview(text, { provider = 'claude', prompt = '', now = new Date() } = {}) {
+  const t = String(text || '').trim();
+  const jsonMatch = firstBalancedObjectMatch(t);
+  if (!jsonMatch) throw new Error(t.slice(0, 200) || 'no JSON in review response');
+  const composed = composeReviewText(parseModelJson(jsonMatch[0]), now);
+  if (provider === 'local') {
+    if (composed.read.length > 900) throw new Error(`the read runs ${composed.read.length} characters; it should be two or three sentences`);
+    assertGrounded([composed.read, ...composed.adjustments.map((a) => `${a.do} ${a.why}`)].join('\n'), prompt, 'the review');
+  }
+  return composed;
+}
+
+// ONE CALL, EITHER MODEL (2 Nov 2026). Local-first through runTextLane: the
+// compact prompt to this Mac; the full prompt, with Read/Grep/Glob on his
+// vault, to Claude when this Mac cannot answer or its review fails
+// readReview. Returns the composed review and who wrote it.
+export async function composeReview(vaultPath, { full, compact }, now = new Date(), { run = runTextLane } = {}) {
+  const prompt = buildReviewPrompt(full, now);
+  const localPrompt = buildCompactReviewPrompt(compact, now);
+  const out = await run('daily-review', prompt, {
+    json: true,
+    maxTokens: 900,
+    localPrompt,
+    claudeTools: 'Read Grep Glob',
+    cwd: vaultPath,
+    validate: (text, { provider }) => readReview(text, { provider, prompt: provider === 'local' ? localPrompt : prompt, now }),
+  });
+  return { composed: out.value, via: laneVia(out) };
 }
 
 export function composeReviewText(parsed, now = new Date()) {
@@ -296,65 +377,37 @@ async function todayReviewRecord() {
   return todays.length >= 3 ? todays[0] : null;
 }
 
-function startReviewJob(vaultPath, context, mode, recordId, now) {
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildReviewPrompt(context, now),
-    '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'Read Grep Glob',
-    '--disallowedTools', REVIEW_DISALLOWED,
-    '--strict-mcp-config',
-    '--output-format', 'json',
-    // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. The pin
-    // now comes from the model board (lib/modelPrefs.js) so it is settable
-    // in Settings; the default is the 'sonnet' this lane has always run on.
-    '--model', modelFor('daily-review'),
-    ...effortArgs('daily-review'),
-    '--session-id', randomUUID(),
-  ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
-
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', async (code) => {
-    try {
-      const outer = parseEnvelope(stdout, { lane: 'daily-review', code, stderr });
-      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
-      const text = (outer.result || '').trim();
-      const jsonMatch = firstBalancedObjectMatch(text);
-      if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in review response');
-      const { title, text: body, read, adjustments } = composeReviewText(parseModelJson(jsonMatch[0]), now);
-      const decision = {
-        route: 'journal',
-        confidence: 'high',
-        title,
-        reason: 'Daily Review — reasoned across your whole day through the Nova lens.',
-        // personal category, labelled — it lives with Hayden's own reflections
-        // but is always distinguishable from them
-        payload: { text: body, category: 'personal', author: 'nova', label: 'Daily review reflection', read, adjustments },
-      };
-      if (mode === 'auto') {
-        const { destination, undo } = await fileDecision(vaultPath, decision);
-        await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
-        // auto mode skips 'pending', so the normal push never fires — but the
-        // flagship read of the day landing silently defeats its purpose
-        import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
-        import('./push.js').then(({ sendPush }) => sendPush({
-          title: 'Daily Review — Nova',
-          body: decision.title || 'Today\'s review is in your journal.',
-          tag: `record-${recordId}`, kind: 'daily-review',
-        })).catch(() => {});
-      } else {
-        await updateRecord(recordId, { status: 'pending', decision });
-      }
-    } catch (e) {
-      await reviewFailed(recordId, e.message, now);
+function startReviewJob(vaultPath, contexts, mode, recordId, now) {
+  composeReview(vaultPath, contexts, now).then(async ({ composed, via }) => {
+    const { title, text: body, read, adjustments } = composed;
+    const decision = {
+      route: 'journal',
+      confidence: 'high',
+      title,
+      reason: 'Daily Review — reasoned across your whole day through the Nova lens.',
+      // personal category, labelled — it lives with Hayden's own reflections
+      // but is always distinguishable from them
+      payload: { text: body, category: 'personal', author: 'nova', label: 'Daily review reflection', read, adjustments },
+    };
+    // who wrote it, the Inbox's shared shape (lib/textLane.js laneVia):
+    // "written on this Mac", or "asked Claude · why"
+    const who = via || {};
+    if (mode === 'auto') {
+      const { destination, undo } = await fileDecision(vaultPath, decision);
+      await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision, ...who });
+      // auto mode skips 'pending', so the normal push never fires — but the
+      // flagship read of the day landing silently defeats its purpose
+      import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
+      import('./push.js').then(({ sendPush }) => sendPush({
+        title: 'Daily Review — Nova',
+        body: decision.title || 'Today\'s review is in your journal.',
+        tag: `record-${recordId}`, kind: 'daily-review',
+      })).catch(() => {});
+    } else {
+      await updateRecord(recordId, { status: 'pending', decision, ...who });
     }
-  });
-  child.on('error', async (err) => {
-    await reviewFailed(recordId, err.message, now);
+  }).catch(async (e) => {
+    await reviewFailed(recordId, e.message, now);
   });
 }
 
@@ -368,7 +421,7 @@ export async function runDailyReview(vaultPath, { force = false } = {}) {
   if (existing && !force) return { skipped: true, record: existing };
 
   const now = new Date();
-  const context = await buildReviewContext(vaultPath, now);
+  const contexts = await buildReviewContexts(vaultPath, now);
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
     kind: 'review',
@@ -378,7 +431,7 @@ export async function runDailyReview(vaultPath, { force = false } = {}) {
     status: 'classifying', // in-flight while the model reasons
     createdAt: now.toISOString(),
   });
-  startReviewJob(vaultPath, context, config.mode, record.id, now);
+  startReviewJob(vaultPath, contexts, config.mode, record.id, now);
   return { record };
 }
 

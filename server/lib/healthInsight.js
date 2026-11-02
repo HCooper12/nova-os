@@ -1,9 +1,7 @@
-import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadRecentDays } from './healthData.js';
 import { loadSessions } from './workoutSessions.js';
@@ -15,15 +13,13 @@ import { getToday as getFoodLogToday } from './foodLog.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
-import { modelFor, laneSkipped, laneEnabled, effortArgs } from './modelPrefs.js';
-import { boundaryArgs } from './spawnBoundary.js';
-import { parseEnvelope } from './modelSpend.js';
+import { laneSkipped, laneEnabled } from './modelPrefs.js';
+import { runTextLane, laneVia, assertGrounded } from './textLane.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
 // path (tests with the env override still wrote the REAL data dir)
 const INSIGHT_FILE = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'health', 'insight.json');
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 
 function today() {
   const d = new Date();
@@ -48,25 +44,65 @@ export function journalInsightLines(journalDays) {
   return lines;
 }
 
-async function buildContext(vaultPath, slot) {
-  const lines = [];
+export async function buildContext(vaultPath, slot) {
+  return (await buildContexts(vaultPath, slot)).full;
+}
+
+// THE TWO CONTEXTS (2 Nov 2026, Phase B). The insight is local-first now
+// (lib/textLane.js), and a 4B reads a 24k-character prompt badly: 8.2k of it
+// was the whole profile and 2.4k the fleet and the org, none of which the
+// one-sentence read of his numbers needs. The data block is built ONCE and
+// both contexts share it; the compact one keeps his standing rules (they bind
+// every agent) and the three profile sections a health read reasons from.
+// Claude, as the escalation or his pick, still gets the full one.
+export async function buildContexts(vaultPath, slot) {
+  const head = [];
+  const headCompact = [];
 
   // his standing rules and the rest of the fleet — this surface writes a
   // health read that every other agent now sees, so it must at minimum obey
   // the same corrections they do
   try {
     const { orgContext } = await import('./orgContext.js');
-    const org = await orgContext(vaultPath, 'health-insight');
-    if (org) lines.push(org);
+    const [org, rules] = await Promise.all([
+      orgContext(vaultPath, 'health-insight'),
+      orgContext(vaultPath, 'health-insight', { only: ['standing'] }),
+    ]);
+    if (org) head.push(org);
+    if (rules) headCompact.push(rules);
   } catch { /* honest absence */ }
 
   // who Hayden is — every model surface reasons from the same operating profile
   try {
-    const profile = await profileContext(vaultPath);
-    if (profile) lines.push(profile, '');
+    const [profile, slim] = await Promise.all([
+      profileContext(vaultPath),
+      profileContext(vaultPath, { only: ['toward', 'training', 'fuel'] }),
+    ]);
+    if (profile) head.push(profile, '');
+    if (slim) headCompact.push(slim, '');
   } catch { /* profile optional */ }
 
+  const lines = [];
+  // TODAY, said once by code, for the compact context only (2 Nov 2026,
+  // after the first Phase B bench): the 4B read yesterday's HRV row as
+  // today's, said "protein is at zero" with 7 g logged, and told him to eat
+  // breakfast "before the workout" in the evening with Push already logged.
+  // The rows below still carry everything; this names which of it is today.
+  const todayFacts = [];
+  const t = today();
   const healthDays = await loadRecentDays(7);
+  const todayRow = healthDays.find((d) => d.date === t);
+  if (todayRow) {
+    const bits = [
+      todayRow.hrv != null ? `HRV ${todayRow.hrv} ms` : null,
+      todayRow.restingHeartRate != null ? `resting heart rate ${todayRow.restingHeartRate} bpm` : null,
+      todayRow.sleepAsleepMinutes != null ? `sleep ${todayRow.sleepAsleepMinutes} minutes` : 'no sleep logged for last night',
+      todayRow.steps != null ? `${todayRow.steps} steps so far` : null,
+    ].filter(Boolean);
+    todayFacts.push(`- Body today: ${bits.join(', ')}.`);
+  } else {
+    todayFacts.push('- Body today: no health reading for today yet.');
+  }
   lines.push('## Recent health data (last 7 days with data, oldest first)');
   if (healthDays.length) {
     for (const d of healthDays) {
@@ -79,6 +115,8 @@ async function buildContext(vaultPath, slot) {
 
   try {
     const sessions = await loadSessions(vaultPath, { limit: 5 });
+    const trained = sessions.filter((x) => x.date === t).map((x) => x.routineName);
+    todayFacts.push(trained.length ? `- Trained today: ${trained.join(', ')} (already logged; do not tell him to train before it).` : '- Trained today: nothing logged yet.');
     lines.push('\n## Recent workout sessions (most recent first)');
     if (sessions.length) {
       for (const s of sessions) {
@@ -101,6 +139,7 @@ async function buildContext(vaultPath, slot) {
     lines.push('\n## Today\'s nutrition');
     lines.push(`- Planned: Protein ${Math.round(rotation.totals.p)}g${profile?.proteinFloorG ? ` (floor ${profile.proteinFloorG}g)` : ''}, Carbs ${Math.round(rotation.totals.c)}g, Fat ${Math.round(rotation.totals.f)}g, Energy ${Math.round(rotation.totals.kcal)} kcal${profile?.targetKcal ? ` (target ${profile.targetKcal})` : ''}`);
     lines.push(`- Actually eaten so far (marked-eaten rotation meals + logged extras): ${consumedP}g protein`);
+    todayFacts.push(`- Protein eaten so far today: ${consumedP}g${profile?.proteinFloorG ? ` of the ${profile.proteinFloorG}g floor` : ''}.`);
     if (foodLog.entries.length) {
       lines.push(`- Off-plan food logged today: ${foodLog.entries.map((e) => `${e.name} (${Math.round(e.macros.p)}g P)`).join(', ')}`);
     }
@@ -171,10 +210,13 @@ async function buildContext(vaultPath, slot) {
     lines.push(insightMemoryLines((await loadCachedInsight()).history));
   } catch { /* no memory, no line */ }
 
-  return lines.join('\n');
+  const now = new Date();
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const todayBlock = [`## TODAY (${t}, now ${clock}; read by code; every row below dated earlier is a past day)`, ...todayFacts, ''];
+  return { full: [...head, ...lines].join('\n'), compact: [...headCompact, ...todayBlock, ...lines].join('\n') };
 }
 
-function buildPrompt(context, slot) {
+export function buildPrompt(context, slot) {
   const framing = slot === 'morning'
     ? "You're reviewing Hayden's readiness coming into today — how recovered he looks based on last night's sleep and HRV, recent training load, and what's on today's calendar."
     : "You're reviewing how Hayden's day actually went — a day-in-review, not a forecast. Focus on what happened: training completed (or not), food actually eaten, how the calendar day played out, and how that connects to recovery.";
@@ -194,41 +236,62 @@ Output ONLY a JSON object with exactly these keys:
 No markdown, no code fences, no commentary before or after — just the raw JSON object.`;
 }
 
-function runClaude(prompt) {
-  return new Promise((resolve, reject) => {
-    // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
-    const child = spawn(CLAUDE_BIN, [
-      '-p', prompt,
-      '--permission-mode', 'bypassPermissions',
-      ...boundaryArgs(''),
-      '--output-format', 'json',
-      // named explicitly — an unpinned call silently inherits the account's
-      // ambient default model, which cost him a Fable-5 usage-limit hit on a
-      // totally unrelated lane (Coach) once that became the default. The pin
-      // now comes from the model board (lib/modelPrefs.js) so it is settable
-      // in Settings; the default is the 'sonnet' this lane has always run on.
-      '--model', modelFor('health-insight'),
-      ...effortArgs('health-insight'),
-      '--no-session-persistence',
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.on('data', (d) => { stderr += d; });
-    child.on('close', (code) => {
-      if (code !== 0) return reject(new Error(stderr.trim() || `claude exited with code ${code}`));
-      try {
-        const outer = parseEnvelope(stdout, { lane: 'health-insight' });
-        const text = (outer.result || '').trim();
-        const jsonMatch = firstBalancedObjectMatch(text);
-        if (!jsonMatch) throw new Error('No JSON object found in the response');
-        resolve(parseModelJson(jsonMatch[0]));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    child.on('error', reject);
+// The same contract for the model on this Mac, said shorter: the lens first
+// (identical on every call, so Ollama reuses its cache), the job in five
+// lines, his numbers, then the JSON line. Measured 2 Nov 2026: ~10k
+// characters against the full prompt's ~24k (design/audits/2026-11-02-phase-b-lanes.md).
+export function buildCompactPrompt(context, slot) {
+  const job = slot === 'morning'
+    ? 'how ready he is for today: last night\'s sleep and HRV, recent training, today\'s calendar'
+    : 'how his day actually went: training done or not, food eaten, the calendar, and how that bears on recovery';
+  return `${NOVA_LENS}
+
+You are Nova's health coach writing ONE observation about Hayden's own data: ${job}.
+
+Rules:
+- One or two sentences, specific, connecting two of his data sources when the data supports it.
+- Use only numbers that appear below, exactly as written. Do not calculate new ones.
+- The TODAY block says what is true now. A health row with an earlier date is a past day: never call it today's.
+- Lines not marked HIS OWN WORDS are Nova's or an agent's notes, never his mood or words.
+- Do not repeat one of your last insights unless the data moved.
+- If there is not enough data for a real observation, set hasInsight to false.
+
+${context}
+
+Reply with only JSON: {"hasInsight": true or false, "insight": "the observation, or empty"}`;
+}
+
+// The lane's check on an answer, either model's: one JSON object with a
+// boolean and, when true, a non-empty insight. This Mac's answer must also
+// say no number it was not shown (lib/textLane.js assertGrounded).
+export function readInsight(text, { provider = 'claude', prompt = '' } = {}) {
+  const jsonMatch = firstBalancedObjectMatch(String(text || '').trim());
+  if (!jsonMatch) throw new Error('No JSON object found in the response');
+  const parsed = parseModelJson(jsonMatch[0]);
+  if (typeof parsed?.hasInsight !== 'boolean') throw new Error('the insight has no hasInsight true/false');
+  const insight = String(parsed.insight || '').trim();
+  if (parsed.hasInsight && !insight) throw new Error('hasInsight is true but the insight is empty');
+  if (provider === 'local') {
+    if (insight.length > 600) throw new Error(`the insight runs ${insight.length} characters; it should be one or two sentences`);
+    if (parsed.hasInsight) assertGrounded(insight, prompt, 'the insight');
+  }
+  return { hasInsight: parsed.hasInsight, insight };
+}
+
+// ONE CALL, EITHER MODEL (2 Nov 2026). Local-first through runTextLane: the
+// compact prompt to this Mac, the full one to Claude when this Mac cannot
+// answer or its answer fails readInsight. Returns the parsed insight and who
+// wrote it (laneVia), which the slot record carries.
+export async function composeInsight(context, compact, slot, { run = runTextLane } = {}) {
+  const prompt = buildPrompt(context, slot);
+  const localPrompt = buildCompactPrompt(compact, slot);
+  const out = await run('health-insight', prompt, {
+    json: true,
+    maxTokens: 400,
+    localPrompt,
+    validate: (text, { provider }) => readInsight(text, { provider, prompt: provider === 'local' ? localPrompt : prompt }),
   });
+  return { ...out.value, via: laneVia(out) };
 }
 
 // `tries`/`triesDate` cap the day's RETRIES after a genuine failure, not the
@@ -282,13 +345,15 @@ async function generateAndStore(vaultPath, slot) {
   // own timestamp and self-labels as stale rather than being overwritten by
   // nothing. Health numbers and the Sentinel's alerts are untouched.
   if (!laneEnabled('health-insight')) { laneSkipped('health-insight', `the ${slot} health insight`); return loadCachedInsight(); }
-  const context = await buildContext(vaultPath, slot);
-  const result = await runClaude(buildPrompt(context, slot));
+  const { full, compact } = await buildContexts(vaultPath, slot);
+  const result = await composeInsight(full, compact, slot);
   const record = {
     date: today(),
     hasInsight: !!result.hasInsight,
     insight: result.hasInsight ? String(result.insight || '').trim() : null,
     generatedAt: new Date().toISOString(),
+    // who wrote it ("on this Mac" / "asked Claude · why"), lib/textLane.js laneVia
+    ...(result.via ? { via: result.via } : {}),
   };
   const cached = await loadCachedInsight();
   const history = record.hasInsight

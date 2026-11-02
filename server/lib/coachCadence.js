@@ -319,7 +319,12 @@ export async function debriefFacts(vaultPath, session, deps = {}) {
     } catch { /* no carry facts, no line */ }
   }
   if (full.rationale) facts.push(`Why this session existed (the quick-session design's rationale): ${full.rationale}`);
-  if (prev) facts.push(`Previous ${full.routineName} (${prev.date}): ${volumeOf(prev).toLocaleString()}kg volume.`);
+  // the direction said by code (2 Nov 2026): a small model read 910 kg
+  // against 4,996 kg as "moved up"; the comparison is arithmetic, not judgment
+  if (prev) {
+    const a = volumeOf(full); const b = volumeOf(prev);
+    facts.push(`Previous ${full.routineName} (${prev.date}): ${b.toLocaleString()}kg volume, so today's volume was ${a > b ? 'higher' : a < b ? 'lower' : 'the same'}.`);
+  }
   try {
     const { prsInSession } = await import('./trainingAnalytics.js');
     const prs = prsInSession(sessions, full);
@@ -347,9 +352,11 @@ export async function sessionDebrief(vaultPath, session) {
   // Telegram remains the push mouth when configured
   const { facts, full } = await debriefFacts(vaultPath, session);
   const { startSessionDebrief } = await import('./claudeCode.js');
-  startSessionDebrief(vaultPath, { facts: facts.join('\n') }, (text) => {
+  // `via` (2 Nov 2026): who wrote it, this Mac or Claude (lib/textLane.js
+  // laneVia), kept on the remembered debrief so the history can say so
+  startSessionDebrief(vaultPath, { facts: facts.join('\n') }, (text, via = null) => {
     if (!text) return;
-    import('./debriefMemory.js').then(({ rememberDebrief }) => rememberDebrief({ routineId: full.routineId, routineName: full.routineName, sessionId: full.id, date: full.date, text })).catch(() => {});
+    import('./debriefMemory.js').then(({ rememberDebrief }) => rememberDebrief({ routineId: full.routineId, routineName: full.routineName, sessionId: full.id, date: full.date, text, via })).catch(() => {});
     send(`Coach — ${text}`, 'coach-debrief').catch(() => {});
   });
   return true;

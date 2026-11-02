@@ -2,8 +2,14 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import {
-  modelFor, effortArgs, laneEnabled, laneOffError, providerFor, laneCanRunLocal, fallbackEnabled, refreshLocalStatus, laneThinks,
+  modelFor, effortArgs, laneEnabled, laneOffError, providerFor, laneCanRunLocal, fallbackEnabled, refreshLocalStatus, laneThinks, LANES,
 } from './modelPrefs.js';
+
+// A lane marked `standIn: false` in LANES may run on this Mac when he picks
+// it, but never stands in for a failed Claude (2 Nov 2026): the board's
+// fallback list already left such lanes out, and this runner now obeys the
+// same mark. The Phase B lanes that benched with a wrong answer carry it.
+const laneStandsIn = (lane) => LANES.find((l) => l.id === lane)?.standIn !== false;
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope, recordRun } from './modelSpend.js';
 import { completeLocal, localModelConfigured, localBackend } from './localModel.js';
@@ -46,7 +52,11 @@ function isEnvelope(stdout) {
   try { const o = JSON.parse(stdout); return !!o && typeof o === 'object'; } catch { return false; }
 }
 
-function spawnClaude(lane, prompt, spawnImpl) {
+// `tools` / `cwd` (2 Nov 2026, Phase B): the daily review and the plan let
+// Claude Read his vault "for depth" when Claude is the one answering, so the
+// lane names the tools it needs (boundaryArgs denies the rest) and the vault
+// as the working directory. Every other lane passes neither: zero tools.
+function spawnClaude(lane, prompt, spawnImpl, { tools = '', cwd = null } = {}) {
   return new Promise((resolve, reject) => {
     const spawn = spawnImpl || nodeSpawn;
     const CLAUDE_BIN = CLAUDE_BIN_DEFAULT();
@@ -55,7 +65,7 @@ function spawnClaude(lane, prompt, spawnImpl) {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      ...boundaryArgs(''),
+      ...boundaryArgs(tools),
       '--output-format', 'json',
       // pinned from the model board (lib/modelPrefs.js); never the ambient default
       '--model', modelFor(lane),
@@ -63,7 +73,7 @@ function spawnClaude(lane, prompt, spawnImpl) {
       // without the flag), so the account's ambient xhigh never reaches a lane
       ...effortArgs(lane),
       '--no-session-persistence',
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+    ], { stdio: ['ignore', 'pipe', 'pipe'], ...(cwd ? { cwd } : {}) });
     let stdout = '';
     let stderr = '';
     child.stdout?.on('data', (d) => { stdout += d; });
@@ -96,7 +106,16 @@ function spawnClaude(lane, prompt, spawnImpl) {
   });
 }
 
-async function runLocal(lane, prompt, { maxTokens, json, fallback, reason = null }) {
+// THE LANE'S OWN CHECK, ON THIS MAC'S ANSWER (2 Nov 2026, Phase B). A lane
+// that writes something he reads (the review, the plan, the insight, the
+// debrief) hands runTextLane a `validate(text)` that returns the parsed value
+// or throws. A local answer that fails it is a FAILED local run, on the
+// ledger with its reason, and never reaches him: local-first escalates to
+// Claude, a stand-in gives Claude's failure back. Never fiction: an answer
+// code cannot check is not an answer.
+class Unusable extends Error {}
+
+async function runLocal(lane, prompt, { maxTokens, json, fallback, reason = null, validate = null }) {
   const started = Date.now();
   try {
     const out = await completeLocal(prompt, {
@@ -109,13 +128,19 @@ async function runLocal(lane, prompt, { maxTokens, json, fallback, reason = null
       // off unless the lane is marked to reason (lib/modelPrefs.js laneThinks)
       think: laneThinks(lane),
     });
+    let value;
+    if (validate) {
+      try { value = validate(out.text, { provider: 'local', model: out.model }); } catch (v) {
+        throw Object.assign(new Unusable(`its answer could not be used (${String(v?.message || v).slice(0, 160)})`), { model: out.model, ms: out.ms });
+      }
+    }
     recordRun(lane, {
       usd: 0, ms: out.ms, model: `local:${out.model}`, inputTokens: null, outputTokens: null, provider: 'local', fallback, reason,
     });
-    return { text: out.text, provider: 'local', model: out.model, ms: out.ms, fallback, reason };
+    return { text: out.text, provider: 'local', model: out.model, ms: out.ms, fallback, reason, ...(validate ? { value } : {}) };
   } catch (e) {
     recordRun(lane, {
-      usd: 0, ms: Date.now() - started, model: null, provider: 'local', fallback, reason, error: String(e.message || e).slice(0, 200),
+      usd: 0, ms: e instanceof Unusable ? e.ms : Date.now() - started, model: e instanceof Unusable ? `local:${e.model}` : null, provider: 'local', fallback, reason, error: String(e.message || e).slice(0, 200),
     });
     throw new Error(`the local model could not answer: ${e.message}`);
   } finally {
@@ -159,12 +184,23 @@ export function laneVia(out) {
 // Claude answers what this Mac could not. Not async on purpose: the CLI is
 // spawned inside this call, so a caller that reaches it before its own first
 // await keeps the synchronous-spawn property below.
-function escalate(lane, prompt, localWhy, spawnImpl) {
+function escalate(lane, prompt, localWhy, spawnImpl, claudeOpts = {}, validate = null) {
   const why = String(localWhy || 'it returned nothing').replace(LOCAL_PREFIX, '');
   const reason = `the model on this Mac could not answer: ${why}`;
   console.log(`textLane: ${lane} escalated to Claude (${why})`);
-  return spawnClaude(lane, prompt, spawnImpl).then(
-    (out) => ({ ...out, escalated: true, reason }),
+  return spawnClaude(lane, prompt, spawnImpl, claudeOpts).then(
+    // Claude's answer goes through the same check; a failure there is the
+    // lane's own honest error, as it always was
+    (out) => {
+      if (!validate) return { ...out, escalated: true, reason };
+      try {
+        return { ...out, value: validate(out.text, { provider: 'claude' }), escalated: true, reason };
+      } catch (e) {
+        e.message = `${e.message} The model on this Mac could not answer first: ${why}.`;
+        e.localError = why;
+        throw e;
+      }
+    },
     (e) => {
       // Claude's failure, said plainly, with why this Mac did not answer first
       e.message = `${e.message} The model on this Mac could not answer first: ${why}.`;
@@ -176,14 +212,26 @@ function escalate(lane, prompt, localWhy, spawnImpl) {
 
 /** Run one pure-text lane and return { text, provider, model, ms, fallback },
  *  plus `escalated` and `reason` when the lane ran here first and Claude
- *  answered instead.
+ *  answered instead, and `value` when the lane passed `validate`.
+ *  Phase B options (2 Nov 2026):
+ *    localPrompt — the compact variant for the small model; Claude always
+ *                  gets `prompt`, the full one, whether it escalates or is
+ *                  the lane's pick.
+ *    validate    — (text, { provider }) => value, or throws; see runLocal
+ *                  above. `provider` lets a lane hold this Mac's answer to
+ *                  a stricter bar (the grounding check) than Claude's.
+ *    claudeTools, cwd — what Claude may reach when it answers (spawnClaude).
  *  `spawnImpl` is a test seam for a lane that already has one (journalPrompt).
  *  When the lane runs on Claude at the lane's default effort, the CLI is
  *  spawned synchronously within this call (before its first await), which the
  *  journal prompt's "one call, at the tap" test depends on. That holds for an
  *  escalation that needs no local call too (nothing installed here). */
-export async function runTextLane(lane, prompt, { maxTokens = 700, json = false, spawnImpl = null } = {}) {
+export async function runTextLane(lane, prompt, {
+  maxTokens = 700, json = false, spawnImpl = null, localPrompt = null, validate = null, claudeTools = '', cwd = null,
+} = {}) {
   if (!laneEnabled(lane)) throw laneOffError(lane);
+  const claudeOpts = { tools: claudeTools, cwd };
+  const smallPrompt = localPrompt || prompt;
 
   if (providerFor(lane) === 'local') {
     // nothing to run here: a stat says so, so Claude is asked at once (and
@@ -193,20 +241,21 @@ export async function runTextLane(lane, prompt, { maxTokens = 700, json = false,
       const why = b === 'ollama' ? 'Ollama is not installed on this Mac'
         : b === 'apple' ? "Apple's model helper is not built on this Mac" : 'the local model is not installed';
       recordRun(lane, { usd: 0, ms: 0, model: null, provider: 'local', fallback: false, reason: null, error: why });
-      return escalate(lane, prompt, why, spawnImpl);
+      return escalate(lane, prompt, why, spawnImpl, claudeOpts, validate);
     }
     try {
-      return await runLocal(lane, prompt, { maxTokens, json, fallback: false });
+      return await runLocal(lane, smallPrompt, { maxTokens, json, fallback: false, validate });
     } catch (localErr) {
       // runLocal has already put the failed local run on the ledger
-      return escalate(lane, prompt, localErr.message, spawnImpl);
+      return escalate(lane, prompt, localErr.message, spawnImpl, claudeOpts, validate);
     }
   }
 
-  const run = spawnClaude(lane, prompt, spawnImpl);
+  const run = spawnClaude(lane, prompt, spawnImpl, claudeOpts);
 
   try {
-    return await run;
+    const out = await run;
+    return validate ? { ...out, value: validate(out.text, { provider: 'claude' }) } : out;
   } catch (e) {
     // the same rule as Ask Nova's front door (lib/askDispatch.js): the
     // model on this Mac may stand in when Claude failed BEFORE any answer
@@ -214,10 +263,10 @@ export async function runTextLane(lane, prompt, { maxTokens = 700, json = false,
     // died with no envelope, as when this Mac is offline). A run that
     // produced an envelope and failed on its own terms is not covered.
     if (!e?.limited && !e?.beforeOutput) throw e;
-    if (!fallbackEnabled() || !laneCanRunLocal(lane) || !localModelConfigured()) throw e;
+    if (!fallbackEnabled() || !laneCanRunLocal(lane) || !laneStandsIn(lane) || !localModelConfigured()) throw e;
     const reason = e.limited ? 'Claude was at its usage limit' : (e.fallbackReason || 'Claude could not answer');
     try {
-      const out = await runLocal(lane, prompt, { maxTokens, json, fallback: true, reason });
+      const out = await runLocal(lane, smallPrompt, { maxTokens, json, fallback: true, reason, validate });
       console.log(`textLane: ${lane} fell back to the local model (Claude: ${e.message})`);
       return out;
     } catch (localErr) {
@@ -227,4 +276,28 @@ export async function runTextLane(lane, prompt, { maxTokens = 700, json = false,
       throw e;
     }
   }
+}
+
+// THE GROUNDING CHECK, AS CODE (2 Nov 2026, Phase B; the idiom is the local
+// Coach bench's, scripts/benchLocalCoach.mjs). Every digit-string the answer
+// says must appear in what the model was shown. It cannot tell a right number
+// from a wrong one that happens to be in the context; it catches every
+// invented one, which is the failure a 4B writing "up 9 %" from nothing
+// commits. Thousands separators and a trailing ".0" are ignored, so "1,040"
+// matches "1040" and "84.0" matches "84". Returns the numbers that are not
+// grounded (empty when the answer is clean).
+const NUM_RE = /\d+(?:[.,]\d+)*/g;
+const numsOf = (s) => (String(s || '').match(NUM_RE) || [])
+  .map((n) => n.replace(/,(?=\d{3}\b)/g, '').replace(/\.0+$/, ''));
+export function ungroundedNumbers(answer, ...sources) {
+  const seen = new Set(numsOf(sources.join('\n')));
+  return [...new Set(numsOf(answer))].filter((n) => !seen.has(n));
+}
+
+/** A validate step for a lane's prose: throws when the answer says a number
+ *  its prompt never gave it. */
+export function assertGrounded(answer, prompt, what = 'the answer') {
+  const loose = ungroundedNumbers(answer, prompt);
+  if (loose.length) throw new Error(`${what} says ${loose.slice(0, 4).join(', ')}, which ${loose.length === 1 ? 'is' : 'are'} not in anything it was shown`);
+  return true;
 }

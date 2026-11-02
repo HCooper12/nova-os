@@ -26,11 +26,14 @@ async function save(state) {
   await writeFile(STATE_PATH(), JSON.stringify(state, null, 2), 'utf8');
 }
 
-export async function rememberDebrief({ routineId, sessionId, routineName, date, text }) {
+// `via` (2 Nov 2026): who wrote it (lib/textLane.js laneVia), only when the
+// debrief came through the text-lane runner; a Claude-streamed debrief keeps
+// the entry's old shape
+export async function rememberDebrief({ routineId, sessionId, routineName, date, text, via = null }) {
   const clean = String(text || '').trim().slice(0, 1200);
   if (!clean || !routineId) return null;
   const state = await load();
-  const entry = { text: clean, at: new Date().toISOString(), routineId, routineName: routineName || null, date: date || null, sessionId: sessionId || null };
+  const entry = { text: clean, at: new Date().toISOString(), routineId, routineName: routineName || null, date: date || null, sessionId: sessionId || null, ...(via ? { via } : {}) };
   state.byRoutine[routineId] = entry;
   if (sessionId) {
     state.bySession[sessionId] = entry;

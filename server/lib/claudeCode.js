@@ -11,7 +11,7 @@ import { NOVA_LENS } from './lens.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT, effortArgs, providerFor, fallbackEnabled, laneCanRunLocal } from './modelPrefs.js';
-import { runLocalLane } from './textLane.js';
+import { runLocalLane, runTextLane, laneVia, assertGrounded } from './textLane.js';
 import { localModelConfigured } from './localModel.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
@@ -1211,13 +1211,38 @@ ${facts}${talkPrefs ? `\n\n${talkPrefs}` : ''}`;
 // every fact arrives computed) reacting to THIS session; the caller sends
 // it wherever he'll see it. Sonnet, not haiku: this is coaching judgment,
 // not a doorman's hello.
-export function buildDebriefPrompt({ facts, talkPrefs = '' }) {
+// `strict` (2 Nov 2026, Phase B): the variant for the model on this Mac. The
+// first bench had the 4B call a 910 kg session against a 4,996 kg one "a
+// strong lift", call HRV 75 "low" with nothing to compare it to, and ask
+// about protein on a sheet that never mentioned food. Four rules close those.
+export function buildDebriefPrompt({ facts, talkPrefs = '', strict = false }) {
+  const rules = strict ? `
+
+Rules for this message:
+- Never call a number high, low, good or poor unless a fact compares it to something.
+- Mention only what the facts contain: no food, protein, sleep or pain unless a fact names it.
+- If the facts list PRs, acknowledge them in a few words.
+- Say volume went up or down only as the facts say it did.` : '';
   return `${NOVA_LENS}
 
-You are Hayden's strength coach, reacting the moment he finishes logging a session — the words a great coach says as the bar goes back in the rack. Compose ONE message: 2-4 sentences, plain text, no markdown. Register: direct, warm, expert — never sycophantic, never a cheerleader. React to what ACTUALLY happened: name the one thing that mattered most (a load moved up, effort where it counted, a note he left, something cut short) and, if the data warrants it, ONE pointed thing to carry into next time. If something concerns you (pain note, grinding RPE, a big drop), say so plainly. Ground every specific ONLY in the facts below — never invent numbers. No questions unless one genuinely needs answering before next session.
+You are Hayden's strength coach, reacting the moment he finishes logging a session — the words a great coach says as the bar goes back in the rack. Compose ONE message: 2-4 sentences, plain text, no markdown. Register: direct, warm, expert — never sycophantic, never a cheerleader. React to what ACTUALLY happened: name the one thing that mattered most (a load moved up, effort where it counted, a note he left, something cut short) and, if the data warrants it, ONE pointed thing to carry into next time. If something concerns you (pain note, grinding RPE, a big drop), say so plainly. Ground every specific ONLY in the facts below — never invent numbers. No questions unless one genuinely needs answering before next session.${rules}
 
 FACTS (deterministic, computed just now):
 ${facts}${talkPrefs ? `\n\n${talkPrefs}` : ''}`;
+}
+
+// The debrief's check on an answer (2 Nov 2026, Phase B): words, a few
+// sentences, plain text, and, from this Mac, no number the fact sheet did
+// not give it. Claude's answer is held only to "said something", as before.
+export function readDebrief(text, { provider = 'claude', prompt = '' } = {}) {
+  const t = String(text || '').trim();
+  if (!t) throw new Error('the debrief came back empty');
+  if (provider === 'local') {
+    if (t.length > 900) throw new Error(`the debrief runs ${t.length} characters; it should be two to four sentences`);
+    if (/```|^#{1,6}\s/m.test(t)) throw new Error('the debrief came back as markdown, not something said at the rack');
+    assertGrounded(t, prompt, 'the debrief');
+  }
+  return t;
 }
 
 export function startSessionDebrief(cwd, { facts }, onReady) {
@@ -1226,6 +1251,31 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
   const effectiveSessionId = randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
+  // LOCAL FIRST (2 Nov 2026, Phase B): the debrief reacts to a fact sheet
+  // code computed, with no tools, so it runs on this Mac first through the
+  // text-lane runner; Claude answers (one call, not the warm stream: nobody
+  // watches this job's partials) when this Mac cannot, or its words fail
+  // readDebrief. `onReady` gets who wrote it as its second argument.
+  if (providerFor('session-debrief') === 'local') {
+    const talkPrefs = talkPrefsBlock(cwd);
+    const prompt = buildDebriefPrompt({ facts, talkPrefs });
+    const localPrompt = buildDebriefPrompt({ facts, talkPrefs, strict: true });
+    runTextLane('session-debrief', prompt, {
+      maxTokens: 320,
+      localPrompt,
+      validate: (text, { provider }) => readDebrief(text, { provider, prompt: provider === 'local' ? localPrompt : prompt }),
+    }).then((out) => {
+      const text = out.value;
+      job.result = { text, provider: out.provider, ...(out.escalated ? { escalated: true, reason: out.reason } : {}) };
+      job.status = 'ready';
+      import('./spokenLog.js').then(({ logSpoken }) => logSpoken('coach-debrief', text)).catch(() => {});
+      try { onReady?.(text, laneVia(out)); } catch { /* delivery is the caller's problem */ }
+    }).catch((e) => {
+      job.error = e.message;
+      job.status = 'error';
+    });
+    return jobId;
+  }
   const args = [
     '-p', '--input-format', 'stream-json',
     '--permission-mode', 'bypassPermissions',

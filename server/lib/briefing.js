@@ -40,6 +40,7 @@ import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { registerJobMap } from './jobRegistry.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
+import { runTextLane, laneVia } from './textLane.js';
 
 const MAX_ANGLES = 5;
 const MIN_ANGLES = 2;
@@ -87,7 +88,10 @@ function runClaude({ prompt, model: m, tools = '', vaultPath, lane }) {
 
 /* ------------------------------ the decompose ----------------------------- */
 
-export function buildAnglesPrompt(topic, standing) {
+// `local` (2 Nov 2026, Phase B): the small model's variant drops the worked
+// example. The first bench had the 4B copy "the melanopsin pathway" into an
+// angle about a push session's length; an example is a topic to a 4B.
+export function buildAnglesPrompt(topic, standing, { local = false } = {}) {
   return `Break a research topic into the angles worth investigating separately.
 
 THE TOPIC, in his words: "${topic}"
@@ -95,7 +99,7 @@ ${standing ? `WHAT HE ASKED FOR IN THE REPORT: "${standing}"` : ''}
 
 Give ${MIN_ANGLES}-${MAX_ANGLES} angles. Each becomes its own parallel research job, so they must be:
 - genuinely separable — no two angles that would return the same sources
-- specific enough to search ("the melanopsin pathway and circadian entrainment", not "the science")
+${local ? '- about the topic exactly as he wrote it: never bring in a subject, number or term he did not mention\n- specific enough to search, not "the science"' : '- specific enough to search ("the melanopsin pathway and circadian entrainment", not "the science")'}
 - collectively the whole topic, ordered as they should be EXPLAINED to someone learning it: mechanism before implication, evidence before protocol
 
 Also give the report a title: plain, specific, no colon-subtitle padding.
@@ -232,6 +236,9 @@ export function _briefingJobs() { return jobs; } // test hook
 // model or hitting the network — the pattern hands.js and scanFood use.
 export const defaultDeps = {
   runClaude,
+  // the angles are local-first since 2 Nov 2026 (planAngles below); a test's
+  // fake deps without this keep the old Claude-only path
+  runTextLane: (...a) => runTextLane(...a),
   startResearch: async (vaultPath, q, opts) => (await import('./researcher.js')).startResearch(vaultPath, q, opts),
   getRecord,
   shelfContext: async (vaultPath, topics) => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics, limit: 4 }),
@@ -243,6 +250,29 @@ async function model(deps, prompt, { lane, tools = '', vaultPath }) {
   const match = firstBalancedObjectMatch(out);
   if (!match) throw new Error(`the ${lane} step did not return JSON: ${String(out).slice(0, 160)}`);
   return parseModelJson(match[0]);
+}
+
+// THE ANGLES, LOCAL-FIRST (2 Nov 2026, Phase B). Breaking a topic into 2-5
+// researchable questions is pure text in, JSON out, and normalizeAngles
+// already refuses a thin answer, so it runs on this Mac first
+// (lib/textLane.js) and goes to Claude when this Mac cannot answer or its
+// angles fail that check. Returns the angles and who wrote them; only the
+// angles, so the record carries it as `anglesVia`, never as the briefing's
+// author (the report is still Claude's, briefing-compose).
+export async function planAngles(deps, topic, standing, vaultPath) {
+  const prompt = buildAnglesPrompt(topic, standing);
+  if (!deps.runTextLane) return { angles: normalizeAngles(await model(deps, prompt, { lane: 'briefing-plan', vaultPath }), topic), via: null };
+  const out = await deps.runTextLane('briefing-plan', prompt, {
+    json: true,
+    maxTokens: 700,
+    localPrompt: buildAnglesPrompt(topic, standing, { local: true }),
+    validate: (text) => {
+      const match = firstBalancedObjectMatch(String(text || ''));
+      if (!match) throw new Error(`the briefing-plan step did not return JSON: ${String(text).slice(0, 160)}`);
+      return normalizeAngles(parseModelJson(match[0]), topic);
+    },
+  });
+  return { angles: out.value, via: laneVia(out) };
 }
 
 // Waits for a research record to settle. Polls rather than subscribes because
@@ -286,10 +316,8 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
   const setStage = (stage, extra = {}) => { if (job) Object.assign(job, { stage, ...extra }); };
   try {
     // 1 — decompose
-    const angles = normalizeAngles(
-      await model(deps, buildAnglesPrompt(topic, standing), { lane: 'briefing-plan', vaultPath }),
-      topic,
-    );
+    const { angles, via: anglesVia } = await planAngles(deps, topic, standing, vaultPath);
+    if (anglesVia) await updateRecord(recordId, { anglesVia }).catch(() => {});
     setStage('researching', { angles: angles.angles.map((a) => a.q), title: angles.title });
 
     // 2 — fan out. All angles at once: they are independent by construction,

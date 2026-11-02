@@ -294,9 +294,30 @@ test('a lane that cannot run locally refuses the local provider, plainly', async
 });
 
 // the Coach joined 27 Oct 2026: its answers run here, its changes on Claude (lib/localCoach.js)
-test('exactly the six measured pure-text lanes may run locally', () => {
+// Phase B joined 2 Nov 2026: five lanes that write from numbers code computed
+// (design/audits/2026-11-02-phase-b-lanes.md)
+test('exactly the measured lanes may run locally', () => {
   assert.deepEqual(LANES.filter((l) => l.local).map((l) => l.id).sort(),
-    ['ask-nova', 'calendar-command', 'coach', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
+    ['ask-nova', 'briefing-plan', 'calendar-command', 'coach', 'daily-review', 'greeting', 'health-insight', 'inbox-classify', 'journal-prompt',
+      'note-summary', 'plan-today', 'profile-talk', 'rewards-offer-read', 'session-debrief', 'shopping-categorize']);
+});
+
+// the bench decides where a Phase B lane runs by default: every one had a
+// wrong answer on 2 Nov 2026, so each is Claude first and never a stand-in,
+// and runs here only when he picks This Mac (the Coach's 27 Oct pattern)
+test('the Phase B lanes run on Claude by default, never stand in, and take This Mac when he picks it', async () => {
+  await clean();
+  const { providerFor, setLocalPrefs } = await import('../lib/modelPrefs.js');
+  await setLocalPrefs({ first: true });
+  for (const id of ['briefing-plan', 'daily-review', 'health-insight', 'plan-today', 'session-debrief']) {
+    const lane = LANES.find((l) => l.id === id);
+    assert.equal(lane.localFirst, false, `${id} benched with a wrong answer`);
+    assert.equal(lane.standIn, false, `${id} never stands in for Claude`);
+    assert.equal(providerFor(id), 'claude', `${id} is Claude by default even with local first on`);
+    await setLanePref(id, { provider: 'local' });
+    assert.equal(providerFor(id), 'local', `${id} runs here when he picks it`);
+  }
+  assert.ok(!getModelPrefs().fallback.lanes.includes('daily-review'), 'the board lists no stand-in for them');
 });
 
 test('the limit fallback is on by default, switchable, and survives lane writes and resets', async () => {
@@ -328,8 +349,10 @@ test('getModelPrefs carries the local model and the fallback on the board', asyn
     ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'profile-talk', 'rewards-offer-read', 'shopping-categorize']);
   for (const lane of board.lanes) {
     // the RESOLVED provider: local first puts every local lane on this Mac
-    // (the Coach too since 2 Nov, behind lib/coachRoute.js's hand-ups)
-    const expected = lane.canRunLocal ? 'local' : 'claude';
+    // (the Coach too since 2 Nov, behind lib/coachRoute.js's hand-ups), except
+    // a lane the bench kept on Claude (`localFirst: false`, Phase B 2 Nov)
+    const def = LANES.find((l) => l.id === lane.id);
+    const expected = lane.canRunLocal && def.localFirst !== false ? 'local' : 'claude';
     assert.equal(lane.provider, expected, lane.id);
     assert.equal(lane.defaultProvider, expected, lane.id);
     assert.equal(lane.customised, false, `${lane.id} untouched is not customised`);

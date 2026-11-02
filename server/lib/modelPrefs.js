@@ -215,7 +215,13 @@ export const LANES = [
     off: 'The Quick Session button reports it is off; build the session by hand instead.',
   },
   {
-    id: 'session-debrief', label: 'Post-session debrief', group: 'coach', def: 'sonnet', defEffort: 'low',
+    // local (2 Nov 2026, Phase B): reacts to a fact sheet code computed, no
+    // tools; this Mac's words must cite only numbers on the sheet (lib/claudeCode.js readDebrief).
+    // Claude by default, and no stand-in: on the bench (design/audits/2026-11-02-phase-b-lanes.md)
+    // the 4B called HRV "lower than usual" with nothing to compare it to and
+    // asked about protein on sheets that never mention food, after the rules
+    // said not to. This Mac writes it only if he picks it on the board.
+    id: 'session-debrief', label: 'Post-session debrief', group: 'coach', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the words a coach says as the bar goes back in the rack',
     off: 'Sessions log exactly as they do now, just without the spoken reaction.',
   },
@@ -342,12 +348,20 @@ export const LANES = [
 
   // ---- daily --------------------------------------------------------------
   {
-    id: 'daily-review', label: 'Daily review', group: 'daily', def: 'sonnet', defEffort: 'low',
+    // local (2 Nov 2026, Phase B): a compact context to this Mac, the full one
+    // with vault reads to Claude; code checks shape and every number (lib/dailyReview.js readReview).
+    // Claude by default, no stand-in: the bench's 08:00 review called HRV
+    // "low" where the picture said -2 % against the week (audit 2026-11-02).
+    id: 'daily-review', label: 'Daily review', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the end-of-day read across what actually happened',
     off: 'No daily review is drafted. Your receipts and streaks are deterministic and keep working.',
   },
   {
-    id: 'plan-today', label: 'Plan today', group: 'daily', def: 'sonnet', defEffort: 'low',
+    // local (2 Nov 2026, Phase B): the review's twin (lib/planToday.js readPlan).
+    // Claude by default, no stand-in: two of three bench plans broke his
+    // stuck-promise rule (the whole stale job, not a two-minute step) and one
+    // said "breakfast now" at 13:00 (audit 2026-11-02).
+    id: 'plan-today', label: 'Plan today', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the morning shape of the day, drafted for your yes',
     off: 'No plan is drafted; the brief still reports the day’s real numbers.',
   },
@@ -357,7 +371,11 @@ export const LANES = [
     off: 'The journal opens blank instead of prompted.',
   },
   {
-    id: 'health-insight', label: 'Health insight', group: 'daily', def: 'sonnet', defEffort: 'low',
+    // local (2 Nov 2026, Phase B): one sentence from numbers code read, no
+    // tools; a compact prompt to this Mac (lib/healthInsight.js readInsight).
+    // Claude by default, no stand-in: the bench's morning insight said he
+    // missed the protein floor "five days in a row" (he met it on 30 Oct).
+    id: 'health-insight', label: 'Health insight', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'reads your health data for the thing worth telling you',
     off: 'Health numbers, charts and the Sentinel’s deterministic alerts are unaffected; only the written read stops.',
   },
@@ -428,7 +446,11 @@ export const LANES = [
     // are the ONLY model cost it adds on top: a cheap decompose and one
     // expensive synthesis. The synthesis gets no tools at all — every fact it
     // may use is already in the citation-checked findings it was handed.
-    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', def: 'haiku', defEffort: 'low',
+    // local (2 Nov 2026, Phase B): a topic into 2-5 questions, JSON that
+    // normalizeAngles checks (lib/briefing.js planAngles). Claude by default,
+    // no stand-in: one of seven bench topics came back with an angle built on
+    // a misreading ("a session that began at 74 minutes"; audit 2026-11-02).
+    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', local: true, localFirst: false, standIn: false, def: 'haiku', defEffort: 'low',
     hint: 'breaks a topic into the 2-5 angles that get researched in parallel',
     off: 'Briefings are refused with a plain message; nothing half-researched is filed.',
   },
