@@ -5,6 +5,7 @@ import { fuelRead } from '../fuelRead.js';
 import { fuelNow, workoutEventFor } from '../fuelNow.js';
 import { getFuelCards, fuelCardRuns, FUEL_CARDS } from '../fuelCards.js';
 import { dayWord, loggedLine } from '../fuelDay.js';
+import { relogMemo, usualNow, whenShort, amountLabel, logPayload } from '../relogFacts.js';
 
 // THE SUMMARY FUEL PAGE's view model (mockup 59, variation A, his pick on
 // 27 Sep 2026: "Fuel: option A"). Fuel is the plate: one instrument, the
@@ -269,6 +270,40 @@ export function valsFuelSummary(app, ctx, v) {
     log: x.kind === 'relog' ? () => app.relogFoodItem(x.item) : () => app.tickRotation(x.slot, x.id, true),
   })) : [];
 
+  // ---- LOG AGAIN (mockup 110, his yes 4 Nov): the rail in Likely now's
+  // place and the sheet behind "All", everything he has logged that is not
+  // in today's rotation (src/relogFacts.js derives all of it). Every write
+  // is app.relogAt / relogChange / relogUndoMany.
+  const rotNames = (v.rotationSlots || []).flatMap((s) => (s.options || []).map((o) => o.name));
+  const R = live && Array.isArray(st.liveFoodRecent) ? relogMemo(st.liveFoodRecent, rotNames, now) : null;
+  const relog = R ? {
+    today: R.today,
+    total: R.foods.length,
+    foods: R.foods,
+    regulars: R.regulars,
+    days: R.days,
+    rail: fresh || viewingPast ? R.foods.slice(0, 12).map((f) => {
+      const usual = usualNow(f, now);
+      const amt = f.last.amount;
+      const m = f.last.macros;
+      const when = whenShort(f.last, R.today);
+      const mid = f.kind === 'count' ? amountLabel(f, amt) : `${round(m.p)} g`;
+      return {
+        key: f.key, name: f.base, food: f, amount: amt, usual, p: round(m.p), kcal: round(m.kcal),
+        when, mid,
+        // "usual now" leads when it is true; the time follows
+        sub: usual ? { lead: 'usual now', rest: [f.last.time || when, mid] } : { lead: null, rest: [when, mid, `${kc(m.kcal)} kcal`] },
+      };
+    }) : [],
+    log: (food, amt, exact) => { const pl = logPayload(food, amt, exact); return app.relogAt(pl.name, pl.macros); },
+    change: (entry, date, food, amt) => { const pl = logPayload(food, amt); return app.relogChange(entry, date, pl.name, pl.macros); },
+    undo: (entries, date) => app.relogUndoMany(entries, date),
+    // Return in the sheet's search asks Nova, the same as the field above
+    describe: (text) => { app.setState({ foodDescribeInput: text }, () => v.describeFoodSearch?.()); },
+    targetKcal: ctx.targetKcal ?? null,
+    logsTo: viewingPast ? weekday(viewIso) : null,
+  } : null;
+
   // ---- the rotation: one row, and the whole of it behind the row --------
   const slotList = (v.rotationSlots || []).map((s) => ({ key: s.key, name: s.name }));
   const tonight = live ? tonightRotation(ctx.rotation, slotList) : null;
@@ -378,7 +413,7 @@ export function valsFuelSummary(app, ctx, v) {
   // Health-style sheet as Home's Pinned. A card with nothing to draw is
   // skipped, never drawn empty; a hidden one is one tap away in the sheet.
   const cardList = st.fuelCards || getFuelCards();
-  const present = { log: !!log, history: !!log, rotation: !!rotation, recipes: true, pick: !!doors.pickItUp };
+  const present = { log: !!log, history: !!log && !relog, rotation: !!rotation, recipes: true, pick: !!doors.pickItUp };
   const cards = {
     runs: fuelCardRuns(cardList, present),
     hidden: cardList.filter((c) => !c.on).length,
@@ -401,6 +436,7 @@ export function valsFuelSummary(app, ctx, v) {
       week: { data: v.fuelWeek || null, cross: v.fuelCross || null, askProtein: v.askProteinVerdict || null, askCalories: v.askWeekCalories || null },
       composer,
       likely,
+      relog,
       now: nowCard,
       read,
       log,

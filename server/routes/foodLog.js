@@ -76,6 +76,26 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
+  // LOG AGAIN (mockup 110): the raw recent days, each entry lean (no itemised
+  // lines), so the phone can fold portions, group a day and search on its own,
+  // offline too (src/relogFacts.js does all of it). 90 days by default.
+  router.get('/food-log/recent', async (req, res, next) => {
+    try {
+      const { loadRecentDays } = await import('../lib/foodLog.js');
+      const days = req.query.days ? Math.min(180, Math.max(1, Number(req.query.days) || 90)) : 90;
+      const out = (await loadRecentDays(days)).map((d) => ({
+        date: d.date,
+        entries: (d.entries || []).filter((e) => e?.name && e.macros).map((e) => ({
+          id: e.id, name: e.name, ...(e.time ? { time: e.time } : {}), ...(e.source ? { source: e.source } : {}),
+          macros: { p: e.macros.p, c: e.macros.c, f: e.macros.f, kcal: e.macros.kcal },
+        })),
+      }));
+      res.json({ days: out });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // correct an entry in place — any day
   router.patch('/food-log/:id', async (req, res) => {
     try {

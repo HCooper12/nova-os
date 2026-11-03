@@ -435,7 +435,7 @@ export function restoreFoodScanPhotos() {
 
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveLibrary', 'liveLeader', 'livePractice', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveProjects', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveFoodRecent', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveProjects', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutArchived', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -641,7 +641,7 @@ export default class App extends Component {
       } catch { return null; }
     })(),
     liveReviewSummaries: {}, liveReviewStructured: {}, reviewGradesOpen: false,
-    liveFoodLog: null, liveFoodHistory: null, liveNutritionMonth: null, foodHistoryOpen: false,
+    liveFoodLog: null, liveFoodHistory: null, liveFoodRecent: null, liveNutritionMonth: null, foodHistoryOpen: false,
     // PICK IT UP — the chain + supermarket finder on Fuel. Budget fields are
     // strings ('' = blank = ignored); until he edits one, the vals prefill
     // them from what is really left of today (eatOutTouched false).
@@ -1451,7 +1451,9 @@ export default class App extends Component {
     // The quick-log rail sits at the TOP of Fuel and is the fastest path to
     // logging anything he has eaten before, so its data cannot wait for him to
     // open a disclosure at the bottom of the screen — it loads on arrival.
-    if (changed && screen === 'recipes' && this.state.liveFoodHistory == null) this.loadFoodHistory();
+    // (Log again's days are re-read on every arrival: the cached copy lets the
+    // rail draw at once, offline too, and this brings it up to date)
+    if (changed && screen === 'recipes') this.loadFoodHistory();
     // the Pick-it-up catalogue summary is read on arrival too, never at boot:
     // it is only ever looked at here
     if (changed && screen === 'recipes' && this.state.liveEatOut == null) this.loadEatOut();
@@ -3553,6 +3555,8 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.foodHistory(conn).then(({ items }) => this.setState({ liveFoodHistory: items })).catch(() => {});
+    // Log again's raw days (mockup 110), re-read with the history every time
+    api.foodRecent(conn).then(({ days }) => { if (Array.isArray(days)) this.setState({ liveFoodRecent: days }); }).catch(() => {});
   }
   // PICK IT UP — the finder's actions. `prefill` is handed in by the vals
   // with every action (the real day's { kcal, p }), and the params are built
@@ -3783,6 +3787,47 @@ export default class App extends Component {
         this.loggedReceipt(item.name, day, date);
       })
       .catch((e) => this.toastMsg('Could not log: ' + e.message));
+  }
+  // LOG AGAIN (mockup 110): one food at an amount. The name and macros are
+  // src/relogFacts.js's (amountName / amountMacros); this only writes, and
+  // hands back what landed so the rail or the sheet can show its own receipt
+  // with the amount still changeable. No toast: the receipt is on screen.
+  relogAt(name, macros) {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('Not connected to your Mac'));
+    const date = this.logDate();
+    return api.addFoodLogEntry(conn, { name, macros, source: 'history', date }).then((day) => {
+      this.noteLocalWrite('foodLog');
+      this.applyFoodLogDay(day);
+      this.loadFoodHistory();
+      const added = day?.entries?.at(-1);
+      return { entry: added && added.name === name ? added : null, day, date: day?.date || date };
+    }).catch((e) => { this.toastFail('Could not log: ' + e.message); throw e; });
+  }
+  // the amount changed after the log: the same entry, edited in place
+  relogChange(entry, date, name, macros) {
+    const conn = getConnection();
+    if (!conn || !entry?.id) return Promise.reject(new Error('Not connected to your Mac'));
+    return api.editFoodLogEntry(conn, entry.id, { name, macros, date }).then((day) => {
+      this.noteLocalWrite('foodLog');
+      this.applyFoodLogDayIfShown(day);
+      this.loadFoodHistory();
+      return { entry: (day?.entries || []).find((e) => e.id === entry.id) || null, day, date: day?.date || date };
+    }).catch((e) => { this.toastFail('Could not change it: ' + e.message); throw e; });
+  }
+  // Undo for several at once (Log all): each comes off, the day re-read after
+  relogUndoMany(entries, date) {
+    const conn = getConnection();
+    if (!conn) return;
+    const ids = (entries || []).filter((e) => e?.id);
+    ids.reduce((p, e) => p.then(() => api.deleteFoodLogEntry(conn, e.id, date)), Promise.resolve(null))
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        if (day) this.applyFoodLogDayIfShown(day);
+        this.loadFoodHistory();
+        this.toastMsg(ids.length === 1 ? `Took ${ids[0].name} back off the log` : `Took ${ids.length} things back off the log`);
+      })
+      .catch((e) => this.toastFail('Could not undo that: ' + e.message));
   }
   undoRelogFoodItem(entry, date) {
     const conn = getConnection();

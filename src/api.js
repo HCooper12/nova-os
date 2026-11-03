@@ -371,6 +371,7 @@ export const api = {
   nutritionWeek: (conn) => call(conn, '/api/nutrition-week'),
   deleteRecipe: (conn, id) => del(conn, `/api/recipes/${encodeURIComponent(id)}`),
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),
+  foodRecent: (conn, days = 90) => call(conn, `/api/food-log/recent?days=${days}`),
   // PICK IT UP — the chain + supermarket catalogue, searched against what is
   // left of today. Blank budget fields are OMITTED, never sent as 0: a 0 kcal
   // budget is a claim, a missing one means "ignore this macro".

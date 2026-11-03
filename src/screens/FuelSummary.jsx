@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { afterLayout } from '../afterLayout.js';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -16,6 +16,7 @@ import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
 import { CountUp } from '../CountUp.jsx';
 import { useSearchMotion } from '../motion/useSearchMotion.js';
 import { SearchCount } from '../motion/SearchCount.jsx';
+import { AgainRail, RelogSheet, RelogReceipt, AmountTray } from './RelogSheet.jsx';
 
 // THE SUMMARY FUEL PAGE — mockup 59, variation A ("Fuel is the plate"), his
 // pick on 27 Sep 2026. Recipes.jsx returns this under the `summary` style;
@@ -143,7 +144,7 @@ function Plate({ p, onOpen, openRef }) {
 }
 
 // ---------------------------------------------------------------- composer --
-function Composer({ c, likely, likelyReceipt }) {
+function Composer({ c, likely, likelyReceipt, again }) {
   const dict = useDictation(c.dictBase, (text) => c.set(text), null);
   const camRef = useRef(null);
   const hold = useRef({ t: 0, held: false, skip: false });
@@ -213,7 +214,8 @@ function Composer({ c, likely, likelyReceipt }) {
           place of the "Log it again" rail, each saying why it is there
           (src/fuelSummaryFacts.js likelyNow). A rotation dish is a tick, so
           its receipt and Undo ride the rotation's rails. */}
-      {likely?.length > 0 && (
+      {again}
+      {!again && likely?.length > 0 && (
         <>
           <div className="nv-fs-rhd nv-sum-rise" style={{ '--i': 2, marginTop: '16px' }}>
             <span className="nv-fs-hk" style={{ margin: 0 }}>Likely now</span>
@@ -953,6 +955,26 @@ const FuelPage = memo(function FuelPage({ F, sheets }) {
   const likely = (F.likely || []).map((it) => ({ ...it, log: () => { setLikelyAt(Date.now()); it.log(); } }));
   const rr = F.rotation?.receipt || null;
   const receiptUp = rr && likelyAt && rr.at >= likelyAt - 50 ? rr : null;
+  // LOG AGAIN's rail (mockup 110): a tap logs at the amount he had last and
+  // leaves its receipt under the rail, the amount still changeable
+  const R = F.relog;
+  const [railRc, setRailRc] = useState(null);
+  const [railTray, setRailTray] = useState(null);
+  useEffect(() => {
+    if (!railRc) return undefined;
+    const t = setTimeout(() => setRailRc((x) => (x === railRc ? null : x)), 30000);
+    return () => clearTimeout(t);
+  }, [railRc]);
+  const toRc = (food, amount, res) => (res?.entry ? setRailRc({ key: `${food.key}-${Date.now()}`, food, amount, entries: [res.entry], date: res.date, day: res.day, title: food.base, dayWord: R?.logsTo }) : null);
+  const railR = R ? { ...R, rail: R.rail.map((it) => ({ ...it, tap: () => R.log(it.food, it.amount).then((res) => toRc(it.food, it.amount, res)).catch(() => {}) })) } : null;
+  const again = railR?.rail.length ? (
+    <AgainRail r={railR} onAll={sheets.openRelog} onHold={(it) => setRailTray({ food: it.food, amt: it.amount, mode: 'log' })}
+      receipt={railRc ? (
+        <RelogReceipt key={railRc.key} rc={railRc} targetKcal={R.targetKcal}
+          onAmount={() => setRailTray({ food: railRc.food, amt: railRc.amount, mode: 'change' })}
+          onUndo={() => { R.undo(railRc.entries, railRc.date); setRailRc(null); }} />
+      ) : null} />
+  ) : null;
   return (
     <>
       <h1 className="nv-fs-title nv-sum-rise" style={{ '--i': 0 }}>Fuel</h1>
@@ -976,7 +998,13 @@ const FuelPage = memo(function FuelPage({ F, sheets }) {
 
       {/* logging first (13 Oct, his words: "quickly get onto the fuel tab and
           log a meal ... without having to scroll much") */}
-      {F.composer && <Composer c={F.composer} likely={likely} likelyReceipt={receiptUp} />}
+      {F.composer && <Composer c={F.composer} likely={likely} likelyReceipt={receiptUp} again={again} />}
+      {railTray && R && (
+        <AmountTray key={`${railTray.food.key}-${railTray.mode}`} food={railTray.food} start={railTray.amt} mode={railTray.mode} onClose={() => setRailTray(null)}
+          onDone={(amt) => (railTray.mode === 'change'
+            ? R.change(railRc.entries[0], railRc.date, railRc.food, amt).then((res) => { setRailRc((x) => (x ? { ...x, amount: amt, entries: res?.entry ? [res.entry] : x.entries, day: res?.day || x.day } : x)); setRailTray(null); })
+            : R.log(railTray.food, amt).then((res) => { toRc(railTray.food, amt, res); setRailTray(null); }))} />
+      )}
 
       {F.now && <NowCard n={F.now} openKitchen={sheets.openKitchen} />}
       {F.read && <ReadCard r={F.read} />}
@@ -1017,11 +1045,13 @@ export function FuelSummary({ v }) {
   const [weekOpen, setWeekOpen] = useState(false);
   const [kitchenOpen, setKitchenOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [relogOpen, setRelogOpen] = useState(false);
   const plateRef = useRef(null);
   const sheets = useMemo(() => ({
     openWeek: () => setWeekOpen(true),
     openKitchen: () => setKitchenOpen(true),
     openAdd: () => setAddOpen(true),
+    openRelog: () => setRelogOpen(true),
     plateRef,
   }), []);
   const page = F.recipesPage;
@@ -1034,6 +1064,7 @@ export function FuelSummary({ v }) {
       {kitchenOpen && F.rotation && <KitchenSheet rot={F.rotation} onClose={() => setKitchenOpen(false)} openRecipes={F.doors.recipes.open} />}
       {addOpen && F.rotation?.addMeal && <AddSlotSheet taken={(F.rotation.slots || []).map((x) => x.name)} onAdd={(l) => { F.rotation.addMeal(l); setKitchenOpen(true); }} onClose={() => setAddOpen(false)} />}
       {F.pickItUpSheet?.open && !page.open && <PickSheet s={F.pickItUpSheet} />}
+      {relogOpen && F.relog && !page.open && <RelogSheet r={F.relog} onClose={() => setRelogOpen(false)} runLog={F.relog.log} />}
       {F.cards.edit.open && !page.open && (
         <PinnedEditSheet edit={F.cards.edit} rows={F.cards.rows} title="Fuel" dialogLabel="Edit Fuel"
           listLabel="Fuel's cards, in order" showLabel={(l) => `Show ${l} on Fuel`} />

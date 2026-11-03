@@ -39,7 +39,9 @@ test('the quick-log rail is above the day, not below it', () => {
 });
 
 test('its data loads on arrival and re-reads after a log — it is never stale or empty by accident', () => {
-  assert.match(APP, /screen === 'recipes' && this\.state\.liveFoodHistory == null\) this\.loadFoodHistory\(\)/,
+  // since 4 Nov (Log again, mockup 110) it re-reads on EVERY arrival: the
+  // cached copy draws the rail at once and this brings it up to date
+  assert.match(APP, /screen === 'recipes'\) this\.loadFoodHistory\(\)/,
     'waiting for him to open a disclosure is what made it useless');
   // the SUBMIT path specifically — the first `api.addFoodLogEntry(` in the
   // file is the offline outbox's replay map, which is a different journey
