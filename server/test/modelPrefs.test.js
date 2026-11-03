@@ -305,13 +305,14 @@ test('exactly the measured lanes may run locally', () => {
 // the bench decides where a Phase B lane runs by default. On 2 Nov 2026 every
 // one had a wrong answer on the 4B; the 9B then passed three (session-debrief,
 // plan-today, briefing-plan), so since 3 Nov those run here first on the 9B,
-// and the two it still got wrong (health-insight, daily-review) stay Claude.
+// and the one it still gets wrong (daily-review) stays Claude; health-insight
+// joined the 9B lanes that night, behind code's verdicts (lib/dayVerdicts.js).
 // None stands in for a failed Claude either way.
-test('the Phase B lanes: the three 9B lanes local first on the 9B, the other two Claude, none a stand-in', async () => {
+test('the Phase B lanes: four 9B lanes local first on the 9B, the daily review Claude, none a stand-in', async () => {
   await clean();
   const { providerFor, setLocalPrefs, localModelFor } = await import('../lib/modelPrefs.js');
   await setLocalPrefs({ first: true });
-  for (const id of ['briefing-plan', 'plan-today', 'session-debrief']) {
+  for (const id of ['briefing-plan', 'plan-today', 'session-debrief', 'health-insight']) {
     const lane = LANES.find((l) => l.id === id);
     assert.notEqual(lane.localFirst, false, `${id} passed on the 9B`);
     assert.equal(lane.localModel, 'qwen3.5:9b', `${id} ships on the model it passed on`);
@@ -319,7 +320,7 @@ test('the Phase B lanes: the three 9B lanes local first on the 9B, the other two
     assert.equal(providerFor(id), 'local', `${id} runs here first`);
     assert.equal(localModelFor(id), 'qwen3.5:9b');
   }
-  for (const id of ['daily-review', 'health-insight']) {
+  for (const id of ['daily-review']) {
     const lane = LANES.find((l) => l.id === id);
     assert.equal(lane.localFirst, false, `${id} was still wrong on the 9B`);
     assert.equal(lane.standIn, false, `${id} never stands in for Claude`);

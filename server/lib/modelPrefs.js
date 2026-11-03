@@ -356,7 +356,11 @@ export const LANES = [
     // Claude by default, no stand-in: the bench's 08:00 review called HRV
     // "low" where the picture said -2 % against the week (audit 2026-11-02),
     // and the 9B was still wrong here when benched ("The 9B", same audit), so
-    // it did not move with the three 9B lanes on 3 Nov 2026.
+    // it did not move with the three 9B lanes on 3 Nov 2026. Re-benched that
+    // night with code's verdicts (lib/dayVerdicts.js) and a required
+    // "yesterday" field: the comparisons came right, but it still suggested a
+    // 06:45 session at 08:00 and repeated a stale fact from yesterday's
+    // review, neither of which code can check, so it stays on Claude.
     id: 'daily-review', label: 'Daily review', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the end-of-day read across what actually happened',
     off: 'No daily review is drafted. Your receipts and streaks are deterministic and keep working.',
@@ -379,11 +383,12 @@ export const LANES = [
   {
     // local (2 Nov 2026, Phase B): one sentence from numbers code read, no
     // tools; a compact prompt to this Mac (lib/healthInsight.js readInsight).
-    // Claude by default, no stand-in: the bench's morning insight said he
-    // missed the protein floor "five days in a row" (he met it on 30 Oct),
-    // and the 9B was still wrong here when benched ("The 9B", audit
-    // 2026-11-02), so it stayed on Claude when three lanes moved on 3 Nov.
-    id: 'health-insight', label: 'Health insight', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
+    // On the 9B since 3 Nov 2026 (night), no stand-in. Its old faults were
+    // all comparisons ("only 178 g … close the gap" with the 167 g floor met);
+    // code now makes every comparison and refuses a sentence that points the
+    // other way or changes a unit (lib/dayVerdicts.js), and a refusal goes to
+    // Claude. Re-benched: four of four answers right on a human read.
+    id: 'health-insight', label: 'Health insight', group: 'daily', local: true, localModel: 'qwen3.5:9b', standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'reads your health data for the thing worth telling you',
     off: 'Health numbers, charts and the Sentinel’s deterministic alerts are unaffected; only the written read stops.',
   },

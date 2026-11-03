@@ -124,19 +124,20 @@ test.after(async () => {
 
 // His call (3 Nov): each lane on the model it was measured to do well with.
 // The 9B passed session-debrief, plan-today and briefing-plan, so with local
-// first on and nothing picked those three run here on the 9B; health-insight
-// and daily-review, still wrong on the 9B, stay Claude. This suite pins the
+// first on and nothing picked those three run here on the 9B. Health-insight
+// joined them that night, once code made its comparisons (lib/dayVerdicts.js);
+// daily-review, still wrong on the 9B in ways code cannot check, stays Claude. This suite pins the
 // eval model (NOVA_LOCAL_LLM_MODEL) so its calls keep the 4B stub; the lane
 // model reaching the request body is textLane.test.js's.
-test('the default board: three lanes local first on the 9B, the other two Claude', async () => {
+test('the default board: four lanes local first on the 9B, the daily review Claude', async () => {
   const { providerFor, localModelFor, getModelPrefs } = await import('../lib/modelPrefs.js');
-  for (const id of ['session-debrief', 'plan-today', 'briefing-plan']) {
+  for (const id of ['session-debrief', 'plan-today', 'briefing-plan', 'health-insight']) {
     assert.equal(providerFor(id), 'local', id);
     assert.equal(localModelFor(id), 'qwen3.5:9b', id);
     const row = getModelPrefs().lanes.find((l) => l.id === id);
     assert.deepEqual([row.provider, row.localModelDefault, row.localModelResolved, row.customised], ['local', 'qwen3.5:9b', 'qwen3.5:9b', false], id);
   }
-  for (const id of ['health-insight', 'daily-review']) {
+  for (const id of ['daily-review']) {
     assert.equal(providerFor(id), 'claude', id);
     assert.equal(getModelPrefs().lanes.find((l) => l.id === id).localModelDefault, null, `${id} inherits the board model if he moves it here`);
   }

@@ -15,6 +15,7 @@ import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 import { laneSkipped, laneEnabled } from './modelPrefs.js';
 import { runTextLane, laneVia, assertGrounded } from './textLane.js';
+import { loadDayFacts, dayVerdicts, verdictBlock, assertAgrees } from './dayVerdicts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
@@ -213,7 +214,11 @@ export async function buildContexts(vaultPath, slot) {
   const now = new Date();
   const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const todayBlock = [`## TODAY (${t}, now ${clock}; read by code; every row below dated earlier is a past day)`, ...todayFacts, ''];
-  return { full: [...head, ...lines].join('\n'), compact: [...headCompact, ...todayBlock, ...lines].join('\n') };
+  // the comparisons, made by code for the model on this Mac (lib/dayVerdicts.js)
+  let verdicts = [];
+  try { verdicts = dayVerdicts(await loadDayFacts(vaultPath, now)); } catch { /* no verdicts, the plain check still runs */ }
+  const vb = verdictBlock(verdicts);
+  return { full: [...head, ...lines].join('\n'), compact: [...headCompact, ...todayBlock, ...(vb ? [vb] : []), ...lines].join('\n'), verdicts };
 }
 
 export function buildPrompt(context, slot) {
@@ -251,6 +256,7 @@ You are Nova's health coach writing ONE observation about Hayden's own data: ${j
 Rules:
 - One or two sentences, specific, connecting two of his data sources when the data supports it.
 - Use only numbers that appear below, exactly as written. Do not calculate new ones.
+- The VERDICTS block has already compared today's numbers with his targets: say them its way round.
 - The TODAY block says what is true now. A health row with an earlier date is a past day: never call it today's.
 - Lines not marked HIS OWN WORDS are Nova's or an agent's notes, never his mood or words.
 - Do not repeat one of your last insights unless the data moved.
@@ -264,7 +270,7 @@ Reply with only JSON: {"hasInsight": true or false, "insight": "the observation,
 // The lane's check on an answer, either model's: one JSON object with a
 // boolean and, when true, a non-empty insight. This Mac's answer must also
 // say no number it was not shown (lib/textLane.js assertGrounded).
-export function readInsight(text, { provider = 'claude', prompt = '' } = {}) {
+export function readInsight(text, { provider = 'claude', prompt = '', verdicts = [] } = {}) {
   const jsonMatch = firstBalancedObjectMatch(String(text || '').trim());
   if (!jsonMatch) throw new Error('No JSON object found in the response');
   const parsed = parseModelJson(jsonMatch[0]);
@@ -274,6 +280,8 @@ export function readInsight(text, { provider = 'claude', prompt = '' } = {}) {
   if (provider === 'local') {
     if (insight.length > 600) throw new Error(`the insight runs ${insight.length} characters; it should be one or two sentences`);
     if (parsed.hasInsight) assertGrounded(insight, prompt, 'the insight');
+    // and no sentence about today pointing the other way from code's verdict
+    if (parsed.hasInsight) assertAgrees(insight, verdicts, prompt, 'the insight');
   }
   return { hasInsight: parsed.hasInsight, insight };
 }
@@ -282,14 +290,14 @@ export function readInsight(text, { provider = 'claude', prompt = '' } = {}) {
 // compact prompt to this Mac, the full one to Claude when this Mac cannot
 // answer or its answer fails readInsight. Returns the parsed insight and who
 // wrote it (laneVia), which the slot record carries.
-export async function composeInsight(context, compact, slot, { run = runTextLane } = {}) {
+export async function composeInsight(context, compact, slot, { run = runTextLane, verdicts = [] } = {}) {
   const prompt = buildPrompt(context, slot);
   const localPrompt = buildCompactPrompt(compact, slot);
   const out = await run('health-insight', prompt, {
     json: true,
     maxTokens: 400,
     localPrompt,
-    validate: (text, { provider }) => readInsight(text, { provider, prompt: provider === 'local' ? localPrompt : prompt }),
+    validate: (text, { provider }) => readInsight(text, { provider, prompt: provider === 'local' ? localPrompt : prompt, verdicts }),
   });
   return { ...out.value, via: laneVia(out) };
 }
@@ -345,8 +353,8 @@ async function generateAndStore(vaultPath, slot) {
   // own timestamp and self-labels as stale rather than being overwritten by
   // nothing. Health numbers and the Sentinel's alerts are untouched.
   if (!laneEnabled('health-insight')) { laneSkipped('health-insight', `the ${slot} health insight`); return loadCachedInsight(); }
-  const { full, compact } = await buildContexts(vaultPath, slot);
-  const result = await composeInsight(full, compact, slot);
+  const { full, compact, verdicts } = await buildContexts(vaultPath, slot);
+  const result = await composeInsight(full, compact, slot, { verdicts });
   const record = {
     date: today(),
     hasInsight: !!result.hasInsight,

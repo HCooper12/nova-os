@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { runTextLane, laneVia, assertGrounded } from './textLane.js';
+import { loadDayFacts, dayVerdicts, verdictBlock, assertAgrees } from './dayVerdicts.js';
 import { NOVA_LENS } from './lens.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
@@ -98,7 +99,11 @@ export async function buildReviewContexts(vaultPath, now = new Date()) {
   const sections = reviewSections(vaultPath, now);
   const full = (await gatherContext(sections.filter((s) => !s.compactOnly))).text;
   const compact = (await gatherContext(sections.filter((s) => COMPACT_REVIEW_SECTIONS.has(s.label)))).text;
-  return { full, compact };
+  // the comparisons, made by code for the model on this Mac (lib/dayVerdicts.js, 3 Nov 2026)
+  let verdicts = [];
+  try { verdicts = dayVerdicts(await loadDayFacts(vaultPath, now)); } catch { /* no verdicts, the plain check still runs */ }
+  const vb = verdictBlock(verdicts);
+  return { full, compact: vb ? `${vb}\n${compact}` : compact, verdicts };
 }
 
 const once = (fn) => { let p = null; return () => (p ||= Promise.resolve().then(fn)); };
@@ -298,6 +303,7 @@ You are Nova writing Hayden's DAILY REVIEW for ${dateLong}: a short honest read 
 Rules:
 - Everything you suggest must still be doable after ${clock} today: nothing that belonged earlier in the day.
 - Use only the facts below. Use numbers exactly as written; never calculate a new one.
+- The VERDICTS block has already compared today's numbers with his targets: say them its way round.
 - If YESTERDAY'S REVIEW is below, start the read by saying, for each adjustment it set, whether today's data shows it happened.
 - Adjustments are concrete and doable today, each with a one-line why tied to a fact below.
 - An ordinary day gets one gentle nudge at most. Never invent a problem.
@@ -306,21 +312,36 @@ Rules:
 
 ${context || '(context unavailable — say so and keep it brief)'}
 
-Reply with only JSON: {"read": "2-3 sentences", "adjustments": [{"do": "the concrete action", "why": "one line tied to the data"}]}`;
+${hasYesterday(context)
+    ? 'Reply with only JSON: {"yesterday": "for each adjustment YESTERDAY\'S REVIEW set, whether today\'s data shows it happened, one short clause each", "read": "2-3 sentences on today", "adjustments": [{"do": "the concrete action", "why": "one line tied to the data"}]}'
+    : 'Reply with only JSON: {"read": "2-3 sentences", "adjustments": [{"do": "the concrete action", "why": "one line tied to the data"}]}'}`;
 }
+
+// YESTERDAY, AS ITS OWN FIELD (3 Nov 2026): told in prose to open the read
+// with yesterday's adjustments, the 9B skipped it in every bench review;
+// asked for a field, it has to fill it, and code puts it first in the read
+export const hasYesterday = (context) => /YESTERDAY'S REVIEW \(/.test(String(context || ''));
 
 // The lane's check on an answer, either model's: the JSON, composed by the
 // tested composeReviewText (which refuses an empty review). This Mac's
 // answer is held to more: a read of sane length and no number it was not
 // shown (lib/textLane.js assertGrounded).
-export function readReview(text, { provider = 'claude', prompt = '', now = new Date() } = {}) {
+export function readReview(text, { provider = 'claude', prompt = '', now = new Date(), verdicts = [] } = {}) {
   const t = String(text || '').trim();
   const jsonMatch = firstBalancedObjectMatch(t);
   if (!jsonMatch) throw new Error(t.slice(0, 200) || 'no JSON in review response');
-  const composed = composeReviewText(parseModelJson(jsonMatch[0]), now);
+  const parsed = parseModelJson(jsonMatch[0]);
+  if (provider === 'local' && hasYesterday(prompt)) {
+    const y = String(parsed?.yesterday || '').trim();
+    if (!y) throw new Error('the review says nothing about yesterday\'s adjustments, which it was shown');
+    parsed.read = `${y.replace(/[.\s]*$/, '.')} ${String(parsed.read || '').trim()}`.trim();
+  }
+  const composed = composeReviewText(parsed, now);
   if (provider === 'local') {
     if (composed.read.length > 900) throw new Error(`the read runs ${composed.read.length} characters; it should be two or three sentences`);
-    assertGrounded([composed.read, ...composed.adjustments.map((a) => `${a.do} ${a.why}`)].join('\n'), prompt, 'the review');
+    const said = [composed.read, ...composed.adjustments.map((a) => `${a.do} ${a.why}`)].join('\n');
+    assertGrounded(said, prompt, 'the review');
+    assertAgrees(said, verdicts, prompt, 'the review');
   }
   return composed;
 }
@@ -329,7 +350,7 @@ export function readReview(text, { provider = 'claude', prompt = '', now = new D
 // compact prompt to this Mac; the full prompt, with Read/Grep/Glob on his
 // vault, to Claude when this Mac cannot answer or its review fails
 // readReview. Returns the composed review and who wrote it.
-export async function composeReview(vaultPath, { full, compact }, now = new Date(), { run = runTextLane } = {}) {
+export async function composeReview(vaultPath, { full, compact, verdicts = [] }, now = new Date(), { run = runTextLane } = {}) {
   const prompt = buildReviewPrompt(full, now);
   const localPrompt = buildCompactReviewPrompt(compact, now);
   const out = await run('daily-review', prompt, {
@@ -338,7 +359,7 @@ export async function composeReview(vaultPath, { full, compact }, now = new Date
     localPrompt,
     claudeTools: 'Read Grep Glob',
     cwd: vaultPath,
-    validate: (text, { provider }) => readReview(text, { provider, prompt: provider === 'local' ? localPrompt : prompt, now }),
+    validate: (text, { provider }) => readReview(text, { provider, prompt: provider === 'local' ? localPrompt : prompt, now, verdicts }),
   });
   return { composed: out.value, via: laneVia(out) };
 }

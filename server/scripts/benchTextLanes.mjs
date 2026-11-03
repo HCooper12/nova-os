@@ -173,8 +173,8 @@ async function cases(lane) {
       label: `${slot} insight, today's data`,
       claude: cached[slot]?.insight ? `${cached[slot].date}: ${cached[slot].insight}` : null,
       run: async () => {
-        const { full, compact } = await buildContexts(VAULT, slot);
-        const r = await composeInsight(full, compact, slot);
+        const { full, compact, verdicts } = await buildContexts(VAULT, slot);
+        const r = await composeInsight(full, compact, slot, { verdicts });
         return { via: r.via, show: r.hasInsight ? r.insight : '(hasInsight: false)', prose: r.insight || '', sizes: { full: full.length, compact: compact.length } };
       },
     }));
