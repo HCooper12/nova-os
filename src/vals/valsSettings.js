@@ -423,7 +423,7 @@ export function valsSettings(app, ctx, v) {
     outdated: demo ? [] : ms?.outdatedLaneLabels || [],
     anyChanged: !!board && (board.customisedCount + board.offCount) > 0,
     resetAll: demo
-      ? () => { const prev = { laneOff: D.laneOff, laneModel: D.laneModel, laneProvider: D.laneProvider, fallbackEnabled: D.fallbackEnabled }; setDemo((d) => ({ ...d, laneOff: {}, laneModel: {}, laneProvider: {} })); return () => setDemo((d) => ({ ...d, ...prev })); }
+      ? () => { const prev = { laneOff: D.laneOff, laneModel: D.laneModel, laneProvider: D.laneProvider, laneLocalModel: D.laneLocalModel, fallbackEnabled: D.fallbackEnabled }; setDemo((d) => ({ ...d, laneOff: {}, laneModel: {}, laneProvider: {}, laneLocalModel: {} })); return () => setDemo((d) => ({ ...d, ...prev })); }
       : ms ? () => { const prev = ms.snapshot; ms.resetAll(); return () => ms.restore(prev); } : null,
     busyAll: !demo && !!ms?.busyAll,
     groups: boardHeld.loading ? [] : (board?.groups || []).map((g) => ({
@@ -461,10 +461,30 @@ export function valsSettings(app, ctx, v) {
         canRunLocal: !!l.canRunLocal && !l.deterministic,
         provider: l.provider || 'claude',
         providerOptions: l.canRunLocal ? providerOptions : [],
-        providerLabel: l.canRunLocal ? `Runs on: ${l.provider === 'local' ? (board.local?.label || 'This Mac') : 'Claude'}` : null,
+        // the place only once a lane can carry its own model (3 Nov 2026): the
+        // board's label named the 4B on a lane that runs the 9B
+        providerLabel: l.canRunLocal ? `Runs on: ${l.provider === 'local' ? (localModels.length ? 'This Mac' : (board.local?.label || 'This Mac')) : 'Claude'}` : null,
         setProvider: !l.canRunLocal ? null : demo
           ? (val) => setDemo((d) => { const lp = { ...d.laneProvider }; if (val === (l.defaultProvider || 'claude')) delete lp[l.id]; else lp[l.id] = val; return { ...d, laneProvider: lp }; })
           : (val) => l.setProvider?.(val),
+        // WHICH model on this Mac (3 Nov 2026, his call: each lane on the
+        // model it was measured to do well with). Only where the lane can run
+        // here and the Mac lists what it has; "(default)" when he has not
+        // picked one, so the 9B on the debrief reads as shipped, not chosen.
+        // Picking the lane's default clears his pick rather than pinning it.
+        localModel: !(l.canRunLocal && !l.deterministic && localModels.length) ? null : (() => {
+          const resolved = l.localModelResolved || l.localModelDefault || loc?.model || '';
+          const fallbackId = l.localModelDefault || loc?.model || '';
+          const name = (id) => { const m = localModels.find((x) => x.id === id); return m ? (m.name || m.id) : id; };
+          return {
+            value: resolved,
+            options: localModels.map((m) => ({ value: m.id, label: m.id === fallbackId ? `${modelShown(m)} · default` : modelShown(m) })),
+            shown: `On this Mac with: ${name(resolved)}${l.localModel ? '' : ' (default)'}`,
+            pick: demo
+              ? (val) => setDemo((d) => { const lm = { ...(d.laneLocalModel || {}) }; if (val === fallbackId) delete lm[l.id]; else lm[l.id] = val; return { ...d, laneLocalModel: lm }; })
+              : (val) => l.setLocalModel?.(val === fallbackId ? null : val),
+          };
+        })(),
       })),
     })),
   };

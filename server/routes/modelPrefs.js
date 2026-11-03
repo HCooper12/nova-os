@@ -64,7 +64,7 @@ export function modelPrefsRouter() {
     }
   });
 
-  // One lane per call: { lane, model?, enabled?, effort?, provider? }. Any field
+  // One lane per call: { lane, model?, enabled?, effort?, provider?, localModel? }. Any field
   // may be sent alone, so flipping a toggle never silently rewrites the model too.
   // provider: 'claude' | 'local' (only a lane with canRunLocal takes 'local').
   router.put('/model-prefs', async (req, res) => {
@@ -78,7 +78,10 @@ export function modelPrefsRouter() {
       if (req.body?.effort !== undefined) patch.effort = req.body.effort;
       // who answers: Claude or the model on this Mac (lib/textLane.js)
       if (req.body?.provider !== undefined) patch.provider = req.body.provider;
-      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send a model, an enabled flag, an effort, a provider, or any of them' });
+      // localModel (3 Nov 2026): the lane's own model on this Mac, an Ollama
+      // tag or 'apple:on-device'; null clears it
+      if (req.body?.localModel !== undefined) patch.localModel = req.body.localModel;
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send a model, an enabled flag, an effort, a provider, a localModel, or any of them' });
       res.json(await setLanePref(lane, patch));
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -121,6 +124,9 @@ export function modelPrefsRouter() {
     const waitMs = Number(process.env.NOVA_LOCAL_LLM_WAIT_MS || 90_000);
     let timer = null;
     try {
+      // the BOARD's model only (3 Nov 2026): a lane with its own model (the
+      // 9B lanes) loads it on its first call; Ollama holds one at a time, so
+      // warming every lane's model here would only evict the last one
       const boot = ensureLocalModel();
       const outcome = await Promise.race([
         boot.then(() => 'ready'),

@@ -125,3 +125,35 @@ test('PUT /api/model-prefs/local sets local first and the model, returns the boa
   await put({ model: null });
   await rmFile(PREFS, { force: true });
 });
+
+// A MODEL PER LANE (3 Nov 2026): PUT /model-prefs takes a lane's localModel,
+// checked like the board pick; null clears it.
+test('PUT /api/model-prefs sets, refuses and clears a lane localModel', async (t) => {
+  const PREFS = path.join(dataDir, 'model-prefs.json');
+  const rmFile = rm;
+  await rmFile(PREFS, { force: true });
+  const { srv, port } = await startServer();
+  t.after(() => srv.close());
+  const put = (body) => fetch(`http://127.0.0.1:${port}/api/model-prefs`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const row = (board, id) => board.lanes.find((l) => l.id === id);
+
+  let r = await put({ lane: 'plan-today', localModel: 'qwen3.5:4b' });
+  assert.equal(r.status, 200);
+  let board = await r.json();
+  assert.equal(row(board, 'plan-today').localModel, 'qwen3.5:4b');
+  assert.equal(row(board, 'plan-today').localModelResolved, 'qwen3.5:4b');
+  assert.equal(row(board, 'plan-today').customised, true);
+
+  r = await put({ lane: 'plan-today', localModel: '../../etc/passwd' });
+  assert.equal(r.status, 400);
+  r = await put({ lane: 'researcher', localModel: 'qwen3.5:9b' });
+  assert.equal(r.status, 400, 'a Claude-only lane has no model on this Mac');
+
+  r = await put({ lane: 'plan-today', localModel: null });
+  board = await r.json();
+  assert.equal(row(board, 'plan-today').localModel, null);
+  assert.equal(row(board, 'plan-today').localModelResolved, 'qwen3.5:9b', 'back to the lane default');
+  await rmFile(PREFS, { force: true });
+});

@@ -217,11 +217,14 @@ export const LANES = [
   {
     // local (2 Nov 2026, Phase B): reacts to a fact sheet code computed, no
     // tools; this Mac's words must cite only numbers on the sheet (lib/claudeCode.js readDebrief).
-    // Claude by default, and no stand-in: on the bench (design/audits/2026-11-02-phase-b-lanes.md)
-    // the 4B called HRV "lower than usual" with nothing to compare it to and
-    // asked about protein on sheets that never mention food, after the rules
-    // said not to. This Mac writes it only if he picks it on the board.
-    id: 'session-debrief', label: 'Post-session debrief', group: 'coach', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
+    // On the bench (design/audits/2026-11-02-phase-b-lanes.md) the 4B called
+    // HRV "lower than usual" with nothing to compare it to and asked about
+    // protein on sheets that never mention food, after the rules said not to.
+    // The 9B was acceptable here (same audit, "The 9B"), so since 3 Nov 2026
+    // (his call: each lane on the model it was measured to do well with) it
+    // runs on this Mac first, on the 9B by default. No stand-in still: a
+    // Claude failure is not handed to a model on this Mac.
+    id: 'session-debrief', label: 'Post-session debrief', group: 'coach', local: true, localModel: 'qwen3.5:9b', standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the words a coach says as the bar goes back in the rack',
     off: 'Sessions log exactly as they do now, just without the spoken reaction.',
   },
@@ -351,17 +354,20 @@ export const LANES = [
     // local (2 Nov 2026, Phase B): a compact context to this Mac, the full one
     // with vault reads to Claude; code checks shape and every number (lib/dailyReview.js readReview).
     // Claude by default, no stand-in: the bench's 08:00 review called HRV
-    // "low" where the picture said -2 % against the week (audit 2026-11-02).
+    // "low" where the picture said -2 % against the week (audit 2026-11-02),
+    // and the 9B was still wrong here when benched ("The 9B", same audit), so
+    // it did not move with the three 9B lanes on 3 Nov 2026.
     id: 'daily-review', label: 'Daily review', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the end-of-day read across what actually happened',
     off: 'No daily review is drafted. Your receipts and streaks are deterministic and keep working.',
   },
   {
     // local (2 Nov 2026, Phase B): the review's twin (lib/planToday.js readPlan).
-    // Claude by default, no stand-in: two of three bench plans broke his
-    // stuck-promise rule (the whole stale job, not a two-minute step) and one
-    // said "breakfast now" at 13:00 (audit 2026-11-02).
-    id: 'plan-today', label: 'Plan today', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
+    // On the 4B two of three bench plans broke his stuck-promise rule (the
+    // whole stale job, not a two-minute step) and one said "breakfast now" at
+    // 13:00 (audit 2026-11-02). The 9B was acceptable ("The 9B"), so since
+    // 3 Nov 2026 it runs on this Mac first, on the 9B by default; no stand-in.
+    id: 'plan-today', label: 'Plan today', group: 'daily', local: true, localModel: 'qwen3.5:9b', standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'the morning shape of the day, drafted for your yes',
     off: 'No plan is drafted; the brief still reports the day’s real numbers.',
   },
@@ -374,7 +380,9 @@ export const LANES = [
     // local (2 Nov 2026, Phase B): one sentence from numbers code read, no
     // tools; a compact prompt to this Mac (lib/healthInsight.js readInsight).
     // Claude by default, no stand-in: the bench's morning insight said he
-    // missed the protein floor "five days in a row" (he met it on 30 Oct).
+    // missed the protein floor "five days in a row" (he met it on 30 Oct),
+    // and the 9B was still wrong here when benched ("The 9B", audit
+    // 2026-11-02), so it stayed on Claude when three lanes moved on 3 Nov.
     id: 'health-insight', label: 'Health insight', group: 'daily', local: true, localFirst: false, standIn: false, def: 'sonnet', defEffort: 'low',
     hint: 'reads your health data for the thing worth telling you',
     off: 'Health numbers, charts and the Sentinel’s deterministic alerts are unaffected; only the written read stops.',
@@ -447,10 +455,12 @@ export const LANES = [
     // expensive synthesis. The synthesis gets no tools at all — every fact it
     // may use is already in the citation-checked findings it was handed.
     // local (2 Nov 2026, Phase B): a topic into 2-5 questions, JSON that
-    // normalizeAngles checks (lib/briefing.js planAngles). Claude by default,
-    // no stand-in: one of seven bench topics came back with an angle built on
-    // a misreading ("a session that began at 74 minutes"; audit 2026-11-02).
-    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', local: true, localFirst: false, standIn: false, def: 'haiku', defEffort: 'low',
+    // normalizeAngles checks (lib/briefing.js planAngles). On the 4B one of
+    // seven bench topics came back with an angle built on a misreading ("a
+    // session that began at 74 minutes"; audit 2026-11-02). The 9B was
+    // acceptable ("The 9B"), so since 3 Nov 2026 it runs on this Mac first,
+    // on the 9B by default; no stand-in.
+    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', local: true, localModel: 'qwen3.5:9b', standIn: false, def: 'haiku', defEffort: 'low',
     hint: 'breaks a topic into the 2-5 angles that get researched in parallel',
     off: 'Briefings are refused with a plain message; nothing half-researched is filed.',
   },
@@ -746,11 +756,28 @@ export function localFirst() {
 export async function setLocalPrefs({ first, model } = {}) {
   if (first === undefined && model === undefined) throw new Error('send first, model, or both');
   if (first !== undefined && typeof first !== 'boolean') throw new Error('first must be true or false');
+  if (model !== undefined && model !== null) await assertLocalModelUsable(model);
+  const file = loadFile();
+  const local = { first: file.local?.first !== false, model: typeof file.local?.model === 'string' ? file.local.model : null };
+  if (first !== undefined) local.first = first;
+  if (model !== undefined) local.model = model;
+  await saveFile({ lanes: { ...file.lanes }, fallback: file.fallback, local });
+  setPreferredModel(local.model);
+  // the board's ready/headroom reading is for the model now chosen
+  if (model !== undefined) await refreshLocalStatus().catch(() => {});
+  return getModelPrefs();
+}
+
+// One check for a model on this Mac, shared by the board's pick and a lane's
+// own (3 Nov 2026): Apple's id only when its helper is built and the model is
+// available; otherwise a tag the backend runs and, when Ollama lists what it
+// has pulled, one of those. Throws the plain reason.
+async function assertLocalModelUsable(model) {
   if (model === APPLE_MODEL_ID) {
     if (!appleConfigured()) throw new Error("Apple's on-device model helper is not built on this Mac (bash server/apple-llm/build.sh)");
     const st = await refreshApple();
     if (!st.ok) throw new Error(`Apple's on-device model is not available on this Mac: ${st.availability}`);
-  } else if (model !== undefined && model !== null) {
+  } else {
     if (typeof model !== 'string' || !looksLikeModelId(model)) throw new Error('model must be a model name like qwen3.5:4b');
     // the backend this pick would run on: an env pin, else Ollama. Not
     // localBackend(), which reads 'apple' while Apple is the CURRENT pick and
@@ -766,15 +793,22 @@ export async function setLocalPrefs({ first, model } = {}) {
       throw new Error(`${model} is not on this Mac; pulled: ${have.map((m) => m.id).join(', ')}`);
     }
   }
-  const file = loadFile();
-  const local = { first: file.local?.first !== false, model: typeof file.local?.model === 'string' ? file.local.model : null };
-  if (first !== undefined) local.first = first;
-  if (model !== undefined) local.model = model;
-  await saveFile({ lanes: { ...file.lanes }, fallback: file.fallback, local });
-  setPreferredModel(local.model);
-  // the board's ready/headroom reading is for the model now chosen
-  if (model !== undefined) await refreshLocalStatus().catch(() => {});
-  return getModelPrefs();
+}
+
+/** WHICH MODEL ON THIS MAC ANSWERS A LANE (3 Nov 2026, his call: each lane
+ *  on the model it was measured to do well with). His pick for the lane,
+ *  else the lane's shipped default (`localModel` in LANES: the 9B on the
+ *  three lanes it passed), else his board pick, else the machine's tier
+ *  default. Ollama holds one model at a time, so a lane on another model than
+ *  the board's reloads on its first call (lib/localModel.js bootOllama); the
+ *  warm preload stays the BOARD's model. */
+export function localModelFor(laneId) {
+  const lane = LANE_BY_ID.get(laneId);
+  if (!lane) throw new Error(`unknown model lane: ${laneId}`);
+  const saved = loadRaw()[laneId]?.localModel;
+  if (typeof saved === 'string' && looksLikeModelId(saved)) return saved;
+  if (lane.localModel) return lane.localModel;
+  return localDefaultModel();
 }
 
 /** May this lane run on the local model at all? */
@@ -908,7 +942,7 @@ export function getModelPrefs() {
       model: modelFor(l.id),
       defaultModel: l.def,
       deterministic: !!l.deterministic,
-      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort) || providerFor(l.id) !== defaultProviderOf(l)),
+      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort) || providerFor(l.id) !== defaultProviderOf(l) || (l.local && typeof saved[l.id]?.localModel === 'string')),
       effort: l.defEffort ? effortFor(l.id) : null,
       defaultEffort: l.defEffort || null,
       enabled: laneEnabled(l.id),
@@ -917,6 +951,12 @@ export function getModelPrefs() {
       provider: providerFor(l.id),
       defaultProvider: defaultProviderOf(l),
       canRunLocal: !!l.local,
+      // the model on this Mac (3 Nov 2026): his pick for the lane (null when
+      // none), the lane's shipped default (null: it inherits the board's), and
+      // what a call would actually load
+      localModel: l.local && typeof saved[l.id]?.localModel === 'string' ? saved[l.id].localModel : null,
+      localModelDefault: l.local ? (l.localModel || null) : null,
+      localModelResolved: l.local ? localModelFor(l.id) : null,
       spend: spend[l.id] || null,
     })),
     efforts: EFFORT_LEVELS,
@@ -937,7 +977,7 @@ export function getModelPrefs() {
 /** Set one lane's model and/or on-off state. Validates hard: an unknown lane
  *  or an unrecognised model is a 400, never a silent fall-through to the
  *  ambient default. */
-export async function setLanePref(laneId, { model, enabled, effort, provider } = {}) {
+export async function setLanePref(laneId, { model, enabled, effort, provider, localModel } = {}) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown lane: ${laneId}`);
   if (model !== undefined && lane.deterministic) throw new Error(`${lane.label} runs no model — only its switch can be set`);
@@ -949,6 +989,10 @@ export async function setLanePref(laneId, { model, enabled, effort, provider } =
   if (effort !== undefined && !isValidEffort(effort)) throw new Error(`effort must be one of: ${EFFORT_LEVELS.join(', ')}`);
   if (provider !== undefined && !PROVIDERS.includes(provider)) throw new Error(`provider must be one of: ${PROVIDERS.join(', ')}`);
   if (provider === 'local' && !lane.local) throw new Error(`${lane.label} cannot run on the model on this Mac yet; only Claude can run it`);
+  // a lane's own model on this Mac: checked exactly like the board's pick;
+  // null clears it (the lane's default, else the board's, answers again)
+  if (localModel !== undefined && !lane.local) throw new Error(`${lane.label} cannot run on the model on this Mac, so it has no model to pick there`);
+  if (localModel !== undefined && localModel !== null) await assertLocalModelUsable(localModel);
 
   const file = loadFile();
   const next = { ...file.lanes };
@@ -957,6 +1001,8 @@ export async function setLanePref(laneId, { model, enabled, effort, provider } =
   if (enabled !== undefined) entry.enabled = enabled;
   if (effort !== undefined) entry.effort = effort;
   if (provider !== undefined) entry.provider = provider;
+  if (localModel === null) delete entry.localModel;
+  else if (localModel !== undefined) entry.localModel = localModel;
   next[laneId] = entry;
 
   await saveFile({ lanes: next, fallback: file.fallback, local: file.local });
@@ -966,6 +1012,8 @@ export async function setLanePref(laneId, { model, enabled, effort, provider } =
 /** Put one lane — or the whole board — back to how it shipped. */
 // The board-level fallback and local switches are their own settings with
 // their own controls, so a reset of the lanes leaves them as he set them.
+// A lane's own model on this Mac lives in its lane entry, so a reset clears
+// it with the rest of the lane (3 Nov 2026).
 export async function resetLanePref(laneId) {
   const file = loadFile();
   const next = { ...file.lanes };

@@ -824,6 +824,12 @@ export function valsChrome(app, ctx) {
               provider: l.provider || l.defaultProvider || 'claude',
               defaultProvider: l.defaultProvider || 'claude',
               setProvider: l.canRunLocal ? (value) => app.setModelLane(l.id, { provider: value }) : null,
+              // WHICH model on this Mac (3 Nov 2026): his pick for the lane
+              // (null when none), the lane's shipped default, and what runs
+              localModel: l.localModel || null,
+              localModelDefault: l.localModelDefault || null,
+              localModelResolved: l.localModelResolved || null,
+              setLocalModel: l.canRunLocal ? (value) => app.setModelLane(l.id, { localModel: value }) : null,
               toggle: () => app.setModelLane(l.id, { enabled: !l.enabled }),
               reset: l.customised || !l.enabled ? () => app.resetModelLane(l.id) : null,
             })),

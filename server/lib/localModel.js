@@ -416,16 +416,7 @@ export function defaultModel() {
 /** Is the server answering right now? (Not: is the model loaded.) */
 export async function healthy() {
   if (localBackend() === 'apple') return (await refreshApple()).ok;
-  if (localBackend() === 'ollama') {
-    try {
-      const res = await fetch(`${OLLAMA_URL()}/api/tags`, { signal: AbortSignal.timeout(1500) });
-      ollamaState.reachable = res.ok;
-      return res.ok;
-    } catch {
-      ollamaState.reachable = false;
-      return false;
-    }
-  }
+  if (localBackend() === 'ollama') return ollamaHealthy();
   try {
     const res = await fetch(`${BASE()}/health`, { signal: AbortSignal.timeout(1500) });
     return res.ok;
@@ -434,16 +425,47 @@ export async function healthy() {
   }
 }
 
+// Ollama's own health line, whatever the preferred backend: a lane with its
+// own Ollama model (3 Nov 2026) runs there even while the board picks Apple.
+async function ollamaHealthy() {
+  try {
+    const res = await fetch(`${OLLAMA_URL()}/api/tags`, { signal: AbortSignal.timeout(1500) });
+    ollamaState.reachable = res.ok;
+    return res.ok;
+  } catch {
+    ollamaState.reachable = false;
+    return false;
+  }
+}
+
+/** WHERE ONE CALL RUNS, AND ON WHAT (3 Nov 2026, his call: a model per lane).
+ *  No `model`, or the board's own: the board's backend and model, exactly as
+ *  before. Apple's id: Apple. Another Ollama tag: Ollama with that tag, even
+ *  when the board picks Apple, because the lane was measured on that tag. An
+ *  eval pin (NOVA_LOCAL_LLM_MODEL) or a pinned MLX/Apple backend wins over a
+ *  lane's pick: the eval run means exactly what it pinned, and MLX serves one
+ *  model per process (a second would be a second server, not a reload).
+ *  Returns { backend, model }. */
+export function callTarget(model) {
+  const board = { backend: localBackend(), model: defaultModel() };
+  if (!model || model === board.model) return board;
+  const env = String(process.env.NOVA_LOCAL_LLM_BACKEND || '').toLowerCase();
+  if (process.env.NOVA_LOCAL_LLM_MODEL || env === 'mlx' || env === 'apple') return board;
+  if (model === APPLE_MODEL_ID) return { backend: 'apple', model: APPLE_MODEL_ID };
+  if (!modelFitsBackend(model, 'ollama')) return board;
+  return { backend: 'ollama', model: String(model) };
+}
+
 // Ready to answer without a load: for MLX the server IS the model (one model
 // per process); for Ollama the server is up AND holds this model, because a
 // chat call to an unloaded model would load it, and a load must pass the
 // headroom guard first.
-async function ready() {
-  if (localBackend() === 'apple') return !!appleChild && appleState.ok ? true : healthy();
-  if (localBackend() !== 'ollama') return healthy();
-  if (!(await healthy())) return false;
+async function ready(target = callTarget()) {
+  if (target.backend === 'apple') return !!appleChild && appleState.ok ? true : (await refreshApple()).ok;
+  if (target.backend !== 'ollama') return healthy();
+  if (!(await ollamaHealthy())) return false;
   await refreshOllama();
-  return isLoaded(defaultModel());
+  return isLoaded(target.model);
 }
 
 function pythonBin() {
@@ -470,9 +492,13 @@ export async function localModelStatus() {
  *  cheap enough for a synchronous board read. Ollama: the binary is on this
  *  Mac, or the server answered at the last reading (it can run elsewhere, a
  *  launchd service from a path not on PATH). MLX: the venv exists. */
-export function localModelConfigured() {
-  if (localBackend() === 'apple') return appleConfigured();
-  if (localBackend() === 'ollama') return !!ollamaBin() || ollamaState.reachable;
+//
+// `model` (3 Nov 2026): is what THIS lane's model needs installed? A lane on
+// Apple's model while the board runs Ollama asks Apple's helper, not Ollama.
+export function localModelConfigured(model = null) {
+  const backend = model ? callTarget(model).backend : localBackend();
+  if (backend === 'apple') return appleConfigured();
+  if (backend === 'ollama') return !!ollamaBin() || ollamaState.reachable;
   return existsSync(pythonBin());
 }
 
@@ -548,10 +574,10 @@ function noRoom(room) {
   return err;
 }
 
-async function waitHealthy(what) {
+async function waitHealthy(what, check = healthy) {
   const deadline = Date.now() + BOOT_TIMEOUT_MS();
   while (Date.now() < deadline) {
-    if (await healthy()) return true;
+    if (await check()) return true;
     if (!child) throw new Error(`${what} died at boot`);
     await new Promise((r) => setTimeout(r, 500));
   }
@@ -578,21 +604,26 @@ async function bootMlx() {
 // guard stands in front of. The preload carries the same keep_alive and
 // num_ctx a chat turn sends: a load at a different context size is a reload
 // on the next call.
-async function bootOllama() {
-  const model = defaultModel();
-  if (!(await healthy())) {
+//
+// `model` (3 Nov 2026): a lane's own model loads through here on its first
+// call. Ollama holds one model at a time on this Mac's memory, so a lane on
+// a different model than the board's is a reload (~11 s for the 9B,
+// measured) and the next board-model call reloads back. No juggling: the
+// cost is paid where it falls, and the headroom guard judges THIS model.
+async function bootOllama(model = defaultModel()) {
+  if (!(await ollamaHealthy())) {
     const bin = ollamaBin();
     if (!bin) throw new Error(`Ollama is not installed on this Mac (brew install ollama), and nothing answers at ${OLLAMA_URL()}`);
     if (OLLAMA_NO_SPAWN()) throw new Error(`Ollama is not answering at ${OLLAMA_URL()}`);
     if (!child) child = spawnOllama(bin);
-    await waitHealthy('ollama serve');
+    await waitHealthy('ollama serve', ollamaHealthy);
   }
   await refreshOllama();
   if (isLoaded(model)) return true;
   if (ollamaState.models.length && !ollamaState.models.some((m) => m.id === model)) {
     throw new Error(`${model} is not on this Mac yet (ollama pull ${model})`);
   }
-  const room = memoryHeadroom();
+  const room = model === defaultModel() || headroomOverride ? memoryHeadroom() : memoryHeadroom({ backend: 'ollama', model });
   if (!room.ok) throw noRoom(room);
   let res;
   try {
@@ -625,7 +656,18 @@ async function bootApple() {
   return true;
 }
 
-export function ensureLocalModel() {
+// A lane's own Ollama model boots on its own in-flight promise, keyed by the
+// tag, so two callers on the 9B share one load and never wait on the board's.
+const bootingByModel = new Map();
+export function ensureLocalModel(target = null) {
+  if (target && target.backend === 'apple' && localBackend() !== 'apple') return bootApple();
+  if (target && target.backend === 'ollama' && (localBackend() !== 'ollama' || target.model !== defaultModel())) {
+    const inFlight = bootingByModel.get(target.model);
+    if (inFlight) return inFlight;
+    const p = bootOllama(target.model).finally(() => { bootingByModel.delete(target.model); });
+    bootingByModel.set(target.model, p);
+    return p;
+  }
   if (booting) return booting;
   const b = localBackend();
   booting = (b === 'apple' ? bootApple() : b === 'ollama' ? bootOllama() : bootMlx()).finally(() => { booting = null; });
@@ -862,14 +904,16 @@ function flattenMessages(messages) {
 // then escalates to Claude as before). The 1 Nov eval measured Apple below
 // the 4B on the inbox classifier (design/audits/2026-11-01-apple-model-eval.md),
 // so whether a no-room capture goes to Apple or to Claude is his call.
-export function backendForCall({ prompt = '', system = '', maxTokens = 512, tools = null } = {}) {
-  const pref = localBackend();
+export function backendForCall({ prompt = '', system = '', maxTokens = 512, tools = null, model = null } = {}) {
+  // a lane's own model (3 Nov 2026) decides the preferred backend for this call
+  const target = callTarget(model);
+  const pref = target.backend;
   if (pref !== 'ollama') return pref;
   if (process.env.NOVA_LOCAL_APPLE_STANDIN === '0') return pref;
   if (tools && tools.length) return pref;
   if (!appleConfigured()) return pref;
   if (!fitsAppleWindow({ prompt, system, maxTokens })) return pref;
-  const room = headroomOverride ? headroomOverride() : memoryHeadroom({ backend: 'ollama' });
+  const room = headroomOverride ? headroomOverride() : memoryHeadroom({ backend: 'ollama', model: target.model });
   return room.ok ? pref : 'apple';
 }
 
@@ -886,14 +930,14 @@ const THOUGHT_ONLY = 'the local model spent its whole budget thinking and return
 
 // Wait for a boot, but no longer than `ms`: the boot carries on past the cap
 // (the next call finds it ready); this caller gets a plain reason instead.
-async function waitForBootCapped(ms) {
+async function waitForBootCapped(ms, target = null) {
   let timer = null;
   const cap = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(`the local model did not finish loading within ${Math.round(ms / 1000)}s`)), ms);
     timer.unref?.();
   });
   try {
-    await Promise.race([ensureLocalModel(), cap]);
+    await Promise.race([ensureLocalModel(target), cap]);
   } finally {
     clearTimeout(timer);
   }
@@ -903,13 +947,13 @@ async function waitForBootCapped(ms) {
 // boot — same rule as ttsLocal.js's synthesizeLocal(): if the model isn't
 // up, kick a boot in the background and fail THIS call immediately with a
 // clear reason. `waitForBoot` waits, capped by NOVA_LOCAL_LLM_WAIT_MS.
-async function readyOrBoot(waitForBoot) {
-  if (await ready()) return;
+async function readyOrBoot(waitForBoot, target = callTarget()) {
+  if (await ready(target)) return;
   if (!waitForBoot) {
-    ensureLocalModel().catch(() => {});
+    ensureLocalModel(target).catch(() => {});
     throw new Error('local model is still starting up');
   }
-  await waitForBootCapped(WAIT_MS());
+  await waitForBootCapped(WAIT_MS(), target);
 }
 
 // The OpenAI-shaped messages the callers build → Ollama's native shape: a
@@ -1004,7 +1048,7 @@ async function appleReady() {
 // Read Ollama's state fresh before the stand-in rule judges it: the board's
 // reading can be 30 s old, and "is the model already loaded" decides it.
 async function chooseBackend(call) {
-  if (localBackend() === 'ollama' && appleConfigured() && !(call.tools && call.tools.length)) await refreshOllama();
+  if (callTarget(call.model).backend === 'ollama' && appleConfigured() && !(call.tools && call.tools.length)) await refreshOllama();
   return backendForCall(call);
 }
 
@@ -1022,23 +1066,26 @@ async function chooseBackend(call) {
 // `numCtx` mean nothing to it.
 export async function completeLocal(prompt, {
   maxTokens = 512, temperature = 0, timeoutMs = 90_000, waitForBoot = false, system = null,
-  think = false, json = false, numCtx = null, schema = null,
+  think = false, json = false, numCtx = null, schema = null, model: laneModel = null,
 } = {}) {
   const text = String(prompt || '');
   if (!text.trim()) throw new Error('completeLocal: empty prompt');
   const sys = system && String(system).trim() ? String(system) : '';
-  if (await chooseBackend({ prompt: text, system: sys, maxTokens }) === 'apple') {
+  // `model` (3 Nov 2026): the lane's own pick (lib/modelPrefs.js localModelFor);
+  // absent, the board's model as before
+  const target = callTarget(laneModel);
+  if (await chooseBackend({ prompt: text, system: sys, maxTokens, model: laneModel }) === 'apple') {
     await appleReady();
     const out = await appleComplete({ system: sys, prompt: text, json, schema, maxTokens, temperature, timeoutMs });
     return { text: out.text, ms: out.ms, model: APPLE_MODEL_ID };
   }
-  const model = defaultModel();
-  await readyOrBoot(waitForBoot);
+  const model = target.model;
+  await readyOrBoot(waitForBoot, target);
   const messages = [];
   if (system && String(system).trim()) messages.push({ role: 'system', content: String(system) });
   messages.push({ role: 'user', content: text });
   const started = Date.now();
-  if (localBackend() === 'ollama') {
+  if (target.backend === 'ollama') {
     const out = await ollamaChat(model, messages, {
       json, think, maxTokens, temperature, numCtx: numCtx || NUM_CTX(COMPLETE_CTX), timeoutMs,
     });
@@ -1068,11 +1115,12 @@ export async function completeLocal(prompt, {
 // tools" (400) from a dead server.
 export async function chatLocal(messages, {
   tools = null, maxTokens = 700, temperature = 0, timeoutMs = 90_000, waitForBoot = true,
-  think = false, numCtx = null,
+  think = false, numCtx = null, model: laneModel = null,
 } = {}) {
   if (!Array.isArray(messages) || !messages.length) throw new Error('chatLocal: no messages');
   const flat = flattenMessages(messages);
-  if (await chooseBackend({ prompt: flat.prompt, system: flat.system, maxTokens, tools }) === 'apple') {
+  const target = callTarget(laneModel);
+  if (await chooseBackend({ prompt: flat.prompt, system: flat.system, maxTokens, tools, model: laneModel }) === 'apple') {
     // Apple's model takes no tools through this helper, and a faked tool
     // call would be fiction: a plain 400, the same refusal an HTTP backend
     // gives, so lib/localAsk.js's text-tool fallback or escalation handles it
@@ -1085,10 +1133,10 @@ export async function chatLocal(messages, {
     const out = await appleComplete({ system: flat.system, prompt: flat.prompt, json: false, maxTokens, temperature, timeoutMs });
     return { message: { role: 'assistant', content: out.text }, usage: null, ms: out.ms, model: APPLE_MODEL_ID };
   }
-  const model = defaultModel();
-  await readyOrBoot(waitForBoot);
+  const model = target.model;
+  await readyOrBoot(waitForBoot, target);
   const started = Date.now();
-  if (localBackend() === 'ollama') {
+  if (target.backend === 'ollama') {
     const out = await ollamaChat(model, messages, {
       tools, think, maxTokens, temperature, numCtx: numCtx || NUM_CTX(CHAT_CTX), timeoutMs,
     });

@@ -302,22 +302,86 @@ test('exactly the measured lanes may run locally', () => {
       'note-summary', 'plan-today', 'profile-talk', 'rewards-offer-read', 'session-debrief', 'shopping-categorize']);
 });
 
-// the bench decides where a Phase B lane runs by default: every one had a
-// wrong answer on 2 Nov 2026, so each is Claude first and never a stand-in,
-// and runs here only when he picks This Mac (the Coach's 27 Oct pattern)
-test('the Phase B lanes run on Claude by default, never stand in, and take This Mac when he picks it', async () => {
+// the bench decides where a Phase B lane runs by default. On 2 Nov 2026 every
+// one had a wrong answer on the 4B; the 9B then passed three (session-debrief,
+// plan-today, briefing-plan), so since 3 Nov those run here first on the 9B,
+// and the two it still got wrong (health-insight, daily-review) stay Claude.
+// None stands in for a failed Claude either way.
+test('the Phase B lanes: the three 9B lanes local first on the 9B, the other two Claude, none a stand-in', async () => {
   await clean();
-  const { providerFor, setLocalPrefs } = await import('../lib/modelPrefs.js');
+  const { providerFor, setLocalPrefs, localModelFor } = await import('../lib/modelPrefs.js');
   await setLocalPrefs({ first: true });
-  for (const id of ['briefing-plan', 'daily-review', 'health-insight', 'plan-today', 'session-debrief']) {
+  for (const id of ['briefing-plan', 'plan-today', 'session-debrief']) {
     const lane = LANES.find((l) => l.id === id);
-    assert.equal(lane.localFirst, false, `${id} benched with a wrong answer`);
+    assert.notEqual(lane.localFirst, false, `${id} passed on the 9B`);
+    assert.equal(lane.localModel, 'qwen3.5:9b', `${id} ships on the model it passed on`);
+    assert.equal(lane.standIn, false, `${id} never stands in for Claude`);
+    assert.equal(providerFor(id), 'local', `${id} runs here first`);
+    assert.equal(localModelFor(id), 'qwen3.5:9b');
+  }
+  for (const id of ['daily-review', 'health-insight']) {
+    const lane = LANES.find((l) => l.id === id);
+    assert.equal(lane.localFirst, false, `${id} was still wrong on the 9B`);
     assert.equal(lane.standIn, false, `${id} never stands in for Claude`);
     assert.equal(providerFor(id), 'claude', `${id} is Claude by default even with local first on`);
     await setLanePref(id, { provider: 'local' });
     assert.equal(providerFor(id), 'local', `${id} runs here when he picks it`);
   }
   assert.ok(!getModelPrefs().fallback.lanes.includes('daily-review'), 'the board lists no stand-in for them');
+});
+
+// A MODEL PER LANE (3 Nov 2026, his call). Resolution: his pick for the lane,
+// else the lane's default, else the board's local model, else the tier's.
+test('localModelFor: lane pick, else lane default, else the board pick, else the tier default', async () => {
+  await clean();
+  const { localModelFor, setLocalPrefs } = await import('../lib/modelPrefs.js');
+  const { defaultModel } = await import('../lib/localModel.js');
+  const tier = defaultModel();
+  assert.equal(localModelFor('inbox-classify'), tier, 'no pick anywhere: the tier default');
+  assert.equal(localModelFor('plan-today'), 'qwen3.5:9b', 'the lane default beats the tier');
+  await setLocalPrefs({ model: 'qwen3.5:2b' });
+  assert.equal(localModelFor('inbox-classify'), 'qwen3.5:2b', 'the board pick');
+  assert.equal(localModelFor('plan-today'), 'qwen3.5:9b', 'the lane default beats the board pick');
+  await setLanePref('plan-today', { localModel: 'qwen3.5:4b' });
+  await setLanePref('inbox-classify', { localModel: 'qwen3.5:9b' });
+  assert.equal(localModelFor('plan-today'), 'qwen3.5:4b', 'his lane pick beats the lane default');
+  assert.equal(localModelFor('inbox-classify'), 'qwen3.5:9b');
+  await setLanePref('plan-today', { localModel: null });
+  assert.equal(localModelFor('plan-today'), 'qwen3.5:9b', 'null clears the pick');
+  await setLocalPrefs({ model: null });
+  assert.throws(() => localModelFor('nope'), /unknown model lane/);
+});
+
+test('a lane model is validated like the board pick, and only a lane that can run here takes one', async () => {
+  await clean();
+  await assert.rejects(() => setLanePref('plan-today', { localModel: 'not a model!' }), /model must be a model name/);
+  await assert.rejects(() => setLanePref('plan-today', { localModel: 42 }), /model must be a model name/);
+  await assert.rejects(() => setLanePref('researcher', { localModel: 'qwen3.5:9b' }), /cannot run on the model on this Mac/);
+  await assert.rejects(() => setLanePref('plan-today', { localModel: 'mlx-community/Qwen3-4B' }), /not a model the Ollama backend runs/);
+  // Apple's id only when its helper is built here (it is not, under test)
+  await assert.rejects(() => setLanePref('plan-today', { localModel: 'apple:on-device' }), /Apple/);
+});
+
+test('the board carries localModel, localModelDefault and localModelResolved; a lane pick counts as customised; a reset clears it', async () => {
+  await clean();
+  const { setLocalPrefs } = await import('../lib/modelPrefs.js');
+  await setLocalPrefs({ model: 'qwen3.5:4b' });
+  let lane = (id) => getModelPrefs().lanes.find((l) => l.id === id);
+  assert.deepEqual([lane('plan-today').localModel, lane('plan-today').localModelDefault, lane('plan-today').localModelResolved], [null, 'qwen3.5:9b', 'qwen3.5:9b']);
+  assert.deepEqual([lane('inbox-classify').localModel, lane('inbox-classify').localModelDefault, lane('inbox-classify').localModelResolved], [null, null, 'qwen3.5:4b']);
+  assert.deepEqual([lane('researcher').localModel, lane('researcher').localModelDefault, lane('researcher').localModelResolved], [null, null, null], 'a Claude-only lane has none');
+  assert.equal(lane('plan-today').customised, false, 'the shipped 9B is not his change');
+  await setLanePref('plan-today', { localModel: 'qwen3.5:4b' });
+  assert.equal(lane('plan-today').localModel, 'qwen3.5:4b');
+  assert.equal(lane('plan-today').localModelResolved, 'qwen3.5:4b');
+  assert.equal(lane('plan-today').customised, true);
+  await resetLanePref('plan-today');
+  assert.equal(lane('plan-today').localModel, null, 'a lane reset clears the pick');
+  await setLanePref('inbox-classify', { localModel: 'qwen3.5:9b' });
+  await resetLanePref();
+  assert.equal(lane('inbox-classify').localModel, null, 'a whole-board reset clears lane picks');
+  assert.equal(getModelPrefs().local.preferredModel, 'qwen3.5:4b', "the board's own model pick stays as he set it");
+  await setLocalPrefs({ model: null });
 });
 
 test('the limit fallback is on by default, switchable, and survives lane writes and resets', async () => {

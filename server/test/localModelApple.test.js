@@ -257,3 +257,60 @@ test('a text lane pinned to Apple with no helper built escalates with a plain re
     if (had === undefined) delete process.env.CLAUDE_BIN; else process.env.CLAUDE_BIN = had;
   }
 });
+
+/* --------------- a model per lane (3 Nov 2026, his call) --------------- */
+
+test('callTarget: no model is the board; Apple\'s id is Apple; an Ollama tag is Ollama even under an Apple board pick; an eval pin wins', () => {
+  const { callTarget } = lm;
+  assert.deepEqual(callTarget(), { backend: 'ollama', model: defaultModel() });
+  assert.deepEqual(callTarget(APPLE_MODEL_ID), { backend: 'apple', model: APPLE_MODEL_ID });
+  assert.deepEqual(callTarget('qwen3.5:9b'), { backend: 'ollama', model: 'qwen3.5:9b' });
+  setPreferredModel(APPLE_MODEL_ID);
+  assert.deepEqual(callTarget('qwen3.5:9b'), { backend: 'ollama', model: 'qwen3.5:9b' }, 'the lane was measured on the 9B');
+  assert.deepEqual(callTarget(), { backend: 'apple', model: APPLE_MODEL_ID });
+  setPreferredModel(null);
+  assert.deepEqual(callTarget('mlx-community/Qwen3-4B'), { backend: 'ollama', model: defaultModel() }, 'a tag Ollama cannot run is ignored');
+  process.env.NOVA_LOCAL_LLM_MODEL = 'qwen3.5:4b';
+  assert.deepEqual(callTarget('qwen3.5:9b'), { backend: 'ollama', model: 'qwen3.5:4b' }, 'the eval run means what it pinned');
+  delete process.env.NOVA_LOCAL_LLM_MODEL;
+  process.env.NOVA_LOCAL_LLM_BACKEND = 'mlx';
+  assert.equal(callTarget('qwen3.5:9b').backend, 'mlx', 'MLX serves one model per process');
+});
+
+test('completeLocal with a lane model of Apple runs on Apple while the board is Ollama, with room to spare', async () => {
+  _setHeadroomForTests(ROOM);
+  const out = await completeLocal('hello', { maxTokens: 50, model: APPLE_MODEL_ID });
+  assert.equal(out.model, APPLE_MODEL_ID);
+});
+
+test('the stand-in rule holds for a lane on its own model: the 9B lane with no room runs a short call on Apple, labelled so', async () => {
+  _setHeadroomForTests(NO_ROOM);
+  // Ollama reads as installed (a binary exists; never run: NO_SPAWN), so the
+  // lane is configured and the stand-in rule, not "not installed", decides
+  const bin = path.join(dataDir, 'ollama-bin');
+  writeFileSync(bin, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  const had = process.env.NOVA_OLLAMA_BIN;
+  process.env.NOVA_OLLAMA_BIN = bin;
+  try {
+    const { runTextLane } = await import('../lib/textLane.js');
+    const { localModelFor } = await import('../lib/modelPrefs.js');
+    assert.equal(localModelFor('session-debrief'), 'qwen3.5:9b');
+    const out = await runTextLane('session-debrief', 'react to this set', { maxTokens: 100 });
+    assert.equal(out.provider, 'local');
+    assert.equal(out.model, APPLE_MODEL_ID, "Apple's words are never credited to the 9B");
+  } finally {
+    if (had === undefined) delete process.env.NOVA_OLLAMA_BIN; else process.env.NOVA_OLLAMA_BIN = had;
+  }
+});
+
+test('a lane he pins to Apple on the board answers there; clearing it puts the lane default back', async () => {
+  const { setLanePref, localModelFor, getModelPrefs } = await import('../lib/modelPrefs.js');
+  await setLanePref('plan-today', { localModel: APPLE_MODEL_ID });
+  assert.equal(localModelFor('plan-today'), APPLE_MODEL_ID);
+  const { runTextLane } = await import('../lib/textLane.js');
+  const out = await runTextLane('plan-today', 'plan my day', { maxTokens: 50 });
+  assert.equal(out.model, APPLE_MODEL_ID);
+  const board = await setLanePref('plan-today', { localModel: null });
+  assert.equal(board.lanes.find((l) => l.id === 'plan-today').localModelResolved, 'qwen3.5:9b');
+  assert.equal(getModelPrefs().lanes.find((l) => l.id === 'plan-today').localModel, null);
+});

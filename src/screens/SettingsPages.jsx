@@ -517,6 +517,12 @@ export function ModelGroupPage({ P, id }) {
                             onPick={(v) => l.setProvider?.(v)} locked={M.locked || l.busy || !l.setProvider} why={M.why} />
                         </span>
                       ) : null}
+                      {l.localModel ? (
+                        <span style={{ display: 'block', marginTop: 6 }}>
+                          <MenuPill label={`${l.label} on this Mac with`} title={`Which model on this Mac runs ${l.label}`} options={l.localModel.options} value={l.localModel.value} shown={l.localModel.shown}
+                            onPick={(v) => l.localModel.pick(v)} locked={M.locked || l.busy} why={M.why} />
+                        </span>
+                      ) : null}
                       {l.effort ? (
                         <span style={{ display: 'block', marginTop: 6 }}>
                           <MenuPill label={`${l.label} thinking`} title={`How hard ${l.label} thinks`} options={l.effortOptions} value={l.effort} shown={l.effortLabel}

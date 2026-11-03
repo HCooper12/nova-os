@@ -2,7 +2,7 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import {
-  modelFor, effortArgs, laneEnabled, laneOffError, providerFor, laneCanRunLocal, fallbackEnabled, refreshLocalStatus, laneThinks, LANES,
+  modelFor, effortArgs, laneEnabled, laneOffError, providerFor, laneCanRunLocal, fallbackEnabled, refreshLocalStatus, laneThinks, LANES, localModelFor,
 } from './modelPrefs.js';
 
 // A lane marked `standIn: false` in LANES may run on this Mac when he picks
@@ -12,7 +12,7 @@ import {
 const laneStandsIn = (lane) => LANES.find((l) => l.id === lane)?.standIn !== false;
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope, recordRun } from './modelSpend.js';
-import { completeLocal, localModelConfigured, localBackend } from './localModel.js';
+import { completeLocal, localModelConfigured, callTarget } from './localModel.js';
 
 // THE TEXT-LANE RUNNER (19 Oct 2026). The one-shot lanes that are pure text
 // in, text out (no tools, no vault reads: boundaryArgs('')) all had the same
@@ -127,6 +127,9 @@ async function runLocal(lane, prompt, { maxTokens, json, fallback, reason = null
       json,
       // off unless the lane is marked to reason (lib/modelPrefs.js laneThinks)
       think: laneThinks(lane),
+      // the lane's own model on this Mac (3 Nov 2026: the 9B on the lanes it
+      // passed); the ledger row and laneVia name whatever actually ran
+      model: localModelFor(lane),
     });
     let value;
     if (validate) {
@@ -236,8 +239,8 @@ export async function runTextLane(lane, prompt, {
   if (providerFor(lane) === 'local') {
     // nothing to run here: a stat says so, so Claude is asked at once (and
     // synchronously) rather than after a boot that cannot happen
-    if (!localModelConfigured()) {
-      const b = localBackend();
+    if (!localModelConfigured(localModelFor(lane))) {
+      const b = callTarget(localModelFor(lane)).backend;
       const why = b === 'ollama' ? 'Ollama is not installed on this Mac'
         : b === 'apple' ? "Apple's model helper is not built on this Mac" : 'the local model is not installed';
       recordRun(lane, { usd: 0, ms: 0, model: null, provider: 'local', fallback: false, reason: null, error: why });
@@ -263,7 +266,7 @@ export async function runTextLane(lane, prompt, {
     // died with no envelope, as when this Mac is offline). A run that
     // produced an envelope and failed on its own terms is not covered.
     if (!e?.limited && !e?.beforeOutput) throw e;
-    if (!fallbackEnabled() || !laneCanRunLocal(lane) || !laneStandsIn(lane) || !localModelConfigured()) throw e;
+    if (!fallbackEnabled() || !laneCanRunLocal(lane) || !laneStandsIn(lane) || !localModelConfigured(localModelFor(lane))) throw e;
     const reason = e.limited ? 'Claude was at its usage limit' : (e.fallbackReason || 'Claude could not answer');
     try {
       const out = await runLocal(lane, smallPrompt, { maxTokens, json, fallback: true, reason, validate });

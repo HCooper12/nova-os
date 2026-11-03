@@ -26,7 +26,9 @@ const GROUPS = [
   ['build', 'Build', 'The lanes that write code', 0.60, L('Builder · projects:O|Code tab · Builder:S|Code tab · Breaker:S|Forge:S')],
 ];
 // the cheap lanes that can run on this Mac (invented here; the server names the real ones)
-const DEMO_LOCAL_LANES = ['Capture classifier', 'Calendar in plain words'];
+const DEMO_LOCAL_LANES = ['Capture classifier', 'Calendar in plain words', 'Post-session debrief', 'Plan today', 'Briefing · the angles'];
+// the lanes that ship on the 9B (3 Nov 2026, server/lib/modelPrefs.js LANES)
+const DEMO_LANE_LOCAL_DEFAULT = { 'Post-session debrief': 'qwen3.5:9b', 'Plan today': 'qwen3.5:9b', 'Briefing · the angles': 'qwen3.5:9b' };
 const OFF_TEXT = {
   'Doorman greeting': 'Nova opens without a spoken greeting. Nothing is faked in its place.',
   'Journal prompt': 'The journal opens blank instead of prompted.',
@@ -48,6 +50,7 @@ export function demoSettingsSeed() {
     laneOff: { 'Doorman greeting': true, 'Journal prompt': true },
     laneModel: {},
     laneProvider: {},
+    laneLocalModel: {},
     fallbackEnabled: false,
     localFirst: true,
     localModel: 'qwen3.5:4b',
@@ -117,6 +120,8 @@ export function demoBoard(demo) {
   const laneOff = demo.laneOff || {};
   const laneModel = demo.laneModel || {};
   const laneProvider = demo.laneProvider || {};
+  const laneLocalModel = demo.laneLocalModel || {};
+  const boardLocal = demo.localModel || 'qwen3.5:4b';
   const groups = GROUPS.map(([id, label, hint, usd, lanes]) => ({
     id, label, hint,
     usd: `$${usd.toFixed(2)}`,
@@ -135,6 +140,9 @@ export function demoBoard(demo) {
         canRunLocal: DEMO_LOCAL_LANES.includes(l.label),
         provider: laneProvider[l.label] || (DEMO_LOCAL_LANES.includes(l.label) && demo.localFirst !== false ? 'local' : 'claude'),
         defaultProvider: DEMO_LOCAL_LANES.includes(l.label) && demo.localFirst !== false ? 'local' : 'claude',
+        localModel: laneLocalModel[l.label] || null,
+        localModelDefault: DEMO_LANE_LOCAL_DEFAULT[l.label] || null,
+        localModelResolved: laneLocalModel[l.label] || DEMO_LANE_LOCAL_DEFAULT[l.label] || boardLocal,
         offEffect: OFF_TEXT[l.label] || 'Off. Where this lane would have run, Nova says it is off.',
       };
     }),
@@ -144,7 +152,7 @@ export function demoBoard(demo) {
     groups,
     laneCount: lanes.length,
     offCount: lanes.filter((l) => !l.enabled).length,
-    customisedCount: Object.keys(laneModel).length,
+    customisedCount: Object.keys(laneModel).length + Object.keys(laneLocalModel).length,
     spendTotal: `$${GROUPS.reduce((a, g) => a + g[3], 0).toFixed(2)}`,
     watchLine: 'Newest, checked 3 Oct: Opus 5.5 · Sonnet 5.5 · Haiku 4.5 · Fable 5.1',
     models: DEMO_MODELS.map((m) => ({ value: m, label: m })),
@@ -152,7 +160,8 @@ export function demoBoard(demo) {
     local: {
       configured: true, ready: true, backend: 'ollama', first: demo.localFirst !== false,
       model: demo.localModel || 'qwen3.5:4b', label: 'Qwen3.5 4B on this Mac', preferredModel: null,
-      models: [{ id: 'qwen3.5:4b', sizeGB: 3.3, name: 'Qwen3.5 4B' }],
+      // the 9B pulled 2 Nov; its size is not claimed here (no measurement in hand)
+      models: [{ id: 'qwen3.5:4b', sizeGB: 3.3, name: 'Qwen3.5 4B' }, { id: 'qwen3.5:9b', sizeGB: null, name: 'Qwen3.5 9B' }],
       headroom: { ok: true, freeMB: 9600, needMB: 4100, swapFreeMB: null },
     },
     fallback: { enabled: !!demo.fallbackEnabled, lanes: DEMO_LOCAL_LANES },

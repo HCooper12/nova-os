@@ -31,9 +31,9 @@
 // labelled `escalated: true, reason`.
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
-import { chatLocal, defaultModel, localModelConfigured, localBackend } from './localModel.js';
+import { chatLocal, localModelConfigured, localBackend } from './localModel.js';
 import { recordRun } from './modelSpend.js';
-import { assertLaneOn, refreshLocalStatus } from './modelPrefs.js';
+import { assertLaneOn, refreshLocalStatus, localModelFor } from './modelPrefs.js';
 import { registerAskJob, coachPanelFor } from './claudeCode.js';
 import { whereLine } from './register.js';
 import { talkPrefsBlock } from './talk.js';
@@ -585,7 +585,8 @@ async function converse(job, { vaultPath, question, system, deadline, trace }) {
   const used = [];
   let inputTokens = 0;
   let outputTokens = 0;
-  let model = defaultModel();
+  // the lane's own model on this Mac (3 Nov 2026), the board's unless he picked one
+  let model = localModelFor('coach');
   let rounds = 0;
   for (let round = 0; ; round++) {
     // the round cap, or a conversation about to outgrow the window: answer now
@@ -596,7 +597,7 @@ async function converse(job, { vaultPath, question, system, deadline, trace }) {
     // thinking off (left on, Qwen3.5 spends the whole budget thinking: 27
     // Oct), and no num_ctx of its own: ONE context size for every call, or
     // Ollama reloads the runner (lib/localModel.js NUM_CTX)
-    const out = await chatLocal(messages, { tools: final ? null : TOOLS, timeoutMs: Math.max(1000, left), maxTokens: ANSWER_TOKENS, think: false });
+    const out = await chatLocal(messages, { tools: final ? null : TOOLS, timeoutMs: Math.max(1000, left), maxTokens: ANSWER_TOKENS, think: false, model: localModelFor('coach') });
     model = out.model || model;
     if (out.usage) {
       inputTokens += Number(out.usage.prompt_tokens) || 0;
@@ -661,7 +662,7 @@ export function startCoachLocal(vaultPath, { question, sessionId = null, liveSes
   const started = Date.now();
   const fail = (why, escalateReason = null) => {
     const w = String(why || '').replace(/^local model (?!→)/, '');
-    recordRun('coach', { provider: 'local', usd: 0, ms: Date.now() - started, model: `local:${defaultModel()}`, error: String(escalateReason || w).slice(0, 200) });
+    recordRun('coach', { provider: 'local', usd: 0, ms: Date.now() - started, model: `local:${localModelFor('coach')}`, error: String(escalateReason || w).slice(0, 200) });
     if (escalateReason) job.escalateReason = escalateReason;
     job.error = `The model on this Mac could not answer: ${w}`;
     job.status = 'error';

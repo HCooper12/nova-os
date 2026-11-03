@@ -442,6 +442,61 @@ test('local first on the Ollama backend: the lane asks for JSON and no thinking 
   }
 });
 
+// A MODEL PER LANE (3 Nov 2026): the lane's own model is the one in the
+// request body; one Ollama holds the board's 4B, so the 9B lane loads its
+// model first (the preload), and the ledger names the 9B.
+test("a lane on its own model: the 9B is loaded and named in the request, and the ledger row says local:qwen3.5:9b", async () => {
+  await setLocalPrefs({ first: true });
+  const seenOllama = [];
+  const preloads = [];
+  const ollama = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => { body += d; });
+    req.on('end', () => {
+      res.setHeader('Content-Type', 'application/json');
+      if (req.url === '/api/tags') return res.end('{"models":[{"name":"qwen3.5:4b","size":3324173934},{"name":"qwen3.5:9b","size":6600000000}]}');
+      if (req.url === '/api/ps') return res.end('{"models":[{"name":"qwen3.5:4b"}]}');
+      if (req.url === '/api/generate') { preloads.push(JSON.parse(body).model); return res.end('{"done":true}'); }
+      if (req.url === '/api/chat') { seenOllama.push(JSON.parse(body)); return res.end(JSON.stringify({ message: { role: 'assistant', content: 'Strong top set.' }, done: true, done_reason: 'stop' })); }
+      res.statusCode = 404; res.end('{}');
+    });
+  });
+  await new Promise((r) => ollama.listen(0, '127.0.0.1', r));
+  const had = { b: process.env.NOVA_LOCAL_LLM_BACKEND, u: process.env.NOVA_OLLAMA_URL, m: process.env.NOVA_LOCAL_LLM_MODEL };
+  process.env.NOVA_LOCAL_LLM_BACKEND = 'ollama';
+  process.env.NOVA_OLLAMA_URL = `http://127.0.0.1:${ollama.address().port}`;
+  delete process.env.NOVA_LOCAL_LLM_MODEL; // an eval pin would win over the lane
+  try {
+    const { refreshOllama } = await import('../lib/localModel.js');
+    await refreshOllama();
+    await setLocalPrefs({ model: 'qwen3.5:4b' });
+    assert.equal(providerFor('session-debrief'), 'local', 'local first on the 9B since 3 Nov');
+    const out = await runTextLane('session-debrief', 'react: bench 100 x 5', { maxTokens: 120 });
+    assert.equal(out.provider, 'local');
+    assert.equal(out.model, 'qwen3.5:9b');
+    assert.deepEqual(preloads, ['qwen3.5:9b'], 'the lane model loads on its first call, not the board one');
+    assert.equal(seenOllama[0].model, 'qwen3.5:9b');
+    const rows = await waitRows('session-debrief', 1);
+    assert.equal(rows.at(-1).model, 'local:qwen3.5:9b');
+    // a lane without its own model still runs the board's
+    await runTextLane('shopping-categorize', 'sort: milk', { maxTokens: 50 });
+    assert.equal(seenOllama[1].model, 'qwen3.5:4b');
+    // and his pick for a lane beats its default
+    await setLanePref('session-debrief', { localModel: 'qwen3.5:4b' });
+    await runTextLane('session-debrief', 'react: bench 100 x 5', { maxTokens: 120 });
+    assert.equal(seenOllama[2].model, 'qwen3.5:4b');
+  } finally {
+    await setLocalPrefs({ model: null });
+    process.env.NOVA_LOCAL_LLM_BACKEND = had.b;
+    if (had.u === undefined) delete process.env.NOVA_OLLAMA_URL; else process.env.NOVA_OLLAMA_URL = had.u;
+    process.env.NOVA_LOCAL_LLM_MODEL = had.m;
+    ollama.closeAllConnections();
+    await new Promise((r) => ollama.close(r));
+    const { refreshOllama } = await import('../lib/localModel.js');
+    await refreshOllama();
+  }
+});
+
 /* ------------- escalation shown, and the compact inbox decision (27 Oct 2026) ------------- */
 
 // the CLI stub answering a classifier decision, for the Inbox record tests

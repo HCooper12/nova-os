@@ -27,9 +27,9 @@ import { fileURLToPath } from 'node:url'; // never URL.pathname: the repo path h
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { talkPrefsBlock } from './talk.js';
-import { chatLocal, defaultModel, localModelConfigured, localBackend, memoryHeadroom } from './localModel.js';
+import { chatLocal, localModelConfigured, localBackend, memoryHeadroom } from './localModel.js';
 import { recordRun } from './modelSpend.js';
-import { assertLaneOn, refreshLocalStatus, localBoard } from './modelPrefs.js';
+import { assertLaneOn, refreshLocalStatus, localBoard, localModelFor } from './modelPrefs.js';
 import { registerAskJob, settleAskReply } from './claudeCode.js';
 import { whereLine, suppressGlass } from './register.js';
 import { describeForModel } from './verbs.js';
@@ -609,7 +609,8 @@ async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, 
   const used = [];
   let outputTokens = 0;
   let inputTokens = 0;
-  let model = defaultModel();
+  // the lane's own model on this Mac (3 Nov 2026), the board's unless he picked one
+  let model = localModelFor('ask-nova');
   for (let round = 0; ; round++) {
     const final = round >= MAX_ROUNDS;
     if (final) messages.push({ role: 'user', content: FINAL_ASK });
@@ -621,7 +622,7 @@ async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, 
       // thinking and returns no answer (27 Oct). The context window is the
       // one default (lib/localModel.js CHAT_CTX): the prompt alone is ~2.2k
       // tokens before the vault pages a lookup hands back.
-      out = await chatLocal(messages, { tools: useTools && !final ? tools : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false });
+      out = await chatLocal(messages, { tools: useTools && !final ? tools : null, timeoutMs: Math.max(1000, left), maxTokens: 700, think: false, model: localModelFor('ask-nova') });
     } catch (e) {
       // a server that does not take `tools`: once, at the start, the text form
       if (e.status === 400 && useTools && !switched && round === 0) {
@@ -742,7 +743,7 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     if (asks.length || lookup) {
       const cannot = cannotRun();
       if (cannot) {
-        recordRun('ask-nova', { provider: 'local', usd: 0, ms: Date.now() - started, model: `local:${defaultModel()}`, error: String(cannot).slice(0, 200) });
+        recordRun('ask-nova', { provider: 'local', usd: 0, ms: Date.now() - started, model: `local:${localModelFor('ask-nova')}`, error: String(cannot).slice(0, 200) });
         job.error = failure(cannot);
         job.status = 'error';
         return;
@@ -774,7 +775,7 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
       turn = await converse(job, { cwd, question, promptOpts, deadline: Date.now() + TURN_TIMEOUT_MS(), ctl, agentAnswers, titles: sourceTitlesLine, web, webFound });
     } catch (e) {
       const ms = Date.now() - started;
-      recordRun('ask-nova', { provider: 'local', fallback: !!fallback, usd: 0, ms, model: `local:${defaultModel()}`, error: String(e.message || e).slice(0, 200) });
+      recordRun('ask-nova', { provider: 'local', fallback: !!fallback, usd: 0, ms, model: `local:${localModelFor('ask-nova')}`, error: String(e.message || e).slice(0, 200) });
       job.error = failure(e.message || e);
       job.status = 'error';
       refreshLocalStatus().catch(() => {});
