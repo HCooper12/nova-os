@@ -11,6 +11,12 @@ the session log at the foot is append-only.
 
 ---
 
+## 4 Nov: fluid like his two reels, and the mid-workout reopen fixed (main 103f4cdd, LOCAL ONLY: he must `! git push origin main`)
+His reels (DeoxA_vzRbo "Dashboard V14", De6ef-Svrlj "vitrea"): chrome still, old page dissolves, new page built in layers. His call on the clips: "Looks better". Built and merged: the HAND-OFF (src/handoff.js: a live DOM copy of the page dissolves over <main> while the new page's blocks rise 45 ms apart; replaces riseMain), SETTLE (src/settle.js: a commit he did not cause FLIPs moved blocks, fades resized/new ones), GLASS SHEETS build their body in (GlassSheet + handoff buildIn), the header says "AS OF 09:46" during a refresh over the copy, and a sync no longer runs a whole-page view transition (selectNote preselect was wrapped in withTransition). THE WORKOUT BUG (his gym report): since 22 Jul the state defaults after `...restoreActiveSession()` (workoutSession: null, workoutsView: 'routines', journalComposerText: '') wiped the device restore; with the Mac unreachable a reopened workout was NOT in memory and came back only from the server draft, on Home. Now restores are the last state keys, a <12 h workout reopens on the logger (src/sessionReopen.js), measured 0.28-0.39 s in five conditions incl. Mac gone + internet hanging. The offline draft-check toast moved into the offline card (his yes).
+- VERIFIED: WebKit (playwright-core 1.56.1 + the cached webkit-2215; a peer replaced 2359 mid-session) at 402 px on a scratch copy (scripts/scratch-server.mjs, never 4173), Summary + cupertino, reduced motion; 5,076 tests pass / 0 fail; lint, build, guard-cupertino green. Audit: design/audits/2026-11-04-reel-fluidity.md.
+- NOT VERIFIED: his iPhone; his theme (not on record); deploy (not pushed). One doubled 40 ms frame at sync landing shows in the recorder in the OLD build too; not caused by today's changes, cause unproven (likely the recorder).
+- NEXT: he pushes; on his phone, mid-workout, close Nova from the app switcher and reopen: expect the logger with his ticked sets at once, Mac or no Mac.
+
 
 
 
