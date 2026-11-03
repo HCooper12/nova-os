@@ -23,8 +23,9 @@
 //
 //   npx vite build --outDir /tmp/nova-dist --sourcemap
 //   npx vite preview --outDir /tmp/nova-dist --port 5183 --strictPort &
-//   node scripts/fluidity.mjs --dist /tmp/nova-dist --out /tmp/fluidity.json
-//   node scripts/fluidity.mjs --dist /tmp/nova-dist --cpu 4     # stress, the motion standard's 4x check
+//   node scripts/scratch-server.mjs &          # prints: ready http://127.0.0.1:4174
+//   node scripts/fluidity.mjs --server http://127.0.0.1:4174 --dist /tmp/nova-dist --out /tmp/fluidity.json
+//   node scripts/fluidity.mjs --server http://127.0.0.1:4174 --dist /tmp/nova-dist --cpu 4     # stress, the motion standard's 4x check
 //
 // READ-ONLY BY CONSTRUCTION. The connection is built IN MEMORY from
 // server/.env (no public/_devconn.js is written or read, so nothing is left
@@ -49,6 +50,7 @@
 // Flags: --url --port --dist (build dir, for sourcemaps) --out (json)
 //   --traces <dir> (save every window's raw trace, loadable in DevTools)
 //   --screens mission,workouts,recipes,inbox,settings,session
+//   --shots <dir> (session PNGs; skews timings)
 //   --style summary (his, 18 Oct) --width 402 --height 874 --dpr 3
 //   --cpu 1 (CPU throttle rate) --timeout 600 --gpu (default) | --swiftshader
 //
@@ -81,6 +83,10 @@ const style = opt('style', 'summary');
 const timeoutSec = Number(opt('timeout', 600));
 const swift = argv.includes('--swiftshader');
 const traceDir = opt('traces', null);
+// --shots <dir>: PNGs of the session moments (mid-grow, settled, the tick's
+// island receipt, after). Capturing inside a window skews its timings: read
+// pictures from a --shots run, never numbers.
+const shotsDir = opt('shots', null);
 const SCREENS = (opt('screens', 'mission,workouts,recipes,inbox,settings,session')).split(',');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -88,7 +94,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = await readFile(path.join(ROOT, 'server', '.env'), 'utf8').catch(() => '');
 const token = env.match(/^\s*API_TOKEN\s*=\s*(.+?)\s*$/m)?.[1]?.replace(/^['"]|['"]$/g, '');
 if (!token) { console.error(`${TOOL}: no API_TOKEN in server/.env: refusing (this would measure DEMO data)`); process.exit(1); }
-const conn = JSON.stringify({ baseUrl: 'http://127.0.0.1:4173', token });
+// THE SERVER IS A SCRATCH COPY, never his live 4173 (the 1 Nov leak: a CDP
+// write guard died mid-walk and wrote into his vault). Start one with
+// `node scripts/scratch-server.mjs` and pass --server http://127.0.0.1:4174.
+const server = opt('server', null);
+if (!server || /:4173(\/|$)/.test(server)) { console.error(`${TOOL}: --server <scratch url> is required and may not be the live 4173 (node scripts/scratch-server.mjs)`); process.exit(1); }
+const conn = JSON.stringify({ baseUrl: server.replace(/\/$/, ''), token });
 
 // ---------- the page script: seed, guard, counters ----------
 const PAGE = `;(function(){
@@ -638,6 +649,12 @@ for (const s of SCREENS.filter((x) => x !== 'session')) {
 }
 await sleep(1500);
 
+const shot = async (name) => {
+  if (!shotsDir) return;
+  await mkdir(shotsDir, { recursive: true });
+  const r = await send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
+  if (r?.data) await writeFile(path.join(shotsDir, `${name}.png`), Buffer.from(r.data, 'base64'));
+};
 const escape = async () => {
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).catch(() => {});
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).catch(() => {});
@@ -651,7 +668,11 @@ for (const s of SCREENS) {
     await goScreen(s === 'session' ? 'workouts' : s === 'mission' ? 'recipes' : 'mission'); await sleep(1500);
     if (s === 'session') {
       await resetCounters();
-      const tr = await trace(async () => { const r = await enterSession(); await sleep(800); return r; }, 'session-enter');
+      const tr = await trace(async () => {
+        const r = await enterSession();
+        if (shotsDir) { await sleep(150); await shot('session-enter-mid'); await sleep(650); await shot('session-enter-settled'); } else await sleep(800);
+        return r;
+      }, 'session-enter');
       row.switch = { via: `startWorkoutSession(${tr.extra.routine}) live=${tr.extra.live}`, ...(await readCounters()), trace: analyse(tr.events, VP) };
     } else {
       const plan = await planScreen(target);
@@ -672,7 +693,10 @@ for (const s of SCREENS) {
     // (d) one state change
     const pt = await locate(ACTIONS[s][0]);
     await resetCounters();
-    const st = await trace(async () => { if (pt) await touchAt(pt); await sleep(1400); }, `${s}-change`);
+    const st = await trace(async () => {
+      if (pt) await touchAt(pt);
+      if (shotsDir) { await sleep(60); await shot(`${s}-change-a`); await sleep(400); await shot(`${s}-change-b`); await sleep(900); await shot(`${s}-change-c`); } else await sleep(1400);
+    }, `${s}-change`);
     row.change = { action: pt ? ACTIONS[s][1] : `none found (${ACTIONS[s][0]})`, ...(await readCounters()), trace: analyse(st.events, VP) };
     // idle: 2 s doing nothing, what the screen costs at rest
     await sleep(500);
