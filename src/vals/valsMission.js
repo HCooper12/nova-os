@@ -710,13 +710,23 @@ const bodyMetrics = demoMode
         }
       : { photoLabel: 'note — none yet', title: 'No notes yet', meta: 'your vault is empty', onOpen: go('notes') };
 
+  // WHILE A REFRESH IS IN FLIGHT OVER A COPY (4 Nov 2026, round 3 of the
+  // reel work): with the Mac slow, "CONNECTING…" sat in the header for the
+  // whole wait while every screen was already showing the phone's copy. The
+  // honest word for that is how old the copy is; LIVE replaces it when the
+  // Mac answers. A first-ever connect (no copy) still says CONNECTING….
+  const copyAsOf = st.connectionStatus === 'connecting' && st.lastSyncAt ? (() => {
+    const d = new Date(st.lastSyncAt);
+    return d.toDateString() === new Date().toDateString()
+      ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : (lastSyncLabel || null);
+  })() : null;
   // honest status chips
   const statusChip = demoMode
     ? { label: 'DEMO DATA', color: '#d8b573' }
     : isOffline
       ? { label: 'OFFLINE', color: '#c96f6f' }
       : st.connectionStatus === 'connecting'
-        ? { label: 'CONNECTING…', color: 'rgba(236,229,218,.6)' }
+        ? { label: copyAsOf ? `AS OF ${copyAsOf.toUpperCase()}` : 'CONNECTING…', color: 'rgba(236,229,218,.6)' }
         : { label: 'LIVE', color: '#6be5f5' };
   const missionStatusItems = demoMode
     ? ['DEMO DATA — CONNECT A BACKEND IN SETTINGS']

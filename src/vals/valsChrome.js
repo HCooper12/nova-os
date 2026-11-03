@@ -127,7 +127,7 @@ export function valsChrome(app, ctx) {
       : isOffline
         ? `LAST-KNOWN DATA${syncedShort ? ' · SAVED ' + syncedShort : ''}`
         : st.connectionStatus === 'connecting'
-          ? 'FIRST SYNC IN FLIGHT…'
+          ? (st.lastSyncAt ? `REFRESHING${syncedShort ? ' · SAVED ' + syncedShort : ''}` : 'FIRST SYNC IN FLIGHT…')
           : `SYNCED ${syncedShort || '—'} · ALL SYSTEMS NOMINAL`,
   };
 
