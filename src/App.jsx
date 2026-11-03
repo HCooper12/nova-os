@@ -50,6 +50,7 @@ import { playPush, playPop } from './settingsNav.js';
 import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
 import { leave as handLeave, arrive as handArrive, discard as handDiscard } from './handoff.js';
 import { opensSessionFrom } from './sessionReopen.js';
+import { measure as settleMeasure, play as settlePlay, noteInput as settleNoteInput } from './settle.js';
 import { growTapFor, foldFrom } from './motion/briefingGrow.js';
 import { watchConsult } from './motion/consultFeed.js';
 import { pageMove, pageKey } from './pageMoveRule.js';
@@ -891,7 +892,14 @@ export default class App extends Component {
   getSnapshotBeforeUpdate(prevProps, prevState) {
     if (prevState.screen !== this.state.screen) noteScreen(this.state.screen);
     const move = edgeDragInProgress() ? null : pageMove(prevState, this.state);
-    if (!move) return null;
+    if (!move) {
+      // a change he did not cause (late data, a sync) settles into place
+      // instead of jumping (src/settle.js); the live session keeps its own
+      if (prevState.screen !== this.state.screen || edgeDragInProgress()) return null;
+      if (this.state.screen === 'workouts' && this.state.workoutsView === 'session') return null;
+      const settle = settleMeasure();
+      return settle ? { settle } : null;
+    }
     const main = this.mainRef?.current;
     if (main) { this.pageScrolls = this.pageScrolls || {}; this.pageScrolls[pageKey(prevState).id] = main.scrollTop; }
     return { move, snap: freeze(), tap: move === 'grow' ? takeTap() : null, toKey: pageKey(this.state).id, routineId: prevState.workoutSession?.routineId || null };
@@ -1147,7 +1155,10 @@ export default class App extends Component {
     // view is presence, and a return after three quiet hours is greeted on
     // the spot. Opening the app on his phone is presence too; on the Mac a
     // page can sit visible all night with nobody at it, so there boot is not.
-    this.presenceH = () => { if (document.visibilityState === 'visible') this.notePresenceNow(); };
+    this.presenceH = (e) => {
+      if (e?.type === 'pointerdown' || e?.type === 'keydown') settleNoteInput(); // his own changes keep their own motion
+      if (document.visibilityState === 'visible') this.notePresenceNow();
+    };
     window.addEventListener('pointerdown', this.presenceH, { capture: true, passive: true });
     window.addEventListener('keydown', this.presenceH, { capture: true, passive: true });
     document.addEventListener('visibilitychange', this.presenceH);
@@ -2071,7 +2082,10 @@ export default class App extends Component {
     }
   }
   componentDidUpdate(prevProps, prevState, motion) {
-    if (motion) this.playPageMove(motion);
+    // the after-read waits for the frame: rAF runs before that frame's paint,
+    // so the layout it reads is the one the paint needed anyway
+    if (motion?.settle) requestAnimationFrame(() => settlePlay(motion.settle));
+    else if (motion) this.playPageMove(motion);
     // THE LIVE SESSION'S BESTS (13 Oct, mockup 101's record banner): read once
     // per session and its set of lifts; a failure just means no banner
     {
@@ -2202,7 +2216,7 @@ export default class App extends Component {
     };
     apply('notes', (r) => {
       this.setState({ liveNotes: r.notes });
-      if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id);
+      if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id, { quiet: true });
       this.refreshReviewToday();
     });
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
@@ -2331,7 +2345,7 @@ export default class App extends Component {
       async () => {
         const notesRes = await api.notes(conn);
         this.setState({ liveNotes: notesRes.notes });
-        if (notesRes.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(notesRes.notes[0].id);
+        if (notesRes.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(notesRes.notes[0].id, { quiet: true });
       },
       async () => this.refreshReviewToday(),
       async () => { const r = await api.library(conn); this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); },
@@ -6104,9 +6118,16 @@ export default class App extends Component {
     if (typeof window !== 'undefined' && window.history.state?.novaView === 'trainPage' && window.history.state?.page === 'history' && window.history.state?.novaOverlay == null) { window.history.back(); return; }
     this.setState({ workoutsView: this.state.historyRoutineId ? 'routine' : 'routines' });
   }
-  selectNote(id) {
-    // note card → reader morphs like a recipe card → its detail
-    this.withTransition(() => this.setState({ openNoteId: id }));
+  selectNote(id, { quiet = false } = {}) {
+    // note card → reader morphs like a recipe card → its detail. A choice
+    // made FOR him (the sync preselecting the newest note) is quiet: it ran
+    // a whole-page view transition on every sync, on whatever screen he was
+    // on, photographing the glass chrome mid-cross-fade (the doubled, dimmed
+    // frame filmed on Home on 4 Nov; the 17 Sep glass rule). Off the Notes
+    // screen there is no card to morph from either: the hand-off carries him
+    // there (src/handoff.js)
+    if (quiet || this.state.screen !== 'notes') this.setState({ openNoteId: id });
+    else this.withTransition(() => this.setState({ openNoteId: id }));
     this.ensureNoteDetail(id);
   }
   // Library: open a source — the cover morphs into the detail header. The

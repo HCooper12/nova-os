@@ -23,7 +23,8 @@ test('a screen change cross-fades under reduced motion (the hand-off), opacity o
   assert.match(hand, /const quiet = \(\) => reducedMotion\(\) \|\|/);
   assert.match(hand, /calm\s*\?\s*\[\{ opacity: 1 \}, \{ opacity: 0 \}\]/);
   assert.match(hand, /\{ duration: calm \? 160 : EXIT_MS/);
-  assert.match(hand, /if \(!calm && build\) \{/, 'reduced motion still staggers and rises');
+  assert.match(hand, /if \(!calm && build\) anims\.push\(\.\.\.buildIn\(main\)\);/, 'reduced motion still staggers and rises');
+  assert.match(hand, /if \(!root \|\| quiet\(\)\) return \[\];/, 'the shared build runs under reduced motion');
 });
 
 test('the two rise classes fade under reduced motion, past the global .01s rule', () => {

@@ -98,20 +98,24 @@ export function discard(snap) {
   showMain();
 }
 
-// The blocks to build the page from: walk down single-child wrappers to the
-// first element holding three or more visible children (the screen's own
-// list of sections), then keep the ones on screen, in order.
-export function contentItems(main, max = MAX_ITEMS) {
-  if (!main) return [];
-  const box = main.getBoundingClientRect();
-  let n = main;
+// The blocks to build a surface from: walk down wrappers to the first
+// element holding three or more visible children (the surface's own list of
+// sections), then keep the ones on screen, in order. A level where one child
+// is nearly everything (a sheet's single content column) is a wrapper too.
+export function contentItems(root, max = MAX_ITEMS) {
+  if (!root) return [];
+  const box = root.getBoundingClientRect();
+  let n = root;
   for (let depth = 0; depth < 6 && n; depth++) {
     const kids = Array.from(n.children).filter((c) => c.getBoundingClientRect().height > 2);
-    if (kids.length >= 3) {
+    if (!kids.length) return [];
+    const hs = kids.map((c) => c.getBoundingClientRect().height);
+    const total = hs.reduce((a, b) => a + b, 0);
+    const big = Math.max(...hs);
+    if (kids.length >= 3 && big < total * 0.7) {
       return kids.filter((c) => { const r = c.getBoundingClientRect(); return r.bottom > box.top && r.top < box.bottom; }).slice(0, max);
     }
-    if (!kids.length) return [];
-    n = kids.reduce((a, b) => (b.getBoundingClientRect().height > a.getBoundingClientRect().height ? b : a));
+    n = kids[hs.indexOf(big)];
   }
   return [];
 }
@@ -120,6 +124,26 @@ export function contentItems(main, max = MAX_ITEMS) {
 const TEXTY = new Set(['H1', 'H2', 'H3', 'P']);
 function blurs(el) {
   return TEXTY.has(el.tagName) && !el.querySelector('.nv-sum-card, .nv-liquid, .nv-pane, canvas');
+}
+
+// Build a surface in: its top-level blocks rise one after another on the
+// snappy house spring. Shared by the screen hand-off and the glass sheets.
+// Returns the animations (empty under reduced motion / Calm).
+export function buildIn(root, { startDelay = 0 } = {}) {
+  if (!root || quiet()) return [];
+  const spring = houseSpring('snappy') || FALLBACK_EASE;
+  const out = [];
+  contentItems(root).forEach((el, i) => {
+    const from = { opacity: 0, transform: `translateY(${RISE_PX}px) scale(.985)` };
+    const to = { opacity: 1, transform: 'none' };
+    if (blurs(el)) { from.filter = 'blur(8px)'; to.filter = 'blur(0px)'; }
+    try {
+      // BACKWARDS, never both: a held transform would outrank Interactive's
+      // press scale for as long as the block lives (the .nv-sum-rise note)
+      out.push(el.animate([from, to], { duration: ENTER_MS, easing: spring, delay: startDelay + i * STAGGER_MS, fill: 'backwards' }));
+    } catch { /* motion is never a requirement */ }
+  });
+  return out;
 }
 
 export function arrive(snapIn, { build = true } = {}) {
@@ -142,19 +166,7 @@ export function arrive(snapIn, { build = true } = {}) {
   // the blocks' own `backwards` fills hold them hidden through their delays,
   // so <main> can show again in the same frame as the picture starts to go
   showMain();
-  if (!calm && build) {
-    const spring = houseSpring('snappy') || FALLBACK_EASE;
-    contentItems(main).forEach((el, i) => {
-      const from = { opacity: 0, transform: `translateY(${RISE_PX}px) scale(.985)` };
-      const to = { opacity: 1, transform: 'none' };
-      if (blurs(el)) { from.filter = 'blur(8px)'; to.filter = 'blur(0px)'; }
-      try {
-        // BACKWARDS, never both: a held transform would outrank Interactive's
-        // press scale for as long as the block lives (the .nv-sum-rise note)
-        anims.push(el.animate([from, to], { duration: ENTER_MS, easing: spring, delay: i * STAGGER_MS, fill: 'backwards' }));
-      } catch { /* motion is never a requirement */ }
-    });
-  }
+  if (!calm && build) anims.push(...buildIn(main));
   if (!anims.length) { discard(snap); return; }
   const mine = { snap, anims };
   running = mine;

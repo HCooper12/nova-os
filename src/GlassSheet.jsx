@@ -3,6 +3,7 @@ import { css } from './css.js';
 import { TextAction } from './Controls.jsx';
 import { StageCard } from './StageCard.jsx';
 import { useSheetDrag } from './useSheetDrag.js';
+import { buildIn } from './handoff.js';
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -29,6 +30,7 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 export function GlassSheet({ card, originEl, onClose, label, children, scrollRef }) {
   const drag = useSheetDrag(onClose, { threshold: 80 });
   const closing = useRef(false);
+  const bodyRef = useRef(null);
 
   // grow in from the tapped card's rect
   useLayoutEffect(() => {
@@ -38,6 +40,7 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
     const first = originEl && document.body.contains(originEl) ? originEl.getBoundingClientRect() : null;
     if (!first || reducedMotion()) {
       el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reducedMotion() ? 1 : 220, easing: 'ease-out' });
+      buildIn(bodyRef.current, { startDelay: 60 }); // a no-op under reduced motion
       return;
     }
     const last = el.getBoundingClientRect();
@@ -51,6 +54,12 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
     // release the animation's hold once it lands, or the drag handlers'
     // direct style.transform writes would be fighting a still-active effect
     anim.finished.catch(() => {}).then(() => anim.cancel());
+    // THE SHEET IS BUILT AS IT LANDS (4 Nov 2026, the reel work, round 3):
+    // filmed at 5x slow, the sheet popped in at 85% opacity with every panel
+    // and bar already finished, a double exposure over the page behind. Now
+    // the glass arrives first and its contents rise in after it, the same
+    // build the screens use (src/handoff.js; nothing under reduced motion)
+    buildIn(bodyRef.current, { startDelay: 90 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -113,7 +122,7 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
             <TextAction tone="quiet" onClick={close} ariaLabel="Close">Close</TextAction>
           </span>
         </div>
-        <div style={css('padding-bottom:10px')}>
+        <div ref={bodyRef} style={css('padding-bottom:10px')}>
           {children || <StageCard card={card} size="full" />}
         </div>
       </div>
