@@ -152,6 +152,17 @@ export async function readWithBrowser(url) {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
       // social feeds hydrate after load; a short settle beats a fixed long wait
       await new Promise((r) => setTimeout(r, 3500));
+      // Instagram: ONLY the post's own caption (its meta description). The page body
+      // carries his sidebar (unread message counts, handles), which Nova never reads.
+      if (isInstagram(url)) {
+        const meta = await page.evaluate(() => ({
+          title: (document.querySelector('meta[property="og:title"]') || {}).content || '',
+          text: (document.querySelector('meta[property="og:description"]') || document.querySelector('meta[name="description"]') || {}).content || '',
+        }));
+        const cap = String(meta.text || '').trim().slice(0, MAX_TEXT);
+        if (!cap) return { url, ok: false, reason: 'the post showed no caption (it may be private or removed)', text: '' };
+        return { url, ok: true, title: meta.title, text: cap };
+      }
       const out = await page.evaluate(() => ({
         title: document.title || '',
         // innerText, not textContent: it respects layout and skips script/style,

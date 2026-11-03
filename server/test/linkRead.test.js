@@ -188,3 +188,10 @@ test('readWithBrowser refuses a non-post Instagram address before any browser op
   assert.equal(r.ok, false);
   assert.match(r.reason, /only watches Instagram posts and reels|not installed/);
 });
+
+test('the Instagram page read takes the post caption only, never the page body (his sidebar and message counts)', () => {
+  const src = readFileSync(new URL('../lib/browserResearch.js', import.meta.url), 'utf8');
+  const ig = src.slice(src.indexOf('if (isInstagram(url)) {\n        const meta'), src.indexOf('const out = await page.evaluate'));
+  assert.match(ig, /og:description/);
+  assert.doesNotMatch(ig, /innerText|textContent/);
+});
