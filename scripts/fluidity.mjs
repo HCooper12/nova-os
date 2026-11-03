@@ -197,7 +197,10 @@ async function attach() {
     if (m.method === 'Fetch.requestPaused') {
       sawFetch = true;
       const { requestId, request } = m.params;
-      const ok = ['GET', 'HEAD', 'OPTIONS'].includes(request.method);
+      // --relogshots logs food for real, to the SCRATCH server only (it
+      // refuses 4173 at the top); every other origin stays read-only
+      const scratchWrite = argv.includes('--relogshots') && request.url.startsWith(`${server.replace(/\/$/, '')}/api/food-log`);
+      const ok = scratchWrite || ['GET', 'HEAD', 'OPTIONS'].includes(request.method);
       if (!ok) blocked.push(`${request.method} ${request.url.replace(/\?.*/, '')}`);
       (ok ? send('Fetch.continueRequest', { requestId }) : send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' })).catch(() => {});
       return;
@@ -667,6 +670,53 @@ if (argv.includes('--fuelshots')) {
   await sleep(500);
   await shot('fuel-3-history');
   result.fuel = await ev(`(function(){ return Array.from(document.querySelectorAll('main .nv-fs-rpanel .nv-fs-ln')).slice(0, 40).map(function(r){ return r.textContent.replace(/\\s+/g, ' ').trim().slice(0, 90); }); })()`);
+  await writeFile(out, JSON.stringify(result, null, 2));
+  console.log(out); clearDeadline(); await cleanup(); process.exit(0);
+}
+// LOG AGAIN (mockup 110): every frame's state, shot for the side-by-side.
+// Writes land on the scratch copy only (the --server rule above).
+if (argv.includes('--relogshots')) {
+  const center = (sel, text) => ev(`(function(){ var els = Array.from(document.querySelectorAll(${JSON.stringify(sel)})); var e = els.find(function(x){ return !${JSON.stringify(text || '')} || x.textContent.indexOf(${JSON.stringify(text || '')}) >= 0; }); if (!e) return null; e.scrollIntoView({ block: 'center' }); var b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
+  const tap = async (sel, text) => { const pt = await center(sel, text); if (pt) { await touchAt(pt); await sleep(500); } return !!pt; };
+  const hold = async (sel, text) => { const pt = await center(sel, text); if (!pt) return false; await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pt.x, y: pt.y }); await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: pt.x, y: pt.y, button: 'left', buttons: 1, clickCount: 1 }); await sleep(750); await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: pt.x, y: pt.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(700); return true; };
+  const typeIn = async (txt) => { await ev(`(function(){ var i = document.querySelector('.nv-rl-find input'); if (!i) return 0; i.focus(); var set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, ''); i.dispatchEvent(new Event('input', { bubbles: true })); return 1; })()`); await sleep(200); if (txt) await send('Input.insertText', { text: txt }); await sleep(700); };
+  const steps = {};
+  await goScreen('recipes'); await sleep(2500);
+  await ev(`(function(){ var r = document.querySelector('main .nv-rl-ag'); if (r) r.scrollIntoView({ block: 'center' }); return !!r; })()`); await sleep(500);
+  await shot('relog-1-rest');
+  steps.rail = await ev(`Array.from(document.querySelectorAll('main .nv-rl-ag')).map(function(e){ return e.textContent.replace(/\\s+/g,' ').trim(); })`);
+  steps.all = await tap('.nv-rl-all'); await sleep(900);
+  await shot('relog-2-sheet');
+  steps.sheet = await ev(`Array.from(document.querySelectorAll('.nv-rl-sheet .nv-rl-sec, .nv-rl-sheet .nv-rl-rg, .nv-rl-sheet .nv-rl-gh, .nv-rl-sheet .nv-rl-it')).slice(0, 40).map(function(e){ return e.className.replace('nv-rl-','') + ': ' + e.textContent.replace(/\\s+/g,' ').trim(); })`);
+  await typeIn('pretz'); await shot('relog-3-search');
+  steps.search = await ev(`Array.from(document.querySelectorAll('.nv-rl-sheet .nv-rl-it')).map(function(e){ return e.textContent.replace(/\\s+/g,' ').trim(); })`);
+  await typeIn('pring');
+  steps.countTray = await hold('.nv-rl-sheet .nv-rl-it'); await sleep(400);
+  await shot('relog-4-count');
+  for (let i = 0; i < 2; i++) await tap('.nv-rl-stp', '+');
+  await shot('relog-4b-count-plus');
+  steps.countTrayText = await ev(`(function(){ var t = document.querySelector('.nv-rl-tray'); return t ? t.textContent.replace(/\\s+/g,' ').trim() : null; })()`);
+  await ev(`(function(){ var s = document.querySelector('.nv-rl-scrim2'); if (s) s.click(); return 1; })()`); await sleep(700);
+  await typeIn('tenders');
+  steps.servingTray = await hold('.nv-rl-sheet .nv-rl-it'); await sleep(300);
+  await tap('.nv-rl-tray .nv-rl-chip', '½');
+  await shot('relog-5-serving');
+  steps.servingTrayText = await ev(`(function(){ var t = document.querySelector('.nv-rl-tray'); return t ? t.textContent.replace(/\\s+/g,' ').trim() : null; })()`);
+  await tap('.nv-rl-go'); await sleep(1500);
+  await typeIn(''); await sleep(600);
+  await shot('relog-6-logged');
+  steps.receipt = await ev(`(function(){ var r = document.querySelector('.nv-rl-receipt'); return r ? r.textContent.replace(/\\s+/g,' ').trim() : null; })()`);
+  steps.change = await tap('.nv-rl-amtchip'); await sleep(600);
+  await shot('relog-7-change');
+  await tap('.nv-rl-tray .nv-rl-chip', '2'); await tap('.nv-rl-go'); await sleep(1500);
+  steps.receiptAfterChange = await ev(`(function(){ var r = document.querySelector('.nv-rl-receipt'); return r ? r.textContent.replace(/\\s+/g,' ').trim() : null; })()`);
+  steps.logToday = await ev(`(function(){ var a = window.__flApp(); return (a.state.liveFoodLog && a.state.liveFoodLog.entries || []).map(function(e){ return e.name + ' ' + e.macros.kcal; }); })()`);
+  await tap('.nv-rl-done'); await sleep(900);
+  await ev(`(function(){ var r = document.querySelector('main .nv-rl-ag'); if (r) r.scrollIntoView({ block: 'center' }); return !!r; })()`); await sleep(400);
+  await tap('main .nv-rl-ag'); await sleep(1500);
+  await shot('relog-8-rail-receipt');
+  steps.railReceipt = await ev(`(function(){ var r = document.querySelector('main .nv-rl-receipt'); return r ? r.textContent.replace(/\\s+/g,' ').trim() : null; })()`);
+  result.relog = steps;
   await writeFile(out, JSON.stringify(result, null, 2));
   console.log(out); clearDeadline(); await cleanup(); process.exit(0);
 }
