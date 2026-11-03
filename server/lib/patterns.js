@@ -13,6 +13,7 @@
 // reel's "compare everything".
 
 import { readFile, readdir } from 'node:fs/promises';
+import { applySleepGate } from './healthData.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCorrelations, describeFinding, describeWatch, MIN_N } from './correlate.js';
@@ -24,13 +25,17 @@ const num = (v) => (Number.isFinite(v) ? v : (Number.isFinite(Number(v)) ? Numbe
 
 // ---- the series -----------------------------------------------------------
 
-// His health days: one file per date, written by the iOS Shortcut.
-// SLEEP IS DELIBERATELY LISTED. He has none today — the Shortcut does not
-// send it — and the right behaviour is for the series to come back empty and
-// every pair that needs it to be reported as skipped for want of data, rather
-// than for sleep to be quietly missing from the questions Nova asks.
+// His health days: one file per date, written by the iOS Shortcut and, since
+// 14 Oct, HealthKit.
+// SLEEP (fixed 3 Nov 2026): this read sleepHours / sleep / sleepH, keys no
+// writer has ever used, so the sleep series was always empty and every sleep
+// question was "skipped for want of data". Sleep is stored as
+// sleepAsleepMinutes (HealthKit and the Shortcut alike); it is read here in
+// hours, and through the same short-night gate every other reader uses
+// (healthData.js applySleepGate): an unconfirmed 1-hour accidental nap is not
+// a point in a correlation, and a night he corrected counts at his figure.
 export const HEALTH_METRICS = {
-  sleepHours: { label: 'Sleep', unit: 'h', keys: ['sleepHours', 'sleep', 'sleepH'] },
+  sleepHours: { label: 'Sleep', unit: 'h', keys: ['sleepAsleepMinutes'], scale: 1 / 60 },
   hrv: { label: 'HRV', unit: 'ms', keys: ['hrv'] },
   restingHeartRate: { label: 'Resting heart rate', unit: 'bpm', keys: ['restingHeartRate', 'restingHR'] },
   steps: { label: 'Steps', unit: '', keys: ['steps'] },
@@ -48,14 +53,21 @@ export async function healthSeries(dir = dataDir()) {
   try {
     files = (await readdir(path.join(dir, 'health'))).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f));
   } catch { return out; }
+  const days = [];
   for (const f of files.sort()) {
     let day;
     try { day = JSON.parse(await readFile(path.join(dir, 'health', f), 'utf8')); } catch { continue; }
-    const date = day.date || f.replace('.json', '');
+    days.push({ ...day, date: day.date || f.replace('.json', '') });
+  }
+  // his answers to the short-night question live beside the day files
+  let checks = {};
+  try { checks = JSON.parse(await readFile(path.join(dir, 'health', 'sleep-checks.json'), 'utf8')) || {}; } catch { checks = {}; }
+  for (const day of applySleepGate(days, checks)) {
     for (const [k, meta] of Object.entries(HEALTH_METRICS)) {
       const raw = meta.keys.map((key) => day[key]).find((v) => v !== undefined && v !== null);
-      const v = num(raw);
-      if (v !== null) out[k].points.push({ date, value: v });
+      const n = num(raw);
+      const v = n === null ? null : (meta.scale ? Math.round(n * meta.scale * 100) / 100 : n);
+      if (v !== null) out[k].points.push({ date: day.date, value: v });
     }
   }
   return out;

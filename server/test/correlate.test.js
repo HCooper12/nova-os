@@ -235,3 +235,22 @@ test('every pair asks a question a person could act on', () => {
   const keys = PAIRS.map((p) => `${p.x}|${p.y}|${p.lag}`);
   assert.equal(new Set(keys).size, keys.length, 'the same pair is tested twice, which weakens every other one');
 });
+
+test('healthSeries reads sleep from sleepAsleepMinutes in hours, through the short-night gate (3 Nov 2026)', async () => {
+  const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { healthSeries } = await import('../lib/patterns.js');
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'nova-patterns-'));
+  await mkdir(path.join(dir, 'health'));
+  const nights = { '2026-10-28': 420, '2026-10-29': 450, '2026-10-30': 400, '2026-10-31': 412, '2026-11-01': 442, '2026-11-02': 68 };
+  for (const [date, m] of Object.entries(nights)) await writeFile(path.join(dir, 'health', `${date}.json`), JSON.stringify({ date, sleepAsleepMinutes: m, hrv: 80 }));
+  const s = await healthSeries(dir);
+  const pts = Object.fromEntries(s.sleepHours.points.map((p) => [p.date, p.value]));
+  assert.equal(pts['2026-10-28'], 7, 'minutes become hours');
+  assert.equal(pts['2026-11-01'], 7.37);
+  assert.equal(pts['2026-11-02'], undefined, 'an unconfirmed 68-minute night is not a data point');
+  await writeFile(path.join(dir, 'health', 'sleep-checks.json'), JSON.stringify({ '2026-11-02': { verdict: 'real', at: '2026-11-02T22:00:00Z' } }));
+  const confirmed = await healthSeries(dir);
+  assert.equal(confirmed.sleepHours.points.find((p) => p.date === '2026-11-02')?.value, 1.13, 'a night he confirmed counts as recorded');
+});
