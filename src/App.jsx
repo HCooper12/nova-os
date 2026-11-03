@@ -49,6 +49,7 @@ import { whereAmI, readWhereInputs } from './where.js';
 import { playPush, playPop } from './settingsNav.js';
 import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
 import { leave as handLeave, arrive as handArrive, discard as handDiscard } from './handoff.js';
+import { opensSessionFrom } from './sessionReopen.js';
 import { growTapFor, foldFrom } from './motion/briefingGrow.js';
 import { watchConsult } from './motion/consultFeed.js';
 import { pageMove, pageKey } from './pageMoveRule.js';
@@ -300,7 +301,13 @@ function restoreActiveSession() {
       out.editingSessionId = saved.editingSessionId || null;
       out.workoutSessionSavedAt = saved.savedAt || null;
       if (Date.now() - (saved.savedAt || 0) < SESSION_REOPEN_MS) {
-        out.workoutsView = 'session'; // mid-workout — pick up right where he left off
+        // mid-workout: pick up right where he left off, on the logger itself.
+        // The installed app reopens at its start URL (no hash, so Home): a
+        // workout he is in the middle of opens instead, unless he came in
+        // through a link to somewhere else (a Shortcut, the capture icon).
+        out.workoutsView = 'session';
+        out.trainTab = 'gym';
+        if (opensSessionFrom(typeof location === 'undefined' ? '' : location.hash)) out.screen = 'workouts';
       }
       out.restoredSession = true;
     } else if (saved) {
@@ -768,11 +775,6 @@ export default class App extends Component {
     nudgeDismissed: {},
     ritualDone: (() => { try { return JSON.parse(localStorage.getItem('novaos.ritualDone')) || {}; } catch { return {}; } })(),
     outboxOpen: false,
-    // an in-progress workout must survive tab reclaim / refresh / app kill —
-    // restored from device storage at boot (see restoreActiveSession)
-    ...restoreActiveSession(),
-    ...restoreDrafts(),
-    ...restoreChats(),
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     // the summary Money page (10 Oct 2026): its one open sheet, its pushed
@@ -860,6 +862,19 @@ export default class App extends Component {
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '',
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null, ingestPerson: '', ingestProgress: null,
+    // WHAT THE DEVICE KEPT, RESTORED LAST, ON PURPOSE (4 Nov 2026). An
+    // in-progress workout must survive tab reclaim / refresh / app kill, and
+    // typed drafts and chats with it. These spreads used to sit in the MIDDLE
+    // of this object, and the defaults written after them (`workoutSession:
+    // null`, `workoutsView: 'routines'`, `journalComposerText: ''`) silently
+    // overwrote what they restored. Measured in WebKit: reopened with the Mac
+    // unreachable, the workout was in device storage and NOT on screen; it
+    // came back only when the Mac answered with its server copy. That was
+    // his "takes a while to resume" at the gym. Anything restored from the
+    // device goes here, after every default (server/test/sessionRestore.test.js).
+    ...restoreActiveSession(),
+    ...restoreDrafts(),
+    ...restoreChats(),
   };
 
   // THE ARRIVAL COUNT asks which screen it is on (src/arrival.js). This runs
@@ -990,6 +1005,11 @@ export default class App extends Component {
       }
     } catch { /* private mode */ }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
+    // the reopen landed on the workout: the address says so, so Back and a
+    // hashchange agree with what is on screen
+    if (this.state.restoredSession && this.state.screen === 'workouts' && screenFromHash() !== 'workouts') {
+      try { window.history.replaceState(window.history.state, '', '#/workouts'); } catch { /* sandboxed */ }
+    }
     if (this.state.restoredSession) {
       setTimeout(() => this.toastMsg(this.state.workoutsView === 'session'
         ? 'Restored your in-progress workout — nothing was lost'
@@ -1012,8 +1032,10 @@ export default class App extends Component {
         this.toastMsg('Recovered your workout draft from the server — nothing was lost');
       }).catch(() => {
         // an UNREACHABLE server is not "no draft" — say so, and the
-        // reconnect re-check below retries the moment the backend answers
-        this.toastMsg('Couldn’t check the server for a workout draft — it retries when Nova reconnects');
+        // reconnect re-check retries the moment the backend answers. Said in
+        // the feed, in the offline card (his call, 4 Nov 2026: the toast rode
+        // over every offline reopen), never silently
+        this.setState({ draftCheckWaiting: true });
       });
     }
     // opening straight onto the Code screen (a reload, a deep link) must
@@ -2466,6 +2488,7 @@ export default class App extends Component {
           if (!this.serverDraftChecked && !this.state.workoutSession) {
             this.serverDraftChecked = true;
             api.getSessionDraft(conn).then(({ draft }) => {
+              if (this.state.draftCheckWaiting) this.setState({ draftCheckWaiting: false });
               if (!draft?.workoutSession || this.state.workoutSession) return;
               this.setState({
                 workoutSession: draft.workoutSession,
