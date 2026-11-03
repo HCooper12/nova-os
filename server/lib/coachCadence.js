@@ -334,7 +334,7 @@ export async function debriefFacts(vaultPath, session, deps = {}) {
   try {
     const days = deps.recentDays || await (await import('./healthData.js')).loadRecentDays(3);
     const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
-    if (latest) facts.push(`Recovery today: HRV ${latest.hrv != null ? Math.round(latest.hrv) : '—'} (${latest.date}), sleep ${latest.sleepAsleepMinutes ? (latest.sleepAsleepMinutes / 60).toFixed(1) + 'h' : '—'}.`);
+    if (latest) facts.push(`Recovery today: HRV ${latest.hrv != null ? Math.round(latest.hrv) : '—'} (${latest.date}), sleep ${latest.sleepAsleepMinutes ? (latest.sleepAsleepMinutes / 60).toFixed(1) + 'h' : latest.sleepSuspect ? 'unconfirmed (the recording was far shorter than his usual and he has not said whether it was real; do not cite a sleep figure)' : '—'}.`);
   } catch { /* no recovery line */ }
   // CARRY-FORWARD MEMORY: what you said after his last session of this routine
   try {

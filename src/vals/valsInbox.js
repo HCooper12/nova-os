@@ -89,6 +89,9 @@ export const ROUTE_META = {
   // phase 3: what a queued job made in the project's folder, and his answer to one that asked
   'project-job': { label: 'PROJECT WORK', hue: '224,178,106' },
   'project-answer': { label: 'PROJECT QUESTION', hue: '224,178,106' },
+  // his answer about a night that recorded far shorter than usual
+  // (server/lib/sleepCheck.js, 3 Nov 2026); its Undo asks him again
+  health: { label: 'SLEEP CHECK', hue: '89,230,255' },
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
   journal: { label: 'JOURNAL', hue: '143,123,255' },
   todo: { label: 'TO-DO', hue: '89,230,255' },

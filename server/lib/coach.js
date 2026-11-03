@@ -476,6 +476,12 @@ export async function coachLiveLine(vaultPath) {
     const series = days.filter((d) => d.hrv != null || d.sleepAsleepMinutes != null)
       .map((d) => `${d.date.slice(5)}: ${d.hrv != null ? `HRV ${Math.round(d.hrv)}` : ''}${d.sleepAsleepMinutes != null ? ` sleep ${(d.sleepAsleepMinutes / 60).toFixed(1)}h` : ''}${d.restingHeartRate != null ? ` RHR ${d.restingHeartRate}` : ''}`.trim());
     if (series.length) bits.push(`recovery 7d [${series.join(' | ')}]`);
+    // the night held back from the series above, said so the Coach asks
+    // about it rather than reading a gap (3 Nov 2026: "sleep 1.1h concern me")
+    const { sleepUnconfirmedLine } = await import('./healthData.js');
+    const pad = (n) => String(n).padStart(2, '0');
+    const unsure = sleepUnconfirmedLine(days, `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+    if (unsure) bits.push(unsure);
     const deload = computeDeloadSignal(days);
     bits.push(`deload signal: ${deload.advise ? 'YES — ' : 'no — '}${deload.reason}`);
   } catch { bits.push('recovery data FAILED to load this turn'); }

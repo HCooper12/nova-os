@@ -12,6 +12,7 @@ import { prLift, prBasis } from '../missionFocus.js';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
+import { SleepCheckBody } from '../SleepCheckCard.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, NEVER_FOLD, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -619,6 +620,19 @@ export function MissionStructured({ v }) {
         )}
         </div>
 
+        {/* WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026): the summary Home's
+            moment, from the same view model (v.sleepCheck), as a grouped
+            pane: the day a night recorded far shorter than his usual,
+            until he answers or puts it away. Content, never a banner. */}
+        {v.sleepCheck && (
+          <div className={v.sleepCheck.leaving ? 'nv-sleepq-leave' : undefined}>
+            <Group label="Last night" accent="--nv-cy" trailing={<Meta tone="faint">{v.sleepCheck.phase === 'answered' ? 'Answered' : 'Unconfirmed'}</Meta>}>
+              <div style={{ padding: '14px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
+                <SleepCheckBody q={v.sleepCheck} />
+              </div>
+            </Group>
+          </div>
+        )}
         {/* MONEY THAT NEEDS HIM (his call 10 Oct 2026, "Show row on the
             other home too"): the same moment the summary Home draws, from
             the same view model (v.moneyMoment), and only while a money

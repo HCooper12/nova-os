@@ -2897,6 +2897,51 @@ export default class App extends Component {
   // draws) before the row becomes its receipt; "didn't land" is immediate;
   // null is "didn't try it", a pass. Reversible in place: Change reopens it
   // and answering again corrects the tally (server/lib/repertoire.js).
+  // WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026; src/sleepCheckCard.js). The
+  // answer files on the Inbox rails; the card shows its receipt with Undo,
+  // holds it, then settles out. `sleepCheck` is this device's card state:
+  // { phase, draft, tick, answered, recordId, leaving, dismissedOn }.
+  answerSleepCheck(verdict, date, draft = null) {
+    const conn = getConnection();
+    const sc = this.state.sleepCheck || {};
+    if (!conn || !date || (sc.tick && sc.tick !== 'idle')) return;
+    const minutes = verdict === 'corrected' ? draft : null;
+    this.setState({ sleepCheck: { ...sc, date, tick: 'working', pick: verdict } });
+    api.sleepCheck(conn, date, verdict, minutes)
+      .then((r) => {
+        this.setState((st) => ({
+          liveHealthDays: r.days?.length ? r.days : st.liveHealthDays,
+          sleepCheck: { ...st.sleepCheck, tick: 'done', answered: { date, verdict, minutes }, recordId: r.recordId || null },
+        }));
+        // the after-state is held long enough to read and to take back, then
+        // the card settles out (the .nv-sleepq-leave spring) and is gone
+        clearTimeout(this._sleepCheckTimer);
+        this._sleepCheckTimer = setTimeout(() => {
+          this.setState((st) => ({ sleepCheck: { ...st.sleepCheck, leaving: true } }));
+          this._sleepCheckTimer = setTimeout(() => this.setState({ sleepCheck: { date, gone: true } }), 520);
+        }, 4200);
+      })
+      .catch((e) => {
+        this.setState((st) => ({ sleepCheck: { ...st.sleepCheck, tick: 'idle', pick: null } }));
+        this.toastFail('Could not save that: ' + e.message);
+      });
+  }
+  undoSleepCheck() {
+    const conn = getConnection();
+    const sc = this.state.sleepCheck || {};
+    if (!conn || !sc.recordId) return;
+    clearTimeout(this._sleepCheckTimer);
+    api.inboxUndo(conn, sc.recordId)
+      .then(() => api.healthData(conn))
+      .then((r) => this.setState({ liveHealthDays: r.days.length ? r.days : null, sleepCheck: { date: sc.date, phase: 'asking', draft: sc.draft } }))
+      .catch((e) => this.toastFail('Could not undo that: ' + e.message));
+  }
+  dismissSleepCheck(date) {
+    const conn = getConnection();
+    if (!date) return;
+    this.setState({ sleepCheck: { date, dismissedOn: date, gone: true } });
+    if (conn) api.sleepCheckDismiss(conn, date).catch(() => { /* this device already put it away */ });
+  }
   answerTechnique(result) {
     const conn = getConnection();
     const cur = this.state.liveRepertoire;

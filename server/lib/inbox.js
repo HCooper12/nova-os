@@ -1228,6 +1228,12 @@ export async function undoFiling(vaultPath, undo) {
     const { undoWishlist } = await import('./wishlist.js');
     return undoWishlist(undo);
   }
+  // HIS ANSWER ABOUT A SHORT NIGHT (3 Nov 2026, lib/sleepCheck.js): the
+  // answer and, for a figure he gave, the day's sleep as it was
+  if (undo.kind === 'sleep-check') {
+    const { undoSleepCheck } = await import('./sleepCheck.js');
+    return undoSleepCheck(undo);
+  }
   if (undo.kind === 'journal-notion-delete') {
     const { undoNotionDelete } = await import('./notionJournal.js');
     return undoNotionDelete(vaultPath, undo);

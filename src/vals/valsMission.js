@@ -10,6 +10,7 @@ import { dtf } from './fmt.js';
 import { groupFamilies, shapeReports } from '../repertoireBook.js';
 import { buildReelRows } from '../reel.js';
 import { shortTechniqueName, techniqueQuestionState, questionOnlyWrap } from '../techniqueCheck.js';
+import { sleepCheckState, clampNight } from '../sleepCheckCard.js';
 import { wrapLadder, lineWithoutTomorrow } from '../wrapLadder.js';
 import { planCardFrom } from '../planCard.js';
 import { homeTrainingCard } from '../doneToday.js';
@@ -103,6 +104,32 @@ function groupByDay(events) {
     label: dtf('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }).format(new Date(`${date}T12:00:00`)),
     events: evs.map((e) => ({ time: e.time, end: e.end, label: e.label, calendar: e.calendar, recurring: e.recurring, hue: categoryHue(e.calendar) })),
   }));
+}
+
+// WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026) — the rules are pure and tested
+// (src/sleepCheckCard.js); this attaches the actions. Live data only: a demo
+// Home never asks about a night that did not happen.
+function sleepQuestion(app, st, demoMode, today) {
+  // a dev-only seed (a liveHealthDays row with `devSeed`, set from the
+  // console) draws the card in demo for checking, as Wrap the day's does; a
+  // production build never has one
+  const devSeed = !!(import.meta.env?.DEV && st.liveHealthDays?.some((d) => d.devSeed));
+  if ((demoMode && !devSeed) || !st.liveHealthDays) return null;
+  const sc = st.sleepCheck || {};
+  const q = sleepCheckState(st.liveHealthDays, today, sc);
+  if (!q) return null;
+  const set = (patch) => app.setState((s2) => ({ sleepCheck: { ...(s2.sleepCheck?.date === today ? s2.sleepCheck : {}), date: today, ...patch } }));
+  return {
+    ...q,
+    real: () => app.answerSleepCheck('real', today),
+    missed: () => app.answerSleepCheck('missed', today),
+    openStepper: () => set({ phase: 'stepping', draft: q.draft }),
+    closeStepper: () => set({ phase: 'asking' }),
+    step: (dMin) => set({ draft: clampNight((q.draft || 0) + dMin) }),
+    saveCorrection: () => app.answerSleepCheck('corrected', today, q.draft),
+    undo: () => app.undoSleepCheck(),
+    dismiss: () => app.dismissSleepCheck(today),
+  };
 }
 
 // DID IT LAND? — Wrap the day's question about today's technique (25 Sep).
@@ -279,8 +306,15 @@ export function valsMission(app, ctx) {
     const at = new Date(day.stepsAt);
     return `PARTIAL · AS OF ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
   };
+  // A NIGHT HELD BACK (3 Nov 2026, server healthData.js sleepSuspect): last
+  // night recorded far shorter than his usual and has not been confirmed, or
+  // he said the watch missed it. The ring says that, rather than quietly
+  // showing an older night as if it were last night's.
+  const heldNight = usingLiveHealthData ? st.liveHealthDays.find((d) => d.date === todayKey && d.sleepSuspect) : null;
   const satSleep = demoMode
     ? { label: 'SLEEP', value: '7:12', small: '/8H', pct: 90, hint: '90% · HRV +9%' }
+    : heldNight
+      ? { label: 'SLEEP', value: '—', small: '', pct: 0, hint: heldNight.sleepSuspect.verdict === 'missed' ? 'LAST NIGHT NOT RECORDED' : 'LAST NIGHT UNCONFIRMED' }
     : !usingLiveHealthData || !sleepDay
       ? { label: 'SLEEP', value: '—', small: '', pct: 0, hint: usingLiveHealthData ? 'NO SLEEP DATA YET' : offlineHint }
       : {
@@ -1117,6 +1151,10 @@ const bodyMetrics = demoMode
     commandDeck,
     projectsWaiting,
     noteCard,
+    // WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026): one question, as content, the
+    // day a night recorded far shorter than his usual; both idioms draw it
+    // from this one field (src/SleepCheckCard.jsx)
+    sleepCheck: sleepQuestion(app, st, demoMode, todayKey),
     // WRAP THE DAY (server/lib/wrapDay.js): the evening card. It waits for
     // his last logged meal or 6pm, says the day in one counted sentence, and
     // names the one thing that still fixes it — the moment the sweep found

@@ -29,6 +29,7 @@ const NOT_AGENT_WORK = {
   voice: 'his own spoken capture',
   'journal-notion': 'his own delete made in Notion, mirrored to the vault; not work an agent did',
   'skill-suggest': 'his own tick on a suggested skill (skillSets.js), filed to the build list; his answer, not work an agent did',
+  'sleep-check': 'his own answer about a night that recorded far shorter than usual (sleepCheck.js); his word on his data, not work an agent did',
 };
 
 function declaredKinds() {

@@ -1045,6 +1045,29 @@ verb({
   },
 });
 
+// "That was my whole night" / "the watch missed it" / "I slept about seven
+// hours": his answer when Nova asks about a night far shorter than his usual
+// (3 Nov 2026; healthData.js sleepSuspect holds such a night back from every
+// reader until he answers). The same write as the Home card's three answers
+// (lib/sleepCheck.js), for the night that is waiting today.
+verb({
+  id: 'sleep.answer', tier: 'act',
+  describe: "file his answer about last night's unconfirmed sleep, only when today's context says it is unconfirmed",
+  args: { answer: "'real' (that short night was his whole night), 'missed' (the watch missed his sleep) or 'corrected' (he says how long he slept)", minutes: "for 'corrected' only: how long he slept, in minutes" },
+  async run(vaultPath, args) {
+    const { answerSleepCheck } = await import('./sleepCheck.js');
+    const pad = (n) => String(n).padStart(2, '0');
+    const d = new Date();
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const out = await answerSleepCheck({ date, verdict: String(args.answer || '').trim().toLowerCase(), minutes: args.minutes, source: 'voice' }, { record: false });
+    return { destination: out.destination, said: out.said, undo: out.undo };
+  },
+  async undo(vaultPath, u) {
+    const { undoSleepCheck } = await import('./sleepCheck.js');
+    return undoSleepCheck(u);
+  },
+});
+
 // ---------------------------------------------------------------- workout.log
 // A set (or a few) logged OUTSIDE an open session: "bench 60 for 8". It never
 // guesses the lift: the spoken name must resolve to ONE entry in his exercise

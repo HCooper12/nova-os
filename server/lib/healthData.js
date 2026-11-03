@@ -234,6 +234,12 @@ export async function saveDay(date, metrics, { manual = false, accumSource = nul
   const cleaned = pickKnownMetrics(metrics);
   const merged = { ...existing, ...cleaned, date, receivedAt: new Date().toISOString() };
   if (accumSource) merged.accumSource = accumSource;
+  // HIS OWN SLEEP NUMBER STAYS HIS (3 Nov 2026). A night he states by hand
+  // (the Home card's "I slept about…", or any manual edit carrying sleep) is
+  // stamped, and ingestHealthPayload refuses to let a later automatic push
+  // replace it: HealthKit re-reads today and yesterday every five minutes,
+  // so without this his correction would last until the next app open.
+  if (manual && cleaned.sleepAsleepMinutes != null) merged.sleepManual = true;
   // WHEN the steps figure was captured decides whether it can be the day's
   // total. His nightly automation runs at 23:45, so its number misses the rest
   // of the evening and any watch samples that hadn't synced — measured at
@@ -302,6 +308,28 @@ export async function setDayWeight(date, fields) {
   await writeJsonAtomic(full, day);
   import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
   return day;
+}
+
+// Put one day's sleep fields back exactly as they were: the undo half of a
+// sleep correction (lib/sleepCheck.js). `fields` null removes the sleep
+// reading and its manual stamp; nothing else on the day is touched.
+const SLEEP_FIELDS = ['sleepAsleepMinutes', 'sleepInBedMinutes', 'sleepManual'];
+export async function setDaySleep(date, fields) {
+  if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
+  const full = path.join(HEALTH_DIR, `${date}.json`);
+  if (!existsSync(full)) throw new Error('that day has no record to restore');
+  const day = await readJsonRetry(full);
+  for (const k of SLEEP_FIELDS) delete day[k];
+  for (const k of SLEEP_FIELDS) if (fields?.[k] != null) day[k] = fields[k];
+  await writeJsonAtomic(full, day);
+  import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
+  return day;
+}
+export function sleepFieldsOf(day) {
+  if (!day) return null;
+  const out = {};
+  for (const k of SLEEP_FIELDS) if (day[k] != null) out[k] = day[k];
+  return Object.keys(out).length ? out : null;
 }
 
 // The most recent stored weight before `date`, with the day it was actually
@@ -515,6 +543,21 @@ export async function ingestHealthPayload({ date, metrics, manual = false, skipD
     dateShifted = resolved.shifted;
   }
   const droppedKeys = [];
+  // A NIGHT HE STATED HIMSELF IS NOT RE-READ (3 Nov 2026): see saveDay's
+  // sleepManual. Every automatic channel, HealthKit included, drops its sleep
+  // keys for such a day; only another manual write can change it.
+  if (!manual && (metrics.sleepAsleepMinutes != null || metrics.sleepInBedMinutes != null)) {
+    const existing = await loadDay(date);
+    if (existing?.sleepManual) {
+      for (const key of ['sleepAsleepMinutes', 'sleepInBedMinutes']) {
+        if (metrics[key] != null) { delete metrics[key]; droppedKeys.push(key); }
+      }
+      if (!Object.keys(metrics).length) {
+        await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: null, stepsDropped: false, droppedKeys, sleepKept: 'his own figure' });
+        return { ok: true, day: existing, date, stepsDropped: false, droppedKeys, allDropped: true };
+      }
+    }
+  }
   // APPLE HEALTH'S OWN TOTALS WIN (14 Oct 2026, the first native read). The
   // higher-wins rule below was written for the Shortcut, whose raw sums ran
   // HIGH when iPhone and Watch both recorded a walk: on 14 Oct it kept the
@@ -619,12 +662,139 @@ const withNormalizedMetrics = (day) => {
   return out;
 };
 
+// ---------------------------------------------------------------------------
+// A NIGHT THAT CANNOT BE HIS WHOLE NIGHT (3 Nov 2026, his report).
+//
+// "Sometimes Nova will notice and refer to my sleep recordings even if I had
+// only fallen asleep for a very short time like last night ... I then woke up
+// and went back to bed properly afterwards but removed my Apple Watch so this
+// did not track." 3 Nov's file read 68 minutes against prior nights of 370 to
+// 511, and the morning Coach debrief told him "sleep 1.1h concerns me". The
+// Watch recorded exactly what it saw; the number was true of the Watch and
+// false of him. Seventeen readers had each been trusting it.
+//
+// So ONE gate, here in the loader every reader already goes through, rather
+// than seventeen guards that would drift apart: a night far below his own
+// usual is held back as UNCONFIRMED (sleepAsleepMinutes null, the recorded
+// figure kept as sleepRawMinutes, sleepSuspect saying why), every reader then
+// treats it as a night with no sleep recorded, which they all already say
+// honestly, and the Home card asks him once (lib/sleepCheck.js holds his
+// answer). The rule is deliberately crude and stated in his units:
+//   - below max(4 h, half his median) of the nights before it in 14 days;
+//   - judged only with at least 4 such nights. With fewer there is no
+//     "usual" to be unusual against, and a fresh install or a long gap must
+//     not hide his first real nights, so too little history is never suspect.
+// A missing or zero night is not suspect: it is missing, which the readers
+// already handle, and there is nothing to ask about.
+export const SLEEP_SUSPECT_FLOOR_MIN = 240;
+export const SLEEP_SUSPECT_RATIO = 0.5;
+export const SLEEP_SUSPECT_MIN_PRIOR = 4;
+export const SLEEP_SUSPECT_LOOKBACK_DAYS = 14;
+
+export const hmOf = (min) => {
+  const m = Math.round(Number(min) || 0);
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
+};
+const dayIndex = (iso) => Math.round(Date.parse(`${iso}T12:00:00Z`) / 86400000);
+
+export function sleepSuspect(day, priorDays = []) {
+  const minutes = Number(day?.sleepAsleepMinutes);
+  if (!day?.date || !Number.isFinite(minutes) || minutes <= 0) return null;
+  const t = dayIndex(day.date);
+  const prior = (priorDays || [])
+    .filter((d) => d?.date && dayIndex(d.date) < t && dayIndex(d.date) >= t - SLEEP_SUSPECT_LOOKBACK_DAYS)
+    .map((d) => Number(d.sleepAsleepMinutes))
+    .filter((m) => Number.isFinite(m) && m > 0)
+    .sort((a, b) => a - b);
+  if (prior.length < SLEEP_SUSPECT_MIN_PRIOR) return null;
+  const mid = Math.floor(prior.length / 2);
+  const median = Math.round(prior.length % 2 ? prior[mid] : (prior[mid - 1] + prior[mid]) / 2);
+  const threshold = Math.max(SLEEP_SUSPECT_FLOOR_MIN, Math.round(median * SLEEP_SUSPECT_RATIO));
+  if (minutes >= threshold) return null;
+  return {
+    minutes: Math.round(minutes),
+    medianMinutes: median,
+    thresholdMinutes: threshold,
+    priorNights: prior.length,
+    reason: `${hmOf(minutes)} recorded against a usual ${hmOf(median)} (the median of his last ${prior.length} nights); under ${hmOf(threshold)} is too short to be read as a whole night without asking him`,
+  };
+}
+
+// His answers, one per night: { [date]: { verdict: 'real'|'missed'|'corrected',
+// minutes?, at } }, or { dismissedAt } when he put the card away unanswered
+// (not an answer: the night stays held back, the card does not come back).
+// Written only by lib/sleepCheck.js, on the inbox rails with Undo.
+export const SLEEP_CHECKS_FILE = () => path.join(HEALTH_DIR, 'sleep-checks.json');
+export async function readSleepChecks() {
+  if (!existsSync(SLEEP_CHECKS_FILE())) return {};
+  try { return (await readJsonRetry(SLEEP_CHECKS_FILE())) || {}; } catch { return {}; }
+}
+export async function writeSleepCheck(date, entry) {
+  if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
+  const all = await readSleepChecks();
+  if (entry == null) delete all[date]; else all[date] = entry;
+  await writeJsonAtomic(SLEEP_CHECKS_FILE(), all);
+  return all;
+}
+
+// The gate itself, pure: days oldest-first (raw, normalised), his answers.
+// Each night is judged against the nights before it AS THE READERS SEE THEM,
+// so one held-back night never drags the "usual" down for the next.
+export function applySleepGate(days, checks = {}) {
+  const seen = [];
+  return (days || []).map((day) => {
+    const raw = day.sleepAsleepMinutes;
+    const check = checks?.[day.date] || null;
+    let out = day;
+    if (raw == null || day.sleepManual) {
+      out = day; // nothing recorded, or he typed it himself: his word
+    } else if (check?.verdict === 'corrected' && Number(check.minutes) > 0) {
+      // his number wins, even if an automatic write slipped past the ingest guard
+      out = { ...day, sleepAsleepMinutes: Number(check.minutes), sleepSource: 'his correction', sleepRawMinutes: raw };
+      if (day.sleepInBedMinutes != null) { out.sleepInBedRawMinutes = day.sleepInBedMinutes; out.sleepInBedMinutes = null; }
+    } else {
+      const suspect = sleepSuspect(day, seen);
+      if (suspect && check?.verdict === 'real') {
+        out = { ...day, sleepConfirmed: true };
+      } else if (suspect) {
+        out = {
+          ...day,
+          sleepAsleepMinutes: null,
+          sleepRawMinutes: raw,
+          sleepSuspect: { ...suspect, verdict: check?.verdict || null, ...(check?.dismissedAt ? { dismissed: true } : {}) },
+        };
+        if (day.sleepInBedMinutes != null) { out.sleepInBedRawMinutes = day.sleepInBedMinutes; out.sleepInBedMinutes = null; }
+      }
+    }
+    if (out.sleepAsleepMinutes != null) seen.push(out);
+    return out;
+  });
+}
+
+// The line every agent's TODAY context carries while a suspect night waits on
+// his answer, so a model asks instead of concluding. Null when there is none.
+export function sleepUnconfirmedLine(days, today) {
+  const d = (days || []).find((x) => x.date === today && x.sleepSuspect && !x.sleepSuspect.verdict);
+  if (!d) return null;
+  const s = d.sleepSuspect;
+  return `last night's sleep is unconfirmed (${hmOf(s.minutes)} recorded vs a usual ${hmOf(s.medianMinutes)}): ask him whether that was his whole night or the watch missed it, do not read it as real`;
+}
+
+// EVERY READER COMES THROUGH HERE. The gate needs the 14 nights before the
+// oldest one asked for, so it reads that much further back and hands back
+// only the `n` asked for. loadDay below stays RAW on purpose: its callers are
+// writers (the ingest guards, the weigh-in verb's undo) that must see what is
+// on disk, not what the readers are shown.
 export async function loadRecentDays(n = 14) {
   if (!existsSync(HEALTH_DIR)) return [];
   const files = (await readdir(HEALTH_DIR)).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();
   const days = [];
-  for (const f of files.slice(0, n)) {
+  for (const f of files.slice(0, n + SLEEP_SUSPECT_LOOKBACK_DAYS)) {
     days.push(withNormalizedMetrics(await readJsonRetry(path.join(HEALTH_DIR, f))));
   }
-  return days.reverse(); // oldest-first, easier to read as a trend
+  days.reverse(); // oldest-first, easier to read as a trend
+  const gated = applySleepGate(days, await readSleepChecks());
+  return gated.slice(Math.max(0, gated.length - n));
 }

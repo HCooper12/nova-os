@@ -582,6 +582,10 @@ export const api = {
   saveHealthDay: (conn, date, metrics) => post(conn, '/api/health-data', { date, ...metrics, manual: true }),
   // Nova's own Apple Health reading (src/healthSync.js): exact dates, never manual
   pushHealthKitDay: (conn, date, metrics) => post(conn, '/api/health-data', { date, metrics, source: 'healthkit' }),
+  // his answer about a night far shorter than his usual (server/lib/sleepCheck.js):
+  // filed on the Inbox rails, undone with inboxUndo(recordId)
+  sleepCheck: (conn, date, verdict, minutes) => post(conn, '/api/health-data/sleep-check', { date, verdict, ...(minutes != null ? { minutes } : {}) }),
+  sleepCheckDismiss: (conn, date) => post(conn, '/api/health-data/sleep-check/dismiss', { date }),
   startIngest: (conn, text, sourceUrl, book) => post(conn, '/api/ingest', { text, sourceUrl, ...(book ? { book } : {}) }),
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),

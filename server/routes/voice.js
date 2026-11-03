@@ -572,6 +572,16 @@ export function voiceRouter(vaultPath) {
         const line = await overnightMorningLine();
         if (line && gap === 'new-day') bits.push(line);
       } catch { /* optional */ }
+      // A NIGHT TOO SHORT TO BE HIS WHOLE NIGHT (3 Nov 2026): the first hello
+      // of the day asks, rather than greeting him with a 1h night as fact
+      try {
+        if (gap === 'new-day') {
+          const { loadRecentDays, sleepUnconfirmedLine } = await import('../lib/healthData.js');
+          const pad = (n) => String(n).padStart(2, '0');
+          const line = sleepUnconfirmedLine(await loadRecentDays(2), `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+          if (line) bits.push(`Health: ${line}.`);
+        }
+      } catch { /* optional */ }
       try {
         const { projectsMorningLine } = await import('../lib/projectScheduler.js');
         const line = gap === 'new-day' ? await projectsMorningLine(vaultPath) : null;

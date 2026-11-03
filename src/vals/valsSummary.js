@@ -270,6 +270,10 @@ function trendsCard(st, ctx, m, demoMode) {
 function buildMoments(m) {
   const list = [];
   if (m.macSessionsHeadline) list.push('asking');
+  // WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026): the day a night recorded far
+  // shorter than his usual, until he answers or puts it away; it leads,
+  // because every sleep reading today waits on it
+  if (m.sleepCheck) list.push('sleep');
   // THE DAILY REVIEW (mockup 96): at the head of Home while something is
   // due (arriving over its skeleton, or read-only from the last sync while
   // the Mac is away), and once the day is done so "Draw one early" has

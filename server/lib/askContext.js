@@ -103,6 +103,10 @@ export async function todayLocalContext() {
     const withWeight = [...days].reverse().find((x) => x.weightKg != null);
     // dated by the weigh-in, never by the push that repeated it
   if (withWeight) bits.push(`weight ${withWeight.weightKg}kg (last weighed ${withWeight.weightMeasuredOn || withWeight.date})`);
+    // a night too short to be his whole night waits on his word (3 Nov 2026)
+    const { sleepUnconfirmedLine } = await import('./healthData.js');
+    const unsure = sleepUnconfirmedLine(days, today);
+    if (unsure) bits.push(unsure);
   } catch { /* optional */ }
   try {
     const { getToday } = await import('./foodLog.js');

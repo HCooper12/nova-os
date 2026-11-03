@@ -11,6 +11,7 @@ import { LeaderBox } from '../LeaderBox.jsx';
 import { leaderAccent } from '../leaderAccent.js';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
+import { SleepCheckBody } from '../SleepCheckCard.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { LampRow } from '../PracticeLamps.jsx';
 import { DaysRing } from '../StuckCard.jsx';
@@ -170,6 +171,16 @@ function Moment({ k, v }) {
           <span style={{ flex: 1, minWidth: 0, font: `italic 400 17px/1.3 ${SERIF}`, color: 'var(--nv-ink)', textWrap: 'balance' }}>{a.text}</span>
           <span style={{ flex: 'none', font: `600 13px ${UI}`, color: 'var(--nv-gold)' }}>Look</span>
         </Interactive>
+      );
+    }
+    case 'sleep': {
+      // WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026): one question, as content
+      const q = v.sleepCheck;
+      return (
+        <section className={`nv-sum-card nv-sum-rise${q.leaving ? ' nv-sleepq-leave' : ''}`} style={{ ...MOMENT_PAD, ...glow('var(--nv-cy)', 'var(--nv-gold)') }} aria-label="Last night">
+          <CardHead icon="sleep" label="Last night" tile={['var(--nv-cy)', 'var(--nv-vi)']} meta={q.phase === 'answered' ? 'Answered' : 'Unconfirmed'} />
+          <div style={{ marginTop: '11px' }}><SleepCheckBody q={q} /></div>
+        </section>
       );
     }
     case 'money': {

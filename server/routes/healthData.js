@@ -158,6 +158,30 @@ export function healthDataRouter(vaultPath) {
     }
   });
 
+  // HIS ANSWER ABOUT A SHORT NIGHT (3 Nov 2026): the Home card's three
+  // answers, filed on the inbox rails with Undo (lib/sleepCheck.js). The
+  // night itself is held back from every reader by healthData.js until then.
+  router.post('/health-data/sleep-check', async (req, res) => {
+    try {
+      const { answerSleepCheck } = await import('../lib/sleepCheck.js');
+      const { date, verdict, minutes } = req.body || {};
+      const out = await answerSleepCheck({ date, verdict, minutes, source: 'home' });
+      res.json({ said: out.said, destination: out.destination, recordId: out.record?.id || null, days: await loadRecentDays(14) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  // put away unanswered: the night stays unknown and the card does not return
+  router.post('/health-data/sleep-check/dismiss', async (req, res) => {
+    try {
+      const { dismissSleepCheck } = await import('../lib/sleepCheck.js');
+      await dismissSleepCheck(req.body?.date);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.get('/health-data', async (req, res, next) => {
     try {
       const days = req.query.days ? Number(req.query.days) : 14;
