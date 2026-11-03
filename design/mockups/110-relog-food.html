@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Log it again, faster</title>
+<!--
+  110 · LOG IT AGAIN, FASTER (3 November 2026)
+  His words: "I need a quicker and easier way to log food, especially food
+  that I've logged previously as the menu to scroll through is too cluttered
+  and items seem to be all over the place (not just in most recent onwards).
+  Searching helps but still feels clunky to use and navigate the UI."
+
+  WHAT WAS FOUND (his real data on a scratch copy, 3 Nov):
+    - The list IS newest-first on the server, but no row says WHEN, so it
+      reads as random. Anything logged to a past day sorts as midnight.
+    - 136 rows behind a door at the foot of Fuel, two buttons on every row.
+    - Portions are separate rows: "protein pretzel", "... (4x serving)",
+      "... (8x serving)" are three foods.
+    - Likely now ranks by how OFTEN, not how RECENTLY; search matches only
+      the start of a word, shows 4, and puts rotation dishes first.
+
+  WHAT IS DRAWN (Summary style, glass, HIS REAL HISTORY as the content)
+    1 Fuel at rest: under the field, ONE rail, "Again", newest first, each
+      card saying when he ate it. Tap logs it. A card that is usual for this
+      hour carries a small "usual now" mark (Likely now's job, folded in).
+      The rail's cut edge says more; a quiet row under it opens the sheet.
+    2 The sheet: Regulars (his 6 most-logged in the last six weeks) on top, then every
+      day as a section, Today, Yesterday, Sunday... with the time on each row.
+      Things eaten together are one group with "Log all".
+    3 Search inside the sheet: matches anywhere in a word, ranked by how
+      recently; portion variants are ONE row with portion chips.
+    4 Logged: the row turns to a tick, the plate's ring moves, a receipt with
+      Undo rises; the sheet stays open for the next one.
+
+  Motion: rail cards press to .97; a logged row's tick draws (220 ms) and the
+  receipt rises (ease-out, 240 ms); the sheet rises on the house spring with a
+  60% scrim. Reduced motion: end states.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Georgia,serif;
+  --ease:cubic-bezier(.23,1,.32,1);
+  --void:#070816;--ink:#eef0fa;--ink2:rgba(238,240,250,.74);--ink3:rgba(238,240,250,.52);--ink4:rgba(238,240,250,.34);
+  --glass:rgba(255,255,255,.075);--ring:rgba(255,255,255,.14);--well:rgba(0,0,0,.30);
+  --cy:#59e6ff;--gold:#e0b26a;--good:#5fe8a8;--vi:#a18bff;--warn:#e08383;--or:#ffb36b;
+  --fk:#5fe8a8; /* Fuel's own hue */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--void);color:var(--ink);font:15px/1.45 var(--ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+.page{max-width:1640px;margin:0 auto;padding:28px 16px 80px}
+h1.t{font:600 30px/1.1 var(--serif)}
+.lede{color:var(--ink3);margin:8px 0 26px;max-width:72ch}
+.row{display:flex;flex-wrap:wrap;gap:28px}
+.col{flex:1 1 340px;max-width:375px}
+.cap{font-size:13px;color:var(--ink3);margin:10px 4px 0}.cap b{color:var(--ink)}
+.phone{position:relative;height:760px;border-radius:40px;overflow:hidden;border:1px solid var(--ring);
+  background:radial-gradient(120% 60% at 0% 0%,#123247 0%,transparent 55%),radial-gradient(90% 60% at 100% 40%,#2a1d55 0%,transparent 60%),#0a0b1d;padding:52px 16px 0}
+.real{position:absolute;top:18px;right:20px;font:600 10px var(--ui);letter-spacing:.1em;color:var(--good)}
+.h{font:700 34px/1 var(--ui);letter-spacing:-.02em;margin-bottom:12px}
+.card{background:var(--glass);border:1px solid var(--ring);border-radius:24px;padding:14px 16px;backdrop-filter:blur(18px);margin-bottom:12px}
+/* the plate, compressed (it is unchanged; drawn only so the rail sits in place) */
+.plate{display:flex;align-items:center;gap:14px}
+.ringv{width:64px;height:64px;flex:none}
+.plate b{font:700 26px/1 var(--ui);color:var(--good);font-variant-numeric:tabular-nums}
+.plate small{color:var(--ink3);font-size:13px}
+.comp{display:flex;align-items:center;gap:10px;background:var(--well);border:1px solid var(--ring);border-radius:22px;padding:12px 14px;margin:2px 0 14px}
+.comp span{flex:1;color:var(--ink3)}
+.ib{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--ink2)}
+.ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* the rail */
+.rh{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 8px}
+.rh b{font:600 12px var(--ui);letter-spacing:.12em;color:var(--ink3);text-transform:uppercase}
+.rh span{font-size:12px;color:var(--ink4)}
+.rail{display:flex;gap:10px;overflow:hidden;margin-right:-16px}
+.ag{flex:0 0 132px;background:var(--glass);border:1px solid var(--ring);border-radius:20px;padding:12px;position:relative;transition:transform 160ms var(--ease)}
+.ag:active{transform:scale(.97)}
+.ag .when{font:600 11px var(--ui);color:var(--ink3);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.ag .nm{font:600 14px/1.25 var(--ui);margin:6px 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px}
+.ag .mac{font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums}.ag .mac i{font-style:normal;color:var(--fk);font-weight:600}
+.ag .usual{display:block;margin-top:6px;font:600 10px var(--ui);letter-spacing:.06em;color:var(--gold);text-transform:uppercase}
+.more{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 0;padding:12px 14px;border-radius:16px;background:var(--glass);border:1px solid var(--ring);color:var(--ink)}
+.more small{color:var(--ink3)}.more span{color:var(--cy);font-weight:600}
+.ag.all{display:grid;place-items:center;text-align:center;color:var(--cy);font-weight:600;font-size:14px}
+.ag.all small{display:block;color:var(--ink3);font-weight:400;font-size:12px;margin-top:4px}
+/* the sheet */
+.scrim{position:absolute;inset:0;background:rgba(3,4,12,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:96px;background:rgba(22,24,48,.92);backdrop-filter:blur(26px);border-top:1px solid var(--ring);border-radius:28px 28px 0 0;padding:10px 16px 0;overflow:hidden}
+.grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.22);margin:0 auto 12px}
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sh b{font:700 20px var(--ui)}.sh span{color:var(--cy);font-weight:600}
+.find{display:flex;align-items:center;gap:8px;background:var(--well);border:1px solid var(--ring);border-radius:14px;padding:10px 12px;margin-bottom:14px;color:var(--ink3)}
+.find svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8}
+.find .typed{color:var(--ink)}.find .caret{display:inline-block;width:1.5px;height:17px;background:var(--cy);vertical-align:-3px;margin-left:1px}
+.sec{font:600 12px var(--ui);letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;margin:4px 2px 8px;display:flex;justify-content:space-between}
+.sec em{font-style:normal;letter-spacing:0;text-transform:none;color:var(--ink4);font-weight:400}
+.regs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:16px}
+.rg{background:var(--glass);border:1px solid var(--ring);border-radius:14px;padding:9px 11px}
+.rg b{display:block;font:600 13px/1.25 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rg small{font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.grp{background:var(--glass);border:1px solid var(--ring);border-radius:18px;margin-bottom:10px;overflow:hidden}
+.gh{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.06)}
+.gh span{font:600 12px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.gh a{font:600 12.5px var(--ui);color:var(--fk);text-decoration:none}
+.it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 12px}
+.it+.it{border-top:1px solid rgba(255,255,255,.05)}
+.it b{display:block;font:500 14px/1.3 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it small{font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums}.it small i{font-style:normal;color:var(--fk)}
+.it .t{font:500 12px var(--ui);color:var(--ink4);font-variant-numeric:tabular-nums}
+.it.done b{color:var(--ink2)}
+.tick{width:22px;height:22px;border-radius:50%;background:rgba(95,232,168,.18);display:grid;place-items:center}
+.tick svg{width:13px;height:13px;stroke:var(--good);stroke-width:2.4;fill:none;stroke-dasharray:20;stroke-dashoffset:0;animation:draw 220ms var(--ease) both}
+@keyframes draw{from{stroke-dashoffset:20}}
+.chips{display:flex;gap:6px;margin-top:6px}
+.chip{font:600 12px var(--ui);padding:5px 10px;border-radius:999px;border:1px solid var(--ring);color:var(--ink2);font-variant-numeric:tabular-nums}
+.chip.on{background:rgba(95,232,168,.16);border-color:rgba(95,232,168,.5);color:var(--good)}
+mark{background:none;color:var(--cy);font-weight:600}
+.fade{position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(transparent,rgba(22,24,48,.96))}
+.receipt{position:absolute;left:16px;right:16px;bottom:22px;display:flex;align-items:center;gap:10px;background:rgba(10,12,28,.94);border:1px solid var(--ring);border-radius:18px;padding:11px 14px;animation:rise 240ms var(--ease) both}
+.receipt b{flex:1;font:500 14px var(--ui)}.receipt b small{display:block;color:var(--ink3);font-size:12px;font-variant-numeric:tabular-nums}
+.receipt a{color:var(--cy);font-weight:600;text-decoration:none}
+@keyframes rise{from{transform:translateY(16px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.tick svg,.receipt{animation:none}.ag{transition:none}}
+.notes{margin-top:34px;max-width:84ch;color:var(--ink2)}
+.notes h2{font:600 19px var(--serif);color:var(--ink);margin:22px 0 8px}
+.notes li{margin:6px 0 6px 18px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="t">Log it again, faster</h1>
+  <p class="lede">Mockup 110. Every food, time and count below is from your real history on 3 November (a scratch copy), not demo text. Four frames: Fuel at rest, the sheet, a search, and the moment after a log.</p>
+
+  <div class="row">
+    <!-- 1 FUEL AT REST -->
+    <div class="col">
+      <div class="phone">
+        <span class="real">YOUR DATA</span>
+        <div class="h">Fuel</div>
+        <div class="card plate">
+          <svg class="ringv" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,.1)" stroke-width="7" fill="none"/><circle cx="32" cy="32" r="26" stroke="#59e6ff" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="163" stroke-dashoffset="97" transform="rotate(-90 32 32)"/></svg>
+          <div><b>808</b> <small>of 2,138 kcal · 68 of 167 g protein</small></div>
+        </div>
+        <div class="comp"><span>What did you eat?</span>
+          <i class="ib"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></i>
+          <i class="ib"><svg viewBox="0 0 24 24"><path d="M5 6v12M8 6v12M11 6v12M15 6v12M19 6v12"/></svg></i>
+          <i class="ib"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></i>
+        </div>
+        <div class="rh"><b>Again</b><span>newest first · tap to log</span></div>
+        <div class="rail">
+          <div class="ag"><div class="when">Today 22:02</div><div class="nm">Cheesy Pizza Bowls</div><div class="mac"><i>51 g</i> · 489 kcal</div></div>
+          <div class="ag"><div class="when">Today 22:02</div><div class="nm">15g YoPRO Mixed Berries pouch</div><div class="mac"><i>15 g</i> · 94 kcal</div><span class="usual">usual now</span></div>
+          <div class="ag"><div class="when">Yest. 22:21</div><div class="nm">Works Burger</div><div class="mac"><i>52 g</i> · 540 kcal</div></div>
+        </div>
+        <div class="more"><span style="color:var(--ink)">Everything you've logged<br><small>by day, 136 foods, with search</small></span><span>Open ›</span></div>
+      </div>
+      <p class="cap"><b>1 · One rail, newest first, with the time on every card.</b> It replaces Likely now and the history door; "usual now" keeps Likely now's idea as a mark, not a second list. The cut edge on the right says the rail scrolls; the row under it opens everything.</p>
+    </div>
+
+    <!-- 2 THE SHEET -->
+    <div class="col">
+      <div class="phone">
+        <span class="real">YOUR DATA</span>
+        <div class="h">Fuel</div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh"><b>Log again</b><span>Done</span></div>
+          <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>Search 136 foods</div>
+          <div class="sec">Regulars <em>most logged, last 6 weeks</em></div>
+          <div class="regs">
+            <div class="rg"><b>Almond Butter Blueberry Smoothie</b><small>40 g · 445 kcal · 24×</small></div>
+            <div class="rg"><b>Fry's Turkish Delight Jellies</b><small>0 g · 22 kcal · 19×</small></div>
+            <div class="rg"><b>High fibre bread + cheese slice</b><small>7 g · 137 kcal · 10×</small></div>
+            <div class="rg"><b>Works Burger</b><small>52 g · 540 kcal · 9×</small></div>
+            <div class="rg"><b>Easy Meal Prep Lasagna</b><small>49 g · 456 kcal · 9×</small></div>
+            <div class="rg"><b>Rice cakes, banana, honey</b><small>2 g · 189 kcal · 7×</small></div>
+          </div>
+          <div class="sec">Today <em>Tue 3 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>22:01 – 22:02 · 4 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Cheesy Pizza Bowls</b><small><i>51 g</i> · 489 kcal</small></span><span class="t">22:02</span></div>
+            <div class="it"><span><b>15g YoPRO Mixed Berries Yoghurt pouch</b><small><i>15 g</i> · 94 kcal · and 2 more</small></span><span class="t">22:02</span></div>
+          </div>
+          <div class="sec">Yesterday <em>Mon 2 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>22:47</span></div>
+            <div class="it"><span><b>Peters Drumstick Anzac Biscuit cone</b><small><i>3 g</i> · 225 kcal</small></span><span class="t">22:47</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>22:21 – 22:28 · 3 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Works Burger</b><small><i>52 g</i> · 540 kcal</small></span><span class="t">22:21</span></div>
+            <div class="it"><span><b>Coles Crumbed Chicken Tenders (4) with sourdough</b><small><i>27 g</i> · 498 kcal</small></span><span class="t">22:26</span></div>
+            <div class="it"><span><b>Cadbury Caramello Koala</b><small><i>1 g</i> · 75 kcal</small></span><span class="t">22:28</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>14:48</span></div>
+            <div class="it"><span><b>Coles bakery vanilla cupcake</b><small><i>4 g</i> · 357 kcal</small></span><span class="t">14:48</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>09:07 · 3 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Rice cakes with banana and honey</b><small><i>2 g</i> · 189 kcal</small></span><span class="t">09:07</span></div>
+          </div>
+          <div class="fade"></div>
+        </div>
+      </div>
+      <p class="cap"><b>2 · Every day is a section, every row has its time.</b> Regulars first (six, the rest by search). Things eaten together are one group: yesterday's breakfast is one "Log all". Tap a row to log it.</p>
+    </div>
+
+    <!-- 3 SEARCH -->
+    <div class="col">
+      <div class="phone">
+        <span class="real">YOUR DATA</span>
+        <div class="h">Fuel</div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh"><b>Log again</b><span>Done</span></div>
+          <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><span class="typed">pretz<span class="caret"></span></span></div>
+          <div class="sec">1 food, 6 portions <em>newest first</em></div>
+          <div class="grp">
+            <div class="it"><span><b>Crisp Power Sea Salt protein <mark>pretz</mark>el</b><small>last: 1 piece · <i>1 g</i> · 4 kcal</small>
+              <div class="chips"><span class="chip on">1 piece</span><span class="chip">4</span><span class="chip">8</span><span class="chip">10</span></div></span><span class="t">31 Oct</span></div>
+          </div>
+          <div class="sec" style="margin-top:14px">Typed "chick" instead</div>
+          <div class="grp">
+            <div class="it"><span><b>Coles Crumbed <mark>Chick</mark>en Tenders (4)</b><small><i>27 g</i> · 498 kcal</small></span><span class="t">Yest.</span></div>
+            <div class="it"><span><b>Bang Bang <mark>Chick</mark>en Bowl (homemade)</b><small><i>53 g</i> · 946 kcal</small></span><span class="t">30 Oct</span></div>
+            <div class="it"><span><b><mark>Chick</mark>en Caesar Pasta (rice pouches)</b><small><i>43 g</i> · 462 kcal</small></span><span class="t">30 Oct</span></div>
+            <div class="it"><span><b>Creamy sun-dried tomato rigatoni with <mark>chick</mark>en</b><small><i>53 g</i> · 642 kcal</small></span><span class="t">29 Oct</span></div>
+          </div>
+          <p class="cap" style="margin:6px 2px 0">Return still asks Nova to estimate something new.</p>
+        </div>
+      </div>
+      <p class="cap"><b>3 · Search inside the sheet.</b> Matches anywhere in a word, newest first, no cap of four. Your pretzel is six separate rows today (1, 2, 4, 6, 8 and 10 pieces); here it is one row, the four portions you use most as chips, the one you had last lit.</p>
+    </div>
+
+    <!-- 4 LOGGED -->
+    <div class="col">
+      <div class="phone">
+        <span class="real">YOUR DATA</span>
+        <div class="h">Fuel</div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh"><b>Log again</b><span>Done</span></div>
+          <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>Search 136 foods</div>
+          <div class="sec">Yesterday <em>Mon 2 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>09:07 · 3 things</span><a href="#">Log all</a></div>
+            <div class="it done"><span><b>Rice cakes with banana and honey</b><small><i>2 g</i> · 189 kcal</small></span><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+            <div class="it"><span><b>Frankly Milk Chocolate with Coconut</b><small><i>1 g</i> · 140 kcal</small></span><span class="t">09:07</span></div>
+            <div class="it"><span><b>Cadbury Dairy Milk Freddo Strawberry</b><small><i>1 g</i> · 71 kcal</small></span><span class="t">09:07</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>22:21 – 22:28 · 3 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Works Burger</b><small><i>52 g</i> · 540 kcal</small></span><span class="t">22:21</span></div>
+          </div>
+          <div class="receipt"><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b>Rice cakes, logged for today<small>997 of 2,138 kcal · 70 g protein</small></b><a href="#">Undo</a></div>
+        </div>
+      </div>
+      <p class="cap"><b>4 · One tap, a tick, the plate moves, Undo.</b> The sheet stays open, so a breakfast of three is three taps or one "Log all". The receipt's new totals are the plate's own numbers.</p>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>What changes under it (code, not looks)</h2>
+    <ul>
+      <li>A food logged to a past day keeps the time he gave it, or the time he logged it, instead of midnight, so "newest first" is true.</li>
+      <li>Portions fold by the food's name with its portion stripped ("(4× serving)", "(1 piece)"); the chip logs that portion's own macros, as logged before.</li>
+      <li>Groups are entries logged within ten minutes of each other on the same day.</li>
+      <li>Search runs over everything in the last 90 days on the phone, so it works offline.</li>
+    </ul>
+    <h2>What it removes</h2>
+    <ul>
+      <li>The "Everything you've logged" door and its Log / Save pair on every row (Save moves to a long-press on a row).</li>
+      <li>Likely now as its own section (its "around this hour" signal becomes the "usual now" mark).</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

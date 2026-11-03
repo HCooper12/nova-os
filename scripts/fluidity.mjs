@@ -650,6 +650,26 @@ if (argv.includes('--glassmeter')) {
   await writeFile(out, JSON.stringify(result, null, 2));
   console.log(out); clearDeadline(); await cleanup(); process.exit(0);
 }
+// FUEL'S RE-LOG PATHS, PHOTOGRAPHED (3 Nov 2026, for the quicker-logging
+// design): the page as it opens, a typed search, and the full history open.
+if (argv.includes('--fuelshots')) {
+  await goScreen('recipes'); await sleep(2500);
+  await shot('fuel-1-top');
+  await ev(`(function(){ var i = document.querySelector('main .nv-fs-comp input'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } return !!i; })()`);
+  await sleep(300);
+  await send('Input.insertText', { text: 'chick' }); await sleep(900);
+  await shot('fuel-2-search-chick');
+  await ev(`(function(){ var i = document.querySelector('main .nv-fs-comp input'); if (i) i.blur(); return 1; })()`);
+  for (let k = 0; k < 5; k++) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }).then(() => send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }));
+  await ev(`(function(){ var d = Array.from(document.querySelectorAll('main .nv-fs-door')).find(function(e){ return /Everything you/.test(e.textContent); }); if (d) { d.scrollIntoView({ block: 'start' }); d.click(); } return !!d; })()`);
+  await sleep(1800);
+  await ev(`(function(){ var d = document.querySelector('main .nv-fs-rpanel'); if (d) d.scrollIntoView({ block: 'start' }); return !!d; })()`);
+  await sleep(500);
+  await shot('fuel-3-history');
+  result.fuel = await ev(`(function(){ return Array.from(document.querySelectorAll('main .nv-fs-rpanel .nv-fs-ln')).slice(0, 40).map(function(r){ return r.textContent.replace(/\\s+/g, ' ').trim().slice(0, 90); }); })()`);
+  await writeFile(out, JSON.stringify(result, null, 2));
+  console.log(out); clearDeadline(); await cleanup(); process.exit(0);
+}
 if (argv.includes('--explore')) {
   // list what can be tapped on each screen (to choose the state-change actions)
   for (const s of SCREENS) {
