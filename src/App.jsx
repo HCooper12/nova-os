@@ -7236,16 +7236,19 @@ export default class App extends Component {
       .then(({ jobId, sessionId }) => {
         this.setState({ projectIntakeSession: sessionId });
         this.startPoll('project-intake', () => api.projectIntakeJob(conn, jobId), {
+          // the server reads his links first (lib/linkRead.js): say so while it does
+          onProgress: (job) => { if ((job.stage || null) !== (this.state.projectIntakeStage || null)) this.setState({ projectIntakeStage: job.stage || null }); },
           onReady: (job) => {
             const r = job.result || {};
             this.setState({
               projectIntakeBusy: false,
+              projectIntakeStage: null,
               projectIntakeTurns: [...(this.state.projectIntakeTurns || []), { who: 'nova', text: r.text || '' }],
               projectIntakeFiled: r.stage === 'filed' ? { recordId: r.recordId, name: r.brief?.name || 'the project' } : null,
             });
             if (r.recordId) this.refreshInbox();
           },
-          onError: (msg) => this.setState({ projectIntakeBusy: false, projectIntakeError: typeof msg === 'string' ? msg : 'Nova could not answer' }),
+          onError: (msg) => this.setState({ projectIntakeBusy: false, projectIntakeStage: null, projectIntakeError: typeof msg === 'string' ? msg : 'Nova could not answer' }),
         });
       })
       .catch((e) => this.setState({ projectIntakeBusy: false, projectIntakeError: e.message || 'Could not reach Nova', projectIntakeText: text }));

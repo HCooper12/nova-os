@@ -34,7 +34,9 @@ Then the kind's own questions (a build: the stack and where it runs; a room: mea
 
 When you have enough, say so in one short sentence, then on its own line write exactly:
 BRIEF {"name":"…","kind":"build|research|life","goal":"…","done":"…","deadline":null,"phases":[{"name":"…","what":"…","first":"…"}],"reads":["Wiki/…"],"allowances":{"research":true,"draft":true,"code":false,"test":false,"commit":false,"deploy":false},"limit":{"discussAbove":null,"agreed":null},"firstMoves":["…"]}
-The JSON is on ONE line. Nothing after it. The name is at most 60 characters. Two to six phases. Reads are relative paths to pages that exist, never absolute, never "..". The card has only Approve and Discard, so never promise he can edit it: if he wants a change he tells you, you write the BRIEF line again, and the earlier card is withdrawn. Do not write the BRIEF line until he has answered at least one question.`;
+The JSON is on ONE line. Nothing after it. The name is at most 60 characters. Two to six phases. Reads are relative paths to pages that exist, never absolute, never "..". The card has only Approve and Discard, so never promise he can edit it: if he wants a change he tells you, you write the BRIEF line again, and the earlier card is withdrawn. Do not write the BRIEF line until he has answered at least one question.
+
+LINKS: when he sends a link (a reel, a video, a page), Nova's code reads it BEFORE your turn, with the Watcher for a video and Nova's own browser for a page, and gives you what it read, or the exact reason it could not, in a block above his words. Build on what it read. Never tell him you cannot open links.`;
 
 export const PASTED_NOTE = `HE PASTED A LONG PROMPT. Treat it as the brief's source. First echo back your understanding of it in two or three sentences, then ask ONLY what the core above still lacks.`;
 
@@ -54,7 +56,8 @@ export function parseBriefLine(text) {
 
 // `note`: a door's own line, placed before TURN_TAKING (the Voice conversation's,
 // lib/voiceIntake.js). Absent, the prompt is exactly as before.
-export async function buildIntakePrompt(vaultPath, text, note = '') {
+// `links`: lib/linkRead.js's block, what code read from his links this turn.
+export async function buildIntakePrompt(vaultPath, text, note = '', links = '') {
   const { NOVA_LENS } = await import('./lens.js');
   const { profileContext } = await import('./profile.js');
   const { TURN_TAKING, talkPrefsBlock } = await import('./talk.js');
@@ -63,7 +66,7 @@ export async function buildIntakePrompt(vaultPath, text, note = '') {
   let talk = '';
   try { talk = talkPrefsBlock(vaultPath); } catch { talk = ''; }
   const long = String(text || '').length > LONG_PASTE;
-  return [NOVA_LENS, who, PROJECT_INTAKE, long ? PASTED_NOTE : '', note, talk, TURN_TAKING, `HIS WORDS:\n${text}`].filter(Boolean).join('\n\n');
+  return [NOVA_LENS, who, PROJECT_INTAKE, long ? PASTED_NOTE : '', note, talk, TURN_TAKING, links, `HIS WORDS:\n${text}`].filter(Boolean).join('\n\n');
 }
 
 /**
@@ -167,13 +170,29 @@ export async function fileBriefCard({ brief, sessionId, status, errors = null })
  * Start or continue the intake. Returns {jobId, sessionId}; the client polls
  * the job like a code job. `runTurn` is injectable so tests never spawn.
  */
-export async function startIntake(vaultPath, { text, sessionId = null, note = '' } = {}, { runTurn } = {}) {
+//
+// A turn whose words carry a link (3 Nov 2026) hands the runner a FUNCTION for
+// its text: the runner shows "reading your link" while code reads it
+// (lib/linkRead.js), then runs the turn with what was read. `readLinks` is
+// injectable so tests never fetch.
+export async function startIntake(vaultPath, { text, sessionId = null, note = '' } = {}, { runTurn, readLinks } = {}) {
   const words = String(text || '').trim();
   if (!words) { const e = new Error('say what the project is'); e.code = 'intake'; throw e; }
   if (words.length > 20000) { const e = new Error('that is too long to read in one turn'); e.code = 'intake'; throw e; }
   const sid = typeof sessionId === 'string' && /^[0-9a-f-]{36}$/.test(sessionId) ? sessionId : null;
   const run = runTurn || (await import('./claudeCode.js')).startProjectIntakeTurn;
-  const prompt = sid ? words : await buildIntakePrompt(vaultPath, words, note);
+  const { linksIn, readLinksIn } = await import('./linkRead.js');
+  let prompt;
+  if (linksIn(words).length) {
+    const read = readLinks || readLinksIn;
+    prompt = async () => {
+      const { block } = await read(words);
+      if (sid) return block ? `${block}\n\nHIS WORDS:\n${words}` : words;
+      return buildIntakePrompt(vaultPath, words, note, block);
+    };
+  } else {
+    prompt = sid ? words : await buildIntakePrompt(vaultPath, words, note);
+  }
   return run(vaultPath, {
     text: prompt,
     sessionId: sid,

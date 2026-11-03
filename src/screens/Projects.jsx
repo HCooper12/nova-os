@@ -81,7 +81,7 @@ function Intake({ it, summary }) {
               background: t.who === 'him' ? 'color-mix(in srgb, var(--nv-acc) 18%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 7%, transparent)',
             }}>{t.text}</div>
           ))}
-          {it.busy && <div style={{ alignSelf: 'flex-start' }}><Meta>Nova is thinking…</Meta></div>}
+          {it.busy && <div style={{ alignSelf: 'flex-start' }}><Meta>{it.busyLine || 'Nova is thinking…'}</Meta></div>}
         </div>
       )}
       {it.filed ? (

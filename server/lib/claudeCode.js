@@ -2119,6 +2119,19 @@ export function startProjectIntakeTurn(cwd, { text, sessionId = null, finish }) 
     const again = (next) => warmTurn({ kind: 'project-intake', sessionId: sid, cwd, args: intakeArgs(sid, false), text: next, job: turnJob, finishTurn });
     await finish(reply, turnJob, again, sid);
   };
+  // `text` may be a function (lib/projectIntake.js): his words carried a link,
+  // and code reads it first. The poll shows the stage; a read that throws
+  // still runs the turn, on his words, so he is never left without a reply.
+  if (typeof text === 'function') {
+    job.stage = 'reading your link';
+    Promise.resolve().then(text).catch(() => null).then((t) => {
+      job.stage = null;
+      if (job.status !== 'running') return;
+      if (!t) { job.status = 'error'; job.error = 'the turn could not be put together after reading your link'; return; }
+      warmTurn({ kind: 'project-intake', sessionId: sid, cwd, args: intakeArgs(sid, isNew), text: t, job, finishTurn });
+    });
+    return { jobId, sessionId: sid };
+  }
   warmTurn({ kind: 'project-intake', sessionId: sid, cwd, args: intakeArgs(sid, isNew), text, job, finishTurn });
   return { jobId, sessionId: sid };
 }

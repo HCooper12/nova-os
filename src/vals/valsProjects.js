@@ -234,6 +234,7 @@ export function valsProjects(app) {
     set: (e) => app.setState({ projectIntakeText: e.target.value }),
     send: () => app.sendProjectIntake(),
     busy: !!st.projectIntakeBusy,
+    busyLine: st.projectIntakeStage === 'reading your link' ? 'Reading your link…' : 'Nova is thinking…',
     turns: st.projectIntakeTurns || [],
     error: st.projectIntakeError || null,
     filed: st.projectIntakeFiled || null,
