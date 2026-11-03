@@ -33,6 +33,17 @@
     4 Logged: the row turns to a tick, the plate's ring moves, a receipt with
       Undo rises; the sheet stays open for the next one.
 
+  ROUND 2 (4 Nov), his notes: "It shouldn't overwhelm or overtake the main
+  parts of fuel that get used. Also, ensure that I can easily log fractions
+  or multiples of the food (example I sometimes log 1 chip ... then log that
+  I've eaten 12 of whatever else)". So: frame 1 now draws Fuel as it really
+  is and the rail takes Likely now's slot at Likely now's height (no extra
+  row); new frames 4-5 are the amount tray (counts for count foods, servings
+  for the rest, src/portion.js underneath); frame 6's receipt carries the
+  amount. Evidence: 10 separate "Pringles (1 crisp)" entries on 19 Oct, 4
+  Turkish Delight pieces at 13:34 on 1 Nov. Regulars corrected from the real
+  counts (round 1 missed Pink Lamington 18x and Pringles 16x).
+
   Motion: rail cards press to .97; a logged row's tick draws (220 ms) and the
   receipt rises (ease-out, 240 ms); the sheet rises on the house spring with a
   60% scrim. Reduced motion: end states.
@@ -113,8 +124,8 @@ h1.t{font:600 30px/1.1 var(--serif)}
 .tick{width:22px;height:22px;border-radius:50%;background:rgba(95,232,168,.18);display:grid;place-items:center}
 .tick svg{width:13px;height:13px;stroke:var(--good);stroke-width:2.4;fill:none;stroke-dasharray:20;stroke-dashoffset:0;animation:draw 220ms var(--ease) both}
 @keyframes draw{from{stroke-dashoffset:20}}
-.chips{display:flex;gap:6px;margin-top:6px}
-.chip{font:600 12px var(--ui);padding:5px 10px;border-radius:999px;border:1px solid var(--ring);color:var(--ink2);font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:6px;margin-top:6px;align-items:center}
+.chip{font:600 12px/1.2 var(--ui);padding:5px 10px;border-radius:999px;border:1px solid var(--ring);color:var(--ink2);font-variant-numeric:tabular-nums}
 .chip.on{background:rgba(95,232,168,.16);border-color:rgba(95,232,168,.5);color:var(--good)}
 mark{background:none;color:var(--cy);font-weight:600}
 .fade{position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(transparent,rgba(22,24,48,.96))}
@@ -123,6 +134,46 @@ mark{background:none;color:var(--cy);font-weight:600}
 .receipt a{color:var(--cy);font-weight:600;text-decoration:none}
 @keyframes rise{from{transform:translateY(16px);opacity:0}}
 @media (prefers-reduced-motion:reduce){.tick svg,.receipt{animation:none}.ag{transition:none}}
+/* round 2 (4 Nov): Fuel drawn as it really is, the compact rail, the amount tray */
+.top{display:flex;justify-content:space-between;align-items:center;margin:-34px 0 14px;font-size:12px;color:var(--cy)}
+.top b{font:700 15px var(--ui);letter-spacing:.2em;color:var(--ink)}.top b i{font-style:normal;color:var(--cy)}
+.p1 .h{margin-bottom:10px}
+.pl{padding:14px 16px 12px}
+.plh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.plh b{flex:1;font:600 15px var(--ui)}.plh em{font-style:normal;color:var(--ink3);font-size:13px}
+.pli{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#59e6ff,#3fb8e0)}
+.plm{display:flex;gap:14px;align-items:center}
+.pring{width:118px;height:118px;flex:none}
+.plr{flex:1;min-width:0}
+.plk{display:flex;justify-content:space-between;font-size:12px;color:var(--ink3)}
+.plv{font-size:13px;color:var(--ink3)}.plv b{font:700 30px/1.1 var(--ui);color:var(--good);font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:6px 0 8px}.bar i{display:block;height:100%;border-radius:3px;background:var(--good)}
+.plcf{display:flex;gap:30px;font-size:12px;color:var(--ink3);border-top:1px solid rgba(255,255,255,.08);padding-top:6px}.plcf b{font:700 19px var(--ui);color:var(--ink)}
+.plw{border-top:1px solid rgba(255,255,255,.08);margin-top:8px;padding-top:8px;font-size:12px;color:var(--ink3)}.plw b{font:600 15px var(--ui);color:var(--ink)}
+.plf{display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.08);padding-top:9px;font:600 14px var(--ui);color:var(--cy)}
+.rh a{font:600 13px var(--ui);color:var(--cy)}
+.lk{flex:0 0 232px;height:60px;background:var(--glass);border:1px solid var(--ring);border-radius:22px;padding:10px 15px;transition:transform 160ms var(--ease)}
+.lk:active{transform:scale(.97)}
+.lk b{display:block;font:600 14.5px/1.3 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lk small{font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums;white-space:nowrap}.lk small i{font-style:normal;color:var(--cy);font-weight:600}
+.lk u{text-decoration:none;color:var(--gold);font-weight:600}
+.below{font:600 16px var(--ui);color:var(--ink2);margin:20px 4px 10px}
+.rn p{font:400 18px/1.3 var(--serif);margin-top:4px}
+.chip.oth{border-style:dashed;color:var(--cy)}
+.sheet.dim{filter:brightness(.6)}
+.scrim2{position:absolute;inset:0;background:rgba(3,4,12,.45)}
+.tray{position:absolute;left:0;right:0;bottom:0;background:rgba(26,28,56,.96);backdrop-filter:blur(26px);border-top:1px solid var(--ring);border-radius:28px 28px 0 0;padding:10px 18px 26px;animation:rise 280ms var(--ease) both}
+.trh b{display:block;font:700 18px var(--ui)}.trh small{color:var(--ink3);font-size:12.5px}
+.amt{display:flex;align-items:center;justify-content:space-between;margin:18px 0 6px}
+.stp{width:52px;height:52px;border-radius:50%;background:var(--glass);border:1px solid var(--ring);display:grid;place-items:center;font:500 26px var(--ui);color:var(--ink)}
+.stp:active{transform:scale(.94)}
+.big{text-align:center}.big b{display:block;font:700 56px/1 var(--ui);color:var(--fk);font-variant-numeric:tabular-nums;letter-spacing:-.02em}.big em{font-style:normal;color:var(--ink3);font-size:14px}
+.live{text-align:center;font-size:13px;color:var(--ink3);margin:6px 0 14px;font-variant-numeric:tabular-nums}.live b{color:var(--ink)}.live i{font-style:normal;color:var(--fk)}
+.chips.cen{justify-content:center;flex-wrap:wrap}
+.chips.cen .chip{min-width:44px;text-align:center;padding:8px 12px;font-size:14px}
+.hint{text-align:center;font-size:11.5px;color:var(--ink4);margin-top:8px}
+.go{margin-top:18px;text-align:center;padding:14px;border-radius:16px;background:rgba(95,232,168,.18);border:1px solid rgba(95,232,168,.45);color:var(--good);font:600 15px var(--ui)}
+.amtchip{font:600 13px var(--ui);padding:5px 10px;border-radius:999px;border:1px solid rgba(95,232,168,.5);color:var(--good)}
+@media (prefers-reduced-motion:reduce){.tray{animation:none}.lk{transition:none}}
 .notes{margin-top:34px;max-width:84ch;color:var(--ink2)}
 .notes h2{font:600 19px var(--serif);color:var(--ink);margin:22px 0 8px}
 .notes li{margin:6px 0 6px 18px}
@@ -131,32 +182,40 @@ mark{background:none;color:var(--cy);font-weight:600}
 <body>
 <div class="page">
   <h1 class="t">Log it again, faster</h1>
-  <p class="lede">Mockup 110. Every food, time and count below is from your real history on 3 November (a scratch copy), not demo text. Four frames: Fuel at rest, the sheet, a search, and the moment after a log.</p>
+  <p class="lede">Mockup 110. Every food, time and count below is from your real history on 3 November (a scratch copy), not demo text. Revised 4 November after your notes: the rail now takes Likely now's place at Likely now's height, and any food can be logged as a fraction or a count. Six frames.</p>
 
   <div class="row">
-    <!-- 1 FUEL AT REST -->
+    <!-- 1 FUEL AT REST: the rail takes Likely now's slot, nothing else moves -->
     <div class="col">
-      <div class="phone">
+      <div class="phone p1">
         <span class="real">YOUR DATA</span>
+        <div class="top"><b>NOVA<i>·</i>OS</b></div>
         <div class="h">Fuel</div>
-        <div class="card plate">
-          <svg class="ringv" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,.1)" stroke-width="7" fill="none"/><circle cx="32" cy="32" r="26" stroke="#59e6ff" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="163" stroke-dashoffset="97" transform="rotate(-90 32 32)"/></svg>
-          <div><b>808</b> <small>of 2,138 kcal · 68 of 167 g protein</small></div>
+        <div class="card pl">
+          <div class="plh"><span class="pli"></span><b>Today's plate</b><em>Tuesday</em></div>
+          <div class="plm">
+            <svg class="pring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,.1)" stroke-width="9" fill="none"/><circle cx="50" cy="50" r="42" stroke="#59e6ff" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="156" transform="rotate(-90 50 50)"/><text x="50" y="50" text-anchor="middle" fill="#59e6ff" font-size="22" font-weight="700" font-family="-apple-system,sans-serif">68</text><text x="50" y="64" text-anchor="middle" fill="rgba(238,240,250,.6)" font-size="8.5" font-family="-apple-system,sans-serif">of 167 g protein</text></svg>
+            <div class="plr"><div class="plk"><span>Calories</span><span>1,330 left</span></div><div class="plv"><b>808</b> of 2,138</div><div class="bar"><i style="width:38%"></i></div>
+              <div class="plcf"><span><b>71</b> g<br><small>carbs</small></span><span><b>29</b> g<br><small>fat</small></span></div></div>
+          </div>
+          <div class="plw"><div class="plk"><span>This week</span><span>11,421 left</span></div><div><b>3,545</b> of 14,966</div><div class="bar"><i style="width:24%"></i></div></div>
+          <div class="plf"><span>99 g protein to go</span><span>The week ›</span></div>
         </div>
         <div class="comp"><span>What did you eat?</span>
           <i class="ib"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></i>
           <i class="ib"><svg viewBox="0 0 24 24"><path d="M5 6v12M8 6v12M11 6v12M15 6v12M19 6v12"/></svg></i>
           <i class="ib"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></i>
         </div>
-        <div class="rh"><b>Again</b><span>newest first · tap to log</span></div>
+        <div class="rh"><b>Again</b><a>All 136 ›</a></div>
         <div class="rail">
-          <div class="ag"><div class="when">Today 22:02</div><div class="nm">Cheesy Pizza Bowls</div><div class="mac"><i>51 g</i> · 489 kcal</div></div>
-          <div class="ag"><div class="when">Today 22:02</div><div class="nm">15g YoPRO Mixed Berries pouch</div><div class="mac"><i>15 g</i> · 94 kcal</div><span class="usual">usual now</span></div>
-          <div class="ag"><div class="when">Yest. 22:21</div><div class="nm">Works Burger</div><div class="mac"><i>52 g</i> · 540 kcal</div></div>
+          <div class="lk"><b>Cheesy Pizza Bowls</b><small>Today 22:02 · <i>51 g</i> · 489 kcal</small></div>
+          <div class="lk"><b>15g YoPRO Mixed Berries pouch</b><small><u>usual now</u> · 22:02 · <i>15 g</i></small></div>
         </div>
-        <div class="more"><span style="color:var(--ink)">Everything you've logged<br><small>by day, 136 foods, with search</small></span><span>Open ›</span></div>
+        <div class="below">Type the macros</div>
+        <div class="card rn"><div class="plh"><span class="pli" style="background:linear-gradient(135deg,#59e6ff,#a18bff)"></span><b>Right now</b><em>10:44 pm</em></div>
+          <p>Pre-workout is next: Rice cakes with banana and honey.</p></div>
       </div>
-      <p class="cap"><b>1 · One rail, newest first, with the time on every card.</b> It replaces Likely now and the history door; "usual now" keeps Likely now's idea as a mark, not a second list. The cut edge on the right says the rail scrolls; the row under it opens everything.</p>
+      <p class="cap"><b>1 · The rail takes Likely now's place, at Likely now's height.</b> The plate, the field, Type the macros and Right now stay where they are. One row of cards, newest first, with when you had each. "All 136 ›" in the header replaces the separate row, so there is nothing extra on Fuel.</p>
     </div>
 
     <!-- 2 THE SHEET -->
@@ -172,11 +231,11 @@ mark{background:none;color:var(--cy);font-weight:600}
           <div class="sec">Regulars <em>most logged, last 6 weeks</em></div>
           <div class="regs">
             <div class="rg"><b>Almond Butter Blueberry Smoothie</b><small>40 g · 445 kcal · 24×</small></div>
-            <div class="rg"><b>Fry's Turkish Delight Jellies</b><small>0 g · 22 kcal · 19×</small></div>
+            <div class="rg"><b>Fry's Turkish Delight Jellies</b><small>per piece · 22 kcal · 19×</small></div>
+            <div class="rg"><b>Pink Lamington</b><small>1 g · 65 kcal · 18×</small></div>
+            <div class="rg"><b>Pringles Salt &amp; Vinegar</b><small>per crisp · 5 kcal · 16×</small></div>
+            <div class="rg"><b>Works Burger</b><small>52 g · 540 kcal · 10×</small></div>
             <div class="rg"><b>High fibre bread + cheese slice</b><small>7 g · 137 kcal · 10×</small></div>
-            <div class="rg"><b>Works Burger</b><small>52 g · 540 kcal · 9×</small></div>
-            <div class="rg"><b>Easy Meal Prep Lasagna</b><small>49 g · 456 kcal · 9×</small></div>
-            <div class="rg"><b>Rice cakes, banana, honey</b><small>2 g · 189 kcal · 7×</small></div>
           </div>
           <div class="sec">Today <em>Tue 3 Nov</em></div>
           <div class="grp">
@@ -190,14 +249,8 @@ mark{background:none;color:var(--cy);font-weight:600}
             <div class="it"><span><b>Peters Drumstick Anzac Biscuit cone</b><small><i>3 g</i> · 225 kcal</small></span><span class="t">22:47</span></div>
           </div>
           <div class="grp">
-            <div class="gh"><span>22:21 – 22:28 · 3 things</span><a href="#">Log all</a></div>
-            <div class="it"><span><b>Works Burger</b><small><i>52 g</i> · 540 kcal</small></span><span class="t">22:21</span></div>
+            <div class="gh"><span>22:26</span></div>
             <div class="it"><span><b>Coles Crumbed Chicken Tenders (4) with sourdough</b><small><i>27 g</i> · 498 kcal</small></span><span class="t">22:26</span></div>
-            <div class="it"><span><b>Cadbury Caramello Koala</b><small><i>1 g</i> · 75 kcal</small></span><span class="t">22:28</span></div>
-          </div>
-          <div class="grp">
-            <div class="gh"><span>14:48</span></div>
-            <div class="it"><span><b>Coles bakery vanilla cupcake</b><small><i>4 g</i> · 357 kcal</small></span><span class="t">14:48</span></div>
           </div>
           <div class="grp">
             <div class="gh"><span>09:07 · 3 things</span><a href="#">Log all</a></div>
@@ -206,7 +259,7 @@ mark{background:none;color:var(--cy);font-weight:600}
           <div class="fade"></div>
         </div>
       </div>
-      <p class="cap"><b>2 · Every day is a section, every row has its time.</b> Regulars first (six, the rest by search). Things eaten together are one group: yesterday's breakfast is one "Log all". Tap a row to log it.</p>
+      <p class="cap"><b>2 · Everything, by day, with the time on each row.</b> Regulars first (your six most logged). Food eaten together is one group with "Log all". Tap a row to log it at the amount you had last; hold it to choose the amount first.</p>
     </div>
 
     <!-- 3 SEARCH -->
@@ -219,10 +272,10 @@ mark{background:none;color:var(--cy);font-weight:600}
           <div class="grab"></div>
           <div class="sh"><b>Log again</b><span>Done</span></div>
           <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><span class="typed">pretz<span class="caret"></span></span></div>
-          <div class="sec">1 food, 6 portions <em>newest first</em></div>
+          <div class="sec">1 food <em>newest first</em></div>
           <div class="grp">
-            <div class="it"><span><b>Crisp Power Sea Salt protein <mark>pretz</mark>el</b><small>last: 1 piece · <i>1 g</i> · 4 kcal</small>
-              <div class="chips"><span class="chip on">1 piece</span><span class="chip">4</span><span class="chip">8</span><span class="chip">10</span></div></span><span class="t">31 Oct</span></div>
+            <div class="it"><span><b>Crisp Power Sea Salt protein <mark>pretz</mark>el</b><small>per piece · <i>1 g</i> · 4 kcal · last 31 Oct</small>
+              <div class="chips"><span class="chip">1</span><span class="chip">4</span><span class="chip on">8</span><span class="chip">10</span><span class="chip oth">Other…</span></div></span></div>
           </div>
           <div class="sec" style="margin-top:14px">Typed "chick" instead</div>
           <div class="grp">
@@ -234,10 +287,116 @@ mark{background:none;color:var(--cy);font-weight:600}
           <p class="cap" style="margin:6px 2px 0">Return still asks Nova to estimate something new.</p>
         </div>
       </div>
-      <p class="cap"><b>3 · Search inside the sheet.</b> Matches anywhere in a word, newest first, no cap of four. Your pretzel is six separate rows today (1, 2, 4, 6, 8 and 10 pieces); here it is one row, the four portions you use most as chips, the one you had last lit.</p>
+      <p class="cap"><b>3 · Search matches anywhere in a word, newest first.</b> Your pretzel is six rows today (1, 2, 4, 6, 8 and 10 pieces); here it is one food priced per piece, with the counts you have used as chips. Tapping a chip logs that many; "Other…" opens the amount tray.</p>
     </div>
 
-    <!-- 4 LOGGED -->
+    <!-- 4 AMOUNT: A COUNT -->
+    <div class="col">
+      <div class="phone">
+        <span class="real">YOUR DATA</span>
+        <div class="h">Fuel</div>
+        <div class="scrim"></div>
+        <div class="sheet dim">
+          <div class="grab"></div>
+          <div class="sh"><b>Log again</b><span>Done</span></div>
+          <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>Search 136 foods</div>
+          <div class="sec">Regulars <em>most logged, last 6 weeks</em></div>
+          <div class="regs">
+            <div class="rg"><b>Almond Butter Blueberry Smoothie</b><small>40 g · 445 kcal · 24×</small></div>
+            <div class="rg"><b>Fry's Turkish Delight Jellies</b><small>per piece · 22 kcal · 19×</small></div>
+            <div class="rg"><b>Pink Lamington</b><small>1 g · 65 kcal · 18×</small></div>
+            <div class="rg"><b>Pringles Salt &amp; Vinegar</b><small>per crisp · 5 kcal · 16×</small></div>
+            <div class="rg"><b>Works Burger</b><small>52 g · 540 kcal · 10×</small></div>
+            <div class="rg"><b>High fibre bread + cheese slice</b><small>7 g · 137 kcal · 10×</small></div>
+          </div>
+          <div class="sec">Today <em>Tue 3 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>22:01 – 22:02 · 4 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Cheesy Pizza Bowls</b><small><i>51 g</i> · 489 kcal</small></span><span class="t">22:02</span></div>
+            <div class="it"><span><b>15g YoPRO Mixed Berries Yoghurt pouch</b><small><i>15 g</i> · 94 kcal · and 2 more</small></span><span class="t">22:02</span></div>
+          </div>
+          <div class="sec">Yesterday <em>Mon 2 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>22:47</span></div>
+            <div class="it"><span><b>Peters Drumstick Anzac Biscuit cone</b><small><i>3 g</i> · 225 kcal</small></span><span class="t">22:47</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>22:26</span></div>
+            <div class="it"><span><b>Coles Crumbed Chicken Tenders (4) with sourdough</b><small><i>27 g</i> · 498 kcal</small></span><span class="t">22:26</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>09:07 · 3 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Rice cakes with banana and honey</b><small><i>2 g</i> · 189 kcal</small></span><span class="t">09:07</span></div>
+          </div>
+          </div>
+        <div class="scrim2"></div>
+        <div class="tray">
+          <div class="grab"></div>
+          <div class="trh"><b>Pringles Salt &amp; Vinegar</b><small>5 kcal a crisp · you log this one crisp at a time</small></div>
+          <div class="amt"><span class="stp">−</span><span class="big"><b>12</b><em>crisps</em></span><span class="stp">+</span></div>
+          <div class="live"><b>60 kcal</b> · 7 g carbs · 3 g fat · 0 g protein</div>
+          <div class="chips cen"><span class="chip">6</span><span class="chip">10</span><span class="chip on">12</span><span class="chip">15</span><span class="chip">20</span><span class="chip oth">Type</span></div>
+          <p class="hint">6 and 10 are the counts you logged on 18 and 19 Oct</p>
+          <div class="go">Log 12 crisps · 60 kcal</div>
+        </div>
+      </div>
+      <p class="cap"><b>4 · Many of one thing: one entry.</b> On 19 October you logged "Pringles (1 crisp)" ten separate times. Here − / + steps by one, the chips jump to the counts you actually use, and Type gives the number pad. It logs one entry, "Pringles Salt &amp; Vinegar (12 crisps)".</p>
+    </div>
+
+    <!-- 5 AMOUNT: A FRACTION -->
+    <div class="col">
+      <div class="phone">
+        <span class="real">YOUR DATA</span>
+        <div class="h">Fuel</div>
+        <div class="scrim"></div>
+        <div class="sheet dim">
+          <div class="grab"></div>
+          <div class="sh"><b>Log again</b><span>Done</span></div>
+          <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>Search 136 foods</div>
+          <div class="sec">Regulars <em>most logged, last 6 weeks</em></div>
+          <div class="regs">
+            <div class="rg"><b>Almond Butter Blueberry Smoothie</b><small>40 g · 445 kcal · 24×</small></div>
+            <div class="rg"><b>Fry's Turkish Delight Jellies</b><small>per piece · 22 kcal · 19×</small></div>
+            <div class="rg"><b>Pink Lamington</b><small>1 g · 65 kcal · 18×</small></div>
+            <div class="rg"><b>Pringles Salt &amp; Vinegar</b><small>per crisp · 5 kcal · 16×</small></div>
+            <div class="rg"><b>Works Burger</b><small>52 g · 540 kcal · 10×</small></div>
+            <div class="rg"><b>High fibre bread + cheese slice</b><small>7 g · 137 kcal · 10×</small></div>
+          </div>
+          <div class="sec">Today <em>Tue 3 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>22:01 – 22:02 · 4 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Cheesy Pizza Bowls</b><small><i>51 g</i> · 489 kcal</small></span><span class="t">22:02</span></div>
+            <div class="it"><span><b>15g YoPRO Mixed Berries Yoghurt pouch</b><small><i>15 g</i> · 94 kcal · and 2 more</small></span><span class="t">22:02</span></div>
+          </div>
+          <div class="sec">Yesterday <em>Mon 2 Nov</em></div>
+          <div class="grp">
+            <div class="gh"><span>22:47</span></div>
+            <div class="it"><span><b>Peters Drumstick Anzac Biscuit cone</b><small><i>3 g</i> · 225 kcal</small></span><span class="t">22:47</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>22:26</span></div>
+            <div class="it"><span><b>Coles Crumbed Chicken Tenders (4) with sourdough</b><small><i>27 g</i> · 498 kcal</small></span><span class="t">22:26</span></div>
+          </div>
+          <div class="grp">
+            <div class="gh"><span>09:07 · 3 things</span><a href="#">Log all</a></div>
+            <div class="it"><span><b>Rice cakes with banana and honey</b><small><i>2 g</i> · 189 kcal</small></span><span class="t">09:07</span></div>
+          </div>
+          </div>
+        <div class="scrim2"></div>
+        <div class="tray">
+          <div class="grab"></div>
+          <div class="trh"><b>Easy Meal Prep Lasagna</b><small>one serving is 456 kcal · 49 g protein</small></div>
+          <div class="amt"><span class="stp">−</span><span class="big"><b>½</b><em>serving</em></span><span class="stp">+</span></div>
+          <div class="live"><b>228 kcal</b> · <i>25 g protein</i> · 19 g carbs · 6 g fat</div>
+          <div class="chips cen"><span class="chip">¼</span><span class="chip">⅓</span><span class="chip on">½</span><span class="chip">⅔</span><span class="chip">¾</span></div>
+          <div class="chips cen" style="margin-top:8px"><span class="chip">1</span><span class="chip">1½</span><span class="chip">2</span><span class="chip oth">Type</span></div>
+          <div class="go">Log ½ serving · 228 kcal</div>
+        </div>
+      </div>
+      <p class="cap"><b>5 · Part of a meal, or more than one.</b> A food with no count in its name gets servings: the fractions you can already pick for a recipe, then 1, 1½, 2 and Type. Same tray, same place, so it is one thing to learn.</p>
+    </div>
+
+    <!-- 6 LOGGED -->
     <div class="col">
       <div class="phone">
         <span class="real">YOUR DATA</span>
@@ -247,38 +406,48 @@ mark{background:none;color:var(--cy);font-weight:600}
           <div class="grab"></div>
           <div class="sh"><b>Log again</b><span>Done</span></div>
           <div class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>Search 136 foods</div>
-          <div class="sec">Yesterday <em>Mon 2 Nov</em></div>
+          <div class="sec">Regulars <em>most logged, last 6 weeks</em></div>
+          <div class="regs">
+            <div class="rg"><b>Almond Butter Blueberry Smoothie</b><small>40 g · 445 kcal · 24×</small></div>
+            <div class="rg"><b>Fry's Turkish Delight Jellies</b><small>per piece · 22 kcal · 19×</small></div>
+          </div>
+          <div class="sec">Sunday <em>1 Nov</em></div>
           <div class="grp">
-            <div class="gh"><span>09:07 · 3 things</span><a href="#">Log all</a></div>
-            <div class="it done"><span><b>Rice cakes with banana and honey</b><small><i>2 g</i> · 189 kcal</small></span><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
-            <div class="it"><span><b>Frankly Milk Chocolate with Coconut</b><small><i>1 g</i> · 140 kcal</small></span><span class="t">09:07</span></div>
-            <div class="it"><span><b>Cadbury Dairy Milk Freddo Strawberry</b><small><i>1 g</i> · 71 kcal</small></span><span class="t">09:07</span></div>
+            <div class="gh"><span>17:14</span></div>
+            <div class="it done"><span><b>Easy Meal Prep Lasagna</b><small><i>25 g</i> · 228 kcal · ½ serving</small></span><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
           </div>
           <div class="grp">
-            <div class="gh"><span>22:21 – 22:28 · 3 things</span><a href="#">Log all</a></div>
-            <div class="it"><span><b>Works Burger</b><small><i>52 g</i> · 540 kcal</small></span><span class="t">22:21</span></div>
+            <div class="gh"><span>13:57</span></div>
+            <div class="it"><span><b>Allen's Speckled Snakes</b><small>2 snakes · 62 kcal · logged as 2 entries</small></span><span class="t">13:57</span></div>
           </div>
-          <div class="receipt"><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b>Rice cakes, logged for today<small>997 of 2,138 kcal · 70 g protein</small></b><a href="#">Undo</a></div>
+          <div class="grp">
+            <div class="gh"><span>13:34</span></div>
+            <div class="it"><span><b>Fry's Turkish Delight Chocolate Jellies</b><small>4 pieces · 88 kcal · logged as 4 entries</small></span><span class="t">13:34</span></div>
+          </div>
+          <div class="receipt"><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b>Lasagna, logged for today<small>1,036 of 2,138 kcal · 93 g</small></b><span class="amtchip">½ ▾</span><a href="#">Undo</a></div>
         </div>
       </div>
-      <p class="cap"><b>4 · One tap, a tick, the plate moves, Undo.</b> The sheet stays open, so a breakfast of three is three taps or one "Log all". The receipt's new totals are the plate's own numbers.</p>
+      <p class="cap"><b>6 · Logged: a tick, the plate moves, and the amount stays changeable.</b> The receipt carries the amount: tap "½ ▾" to reopen the tray and change it, or Undo. So the one-tap log from the rail can still become 12 or ½ after the fact.</p>
     </div>
   </div>
 
   <div class="notes">
     <h2>What changes under it (code, not looks)</h2>
     <ul>
-      <li>A food logged to a past day keeps the time he gave it, or the time he logged it, instead of midnight, so "newest first" is true.</li>
-      <li>Portions fold by the food's name with its portion stripped ("(4× serving)", "(1 piece)"); the chip logs that portion's own macros, as logged before.</li>
-      <li>Groups are entries logged within ten minutes of each other on the same day.</li>
-      <li>Search runs over everything in the last 90 days on the phone, so it works offline.</li>
+      <li>Amounts use Nova's existing portion code (the fractions a recipe already offers, and the same rounding). A count food is one whose name carries a count, like "(1 crisp)", "(1 piece)" or "(3 balls)"; its macros are divided down to one, multiplied up, and the name is rewritten: "Pringles Salt &amp; Vinegar (12 crisps)". Anything else is servings: "Easy Meal Prep Lasagna (½ serving)".</li>
+      <li>The amount you used last becomes that food's default, so once you log 12 crisps a single tap on the rail logs 12.</li>
+      <li>Changing the amount after a log edits that same entry; Undo still takes it off.</li>
+      <li>The same food logged many times in one day (your ten crisps on 19 Oct) reads as one row with its total.</li>
+      <li>A food logged to a past day keeps the time you gave it, or the time you logged it, instead of midnight, so "newest first" is true.</li>
+      <li>Groups are entries logged within ten minutes of each other on the same day. Search runs over the last 90 days on the phone, so it works offline.</li>
     </ul>
     <h2>What it removes</h2>
     <ul>
-      <li>The "Everything you've logged" door and its Log / Save pair on every row (Save moves to a long-press on a row).</li>
-      <li>Likely now as its own section (its "around this hour" signal becomes the "usual now" mark).</li>
+      <li>Likely now as its own row (the rail takes its slot; its "around this hour" idea is the "usual now" mark).</li>
+      <li>The "Everything you've logged" door at the foot of Fuel and the Log / Save pair on every row (Save moves to the hold menu).</li>
     </ul>
   </div>
+
 </div>
 </body>
 </html>
