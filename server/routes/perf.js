@@ -11,5 +11,13 @@ export function perfRouter() {
     const limit = Math.max(1, Math.min(1000, Number(req.query.limit) || 200));
     res.json({ rows: await readPerf('skillsets', limit) });
   });
+  // the glass meter (src/glassMeter.js): one run from his phone in, the last rows out
+  router.post('/perf/glass', async (req, res) => {
+    try { await appendPerf('glass', req.body); res.json({ ok: true }); } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  });
+  router.get('/perf/glass', async (req, res) => {
+    const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 20));
+    res.json({ rows: await readPerf('glass', limit) });
+  });
   return router;
 }

@@ -220,6 +220,8 @@ export function valsMisc(app, ctx) {
     setHearing: (value) => app.setHearing(value),
     earsTest: st.earsTest || null,
     runEarsTest: () => app.runEarsTest(),
+    glassTest: st.glassTest || null,
+    runGlassTest: () => app.runGlassTest(),
     hearingNow: resolveHearing({
       choice: st.hearing || 'auto',
       ios: typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent),

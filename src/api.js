@@ -163,6 +163,8 @@ export async function testConnection(baseUrl, token) {
 }
 
 export const api = {
+  // the glass meter's run, from his phone (src/glassMeter.js, server/routes/perf.js)
+  reportGlass: (conn, report) => post(conn, '/api/perf/glass', report),
   // WORKING ON THIS MAC — every Claude Code session across every project.
   // Its own small endpoint rather than a slice of /api/ops, because the Ops
   // screen polls it every 20 seconds and recomputing the whole ops payload

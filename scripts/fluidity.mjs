@@ -40,6 +40,7 @@
 //   --ablate      price the orb canvases and the backdrop blur by switching
 //                 each off in the test page only (idle + scroll, 4 variants)
 //   --explore     list what can be tapped on each screen
+//   --glassmeter  run Settings › Check Nova › the glass meter as he would (with --shots for the result)
 //   --verify      (2 Nov, finding 2) build the view model the old way beside
 //                 the memoised one on EVERY commit of the run and report any
 //                 difference (result.verify). Doubles each commit: never
@@ -572,6 +573,12 @@ async function renderCost(n = 30) {
     next();
   })`);
 }
+const shot = async (name) => {
+  if (!shotsDir) return;
+  await mkdir(shotsDir, { recursive: true });
+  const r = await send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
+  if (r?.data) await writeFile(path.join(shotsDir, `${name}.png`), Buffer.from(r.data, 'base64'));
+};
 if (argv.includes('--rendercost')) {
   result.renderCost = {};
   for (const s of SCREENS) {
@@ -624,6 +631,25 @@ if (argv.includes('--ablate')) {
   await writeFile(out, JSON.stringify(result, null, 2));
   console.log(out); clearDeadline(); await cleanup(); process.exit(0);
 }
+// THE GLASS METER, run here as he would run it from Settings › Check Nova
+// (src/glassMeter.js): proves the meter works end to end and gives the Blink
+// number to set beside his phone's. Its report POST is refused by the guard.
+if (argv.includes('--glassmeter')) {
+  await goScreen('settings'); await sleep(1200);
+  await ev(`(function(){ window.__flApp().runGlassTest(); return 1; })()`);
+  let gt = null;
+  for (let i = 0; i < 120; i++) {
+    await sleep(500);
+    gt = await ev(`(function(){ return window.__flApp().state.glassTest || null; })()`);
+    if (gt && !gt.running) break;
+  }
+  await sleep(1500);
+  result.glassmeter = { state: gt, screen: await screenNow() };
+  await shot('glassmeter-result');
+  console.error(`${TOOL}: glass meter`, JSON.stringify(result.glassmeter));
+  await writeFile(out, JSON.stringify(result, null, 2));
+  console.log(out); clearDeadline(); await cleanup(); process.exit(0);
+}
 if (argv.includes('--explore')) {
   // list what can be tapped on each screen (to choose the state-change actions)
   for (const s of SCREENS) {
@@ -649,12 +675,6 @@ for (const s of SCREENS.filter((x) => x !== 'session')) {
 }
 await sleep(1500);
 
-const shot = async (name) => {
-  if (!shotsDir) return;
-  await mkdir(shotsDir, { recursive: true });
-  const r = await send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
-  if (r?.data) await writeFile(path.join(shotsDir, `${name}.png`), Buffer.from(r.data, 'base64'));
-};
 const escape = async () => {
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).catch(() => {});
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).catch(() => {});

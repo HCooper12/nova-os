@@ -36,10 +36,30 @@ export function cleanReport(body) {
   };
 }
 
+// THE GLASS METER'S REPORT (3 Nov 2026, src/glassMeter.js): per screen, three
+// scroll passes (glass on, off, on) as frame counts and percentiles
+const pass = (p) => (p && typeof p === 'object' ? { glass: !!p.glass, frames: num(p.frames), p50: num(p.p50), p95: num(p.p95), longest: num(p.longest), missed: num(p.missed) } : null);
+export function cleanGlassReport(body) {
+  const b = body && typeof body === 'object' ? body : {};
+  return {
+    at: new Date().toISOString(),
+    refreshMs: num(b.refreshMs),
+    dpr: num(b.dpr),
+    style: str(b.style, 24),
+    material: str(b.material, 24),
+    screens: Array.isArray(b.screens) ? b.screens.slice(0, 8).map((s) => ({
+      id: str(s?.id, 24), panes: num(s?.panes), depth: num(s?.depth), error: str(s?.error, 120),
+      passes: Array.isArray(s?.passes) ? s.passes.slice(0, 4).map(pass) : [],
+    })) : [],
+    ua: str(b.ua, 240),
+  };
+}
+const CLEANERS = { glass: cleanGlassReport };
+
 export async function appendPerf(name, body) {
   const file = perfFile(name);
   await mkdir(path.dirname(file), { recursive: true });
-  const row = cleanReport(body);
+  const row = (CLEANERS[name] || cleanReport)(body);
   // the cap: past it, keep the newest half
   try {
     const st = await stat(file);

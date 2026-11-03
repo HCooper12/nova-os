@@ -119,6 +119,7 @@ import { echoScore, contentWords } from './bargeIn.js';
 import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, capUnsaid, airWithBrowser } from './interruptTurn.js';
 import { countsAsEmpty, afterEmpty } from './listenRules.js';
 import { runMicCheck } from './micCheck.js';
+import { measureGlass, glassSummary } from './glassMeter.js';
 import { applyTrainToday, todayPlanFor } from './trainToday.js';
 import { IslandFeed } from './IslandFeed.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
@@ -13490,6 +13491,35 @@ export default class App extends Component {
         audioSession: report.audioSession,
       }),
     });
+  }
+
+  // THE GLASS METER (3 Nov 2026, src/glassMeter.js): Home, Train and Fuel
+  // scrolled with the glass on and off, timed on HIS phone, then back to the
+  // Check page with the result; the run also goes to the Mac
+  // (server/data/perf/glass.jsonl) so a session can read what his phone drew.
+  async runGlassTest() {
+    if (this.state.glassTest?.running) return;
+    this.setState({ glassTest: { running: true, stage: 'Starting', lines: null } });
+    let report = null;
+    try {
+      report = await measureGlass({
+        screens: ['mission', 'workouts', 'recipes'],
+        go: (id) => this.navigate(id),
+        onStage: (stage) => this.setState((st) => ({ glassTest: { ...(st.glassTest || {}), stage } })),
+      });
+    } catch (e) {
+      report = { screens: [], error: String(e?.message || e) };
+    }
+    this.navigate('settings');
+    setTimeout(() => {
+      this.openSettingsPage('check');
+      // the answer is what he waited 25 s for: bring it into view
+      setTimeout(() => document.querySelector('[data-set-key="glass"]')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 450);
+    }, 60);
+    const lines = report.error ? [{ id: 'glass', ok: false, line: `The meter itself failed: ${report.error}` }] : glassSummary(report);
+    this.setState({ glassTest: { running: false, stage: '', lines } });
+    const conn = getConnection();
+    if (conn && !report.error) api.reportGlass(conn, { ...report, style: this.state.novaStyle, material: this.state.material }).catch(() => {});
   }
 
   async runVoiceTest() {

@@ -301,7 +301,7 @@ export function CheckPage({ P }) {
   };
   return (
     <>
-      <HeaderCard tile={<Tile lg icon="checkc" hue="var(--nv-good)" />} title="Check Nova" text="Five tests for when something stops working. Nothing here files anything." />
+      <HeaderCard tile={<Tile lg icon="checkc" hue="var(--nv-good)" />} title="Check Nova" text="Six tests for when something stops working. Nothing here files anything." />
       <Group label="Sound" i={1}>
         <TestBlock k="hear" label="Can you hear Nova?" sub="Walks the whole path, Mac to speaker, and names whatever fails." run={K.runVoiceTest} running={!!vt?.running} ran={!!vt?.stages?.length}>
           <Stages stages={vt?.stages} />
@@ -319,7 +319,12 @@ export function CheckPage({ P }) {
           {et?.running ? <p className="nv-set-ask" role="status">{et.stage}</p> : <Stages stages={earsStages(et)} />}
         </TestBlock>
       </Group>
-      <Group label="Touch" i={2}>
+      <Group label="Display" i={2}>
+        <TestBlock k="glass" label="How heavy is the glass?" sub="Scrolls Home, Train and Fuel with the glass on and off and counts the frames your phone misses. About 25 seconds; don’t touch the screen." run={K.runGlassTest} running={!!K.glassTest?.running} ran={!!K.glassTest?.lines}>
+          {K.glassTest?.running ? <p className="nv-set-ask" role="status">{K.glassTest.stage}</p> : <Stages stages={K.glassTest?.lines?.map((l) => ({ ok: l.ok, stage: { mission: 'Home', workouts: 'Train', recipes: 'Fuel' }[l.id] || l.id, detail: l.line }))} />}
+        </TestBlock>
+      </Group>
+      <Group label="Touch" i={3}>
         <div className="nv-set-blk" data-set-key="haptics">
           <div className="nv-set-row nx3"><span className="nv-set-rt"><span className="nv-set-rl">Haptics</span><span className="nv-set-rs">{H.label}</span></span></div>
           {H.path !== 'none' && (
@@ -342,7 +347,7 @@ export function CheckPage({ P }) {
           <Stages stages={swipeRun} />
         </TestBlock>
       </Group>
-      <Group label="This build" i={3} foot="Send this line with any report, so the fix starts from facts.">
+      <Group label="This build" i={4} foot="Send this line with any report, so the fix starts from facts.">
         <ActRow label={`Build ${K.build}`} sub={K.buildLine} mono>
           <TextAction onClick={copy}><span className="nv-set-tb"><Ico n="copy" />Copy</span></TextAction>
         </ActRow>

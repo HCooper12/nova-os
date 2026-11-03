@@ -247,6 +247,7 @@ export function valsSettings(app, ctx, v) {
     voiceTest: v.voiceTest, runVoiceTest: v.runVoiceTest,
     micCheck: v.micCheck, runMicCheck: v.runMicCheck,
     earsTest: v.earsTest, runEarsTest: v.runEarsTest,
+    glassTest: v.glassTest, runGlassTest: v.runGlassTest,
     // the swipe facts are read when he asks, as stages like the others
     swipeStages: [
       { ok: !!swipe.standalone, stage: 'Installed to the Home Screen', detail: swipe.standalone ? 'the gesture is listening' : 'running in a browser tab, where Safari owns the edge' },

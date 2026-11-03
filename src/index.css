@@ -6678,3 +6678,13 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 .nv-vattach.mac { animation-name: nvVattachInMac; }
 @keyframes nvVattachInMac { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .nv-vattach, .nv-vattach.mac { animation: none; } }
+
+/* THE GLASS METER (src/glassMeter.js, 3 Nov 2026): for one scroll pass only,
+   every backdrop blur off, so his phone can time the page without it. The
+   attribute is set and removed by the meter; nothing else uses it. */
+:root[data-nv-glass-meter-off] *,
+:root[data-nv-glass-meter-off] *::before,
+:root[data-nv-glass-meter-off] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
