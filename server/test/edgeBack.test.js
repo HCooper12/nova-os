@@ -206,8 +206,10 @@ test('a drag-driven back skips the view transition', async () => {
     'a swipe and a view transition will run at the same time');
   assert.match(app, /const settingsHop = !changed && this\.state\.screen === 'settings';/);
   // (15 Oct: a back may fold into the briefing pill first; still never on a drag)
-  assert.match(app, /if \(changed && !dragged(?: && [^\n]*?)?\) this\.riseMain\(\);/,
-    'a dragged back must not also rise: the drag IS the animation');
+  // (4 Nov: the rise became the hand-off, src/handoff.js; still never on a drag)
+  assert.match(app, /const handSnap = changed && !dragged && !fold \? handLeave\(\) : null;/,
+    'a dragged back must not also hand off: the drag IS the animation');
+  assert.match(app, /if \(!changed \|\| dragged\) \{ handDiscard\(handSnap\); return; \}/);
 });
 
 test('THE APP\u2019S OWN LAYOUT IS NEVER TRANSFORMED — the fault he filmed', async () => {
@@ -260,13 +262,15 @@ test('BACK ANIMATES LIKE FORWARD', async () => {
     path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'App.jsx',
   ), 'utf8');
   const pop = app.slice(app.indexOf('this.popH = (e) => {'), app.indexOf("window.addEventListener('popstate', this.popH)"));
-  assert.match(pop, /this\.riseMain\(\)/, 'back to another screen arrives without the tab\u2019s rise');
+  // 4 Nov 2026 (his two reels): the rise became the HAND-OFF (src/handoff.js),
+  // and back still plays exactly what a tab plays
+  assert.match(pop, /handArrive\(handSnap/, 'back to another screen arrives without the tab\u2019s hand-off');
   assert.match(pop, /withTransition\(apply\)/, 'a back that closes an overlay lost its morph');
   // a hash Back fires popstate AND hashchange: the second must not run again
   assert.match(pop, /e\?\.type === 'hashchange' && this\.popSeen\?\.hash === location\.hash/,
     'one back is handled twice, and the second photographs the page mid-rise');
   const nav = app.slice(app.indexOf('  navigate(rawScreen, extra = {}) {'), app.indexOf('    if (changed) this.noteScreenVisit(screen);'));
-  assert.match(nav, /this\.riseMain\(\);/, 'forward must rise the same way');
+  assert.match(nav, /handArrive\(handSnap, \{ build: this\.handBuilds\(screen\) \}\)/, 'forward must hand off the same way');
   assert.doesNotMatch(nav, /this\.withTransition\(/, 'a screen change is photographing the whole page again');
 });
 

@@ -7,7 +7,7 @@
 // right, shallower a pop back, a sideways hop (one routine to another) a push.
 // The live session is not a page in that stack: it grows out of the card he
 // tapped and shrinks back when he leaves it. A screen change is none of
-// these; it rises like a tab (navigate, riseMain).
+// these; it is handed off like a tab (navigate, src/handoff.js).
 
 export function pageKey(s) {
   if (!s) return { id: '', depth: 0 };

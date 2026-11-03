@@ -16,12 +16,14 @@ import { fileURLToPath } from 'node:url';
 const root = (p) => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 const read = (p) => readFileSync(root(p), 'utf8');
 
-test('a screen change cross-fades under reduced motion (riseMain), opacity only', () => {
-  const app = read('src/App.jsx');
-  const body = app.slice(app.indexOf('  riseMain() {'), app.indexOf('  navigate(rawScreen'));
-  assert.ok(!/if \(reduce \|\|/.test(body), 'reduced motion no longer returns early');
-  assert.match(body, /reduce\s*\?\s*\[\{ opacity: 0 \}, \{ opacity: 1 \}\]/);
-  assert.match(body, /\{ duration: 160, easing: 'ease', fill: 'both' \}/);
+test('a screen change cross-fades under reduced motion (the hand-off), opacity only', () => {
+  // 4 Nov 2026: riseMain became src/handoff.js. Under reduced motion (and
+  // Calm) the page being left fades in 160 ms and nothing travels or builds.
+  const hand = read('src/handoff.js');
+  assert.match(hand, /const quiet = \(\) => reducedMotion\(\) \|\|/);
+  assert.match(hand, /calm\s*\?\s*\[\{ opacity: 1 \}, \{ opacity: 0 \}\]/);
+  assert.match(hand, /\{ duration: calm \? 160 : EXIT_MS/);
+  assert.match(hand, /if \(!calm && build\) \{/, 'reduced motion still staggers and rises');
 });
 
 test('the two rise classes fade under reduced motion, past the global .01s rule', () => {

@@ -94,13 +94,19 @@ test('NOTHING SNAPSHOTS THE CHROME — glass cannot survive being captured', () 
   assert.match(app, /this\.navigate\(screen, \{ paletteOpen: false, instant: true \}\)/,
     'a tab hop must not snapshot the page');
   // …but it must still MOVE. instant means no snapshot, not no motion.
-  assert.match(app, /this\.mainRef\.current\.animate\(/, 'the live content animates instead');
-  assert.match(app, /translateY\(6px\)/);
-  assert.match(app, /cubic-bezier\(\.32,\.72,0,1\)/, 'the house curve, not a new one');
-  assert.match(app, /prefers-reduced-motion: reduce/);
-  // and it animates MAIN, which excludes the chrome by construction
-  const at = app.indexOf('this.mainRef.current.animate(');
-  assert.ok(app.lastIndexOf('mainRef', at) > 0, 'it has to be main — the chrome lives outside it');
+  // 4 Nov 2026 (his two reels): the move is the HAND-OFF (src/handoff.js).
+  // It copies the DOM of <main>'s own children (settingsNav's snapshot), never
+  // an image of the page, so the copy's glass is live glass and the chrome,
+  // which lives outside <main>, is never in it.
+  const hand = readFileSync(root('src/handoff.js'), 'utf8');
+  assert.match(app, /handLeave\(\)/, 'the live content hands off instead');
+  assert.match(hand, /import \{ snapshot, reducedMotion, mainEl \} from '\.\/settingsNav\.js';/);
+  assert.ok(!/startViewTransition|view-transition-name|viewTransitionName/.test(hand), 'the hand-off is photographing the page');
+  assert.match(hand, /translateY\(\$\{RISE_PX\}px\) scale\(\.985\)/, 'the blocks rise');
+  assert.match(hand, /houseSpring\('snappy'\)/, 'the house spring, not a new curve');
+  // a filter on anything holding glass flattens it in WebKit: blur only on text
+  assert.match(hand, /if \(blurs\(el\)\) \{ from\.filter/);
+  assert.match(hand, /!el\.querySelector\('\.nv-sum-card, \.nv-liquid, \.nv-pane, canvas'\)/);
 });
 
 test('the app root fills the screen it is actually on', () => {

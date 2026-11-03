@@ -48,6 +48,7 @@ import { depthOf, edgeDragInProgress, isStandalone } from './edgeBack.js';
 import { whereAmI, readWhereInputs } from './where.js';
 import { playPush, playPop } from './settingsNav.js';
 import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
+import { leave as handLeave, arrive as handArrive, discard as handDiscard } from './handoff.js';
 import { growTapFor, foldFrom } from './motion/briefingGrow.js';
 import { watchConsult } from './motion/consultFeed.js';
 import { pageMove, pageKey } from './pageMoveRule.js';
@@ -889,7 +890,6 @@ export default class App extends Component {
     // left was read before the update (snap.scrollTop), so no read is needed.
     const want = move === 'push' || move === 'grow' ? 0 : (this.pageScrolls?.[toKey] || 0);
     if (main && (snap?.scrollTop ?? -1) !== want) main.scrollTop = want;
-    this.screenAnim?.cancel();
     if (move === 'push') playPush(snap);
     else if (move === 'pop') playPop(snap);
     else if (move === 'grow') grow(snap, tap);
@@ -1235,7 +1235,14 @@ export default class App extends Component {
         || (this.state.screen === 'workouts' && (hs?.novaView === 'trainPage' || ['routine', 'history'].includes(this.state.workoutsView))));
       // the briefing folds back into the pill it grew from (src/motion/briefingGrow.js)
       const fold = changed && !dragged ? foldFrom(this.state.screen, screenFromHash()) : null;
-      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => { if (changed && !dragged && !fold?.play()) this.riseMain(); });
+      // a back to another screen hands off like a tab (src/handoff.js); the
+      // briefing's fold and the edge swipe play their own moves instead
+      const handSnap = changed && !dragged && !fold ? handLeave() : null;
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => {
+        if (!changed || dragged) { handDiscard(handSnap); return; }
+        if (fold?.play()) { handDiscard(handSnap); return; }
+        handArrive(handSnap, { build: this.handBuilds(this.state.screen) });
+      });
       if (dragged || changed || settingsHop || pageHop) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
@@ -1357,29 +1364,14 @@ export default class App extends Component {
       });
     } catch { fn(); }
   }
-  // THE SCREEN ARRIVES. Deliberately the live <main>, animated with the Web
-  // Animations API rather than a view transition: main holds the content and
-  // NOT the chrome, so the bar and dock are never captured, never stale, and
-  // cannot glitch. It also needs no wrapper element and no remount, so the
-  // scroll restoration in navigate() still holds.
-  // Under reduced motion the screen does not travel: it cross-fades in
-  // 160 ms (opacity only), the way Settings' pages do, instead of cutting.
-  riseMain() {
-    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!this.mainRef?.current?.animate) return;
-    try {
-      this.screenAnim?.cancel();
-      this.screenAnim = this.mainRef.current.animate(
-        reduce
-          ? [{ opacity: 0 }, { opacity: 1 }]
-          : [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
-        reduce
-          ? { duration: 160, easing: 'ease', fill: 'both' }
-          : { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
-      );
-      // release the hold, or a later scroll write fights a finished effect
-      this.screenAnim.finished.catch(() => {}).then(() => this.screenAnim?.cancel());
-    } catch { /* motion is never a requirement */ }
+  // Which screens are BUILT block by block as they arrive (src/handoff.js).
+  // Voice keeps its own conversation motion and Ambient is one wall; a live
+  // session holds fixed bars inside <main>, and a moving ancestor would
+  // become their containing block. Those still get the dissolve.
+  handBuilds(screen) {
+    if (screen === 'voice' || screen === 'ambient') return false;
+    if (screen === 'workouts' && this.state.workoutSession) return false;
+    return true;
   }
   navigate(rawScreen, extra = {}) {
     const screen = resolveScreen(rawScreen);
@@ -1412,13 +1404,17 @@ export default class App extends Component {
       this.scrollPositions = this.scrollPositions || {};
       this.scrollPositions[this.state.screen] = this.mainRef.current.scrollTop;
     }
-    // the new screen rises rather than cuts (riseMain, after the scroll is restored).
+    // the new screen is handed off rather than cut (src/handoff.js, after the scroll is restored).
     // A HOME CARD OPENS INTO ITS PAGE (13 Oct 2026, mockup 101's motion
     // list): leaving Home from a card he just tapped, the page grows out of
     // that card (src/pageMotion.js) instead of rising; a tab still rises.
     // Off Home, the briefing's pill grows into the briefing (src/motion/briefingGrow.js).
     const growTap = changed ? growTapFor(this.state.screen, screen) : null;
     const growSnap = growTap ? freeze() : null;
+    // THE HAND-OFF (4 Nov 2026, his two reels): a picture of the page being
+    // left, laid over <main> before anything changes, so the new page can be
+    // built under it while it dissolves: no blank frame, no single-sheet fade
+    const handSnap = changed && !growSnap ? handLeave() : null;
     // the summary Fuel page's Recipes list belongs to Fuel: leaving the
     // screen leaves it, so a tab hop back lands on Fuel itself
     const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...(changed && screen === 'journal' ? { journalView: 'mine', journalFilterOpen: false } : {}), ...(changed && (this.state.settingsPath || []).length ? { settingsPath: [], settingsLit: null } : {}), ...extraState }, () => {
@@ -1432,7 +1428,7 @@ export default class App extends Component {
       if (saved > 0) requestAnimationFrame(() => {
         if (this.state.screen === screen && this.mainRef?.current) this.mainRef.current.scrollTop = saved;
       });
-      if (growSnap) grow(growSnap, growTap); else this.riseMain();
+      if (growSnap) grow(growSnap, growTap); else handArrive(handSnap, { build: this.handBuilds(screen) });
     });
     // A screen switch renders as a transition (2 Nov 2026, fluidity audit
     // finding 4/5): the touch's own frame, the lens under the tabs and the
