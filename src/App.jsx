@@ -881,8 +881,13 @@ export default class App extends Component {
   }
   playPageMove({ move, snap, tap, toKey, routineId }) {
     const main = this.mainRef?.current;
-    // a new page starts at its top; one he comes back to, where he left it
-    if (main) main.scrollTop = move === 'push' || move === 'grow' ? 0 : (this.pageScrolls?.[toKey] || 0);
+    // a new page starts at its top; one he comes back to, where he left it.
+    // Written only when it moves: a scrollTop write lays the new page out
+    // inside the commit, 9.5 ms at 4x entering a session from a Train that
+    // was already at its top (fluidity round 4, 3 Nov 2026). The page being
+    // left was read before the update (snap.scrollTop), so no read is needed.
+    const want = move === 'push' || move === 'grow' ? 0 : (this.pageScrolls?.[toKey] || 0);
+    if (main && (snap?.scrollTop ?? -1) !== want) main.scrollTop = want;
     this.screenAnim?.cancel();
     if (move === 'push') playPush(snap);
     else if (move === 'pop') playPop(snap);
@@ -2113,7 +2118,15 @@ export default class App extends Component {
             editingSessionId: this.state.editingSessionId,
             savedAt,
           }));
-          if (this.state.workoutSessionSavedAt !== savedAt) this.setState({ workoutSessionSavedAt: savedAt });
+          // THE EXACT STAMP IS KEPT HERE; THE STATE ONE MOVES BY THE MINUTE
+          // (fluidity round 4, 3 Nov 2026). Setting it on every change cost a
+          // second whole-app commit after every tick. Its readers judge it in
+          // minutes and hours (the lock-screen card's 45-minute "touched",
+          // the draft's age label), so a stamp up to a minute old reads the
+          // same to them; the server mirror takes the exact one.
+          this.sessionSavedAt = savedAt;
+          const shown = this.state.workoutSessionSavedAt;
+          if (!Number.isFinite(shown) || savedAt - shown >= 60_000) this.setState({ workoutSessionSavedAt: savedAt });
           // second line of defense: mirror the draft to the SERVER (debounced) —
           // survives storage eviction, reinstalls, and reconnect cycles
           clearTimeout(this.draftUploadT);
@@ -2121,7 +2134,7 @@ export default class App extends Component {
             const conn = getConnection();
             const s = this.state.workoutSession;
             if (!conn || !s) return;
-            api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId, capturedAt: this.state.workoutSessionSavedAt || Date.now() })
+            api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId, capturedAt: this.sessionSavedAt || this.state.workoutSessionSavedAt || Date.now() })
               // the weekly volume bars count the live session now, so once the
               // draft has landed, pull the overview again — the bars move as he
               // ticks instead of only when he finishes (his ask, mid-workout)
@@ -5537,7 +5550,19 @@ export default class App extends Component {
     // (src/trainToday.js); the routine is as written for the next one
     const today = todayPlanFor(this.state.liveTrainToday, routine.id);
     const planned = applyTrainToday(exercises, today);
-    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises: planned, startedAt: Date.now(), ...(today ? { todayPlan: true } : {}) }, sessionCancelConfirm: false });
+    // ONE COMMIT IN (fluidity round 4): the page's own state is adopted for
+    // this session here (the keys SessionSummary's adopt() would set a commit
+    // later, src/vals/valsSessionSummary.js), and the saved-at stamp starts
+    // with it, so entering does not re-render the whole app twice more
+    const startedAt = Date.now();
+    this.setState({
+      workoutsView: 'session',
+      workoutSession: { routineId: routine.id, routineName: routine.name, exercises: planned, startedAt, ...(today ? { todayPlan: true } : {}) },
+      sessionCancelConfirm: false,
+      workoutSessionSavedAt: startedAt,
+      sessionSumKey: String(startedAt), sessionSumLift: null, sessionSumSel: null, sessionSumPad: null,
+      sessionRest: null, sessionSumVoice: null, sessionSumReceipt: null, sessionSumSheet: null,
+    });
   }
   // cockpit: exercise-level fields (note / anomaly / pain) — same immutable
   // update pattern as sets; unknown fields flow through to the save intact

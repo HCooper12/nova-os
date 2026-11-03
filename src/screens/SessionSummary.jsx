@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { afterLayout } from '../afterLayout.js';
 import { Interactive } from '../Interactive.jsx';
@@ -72,11 +72,14 @@ const P = {
   timer: <><circle cx="12" cy="13.5" r="7" /><path d="M12 10v3.8l2.4 1.4M9.5 3h5" /></>,
   order: <path d="M7 20V5M4 8l3-3 3 3M17 4v15M14 16l3 3 3-3" />,
 };
-function Ico({ p, cls = '', size }) {
+// memo: the paths in P are made once, so a tick that changes the set around
+// an icon never re-renders the icon (33 of a tick's 143 renders were these,
+// fluidity round 4, 3 Nov 2026)
+const Ico = memo(function Ico({ p, cls = '', size }) {
   return (
     <svg className={`nv-ss-ico ${cls}`} viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={size ? { width: size, height: size } : undefined}>{p}</svg>
   );
-}
+});
 const Dots = ({ size = 20 }) => (
   <svg className="nv-ss-ico fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ width: size, height: size }}>
     <circle cx="5.5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="18.5" cy="12" r="1.9" />

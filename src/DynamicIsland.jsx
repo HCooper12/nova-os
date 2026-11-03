@@ -3,6 +3,7 @@ import * as C from './islandCore.js';
 import { subscribeIsland, currentActivities, notify } from './island.js';
 import { startsInEdgeGuard } from './swipeCore.js';
 import { AlertCard } from './AlertCard.jsx';
+import { afterLayout } from './afterLayout.js';
 
 // THE DYNAMIC ISLAND — where Nova's notifications come from now (24 Sep 2026,
 // his ask, from the reel of rit3zh/expo-dynamic-notifications). The pure
@@ -474,6 +475,15 @@ export function DynamicIsland() {
   // measure the words, lay the island out, start the drop
   useLayoutEffect(() => {
     const s = m.current;
+    if (!shown || !cardRef.current) return undefined;
+    // READ THE CARD AFTER THE BROWSER HAS LAID THE PAGE OUT (src/afterLayout.js,
+    // still before the first paint): read here, inside the commit, its height
+    // forced a layout of the whole screen the tick had just changed, 13.7 ms
+    // at 4x on every set (fluidity round 4, 3 Nov 2026)
+    return afterLayout(cardRef.current, () => place(s));
+  }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function place(s) {
     if (!shown || !cardRef.current) return;
     // new words on the card already showing (the tick receipt's count): the
     // card is re-placed for its height and repainted where the springs are
@@ -517,7 +527,7 @@ export function DynamicIsland() {
     card.style.height = `${L.cardHeight}px`;
     if (updating) s.paint?.();
     else s.start();
-  }, [shown]);
+  }
 
   const s = m.current;
   const primary = acts[0] || null;

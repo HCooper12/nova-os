@@ -115,7 +115,10 @@ export function grow(snap, tap) {
     track(anims, () => drop(snap), anims[0]);
   };
   if (quiet() || !tap) { fade(); return; }
-  const box = main.getBoundingClientRect();
+  // <main>'s box, as the snapshot read it before the update: <main> is the
+  // same element, fixed in place, and reading it again here would lay the
+  // new page out inside the commit
+  const box = snap.box || main.getBoundingClientRect();
   const from = insetFor(tap.rect, box, tap.radius);
   const ease = smooth();
   const t = { duration: GROW_MS, easing: ease };
