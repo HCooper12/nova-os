@@ -35,6 +35,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { PROFILE_DIR, browserAvailable, profileExists, CHROME } from './browserResearch.js';
+import { HAND_BLOCKED_URL_PATTERNS } from './watchAuth.js';
 import { modelFor, effortArgs } from './modelPrefs.js';
 import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson } from './jsonSalvage.js';
@@ -95,7 +96,8 @@ WHAT YOU MUST NOT DO — stop before it, every time:
 - pressing anything that BUYS, PAYS, BOOKS, SENDS, POSTS, APPLIES, SUBMITS
   an order, CANCELS, or DELETES;
 - signing in, signing up, or entering card, bank or ID details;
-- changing any account's settings.
+- changing any account's settings;
+- opening Instagram at all (it is blocked here; Nova watches reels another way).
 When the task needs one of those, do everything up to it — get to the page,
 fill the fields, and STOP with the button in view. Screenshot it. Report
 exactly what you would press and what it would do. He presses it himself.
@@ -182,7 +184,9 @@ async function run(recordId, task, server) {
         args: [server, '--userDataDir', PROFILE_DIR, '--headless', 'true', '--viewport', '1280x1600',
           '--screenshotFormat', 'jpeg', '--screenshotQuality', '70', '--screenshotMaxWidth', '1100',
           '--categoryPerformance', 'false', '--categoryNetwork', 'false', '--categoryEmulation', 'false',
-          '--allowUnrestrictedPaths'],
+          '--allowUnrestrictedPaths',
+          // Instagram is never the hand's (lib/watchAuth.js: watching only)
+          ...HAND_BLOCKED_URL_PATTERNS.flatMap((p) => ['--blockedUrlPattern', p])],
       },
     },
   }, null, 2), 'utf8');

@@ -143,3 +143,48 @@ test('signInHint turns yt-dlp\'s login refusal into the real cause, and leaves o
   assert.equal(signInHint(REEL, 'ffmpeg not found'), null);
   assert.equal(signInHint('https://youtube.com/watch?v=1', raw), null);
 });
+
+// ---- Instagram: watching only (his condition, 4 Nov 2026) ------------------
+
+const wa = await import('../lib/watchAuth.js');
+
+test('Instagram: only a post, reel or IGTV page may be opened; his inbox, profile data and settings never', () => {
+  for (const ok of [REEL, 'https://instagram.com/p/Abc_123/', 'https://www.instagram.com/someone/reel/Abc-1/', 'https://www.instagram.com/tv/Abc1/'])
+    assert.equal(wa.instagramAllowed(ok), true, ok);
+  for (const no of ['https://www.instagram.com/direct/inbox/', 'https://www.instagram.com/direct/t/123/', 'https://www.instagram.com/accounts/edit/',
+    'https://www.instagram.com/', 'https://www.instagram.com/someone/', 'https://www.instagram.com/stories/someone/1/', 'https://www.instagram.com/explore/',
+    'https://evil.com/?u=instagram.com/reel/x/', 'https://instagram.com.evil.com/reel/x/', 'javascript:alert(1)'])
+    assert.equal(wa.instagramAllowed(no), false, no);
+});
+
+test('Instagram requests: inbox, account and every write are aborted; a page\'s own reads pass; other sites untouched', () => {
+  const B = wa.instagramRequestBlocked;
+  assert.equal(B('https://www.instagram.com/api/v1/direct_v2/inbox/'), true);
+  assert.equal(B('https://www.instagram.com/direct/inbox/'), true);
+  assert.equal(B('https://www.instagram.com/api/v1/web/likes/123/like/', 'POST'), true);
+  assert.equal(B('https://www.instagram.com/api/v1/media/123/comment/', 'POST'), true);
+  assert.equal(B('https://www.instagram.com/api/v1/friendships/create/9/', 'POST'), true);
+  assert.equal(B('https://www.instagram.com/some/new/write', 'POST'), true);
+  assert.equal(B('https://www.instagram.com/graphql/query', 'POST'), false);
+  assert.equal(B('https://www.instagram.com/reel/Abc/', 'GET'), false);
+  assert.equal(B('https://scontent.cdninstagram.com/v/x.mp4', 'GET'), false);
+  assert.equal(B('https://example.com/direct/inbox', 'POST'), false);
+});
+
+test('the browser hand cannot reach Instagram at all, and the yt-dlp cookies are lent only for a reel', async () => {
+  assert.deepEqual(wa.HAND_BLOCKED_URL_PATTERNS, ['*://instagram.com/*', '*://*.instagram.com/*']);
+  const src = readFileSync(new URL('../lib/browse.js', import.meta.url), 'utf8');
+  assert.match(src, /HAND_BLOCKED_URL_PATTERNS\.flatMap\(\(p\) => \['--blockedUrlPattern', p\]\)/);
+  _setWatchAuthDepsForTest({ profileCookies: async () => { throw new Error('must not open'); } });
+  const r = await ytdlpAuthFor('https://www.instagram.com/direct/inbox/');
+  assert.equal(r.env, null);
+  assert.match(r.reason, /only watches Instagram posts and reels/);
+  _setWatchAuthDepsForTest();
+});
+
+test('readWithBrowser refuses a non-post Instagram address before any browser opens', async () => {
+  const { readWithBrowser } = await import('../lib/browserResearch.js');
+  const r = await readWithBrowser('https://www.instagram.com/direct/inbox/');
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /only watches Instagram posts and reels|not installed/);
+});

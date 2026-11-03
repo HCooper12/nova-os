@@ -136,7 +136,19 @@ export async function readWithBrowser(url) {
     return { url, ok: false, reason: 'Chrome is not installed where Nova expects it', text: '' };
   }
   try {
+    const { isInstagram, instagramAllowed, instagramRequestBlocked } = await import('./watchAuth.js');
+    // Instagram: a post or reel page and nothing else (his condition, 4 Nov 2026)
+    if (isInstagram(url) && !instagramAllowed(url)) {
+      return { url, ok: false, reason: 'Nova only watches Instagram posts and reels; it never opens anything else on Instagram', text: '' };
+    }
     return await withPage(async (page) => {
+      if (isInstagram(url)) {
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          if (instagramRequestBlocked(req.url(), req.method())) req.abort('blockedbyclient').catch(() => {});
+          else req.continue().catch(() => {});
+        });
+      }
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
       // social feeds hydrate after load; a short settle beats a fixed long wait
       await new Promise((r) => setTimeout(r, 3500));
