@@ -148,13 +148,19 @@ export function parseWatchReport(stdout) {
 // video download entirely when captions exist, so this is usually seconds.
 // `frames: true` (the design lens) downloads the video and samples
 // DESIGN_FRAMES keyframes into <workDir>/frames as well.
-export function fetchVideoTranscript(url, workDir, { frames = false } = {}) {
+//
+// Instagram/TikTok/X (3 Nov 2026): yt-dlp borrows Nova's OWN browser sign-in
+// for that platform (lib/watchAuth.js); a login-walled refusal is said as
+// what it is, never as yt-dlp's raw line.
+export async function fetchVideoTranscript(url, workDir, { frames = false } = {}) {
   const script = resolveWatchScript();
   const detail = frames ? ['--detail', 'efficient', '--max-frames', String(DESIGN_FRAMES)] : ['--detail', 'transcript'];
+  const { ytdlpAuthFor, signInHint } = await import('./watchAuth.js');
+  const auth = await ytdlpAuthFor(url).catch(() => ({ env: null }));
   return new Promise((resolve, reject) => {
     const child = spawn(resolvePython(), [script, url, ...detail, '--out-dir', workDir], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: SPAWN_PATH },
+      env: { ...process.env, PATH: SPAWN_PATH, ...(auth.env || {}) },
     });
     let stdout = '';
     let stderr = '';
@@ -172,7 +178,8 @@ export function fetchVideoTranscript(url, workDir, { frames = false } = {}) {
         const lines = stderr.trim().split('\n');
         const why = [...lines].reverse().find((l) => /^ERROR:/i.test(l.trim()));
         const line = (why ? why.replace(/^ERROR:\s*(\[[^\]]+\]\s*)?/i, '') : lines.pop()) || `watch script exited with code ${code}`;
-        return reject(new Error(line.slice(0, 300)));
+        const hint = signInHint(url, line, { lent: !!auth.env });
+        return reject(new Error(hint || line.slice(0, 300)));
       }
       resolve(parseWatchReport(stdout));
     });

@@ -175,7 +175,7 @@ export async function readTranscript(url, workDir) {
       note: `transcript via ${report.transcriptSource || 'captions'}${report.duration ? `, ${report.duration}` : ''}`,
     };
   } catch (e) {
-    return { url, ok: false, reason: `transcript fetch failed (${e.message.slice(0, 120)})`, text: '' };
+    return { url, ok: false, reason: `transcript fetch failed (${e.message.slice(0, 400)})`, text: '' };
   }
 }
 
