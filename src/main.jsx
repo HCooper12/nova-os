@@ -3,7 +3,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './muscleTaxonomy.css'
 import App from './App.jsx'
+import { startDurable } from './durable.js'
 import { applyAppearance, getNovaTheme, getCalm, getNovaStyle, getMaterial, startHourClock, applyGlow, getGlow, getGlowQuiet } from './theme.js'
+
+// Nova's saved state is kept twice in the iPhone app (src/durable.js): stamp
+// this boot and start copying every write into the app's own files.
+startDurable()
 
 // Stamp the persisted theme on <html> before first paint so a non-default
 // theme never flashes the Command tokens for a frame.

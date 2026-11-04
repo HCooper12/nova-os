@@ -14,6 +14,8 @@
 // A tiny marker stays in localStorage so the boot can decide SYNCHRONOUSLY
 // whether there is a copy to wait for (the 350 ms launch blink versus the
 // first-connect wait), and so a failed save is remembered and can be told.
+import { keepCopy } from './durable.js';
+
 const LEGACY_KEY = 'novaos.lastLive'; // the old localStorage copy, migrated once
 const META_KEY = 'novaos.lastLive.meta';
 const DB_NAME = 'novaos';
@@ -125,7 +127,12 @@ export async function saveLiveCache(slices, syncedAt = null) {
   try {
     await idbSet(LIVE, copy);
     writeMeta({ savedAt: copy.savedAt });
-    try { localStorage.removeItem(LEGACY_KEY); } catch { /* fine */ }
+    // only when there is one: a removal is copied to the app's files too
+    try { if (localStorage.getItem(LEGACY_KEY) !== null) localStorage.removeItem(LEGACY_KEY); } catch { /* fine */ }
+    // the iPhone app keeps a second copy in its own files (src/durable.js),
+    // under the legacy key, so a WebKit wipe restores it into localStorage
+    // and loadLiveCache's migration moves it back into IndexedDB
+    keepCopy(LEGACY_KEY, () => JSON.stringify(copy));
     return 'idb';
   } catch (e) {
     try {
