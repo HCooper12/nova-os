@@ -29,6 +29,8 @@ struct NovaDay: Codable {
     var protein: NovaMetric
     var kcal: NovaMetric
     var steps: NovaMetric
+    /// when the Mac last read Health's steps (ISO); shown beside "Steps"
+    var stepsAt: String? = nil
     var hrv: NovaHRV?
     var session: String?
 }
@@ -405,11 +407,26 @@ struct FuelView: View {
         }
         .frame(maxHeight: .infinity)
     }
+    /// "8:16 pm": when Health's steps were read, quiet beside the label (his pick A, 5 Nov 2026)
+    static func readAt(_ iso: String?) -> String? {
+        guard let iso else { return nil }
+        let p = ISO8601DateFormatter()
+        p.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let d = p.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_AU")
+        f.dateFormat = "h:mm a"
+        f.amSymbol = "am"; f.pmSymbol = "pm"
+        return f.string(from: d)
+    }
     private func line(_ r: Reading, of: String?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
                 Glyph(key: r.key, size: 11)
                 Text(r.key.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(r.key.hue)
+                if r.key == .steps, let t = Self.readAt(day?.stepsAt) {
+                    Text("· \(t)").font(.system(size: 11, weight: .medium)).foregroundStyle(WInk.ink3).monospacedDigit()
+                }
             }
             (Text(r.short).font(.system(size: 21, weight: .semibold, design: .rounded)).foregroundColor(WInk.ink)
                 + Text(of ?? "").font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundColor(r.key.hue))

@@ -36,3 +36,11 @@ test("yesterday's steps never pose as today's", () => {
   assert.equal(w.steps.value, null);
   assert.equal(w.hrv.date, '2026-10-13');
 });
+
+test('steps carry the time Health was read, and only with a figure', () => {
+  const at = '2026-10-14T01:30:00.000Z';
+  const w = composeWidgetToday({ now, targets, healthDays: [{ date: '2026-10-14', steps: 979, stepsAt: at }] });
+  assert.equal(w.stepsAt, at);
+  assert.equal(composeWidgetToday({ now, targets, healthDays: [{ date: '2026-10-14', stepsAt: at }] }).stepsAt, null);
+  assert.equal(composeWidgetToday({ now, targets, healthDays: [] }).stepsAt, null);
+});
