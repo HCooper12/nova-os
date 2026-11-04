@@ -1,3 +1,4 @@
+import SessionClockEdit from '../SessionClockEdit.jsx';
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { afterLayout } from '../afterLayout.js';
@@ -194,7 +195,7 @@ export function SessionSummary({ v, parts }) {
         <header className="nv-ss-top nv-sum-rise" style={{ '--i': 0 }}>
           <div className="nv-ss-st">
             <b>{S.title}{S.editing && <em> · editing</em>}</b>
-            <span className={S.paused ? 'paused' : undefined}>{S.paused ? 'Paused · ' : ''}{minutes != null ? `${minutes} min · ` : ''}<CountUp value={S.progressDone} duration={420} fromZero /> of {S.progressTotal} sets</span>
+            <span className={S.paused ? 'paused' : undefined}>{S.paused ? 'Paused · ' : ''}{minutes != null ? <><SessionClockEdit minutes={minutes} onSet={S.setMinutes} />{' · '}</> : ''}<CountUp value={S.progressDone} duration={420} fromZero /> of {S.progressTotal} sets</span>
           </div>
           <div className="nv-ss-acts">
             {S.togglePause && (

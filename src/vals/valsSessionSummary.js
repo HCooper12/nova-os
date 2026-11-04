@@ -679,6 +679,7 @@ export function valsSessionSummary(app, ctx, v) {
       minutes,
       // a past session being edited has no clock to pause
       paused: !editing && paused,
+      setMinutes: editing ? null : (n) => app.setWorkoutMinutes(n),
       togglePause: editing ? null : () => (paused ? app.resumeWorkoutClock() : app.pauseWorkoutClock()),
       progress: `${ticked} of ${total} sets`,
       // the count apart from its words, so a tick counts the figure up (CountUp)

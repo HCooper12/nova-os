@@ -6791,3 +6791,11 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+
+/* the session minutes he can correct (SessionClockEdit.jsx, 4 Nov 2026) */
+.nv-clock-edit { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
+  text-decoration: underline dotted color-mix(in oklab, currentColor 45%, transparent); text-underline-offset: 3px; cursor: pointer; }
+.nv-clock-edit.on { text-decoration: none; }
+.nv-clock-edit input { font: inherit; color: var(--nv-text, inherit); width: 3.2em; padding: 1px 4px; margin: 0 1px;
+  border-radius: 6px; border: 1px solid var(--nv-accent, currentColor); background: color-mix(in oklab, var(--nv-accent, #8cf) 12%, transparent);
+  font-size: 16px; font-variant-numeric: tabular-nums; }

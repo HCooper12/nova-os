@@ -1,3 +1,4 @@
+import SessionClockEdit from '../SessionClockEdit.jsx';
 import { css } from '../css.js';
 import { TickButton } from '../TickButton.jsx';
 import { muscleVar } from '../muscleHue.js';
@@ -597,7 +598,7 @@ function SessionView({ v }) {
           <Button compact variant={v.sessionPaused ? 'solid' : 'soft'} onClick={v.sessionTogglePause}
             ariaLabel={v.sessionPaused ? 'Resume workout' : 'Pause workout'}>{v.sessionPaused ? 'Resume' : 'Pause'}</Button>
           <Meta as="span" tone={v.sessionPaused ? 'gold' : 'faint'} style={{ textTransform: 'none', letterSpacing: 0, fontVariantNumeric: 'tabular-nums' }}>
-            {v.sessionPaused ? `Paused at ${v.sessionMinutes} min` : v.sessionMinutes != null ? `${v.sessionMinutes} min` : ''}
+            <SessionClockEdit minutes={v.sessionMinutes} onSet={v.sessionSetMinutes} prefix={v.sessionPaused ? 'Paused at ' : ''} />
           </Meta>
         </div>
       )}

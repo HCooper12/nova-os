@@ -36,7 +36,7 @@ import { queuedPatch, historyWithQueued, isQueuedId, queuedItemId } from './outb
 import { OfflineMark } from './OfflineCard.jsx';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem, newIdempotencyKey, drainItems, idemSafe } from './outbox.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
-import { pauseSession, resumeSession, isPaused } from './sessionClock.js';
+import { pauseSession, resumeSession, isPaused, setSessionMinutes } from './sessionClock.js';
 import { syncHealth } from './healthSync.js';
 import { syncWidgets } from './widgetBridge.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
@@ -5690,6 +5690,11 @@ export default class App extends Component {
   pauseWorkoutClock() {
     if (!this.state.workoutSession || this.state.editingSessionId) return;
     this.setState((s) => ({ workoutSession: pauseSession(s.workoutSession, Date.now()), workoutSessionSavedAt: Date.now() }));
+  }
+  // he corrects the clock (the phone died mid-session and it kept counting)
+  setWorkoutMinutes(minutes) {
+    if (!this.state.workoutSession || this.state.editingSessionId) return;
+    this.setState((s) => ({ workoutSession: setSessionMinutes(s.workoutSession, Date.now(), minutes), workoutSessionSavedAt: Date.now() }));
   }
   resumeWorkoutClock() {
     if (!this.state.workoutSession) return;

@@ -1058,6 +1058,7 @@ export function valsWorkouts(app, ctx) {
     // pause (sessionClock.js): a past session being edited has no clock
     sessionPaused: !!session && !st.editingSessionId && isPaused(session),
     sessionMinutes: session ? sessionMinutes(session, Date.now()) : null,
+    sessionSetMinutes: session && !st.editingSessionId ? (n) => app.setWorkoutMinutes(n) : null,
     sessionTogglePause: session && !st.editingSessionId
       ? () => (isPaused(session) ? app.resumeWorkoutClock() : app.pauseWorkoutClock())
       : null,

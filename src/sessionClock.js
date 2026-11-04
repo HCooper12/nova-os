@@ -39,3 +39,15 @@ export function resumeSession(ws, now) {
   const { pausedAt, ...rest } = ws;
   return { ...rest, pausedMs: (Number.isFinite(ws.pausedMs) ? ws.pausedMs : 0) + Math.max(0, now - pausedAt) };
 }
+
+// HE SETS THE CLOCK (4 Nov 2026). His phone died mid make-up and the clock
+// kept counting the time it was off: 70 min on a 20 min session. Setting the
+// minutes banks the difference as paused time, so every reader (header,
+// island, lock screen) agrees, and a paused clock stays paused. Never more
+// than the time since the start, never below zero.
+export function setSessionMinutes(ws, now, minutes) {
+  if (!ws || !Number.isFinite(ws.startedAt) || !Number.isFinite(minutes) || minutes < 0) return ws;
+  const sinceStart = Math.max(0, (isPaused(ws) ? ws.pausedAt : now) - ws.startedAt);
+  const target = Math.min(Math.round(minutes) * 60000, sinceStart);
+  return { ...ws, pausedMs: sinceStart - target };
+}
