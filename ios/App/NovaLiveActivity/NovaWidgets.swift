@@ -1,9 +1,6 @@
 import AppIntents
 import SwiftUI
 import WidgetKit
-#if os(iOS)
-import CoreMotion
-#endif
 
 // NOVA ON THE HOME SCREEN AND LOCK SCREEN (his ask, 14 Oct 2026; the approved
 // mockups: artifact AHa5Yp11, v6). Protein, calories, steps and HRV as rings
@@ -15,12 +12,12 @@ import CoreMotion
 // keeps its last numbers and shows their time; numbers from an earlier day
 // are never shown as today's.
 //
-// STEPS ARE THE ONE EXCEPTION (his ask, 27 Oct 2026: see them live on a walk).
-// Apple Health receives the iPhone's steps in batches and iOS lets an app hear
-// of them at most hourly, so the Mac's count trails the walk. The widget
-// therefore asks the phone's motion coprocessor itself (NovaLiveSteps) at every
-// redraw and shows the larger of that and the Mac's figure: never lower than
-// Health's own count, never reliant on the Mac being reachable.
+// STEPS ARE HEALTH'S FIGURE, NEVER THE PHONE'S OWN COUNT (his call, 4 Nov
+// 2026: "I want it to match what health says at all times"). From 27 Oct the
+// widget lifted steps to max(Mac, iPhone pedometer) to move live on a walk,
+// but the pedometer counts steps Health replaces with the Watch's: 10,090 on
+// the widget against Health's 9,480. Health's de-duplicated total, as last
+// read, is the only steps number shown.
 
 // MARK: - data
 
@@ -46,29 +43,7 @@ enum NovaShared {
         return (day, d.object(forKey: "nova.todayAt") as? Date ?? .distantPast)
     }
 
-    /// The Mac's numbers with today's steps lifted to the phone's own live count.
-    static func load() async -> (NovaDay?, Date?) {
-        let (day, at) = await loadMac()
-        return (withLiveSteps(day, live: await NovaLiveSteps.today()), at)
-    }
-
-    /// `live` is the pedometer's count since midnight (nil when it cannot be
-    /// read). Max, not sum: the Watch's steps live in Health's figure, and the
-    /// phone's count only ever raises it. With the Mac unreachable and only
-    /// yesterday kept, today is steps alone: the rest reads "—", never yesterday's.
-    static func withLiveSteps(_ day: NovaDay?, live: Int?, now: Date = .now) -> NovaDay? {
-        guard let live else { return day }
-        let v = Double(live)
-        let today = NovaEntry.iso(now)
-        if var d = day, d.date == today {
-            d.steps.value = max(d.steps.value ?? 0, v)
-            return d
-        }
-        return NovaDay(at: "", date: today,
-                       protein: .init(value: nil, goal: day?.protein.goal),
-                       kcal: .init(value: nil, goal: day?.kcal.goal),
-                       steps: .init(value: v, goal: day?.steps.goal), hrv: nil, session: nil)
-    }
+    static func load() async -> (NovaDay?, Date?) { await loadMac() }
 
     /// The Mac's answer, or the last one kept. Never longer than iOS allows.
     static func loadMac() async -> (NovaDay?, Date?) {
@@ -87,41 +62,6 @@ enum NovaShared {
         }
         if let (day, at) = cached() { return (day, at) }
         return (nil, nil)
-    }
-}
-
-/// Steps since midnight from the iPhone's motion coprocessor: live, where
-/// Health's copy is written in batches. Needs the Motion & Fitness answer the
-/// app asks for once (NovaWidgetsPlugin); without it, or with the sensor
-/// unavailable, this says nil and the widget keeps the Mac's figure.
-enum NovaLiveSteps {
-    static func today(now: Date = .now) async -> Int? {
-        #if os(iOS)
-        guard CMPedometer.isStepCountingAvailable() else { return nil }
-        switch CMPedometer.authorizationStatus() {
-        case .denied, .restricted: return nil
-        default: break
-        }
-        let start = Calendar.current.startOfDay(for: now)
-        // the query always calls back, but a widget has seconds to spare, not minutes
-        return await withTaskGroup(of: Int?.self) { group in
-            group.addTask {
-                await withCheckedContinuation { (cont: CheckedContinuation<Int?, Never>) in
-                    let p = CMPedometer()
-                    p.queryPedometerData(from: start, to: now) { data, _ in
-                        _ = p // held until the answer arrives
-                        cont.resume(returning: data.map { $0.numberOfSteps.intValue })
-                    }
-                }
-            }
-            group.addTask { try? await Task.sleep(nanoseconds: 4_000_000_000); return nil }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
-        }
-        #else
-        return nil
-        #endif
     }
 }
 
