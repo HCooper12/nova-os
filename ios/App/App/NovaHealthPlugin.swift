@@ -292,7 +292,10 @@ final class NovaHealthBackground {
             guard let type = HKObjectType.quantityType(forIdentifier: id) else { continue }
             let q = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, done, error in
                 guard error == nil, let self else { done(); return }
-                Task { await self.push(); done() }
+                Task {
+                    let delivered = await self.push()
+                    if self.shouldFinish(id, delivered: delivered) { done() }
+                }
             }
             store.execute(q)
             store.enableBackgroundDelivery(for: type, frequency: .hourly) { _, _ in }
@@ -330,16 +333,47 @@ final class NovaHealthBackground {
         _ = try? await URLSession.shared.data(for: req)
     }
 
-    private func push() async {
-        if inFlight { return } // three types can fire together: one push serves them
+    /// A WAKE THAT DELIVERED NOTHING ASKS AGAIN (his yes, 6 Nov 2026: 2:42 to
+    /// 8:41pm passed with no update). Leaving HealthKit's completion uncalled
+    /// makes it retry with a back-off, but Apple's rule is that three misses
+    /// STOP background delivery altogether, so at most two are withheld in a
+    /// row per type and the third always finishes.
+    private func shouldFinish(_ id: HKQuantityTypeIdentifier, delivered: Bool) -> Bool {
+        let d = UserDefaults(suiteName: NovaWidgetsPlugin.suite)
+        let key = "nova.hk.withheld.\(id.rawValue)"
+        if delivered { d?.set(0, forKey: key); return true }
+        let held = d?.integer(forKey: key) ?? 0
+        if held >= 2 { d?.set(0, forKey: key); return true }
+        d?.set(held + 1, forKey: key)
+        return false
+    }
+
+    /// A failed wake leaves no trace on the Mac, so the phone keeps its own
+    /// note of why and hands the list over with the next push that lands.
+    private func noteMiss(_ why: String, in shared: UserDefaults?) {
+        var list = shared?.array(forKey: "nova.hk.misses") as? [[String: String]] ?? []
+        list.append(["at": ISO8601DateFormatter().string(from: Date()), "why": why])
+        shared?.set(Array(list.suffix(50)), forKey: "nova.hk.misses")
+    }
+
+    /// True when today's reading reached the Mac.
+    private func push() async -> Bool {
+        if inFlight { return true } // three types can fire together: one push serves them
         inFlight = true
         defer { inFlight = false }
-        guard let shared = UserDefaults(suiteName: NovaWidgetsPlugin.suite),
-              let base = shared.string(forKey: "nova.baseUrl"), let token = shared.string(forKey: "nova.token"),
-              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/health-data") else { return }
+        let shared = UserDefaults(suiteName: NovaWidgetsPlugin.suite)
+        guard let base = shared?.string(forKey: "nova.baseUrl"), let token = shared?.string(forKey: "nova.token"),
+              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/health-data") else {
+            noteMiss("not-configured", in: shared)
+            return false
+        }
         let now = Date()
         let metrics = await NovaHealthReader.shared.metrics(for: now)
-        guard !metrics.isEmpty else { return } // locked, or nothing yet: say nothing rather than zero
+        guard !metrics.isEmpty else { // locked, or nothing yet: say nothing rather than zero
+            let unlocked = await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
+            noteMiss(unlocked ? "no-data" : "locked", in: shared)
+            return false
+        }
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -349,9 +383,21 @@ final class NovaHealthBackground {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["date": f.string(from: now), "metrics": metrics, "source": "healthkit", "via": "background"])
-        if let (_, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 {
-            WidgetCenter.shared.reloadAllTimelines()
+        let misses = shared?.array(forKey: "nova.hk.misses") as? [[String: String]] ?? []
+        var body: [String: Any] = ["date": f.string(from: now), "metrics": metrics, "source": "healthkit", "via": "background"]
+        if !misses.isEmpty { body["bgMisses"] = misses }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard let (_, res) = try? await URLSession.shared.data(for: req) else {
+            noteMiss("no-connection", in: shared)
+            return false
         }
+        let code = (res as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else {
+            noteMiss("http-\(code)", in: shared)
+            return false
+        }
+        shared?.removeObject(forKey: "nova.hk.misses")
+        WidgetCenter.shared.reloadAllTimelines()
+        return true
     }
 }
