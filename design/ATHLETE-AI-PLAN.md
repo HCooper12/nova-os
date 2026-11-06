@@ -206,3 +206,117 @@ his real history → a proposed program edit on the rails.
 - **No chat-that-forgets.** His tracker lives inside a Claude project and is
   backed up by pasting a save code. Nova's equivalent already exists and is
   called the vault.
+
+---
+
+# Round two: food and Coach as one system (6 Nov 2026)
+
+His brief: analyse Rudd's reel (Day 101, "fat loss and nutrition AI agent") and
+the Skool lesson "Build Your Food & Nutrition Brain", take everything Nova lacks
+or could do better. Read: the reel (transcript + frames), the lesson and its two
+diagrams, and the 24 other lessons in that course. Nova audited in code on the
+same day. **PLAN ONLY: nothing below is built.**
+
+## What the source says
+
+Text, photo or barcode goes to a coach. The model picks a tool; code does the
+maths from USDA FoodData Central and Open Food Facts. One database holds food
+beside workouts, weigh-ins and sleep. Six daily checks then change the target,
+the brief, the session, the deficit, the fuel plan and the next lift weights.
+
+The idea worth taking is one line: the food log stops being a diary and becomes
+an input to training decisions. Nova's rail already says "models decide, code
+acts", so most of this lands on existing rails.
+
+Two cautions. "No guessing" overclaims: on a plate photo the grams are still a
+model's estimate; only the per-gram nutrients are exact. And his thresholds are
+his own for a 70.3 block (he says so). They are not evidence for a 188 cm lifter
+on a cut, so none is copied without Hayden's say.
+
+## Audit: what Nova has
+
+Has: USDA on typed food; barcode via Open Food Facts; weigh-in by number; weekly
+pace review (fuelReview.js); Coach context with food, sleep, HRV, weight; session
+memory; two-way Telegram with food photos; recovery signal in code.
+
+Gaps, confirmed in code:
+
+- `USDA_FDC_API_KEY` is NOT set: lookups run on DEMO_KEY (about 30 an hour) and
+  a miss falls back to the model's own figure.
+- Plate photos: the model estimates macros directly; USDA is not used.
+- Items store p/c/f/kcal only: no fibre, sugar, sodium, database id, barcode,
+  his words, or meal for ad-hoc food.
+- Barcode miss is a dead end: no USDA Branded fallback, no reading from a photo.
+- "It was 2 servings" cannot scale a logged item.
+- No running total in a log reply. No yesterday's food in the morning brief.
+  Evening brief covers protein only.
+- One flat calorie target every day; nothing moves with the session.
+- No same-day "hard session, under-fuelled" check. fuelCross is 14-day patterns.
+- computeDeloadSignal cannot pause a deficit; there is no such tool.
+- Thresholds in fuelCross/fuelReview are hardcoded.
+- No food-vs-session analysis. Protein split is before/after 3 pm only.
+- No training load model. No calendar in Coach's prompt.
+- Form check is vision on frames with no measured angles.
+
+## The build, in order
+
+**Phase 1: food numbers he can trust.** No design decisions; needs his USDA key.
+1. Add the key. Log when a lookup falls back.
+2. Plate photos: model names foods and grams, code matches USDA, as typed food
+   does. Label each line matched or estimated. Measure on 20 real meals first.
+3. Additive item fields (fibre, sugar, sodium, fdcId, barcode, his words, meal).
+   Shared format: every reader and writer checked, old entries still read.
+4. Barcode: Open Food Facts, then USDA Branded, then read digits from a photo.
+5. "It was 2 servings": scale the right item, shown, undoable, on the rails.
+6. Running total in every log reply (app, voice, Telegram); code's sum only.
+7. Morning brief gets yesterday's food; evening brief gets calories as well.
+
+**Phase 2: the target moves with training.** His decision, then a mockup.
+8. Day target from the planned session, weekly total unchanged. Reads targetHistory
+   forward only (his 18 Oct rule). Fuel, widget, Coach, briefs all read one number.
+
+**Phase 3: daily checks in code.** New `fuelChecks.js`, thresholds in his profile.
+9. Hard or long day far under target: said first, above a protein miss.
+10. Losing too fast: a bodyweight-percent line (his number), "eat more".
+11. Recovery signal proposes a paused deficit: a card, his yes, undoable, ends
+    when the signal clears. Sleep rule uses nights he has confirmed (short-sleep
+    readings have been false before: 68 min on 3 Nov).
+12. A flat lifting week during a cut is expected: feed this into the stall
+    restraint so it raises no exercise-swap card; RPE stays the safety valve.
+13. Sessions over ~75 min: one line of carbs per hour. Small; his call whether
+    it applies to his training at all.
+
+**Phase 4: analysis, once enough days exist.** Code counts, model only words it.
+14. Did sessions fade on low-food days? Refuse below a stated sample size.
+15. Protein per meal, using the meal field from step 3.
+
+**Phase 5: Coach.**
+16. Profile numbers tagged MEASURED / ESTIMATED / UNKNOWN (Rudd's 195 max HR
+    story: a guess repeated becomes a fact). Check against existing provenance.
+17. Weekly verdict judges execution: planned vs done, targets hit, one thing next.
+18. Calendar in Coach's context.
+19. Training load trend. Lifting has no agreed equivalent of CTL/ATL, so start
+    with hard sets and watch energy, labelled as Nova's own measure.
+
+**Phase 6: measured form.**
+20. Squat first: pose model on the Mac (YOLO11 pose, about 118 MB, AGPL, no API
+    cost) gives depth, torso and shin angle rep by rep; Claude words the verdict.
+    Adopt his filming protocol (1x lens, 10 to 12 ft, side camera at 2 ft) and
+    refusals (no graded valgus, no butt wink). Replaces the vision estimate for
+    squat only after a side-by-side on Hayden's own clips.
+
+## Left out, and why
+
+intervals.icu (its value is pushing workouts to Garmin; he has Apple Watch and
+Nova's own plan); Supabase and Vercel (vault plus server already do this); a new
+Telegram bot (Nova has one); NOOP, Endurain, SparkyFitness, OpenGym,
+GoldenCheetah, zoffline (replace apps he doesn't use, or Nova itself); running,
+bike-fit and KOM lessons; Meta Muse; NFC safety; "maintenance = 15 kcal per lb"
+(Nova's derived target and weekly calibration are better); pounds. Jump height
+test: possible later, needs 240 fps filming.
+
+## Needed from him
+
+- A free USDA key at fdc.nal.usda.gov/api-key-signup, added to server/.env himself.
+- analyze_squat.py from the Squat Form Guide lesson, signed in (attachments
+  are not public; a direct fetch was refused and not retried). Phase 6 only.
