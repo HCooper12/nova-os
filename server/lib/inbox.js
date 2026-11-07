@@ -892,6 +892,20 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     return { destination: 'Earned calories are off; your target stays at its plain number', undo: { route, prior } };
   }
 
+  if (route === 'paused-deficit') {
+    // A PAUSED DEFICIT (lib/pausedDeficit.js): the amount is recomputed from his
+    // Intake here, never taken from the card's payload.
+    const pd = await import('./pausedDeficit.js');
+    const { getProfile } = await import('./profile.js');
+    const { localDateISO } = await import('./localDate.js');
+    const deficit = pd.deficitFromIntake((await getProfile(vaultPath).catch(() => null))?.intake);
+    if (!deficit) throw new Error('there is no deficit to pause: your Intake is not a cut');
+    const prior = await pd.readPausedState();
+    const next = pd.startedState({ today: localDateISO(), deficitKcal: deficit });
+    await pd.writePausedState(next);
+    return { destination: `Deficit paused until recovery clears, at most ${next.until}: today's target is ${deficit} kcal higher`, undo: { route, prior } };
+  }
+
   if (route === 'intake') {
     // THE INTAKE's yes (lib/intake.js): code recomputes the plan from the
     // facts he answered — never trusting a number that rode in the payload —
@@ -1528,6 +1542,11 @@ export async function undoFiling(vaultPath, undo) {
     const { restoreProfileText } = await import('./profile.js');
     await restoreProfileText(vaultPath, undo.priorText ?? null);
     return 'restored your profile page as it was';
+  }
+  if (undo.route === 'paused-deficit') {
+    const { writePausedState } = await import('./pausedDeficit.js');
+    await writePausedState(undo.prior);
+    return 'the deficit is back on';
   }
   if (undo.route === 'earned-off') {
     const { writeEarnedState } = await import('./earnedCalories.js');

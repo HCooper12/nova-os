@@ -92,8 +92,16 @@ export async function earnedToday({ now = new Date() } = {}) {
     const past = days.filter((d) => d.date < date && d.stepsComplete !== false).map((d) => d.activeEnergyKcal);
     const today = days.find((d) => d.date === date);
     const { on } = await readEarnedState();
-    return { date, ...earnedFor({ active: today?.activeEnergyKcal, past, on }) };
+    const base = earnedFor({ active: today?.activeEnergyKcal, past, on });
+    // A PAUSED DEFICIT (lib/pausedDeficit.js) adds room by the same road. `kcal` stays
+    // the one number every reader adds to the target (the total); `earnedKcal` and
+    // `pausedKcal` say which part is which, so a label can tell him what it is.
+    // Together they never pass the deficit he is carrying.
+    const { pausedToday, combineExtra } = await import('./pausedDeficit.js');
+    const pause = await pausedToday({ today: date, days });
+    const mix = combineExtra({ earned: base.kcal, paused: pause.kcal, deficit: pause.deficitKcal });
+    return { date, ...base, kcal: mix.total, earnedKcal: mix.earned, pausedKcal: mix.paused, pausedUntil: pause.active ? pause.until : null };
   } catch {
-    return { date: null, on: false, kcal: 0, usual: null, active: null, days: 0, reason: 'unavailable' };
+    return { date: null, on: false, kcal: 0, earnedKcal: 0, pausedKcal: 0, pausedUntil: null, usual: null, active: null, days: 0, reason: 'unavailable' };
   }
 }

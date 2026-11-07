@@ -210,6 +210,7 @@ async function composeMorning(vaultPath, now) {
       const { computeDeloadSignal } = await import('./coach.js');
       const signal = computeDeloadSignal(await loadRecentDays(7));
       if (signal.advise && routine) line += ` Coach's advisory: ${signal.reason}.`;
+      if (signal.advise) await (await import('./pausedDeficit.js')).proposePausedDeficit(vaultPath, { now });
     } catch { /* advisory is garnish */ }
     lines.push(line);
   } catch {

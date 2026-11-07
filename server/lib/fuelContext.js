@@ -36,7 +36,10 @@ export async function fuelContext(vaultPath) {
     lines.push(`- Targets: ${target} · ${floor}${profile.goal ? ` · goal: ${profile.goal}` : ''}`);
     const { earnedToday } = await import('./earnedCalories.js');
     const earned = await earnedToday();
-    if (earned.kcal > 0) lines.push(`- Earned today: +${earned.kcal} kcal, making today's target ${(profile.targetKcal || 0) + earned.kcal}. He moved more than usual (${earned.active} active kcal against his usual ${earned.usual}); half counts, capped, so the fat-loss goal stays first.`);
+    const earnedPart = earned.earnedKcal ?? earned.kcal;
+    if (earnedPart > 0) lines.push(`- Earned today: +${earnedPart} kcal. He moved more than usual (${earned.active} active kcal against his usual ${earned.usual}); half counts, capped, so the fat-loss goal stays first.`);
+    if (earned.pausedKcal > 0) lines.push(`- Deficit PAUSED (his yes, recovery signal): +${earned.pausedKcal} kcal today, so he eats at maintenance until the signal clears or ${earned.pausedUntil}. Do not coach him to cut back to the plain target meanwhile.`);
+    if (earned.kcal > 0) lines.push(`- Today's target with that room: ${(profile.targetKcal || 0) + earned.kcal} kcal (plain ${profile.targetKcal || 0}).`);
     // today's checks, ranked by code (lib/fuelChecks.js): the top three, never recited
     try {
       const { loadFuelChecks } = await import('./fuelChecks.js');

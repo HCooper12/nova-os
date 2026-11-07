@@ -41,7 +41,7 @@ export function valsFuelSummary(app, ctx, v) {
   // ---- the plate: Home's fields, one instrument -------------------------
   const inst = plateInstrument({
     proteinCurrent: ctx.proteinCurrent, proteinTarget: ctx.proteinTarget,
-    kcalCurrent: ctx.kcalCurrent, targetKcal: ctx.targetKcal, earnedKcal: ctx.earnedKcal,
+    kcalCurrent: ctx.kcalCurrent, targetKcal: ctx.targetKcal, earnedKcal: ctx.earnedKcal, earnedLabel: ctx.earnedLabel,
     c: v.dayMacros?.c, f: v.dayMacros?.f,
   });
   const now = new Date();

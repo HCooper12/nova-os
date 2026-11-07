@@ -21,7 +21,15 @@ const target = (x) => (Number(x) > 0 ? Math.round(Number(x)) : null);
 // EARNED CALORIES on the plate: the server's figure counts only on its own day.
 export const earnedOn = (earned, date) => (earned?.date === date && Number(earned.kcal) > 0 ? Math.round(Number(earned.kcal)) : 0);
 
-export function plateInstrument({ proteinCurrent, proteinTarget, kcalCurrent, targetKcal, earnedKcal = 0, c, f } = {}) {
+// ...and what to call it: room he earned by moving, room from a paused deficit
+// (recovery said go lighter, his yes), or both. The server sends each part.
+export const earnedWords = (earned, date) => {
+  if (earned?.date !== date) return 'earned';
+  const e = Number(earned.earnedKcal) || 0, p = Number(earned.pausedKcal) || 0;
+  return p > 0 && e > 0 ? 'earned and paused' : p > 0 ? 'deficit paused' : 'earned';
+};
+
+export function plateInstrument({ proteinCurrent, proteinTarget, kcalCurrent, targetKcal, earnedKcal = 0, earnedLabel = 'earned', c, f } = {}) {
   const pNow = num(proteinCurrent);
   const pT = target(proteinTarget);
   const protein = pT == null
@@ -44,7 +52,7 @@ export function plateInstrument({ proteinCurrent, proteinTarget, kcalCurrent, ta
         over: Math.max(0, Math.round(kNow - kT)),
         pct: Math.round(Math.min(1, Math.max(0, kNow / kT)) * 100),
         // where the plain target sits on a bar that now runs past it
-        ...(earnedKcal > 0 ? { earned: { kcal: earnedKcal, basePct: +((kT - earnedKcal) / kT * 100).toFixed(1) } } : {}),
+        ...(earnedKcal > 0 ? { earned: { kcal: earnedKcal, label: earnedLabel, basePct: +((kT - earnedKcal) / kT * 100).toFixed(1) } } : {}),
       };
   return { protein, kcal, carbs: { value: Math.round(num(c)) }, fat: { value: Math.round(num(f)) } };
 }
