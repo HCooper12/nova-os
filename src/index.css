@@ -6805,3 +6805,24 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 .nv-clock-edit input { font: inherit; color: var(--nv-text, inherit); width: 3.2em; padding: 1px 4px; margin: 0 1px;
   border-radius: 6px; border: 1px solid var(--nv-accent, currentColor); background: color-mix(in oklab, var(--nv-accent, #8cf) 12%, transparent);
   font-size: 16px; font-variant-numeric: tabular-nums; }
+
+/* THE RAIL ON THE PHONE (7 Nov 2026, design/ROSE-STUDY.md phase 3): the
+   wall's cards sideways under the hero, a third of the next card showing
+   past the edge (the closure law); the lit one wears the speaking hue */
+.nv-fx-rail { display: block; margin: 10px -20px 0; }
+.nv-nt-stheard .nv-fx-rail { margin: 14px -28px 0; text-align: left; font: 400 13px var(--nv-font-ui); }
+.nv-fx-raillbl { display: block; margin: 0 28px 6px; font: 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
+.nv-fx-railrow { display: flex; gap: 10px; padding: 2px 20px 6px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.nv-nt-stheard .nv-fx-railrow { padding-left: 28px; padding-right: 28px; }
+.nv-fx-railrow::-webkit-scrollbar { display: none; }
+.nv-fx-railcard { flex: none; scroll-snap-align: start; text-align: left; padding: 9px 12px 10px; border: 0; border-radius: 16px; cursor: pointer; color: inherit; font: inherit;
+  background: color-mix(in srgb, var(--nv-ink) 6%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 16%, transparent);
+  animation: nvRailIn var(--nv-dur-slow) var(--nv-ease) both; }
+.nv-fx-railcard.lit { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-hue, var(--nv-say)) 70%, transparent), 0 0 24px -10px var(--fx-hue, var(--nv-say)); background: color-mix(in srgb, var(--fx-hue, var(--nv-say)) 9%, transparent); }
+.nv-fx-railcard:active { transform: scale(.98); }
+.nv-fx-raileye { display: flex; align-items: baseline; gap: 5px; margin-bottom: 4px; font: 600 9px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--nv-ink50); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nv-fx-raileye em { font-style: normal; color: var(--fx-hue, var(--nv-say)); }
+.nv-fx-raileye i { font-style: normal; color: var(--nv-ink40); }
+.nv-fx-railin { display: block; overflow: hidden; }
+@keyframes nvRailIn { from { opacity: 0; transform: translate3d(16px, 0, 0); } }
+@media (prefers-reduced-motion: reduce) { .nv-fx-railcard { animation: none; } }

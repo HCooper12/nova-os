@@ -8,6 +8,7 @@ import { onSpeech, spokenSentences } from './speechClock.js';
 import { Captions } from './NovaFocus.jsx';
 import { speakerOf, focusAsks, focusPours, lastYours, WORD_LOOK } from './novaFocusFacts.js';
 import { lastExchange, canvasProgress, stageState, stageScale, panelFit, cleanCuts, TRAVEL_PX, STAGE, PRESENTER, PRESENTER_RATIO, ONE_NOVA_CHROME, STAGE_SPEAK, STAGE_SPEAK_VAR } from './novaStageFacts.js';
+import { eyebrowOf, railCardWidth } from './wallFacts.js';
 
 // ONE NOVA, ONE CANVAS (29 Oct 2026) — design/mockups/106-one-nova.html,
 // option A, his approval: "Option A looks excellent. Just make sure that nova
@@ -182,6 +183,33 @@ function piecesOf(inner) {
   }
   return out;
 }
+// THE RAIL (7 Nov 2026, design/ROSE-STUDY.md phase 3): the phone's wall.
+// Under the hero, the pages and clips the lookup put up and the panels
+// already said, sideways, a third of the next card showing past the edge
+// (the closure law). A tap opens the card full width, as the hero's does.
+// Nothing here is new data: every card is one the Mac wall holds too.
+function StageRail({ cards, onOpen, width, label = null }) {
+  if (!cards?.length) return null;
+  const w = railCardWidth(width || 402);
+  return (
+    <div className="nv-fx-rail" role="list" aria-label={label || 'More on the glass'}>
+      {label && <span className="nv-fx-raillbl">{label}</span>}
+      <div className="nv-fx-railrow">
+        {cards.map((c) => {
+          const eb = eyebrowOf(c.card);
+          return (
+            <button key={c.key} type="button" role="listitem" className={`nv-fx-railcard${c.lit ? ' lit' : ''}`} style={{ width: w }} onClick={(e) => onOpen?.(c.card, e.currentTarget)}
+              aria-label={`${eb.kind}, ${eb.source}. Tap to open full width`}>
+              <span className="nv-fx-raileye"><em>{eb.kind}</em><i>//</i>{eb.source}</span>
+              <span className="nv-fx-railin"><SafeVisual what="nova-stage-rail" resetKey={c.key}><StageCard card={{ ...c.card, label: '' }} face="summary" size="mini" /></SafeVisual></span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PlatePanel({ dock, live, onOpen }) {
   const boxRef = useRef(null);
   const innerRef = useRef(null);
@@ -236,7 +264,7 @@ function PlatePanel({ dock, live, onOpen }) {
   );
 }
 
-export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, close = null, apiRef = null, chrome = ONE_NOVA_CHROME }) {
+export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, close = null, apiRef = null, chrome = ONE_NOVA_CHROME, glassRef = null }) {
   const secRef = useRef(null);
   const coreRef = useRef(null);
   const groundRef = useRef(null);
@@ -496,6 +524,51 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     return () => clearTimeout(id);
   }, [hasStage]);
   const dock = stage || (dockLeaving ? lastStage.current : null);
+  // the rail: the lookup's cards (a page or video beat lights its card rather
+  // than adding one), then the panels already said, newest first
+  const lookupCards = T.lookup?.cards || [];
+  const lightOf = (card) => (card?.kind === 'page' && !card.lookup && card.source ? `lk:p${card.source}` : card?.kind === 'video' && !card.lookup && card.clip ? `lk:v${card.clip}` : null);
+  const heroLight = lightOf(dock?.hero);
+  const railCards = (() => {
+    const seen = new Set();
+    const out = [];
+    const add = (key, card, lit = false) => { if (!key || !card || seen.has(key)) return; seen.add(key); out.push({ key, card, lit }); };
+    for (const l of lookupCards) add(l.key, l.card, heroLight === l.key);
+    for (const c of dock?.rail || []) { if (lightOf(c)) continue; add(c.key || `${c.kind}:${c.label || c.title || ''}`, c); }
+    return out;
+  })();
+  const [vw, setVw] = useState(() => (typeof window === 'undefined' ? 402 : window.innerWidth));
+  useEffect(() => { const on = () => setVw(window.innerWidth); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
+  // THE GLASS OBEYS WORDS on the phone too (src/glassVoice.js): maximise
+  // opens the card; clear and away put the rail's cards out of sight
+  const [railGone, setRailGone] = useState(() => new Set());
+  const railShown = railCards.filter((c) => !railGone.has(c.key));
+  useEffect(() => { if (S.key === 'listening') setRailGone(new Set()); }, [S.key]);
+  const glassApi = useRef(null);
+  glassApi.current = {
+    state: () => {
+      const named = (c) => ({ key: c.key, kind: c.card.kind, title: c.card.title || c.card.name || c.card.label || '', label: c.card.label || '', host: c.card.host || '', channel: c.card.channel || '' });
+      const up = [...(dock?.hero ? [{ key: dock.key || 'hero', card: dock.hero }] : []), ...railShown];
+      return { panels: up.map(named), hero: dock?.hero ? named({ key: dock.key || 'hero', card: dock.hero }) : null, history: [] };
+    },
+    run: (cmd) => {
+      const up = [...(dock?.hero ? [{ key: dock.key || 'hero', card: dock.hero }] : []), ...railShown];
+      const find = (k) => up.find((c) => c.key === k);
+      switch (cmd.cmd) {
+        case 'maximise': { const c = find(cmd.key); if (c) onOpen?.(c.card, null); return !!c; }
+        case 'away': setRailGone((g) => new Set(g).add(cmd.key)); return true;
+        case 'clear': setRailGone(new Set(up.map((c) => c.key))); return true;
+        case 'clear-except': setRailGone(new Set(up.filter((c) => c.key !== cmd.key).map((c) => c.key))); return true;
+        case 'tidy': case 'restore': return true;
+        default: return false;
+      }
+    },
+  };
+  useEffect(() => {
+    if (!glassRef) return undefined;
+    glassRef.current = { state: () => glassApi.current.state(), run: (c) => glassApi.current.run(c) };
+    return () => { glassRef.current = null; };
+  }, [glassRef]);
   const pours = focusPours('thread');
   const asks = chrome.briefMe ? focusAsks(T.status, { offline: T.offline }) : [];
   const rest = !turning;
@@ -578,6 +651,12 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         <div className="nv-nt-stheard" aria-hidden={!(S.key === 'listening' || S.key === 'thinking')}>
           <small>Hearing you</small>
           <HeardWords text={heard} live={S.key === 'listening'} />
+          {/* THINKING WITH THE PAGES ARRIVING (the Rose study): the lookup's
+              cards rise under his words while Nova reads them */}
+          {S.key === 'thinking' && T.lookup && (
+            <StageRail cards={railShown.filter((c) => c.card.lookup)} onOpen={onOpen} width={vw}
+              label={T.lookup.done ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read` : `Reading on ${T.lookup.query || 'that'}`} />
+          )}
         </div>
 
         {/* Speaking: the glass plate and the subtitles */}
@@ -591,6 +670,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
                       what is showing, then Nova's words */}
                   {asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
                   {dock && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
+                  {dock && railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
                   {T.doc && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
                 </>
               )}
