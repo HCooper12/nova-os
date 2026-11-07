@@ -9,7 +9,7 @@ import { loadRecentDays as loadNutritionDays } from './nutritionLog.js';
 import { fetchEventsForDay } from './calendar.js';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
-import { getToday as getFoodLogToday } from './foodLog.js';
+import { getToday as getFoodLogToday, totalsOf as foodTotalsOf } from './foodLog.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
@@ -173,14 +173,23 @@ async function composeMorning(vaultPath, now) {
     const { recipes, profile } = await loadRecipeData(vaultPath);
     const rotation = await loadRotation(vaultPath, recipes);
     const foodLog = await getFoodLogToday();
-    const extraP = foodLog.entries.reduce((s, e) => s + e.macros.p, 0);
-    const eaten = Math.round(rotation.consumedTotals.p + extraP);
+    // rotation meals are IN the food log (foodLog.setRotationEntry), so the log
+    // alone is the day's total; adding the rotation's consumed total counted them twice
+    const eaten = Math.round(foodTotalsOf(foodLog.entries).p);
     const planned = Math.round(rotation.totals.p);
     const floor = profile?.proteinFloorG || null;
     lines.push(`**Fuel.** Rotation plans ${planned}g protein${floor ? ` against your ${floor}g floor` : ''}; ${eaten > 0 ? `${eaten}g already down` : 'nothing marked eaten yet'}.`);
   } catch {
     lines.push('**Fuel.** Rotation unavailable.');
   }
+
+  // yesterday's food, from the real log against that day's own targets. A
+  // line inside the brief that already goes out, never a notification.
+  try {
+    const { yesterdayFoodLine } = await import('./foodBrief.js');
+    const food = await yesterdayFoodLine(vaultPath, now);
+    if (food) lines.push(food);
+  } catch { /* optional */ }
 
   // training (the plan) + the Coach's deload advisory when recovery says so
   try {
@@ -315,19 +324,12 @@ async function composeEvening(vaultPath, now) {
 
   // fuel (the reality)
   try {
-    const { recipes, profile } = await loadRecipeData(vaultPath);
-    const rotation = await loadRotation(vaultPath, recipes);
-    const foodLog = await getFoodLogToday();
-    const extraP = foodLog.entries.reduce((s, e) => s + e.macros.p, 0);
-    const eaten = Math.round(rotation.consumedTotals.p + extraP);
-    const floor = profile?.proteinFloorG || null;
-    if (floor) {
-      lines.push(eaten >= floor
-        ? `**Fuel.** Protein floor hit — ${eaten}g against ${floor}g.`
-        : `**Fuel.** ${eaten}g protein against the ${floor}g floor — ${floor - eaten}g short.`);
-    } else {
-      lines.push(`**Fuel.** ${eaten}g protein logged today.`);
-    }
+    // protein and calories together, one sum from the real log (rotation meals
+    // are in it already), against the target in force today
+    const { eveningFuelLine } = await import('./foodBrief.js');
+    const fuel = await eveningFuelLine(vaultPath, now);
+    if (!fuel) throw new Error('no food log');
+    lines.push(fuel);
   } catch {
     lines.push('**Fuel.** Rotation unavailable.');
   }
