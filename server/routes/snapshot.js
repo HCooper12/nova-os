@@ -34,6 +34,7 @@ export const SLICES = {
   earned: '/api/fuel/earned',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
+  beliefsHome: '/api/beliefs/home', // the Home card that asks about once a week whether what Nova believes is current
   projects: '/api/projects', // Projects phase 1: his projects and the linked three
   workoutExercises: '/api/workouts/exercises',
   workoutRoutines: '/api/workouts/routines',

@@ -473,12 +473,12 @@ async function goalsAndBlock(vaultPath) {
 async function knowledge(vaultPath, { query } = {}) {
   const { readFile } = await import('node:fs/promises');
   const path = (await import('node:path')).default;
-  const { PLAYBOOK_REL, PRINCIPLES_REL } = await import('./coachKnowledge.js');
+  const { PLAYBOOK_REL, PRINCIPLES_REL, withoutStruck } = await import('./coachKnowledge.js');
   const words = tokensOf(query).filter((w) => w.length > 2);
   const out = [];
   for (const [title, rel] of [['COACHING PRINCIPLES', PRINCIPLES_REL], ['WHAT WORKS FOR HAYDEN', PLAYBOOK_REL]]) {
     let text = '';
-    try { text = await readFile(path.join(vaultPath, rel), 'utf8'); } catch { out.push(`${title}: the page could not be read.`); continue; }
+    try { text = await readFile(path.join(vaultPath, rel), 'utf8'); if (rel === PLAYBOOK_REL) text = withoutStruck(text); } catch { out.push(`${title}: the page could not be read.`); continue; }
     const lines = text.split('\n');
     let heading = '';
     const hits = [];

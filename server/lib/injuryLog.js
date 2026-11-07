@@ -103,6 +103,14 @@ export async function reopenInjuries(vaultPath, ids) {
   });
 }
 
+// The undo of a reopening: the entry closes again on the day it was closed.
+export async function setResolvedAt(vaultPath, id, date) {
+  return mutate(vaultPath, (state) => {
+    const inj = state.injuries.find((i) => i.id === id);
+    if (inj) inj.resolvedAt = date;
+  });
+}
+
 export async function removeInjury(vaultPath, id) {
   return mutate(vaultPath, (state) => {
     const before = state.injuries.length;

@@ -52,6 +52,7 @@ export const WRITE_SLICE_MAP = [
   { test: /^\/stash(\/|$)/, slices: ['stash'] },
   // a project write moves its record and may file a card (stage, settings)
   { test: /^\/projects(\/|$)/, slices: ['projects', 'inbox'] },
+  { test: /^\/beliefs(\/|$)/, slices: ['beliefsHome', 'inbox'] },
   { test: /^\/shopping-list(\/|$)/, slices: ['shoppingList'] },
   { test: /^\/todos(\/|$)/, slices: ['todos'] },
   { test: /^\/plan-today\/stuck$/, slices: ['stuck'] },

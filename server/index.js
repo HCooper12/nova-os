@@ -50,6 +50,7 @@ import { studioRouter } from './routes/studio.js';
 import { profileRouter } from './routes/profile.js';
 import { intakeRouter } from './routes/intake.js';
 import { wrapRouter } from './routes/wrap.js';
+import { beliefsRouter } from './routes/beliefs.js';
 import { formCheckRouter } from './routes/formCheck.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
 import { startStashScheduler } from './lib/stashSignals.js';
@@ -321,6 +322,7 @@ async function main() {
   app.use('/api', studioRouter(process.env.VAULT_PATH));
   app.use('/api', profileRouter(process.env.VAULT_PATH));
   app.use('/api', intakeRouter(process.env.VAULT_PATH)); // THE INTAKE — his numbers, computed by code, approved by him
+  app.use('/api', beliefsRouter(process.env.VAULT_PATH)); // WHAT NOVA BELIEVES — what the agents act on, tick and cross
   app.use('/api', wrapRouter(process.env.VAULT_PATH)); // WRAP THE DAY — the end-of-day sentence, counted not composed
   app.use('/api', formCheckRouter(process.env.VAULT_PATH)); // FORM CHECK — one set, read against a rubric, refused when unreadable
   app.use('/api', drillRouter({ token })); // THE WI-FI-OFF DRILL — scripts/drill.mjs, scripts/preflight.mjs (lib/outbound.js, lib/internetNeeds.js)

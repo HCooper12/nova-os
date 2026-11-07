@@ -130,7 +130,7 @@ export async function knowledgeContext(vaultPath) {
   } catch { parts.push('YOUR COACHING PRINCIPLES page is unreadable right now — reason from consensus fundamentals and say so if it matters.'); }
   try {
     const { closedConcerns } = await import('./injuryLog.js');
-    const page = withoutClosed(await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8'), await closedConcerns(vaultPath));
+    const page = withoutClosed(withoutStruck(await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8')), await closedConcerns(vaultPath));
     parts.push(`WHAT WORKS FOR HAYDEN (his client file — every line was approved by him; NEVER contradict it silently, and when you observe something durable about his response to training or food, PROPOSE a learn so it lands here):\n${clip(page)}`);
   } catch { parts.push('WHAT WORKS FOR HAYDEN page is unreadable right now.'); }
   return parts.join('\n\n');
@@ -164,4 +164,79 @@ export async function removeLearning(vaultPath, line) {
   if (next === raw) return { removed: false };
   await writeFile(full, next, 'utf8');
   return { removed: true };
+}
+
+/* ------------------- striking a line (the What Nova believes page) -------------------
+ * His cross on a What Works line (lib/beliefs.js). The line is not deleted: it
+ * moves, word for word, under a "Struck" heading at the foot of the page, with
+ * the day and the section it came from, so the page keeps its history and he
+ * can still read what was once believed. Every reader of this page (the
+ * Coach's context, the local Coach's knowledge tool, the program review) takes
+ * the Struck section out with withoutStruck(), so agents stop acting on it.
+ * The undo puts the line back where it was; the page comes back byte-identical. */
+
+export const STRUCK_HEADING = '## Struck (no longer true)';
+const STRUCK_RE = /^##\s+Struck\b/i;
+
+/** The page with its Struck section taken out: what agents may act on. */
+export function withoutStruck(raw) {
+  const out = [];
+  let skipping = false;
+  for (const l of String(raw).split('\n')) {
+    if (/^##\s/.test(l)) skipping = STRUCK_RE.test(l);
+    if (!skipping) out.push(l);
+  }
+  return out.join('\n');
+}
+
+export async function strikeLearning(vaultPath, line, { now = new Date() } = {}) {
+  const full = path.join(vaultPath, PLAYBOOK_REL);
+  const raw = await readFile(full, 'utf8');
+  const lines = raw.split('\n');
+  const at = lines.indexOf(line);
+  if (at === -1) throw new Error('that line is no longer on the What Works page');
+  let heading = null;
+  for (let i = at - 1; i >= 0; i--) if (/^##\s/.test(lines[i])) { heading = lines[i]; break; }
+  if (heading && STRUCK_RE.test(heading)) throw new Error('that line is already struck');
+  const { backupFile } = await import('./backup.js');
+  await backupFile(full);
+  const struck = `- ~~${line.replace(/^- /, '')}~~ _(struck ${localDateISO(now)}${heading ? `, was under ${heading.replace(/^##\s+/, '')}` : ''})_`;
+  const around = { prev: lines[at - 1] ?? null, next: lines[at + 1] ?? null };
+  lines.splice(at, 1);
+  const hIdx = lines.findIndex((l) => STRUCK_RE.test(l));
+  let suffix = null;
+  let next;
+  if (hIdx === -1) {
+    const base = lines.join('\n');
+    suffix = `${base.endsWith('\n') ? '' : '\n'}\n${STRUCK_HEADING}\n\n${struck}\n`;
+    next = base + suffix;
+  } else {
+    lines.splice(hIdx + 1, 0, struck);
+    next = lines.join('\n');
+  }
+  await writeFile(full, next, 'utf8');
+  return { struck: { line: struck, suffix, heading, at, around }, original: line };
+}
+
+export async function unstrikeLearning(vaultPath, u) {
+  const full = path.join(vaultPath, PLAYBOOK_REL);
+  const raw = await readFile(full, 'utf8');
+  const { line: struckLine, suffix, heading, at, around } = u.struck;
+  if (!raw.includes(struckLine)) return { restored: false };
+  let lines;
+  if (suffix && raw.endsWith(suffix)) {
+    lines = raw.slice(0, raw.length - suffix.length).split('\n');
+  } else {
+    lines = raw.split('\n');
+    lines.splice(lines.indexOf(struckLine), 1);
+  }
+  const exact = (around.prev == null || lines[at - 1] === around.prev) && (around.next == null || lines[at] === around.next);
+  let pos = at;
+  if (!exact) {
+    const h = heading ? lines.findIndex((l) => l === heading) : -1;
+    pos = h === -1 ? lines.length : h + 1;
+  }
+  lines.splice(pos, 0, u.original);
+  await writeFile(full, lines.join('\n'), 'utf8');
+  return { restored: true };
 }

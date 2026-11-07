@@ -744,8 +744,8 @@ export async function reviewProgram(vaultPath, deps = {}) {
     loadPlaybook = async () => {
       const { readFile } = await import('node:fs/promises');
       const path = await import('node:path');
-      const { PLAYBOOK_REL } = await import('./coachKnowledge.js');
-      return readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8');
+      const { PLAYBOOK_REL, withoutStruck } = await import('./coachKnowledge.js');
+      return withoutStruck(await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8'));
     },
     closedFor = async () => (await import('./injuryLog.js')).closedConcerns(vaultPath),
     now = new Date(),

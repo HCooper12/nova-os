@@ -72,6 +72,26 @@ export async function removeStandingRule(vaultPath, rawLine) {
   return true;
 }
 
+// The undo of removeStandingRule: the exact line goes back, with its own date
+// and source, rather than being re-added as new today. A line already present
+// is left alone, so a double undo is harmless.
+export async function restoreStandingLine(vaultPath, rawLine, { at = null, prev = null } = {}) {
+  const full = path.join(vaultPath, STANDING_REL);
+  const raw = existsSync(full) ? await readFile(full, 'utf8') : '';
+  const lines = raw.split('\n');
+  if (lines.includes(rawLine)) return false;
+  if (existsSync(full)) await backupFile(full);
+  else await mkdir(path.dirname(full), { recursive: true });
+  // back where it was when the page still looks as it did; otherwise at the foot
+  if (existsSync(full) && at != null && at <= lines.length && (prev == null || lines[at - 1] === prev)) {
+    lines.splice(at, 0, rawLine);
+    await writeFile(full, lines.join('\n'), 'utf8');
+    return true;
+  }
+  await writeFile(full, `${raw.trimEnd()}${raw.trim() ? '\n' : ''}${rawLine}\n`, 'utf8');
+  return true;
+}
+
 // Compact block for the model agents' contexts. Empty is honest silence —
 // no block at all rather than an empty header.
 export async function standingContext(vaultPath) {

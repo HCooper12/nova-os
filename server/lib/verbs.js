@@ -135,6 +135,23 @@ verb({
   },
 });
 
+// HIS CROSS ON "WHAT NOVA BELIEVES" (lib/beliefs.js). Only his tap on that page
+// reaches this: it is hidden from the model's catalogue, because a model must
+// never decide that something he told Nova has stopped being true.
+verb({
+  id: 'belief.drop', tier: 'act', modelHidden: true,
+  describe: 'stop acting on one belief on the What Nova believes page, only when HE crosses it out',
+  args: { id: 'the belief id from the What Nova believes page' },
+  async run(vaultPath, args) {
+    const { dropBelief } = await import('./beliefs.js');
+    return dropBelief(vaultPath, String(args.id));
+  },
+  async undo(vaultPath, u) {
+    const { undoDrop } = await import('./beliefs.js');
+    return undoDrop(vaultPath, u);
+  },
+});
+
 verb({
   id: 'todo.done', tier: 'act',
   describe: 'tick a to-do off his list', args: { text: 'the to-do, in his words' },
@@ -1522,7 +1539,7 @@ export const verbFor = (id) => VERBS[id] || null;
 export function describeForModel() {
   const names = hands()?.knownShortcuts() || [];
   const shortcuts = names.length ? `\n  His Shortcuts on the Mac (use the exact name): ${names.slice(0, 90).join(' · ')}` : '';
-  return VERB_IDS.map((id) => {
+  return VERB_IDS.filter((id) => !VERBS[id].modelHidden).map((id) => {
     const v = VERBS[id];
     const args = Object.keys(v.args).length
       ? `,"args":{${Object.entries(v.args).map(([k, d]) => `"${k}":"<${d}>"`).join(',')}}`
