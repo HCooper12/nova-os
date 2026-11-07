@@ -9,6 +9,7 @@
 // many consumers, per the shared-formats rule.
 
 import { loadSessions } from './workoutSessions.js';
+import { closedAsOf, isStaleConcern } from './concernClose.js';
 import { mondayIso } from './cadence.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, ACTIVE_REST } from './workouts.js';
@@ -405,11 +406,16 @@ export async function analyticsContext(vaultPath) {
   // his own words from the logger: notes, pain reports, cut-short reasons —
   // the cockpit's feedback channel the Coach digests over time
   const worded = [];
+  // an area he has closed: its old notes stop reaching the Coach as pain to
+  // digest; a note written after the closure is new evidence and stays
+  const { closedConcerns } = await import('./injuryLog.js');
+  const closed = await closedConcerns(vaultPath);
   for (const s2 of sessions.slice(0, 12)) {
     if (s2.cutShort) worded.push(`${s2.date} ${s2.routineName}: CUT SHORT (${s2.cutShort})`);
+    const gone = closedAsOf(closed, s2.date);
     for (const ex of s2.exercises || []) {
-      if (ex.pain) worded.push(`${s2.date} ${ex.name}: PAIN — ${ex.pain}`);
-      if (ex.note) worded.push(`${s2.date} ${ex.name}: "${ex.note}"`);
+      if (ex.pain && !isStaleConcern(`${ex.pain} pain`, gone)) worded.push(`${s2.date} ${ex.name}: PAIN — ${ex.pain}`);
+      if (ex.note && !isStaleConcern(ex.note, gone)) worded.push(`${s2.date} ${ex.name}: "${ex.note}"`);
       if (ex.anomaly) worded.push(`${s2.date} ${ex.name}: flagged off-day (excluded from signals)`);
     }
   }

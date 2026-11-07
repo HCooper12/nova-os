@@ -289,11 +289,13 @@ export async function coachFacts(vaultPath, { now = new Date() } = {}) {
     lines.push(`DELOAD SIGNAL: ${signal.advise ? 'YES, ' : 'no, '}${signal.reason}.`);
   } catch { missing.push('the deload signal'); }
   try {
-    const { listInjuries } = await import('./injuryLog.js');
+    const { listInjuries, closedConcerns, closedLine } = await import('./injuryLog.js');
     const open = (await listInjuries(vaultPath)).filter((i) => !i.resolvedAt);
     lines.push(open.length
       ? `INJURIES:\n${open.map((i) => `- ${i.area} (${i.severity}, since ${i.startedAt}): ${clip(String(i.note || '').split(/(?<=[.!?])\s/)[0], 160)}`).join('\n')}`
       : 'INJURIES: none open.');
+    const closed = closedLine(await closedConcerns(vaultPath));
+    if (closed) lines.push(closed);
   } catch { missing.push('the injury log'); }
   if (missing.length) lines.push(`COULD NOT BE READ THIS TURN: ${missing.join(', ')}. Say so if it matters; never fill the gap.`);
   return lines.join('\n');

@@ -23,7 +23,9 @@ test('injury log: add → context shouts it, resolve → context quiets, page is
   assert.match(raw, /## Active/);
   assert.match(raw, /pinches at bench lockout/);
   await resolveInjury(vault, inj.id);
-  assert.equal(await injuriesContext(vault), null, 'no active injuries → no context block');
+  const quiet = await injuriesContext(vault);
+  assert.doesNotMatch(quiet, /never prescribe into pain/, 'no active injuries, no active block');
+  assert.match(quiet, /CLOSED BY HIM[\s\S]*Left shoulder/, 'what he closed is named so nobody raises it');
   assert.equal((await listInjuries(vault)).length, 1, 'resolved entries stay as history');
   await removeInjury(vault, inj.id);
   assert.equal((await listInjuries(vault)).length, 0);

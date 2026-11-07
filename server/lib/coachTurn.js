@@ -491,7 +491,8 @@ async function startClaudeCoachTurn(vaultPath, { question, sessionId = null, liv
       try {
         const { debriefMemoryContext } = await import('./debriefMemory.js');
         const last = (await loadSessions(vaultPath, { limit: 1 }))[0];
-        const dm = last ? await debriefMemoryContext(last.routineId) : null;
+        const { closedConcerns } = await import('./injuryLog.js');
+        const dm = last ? await debriefMemoryContext(last.routineId, { closed: await closedConcerns(vaultPath) }) : null;
         if (dm) parts.push(dm);
       } catch { failures.push('last debrief'); }
       // DAYS that keep not happening — the training check's "didn't happen"

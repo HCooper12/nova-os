@@ -1,4 +1,5 @@
 import { recurringSignal } from './sessionNotes.js';
+import { closedAsOf, isStaleConcern } from './concernClose.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
 import { mondayIso } from './cadence.js';
 import { atlasFor } from './data/exerciseAtlas.js';
@@ -627,7 +628,7 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
 // about form breaking down under load is a coaching judgement Coach makes
 // with its own evidence rules, and hard-coding a prescription here would be
 // this file pretending to expertise it does not have.
-export function findNoteSignals(sessions = [], exercises = [], { min = 2, within = 6 } = {}) {
+export function findNoteSignals(sessions = [], exercises = [], { min = 2, within = 6, closed = [] } = {}) {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const seen = new Set();
   const out = [];
@@ -637,8 +638,15 @@ export function findNoteSignals(sessions = [], exercises = [], { min = 2, within
       if (!id || seen.has(id)) continue;
       seen.add(id);
       for (const signal of ['pain', 'form-breakdown']) {
-        const hits = recurringSignal(sessions, id, signal, { min: signal === 'pain' ? 1 : min, within });
-        if (!hits) continue;
+        const found = recurringSignal(sessions, id, signal, { min: signal === 'pain' ? 1 : min, within });
+        // a pain note about an area he has closed raises nothing: this line
+        // reached him as "You logged pain on Cable Lateral Raise" on 6 Nov,
+        // five days after he said to ignore it. Pain logged after the closure
+        // is new evidence and is raised as ever.
+        const hits = signal === 'pain' && found
+          ? found.filter((h) => !isStaleConcern(`${h.pain || h.note} pain`, closedAsOf(closed, h.date)))
+          : found;
+        if (!hits?.length) continue;
         const name = byId.get(id)?.name || ex.name || id;
         const quotes = hits.slice(0, 2).map((h) => `"${h.pain || h.note}"`).join(' and ');
         out.push({
@@ -739,6 +747,7 @@ export async function reviewProgram(vaultPath, deps = {}) {
       const { PLAYBOOK_REL } = await import('./coachKnowledge.js');
       return readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8');
     },
+    closedFor = async () => (await import('./injuryLog.js')).closedConcerns(vaultPath),
     now = new Date(),
   } = deps;
   const avoidText = await loadPlaybook().catch(() => '');
@@ -812,7 +821,7 @@ export async function reviewProgram(vaultPath, deps = {}) {
     ...findStaleLifts(sessions, exercises, { now, avoidText, inProgram, declined, tunes, declinedVariation, inSessionFocus, cutting }),
     ...findLongTenure(sessions, exercises, { now, avoidText, inProgram, declined, cutting }),
     // what he told Nova himself — the highest-quality signal there is
-    ...findNoteSignals(sessions, exercises),
+    ...findNoteSignals(sessions, exercises, { closed: await closedFor() }),
   ];
   return { findings: rankFindings(findings), counts: { sessions: sessions.length, exercises: exercises.length } };
 }

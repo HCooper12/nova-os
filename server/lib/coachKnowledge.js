@@ -18,6 +18,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { localDateISO } from './localDate.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { closedAsOf, isStaleConcern } from './concernClose.js';
 
 export const PRINCIPLES_REL = 'Wiki/Health/Coaching Principles.md'; // exported: the local Coach's knowledge tool reads it (lib/localCoach.js)
 export const PLAYBOOK_REL = 'Wiki/Health/What Works For Hayden.md'; // exported: the reflection dedupes against the same page
@@ -104,6 +105,18 @@ export async function ensureSeeded(vaultPath) {
   await ensurePage(vaultPath, PLAYBOOK_REL, PLAYBOOK_SEED);
 }
 
+// A line of the client file about an area he has since closed stays on the
+// page, because he owns the page, and leaves the prompt: otherwise a September
+// worry can push out what he said last week. A line dated after the closure
+// stays, and so does the closing line itself (concernClose.js isStaleConcern).
+export function withoutClosed(raw, closed = []) {
+  if (!closed.length) return raw;
+  return String(raw).split('\n').filter((line) => {
+    const dated = line.match(/^- (\d{4}-\d{2}-\d{2}) /);
+    return !dated || !isStaleConcern(line, closedAsOf(closed, dated[1]));
+  }).join('\n');
+}
+
 const clip = (s) => {
   const t = s.trim();
   return t.length <= CONTEXT_BUDGET ? t : t.slice(0, CONTEXT_BUDGET) + '\n…(page continues — cite only what you can see)';
@@ -116,7 +129,9 @@ export async function knowledgeContext(vaultPath) {
     parts.push(`YOUR COACHING PRINCIPLES (his vault page — doctrine you reason from; propose amendments only on strong evidence):\n${clip(await readFile(path.join(vaultPath, PRINCIPLES_REL), 'utf8'))}`);
   } catch { parts.push('YOUR COACHING PRINCIPLES page is unreadable right now — reason from consensus fundamentals and say so if it matters.'); }
   try {
-    parts.push(`WHAT WORKS FOR HAYDEN (his client file — every line was approved by him; NEVER contradict it silently, and when you observe something durable about his response to training or food, PROPOSE a learn so it lands here):\n${clip(await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8'))}`);
+    const { closedConcerns } = await import('./injuryLog.js');
+    const page = withoutClosed(await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8'), await closedConcerns(vaultPath));
+    parts.push(`WHAT WORKS FOR HAYDEN (his client file — every line was approved by him; NEVER contradict it silently, and when you observe something durable about his response to training or food, PROPOSE a learn so it lands here):\n${clip(page)}`);
   } catch { parts.push('WHAT WORKS FOR HAYDEN page is unreadable right now.'); }
   return parts.join('\n\n');
 }

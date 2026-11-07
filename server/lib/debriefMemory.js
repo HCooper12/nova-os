@@ -9,6 +9,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { closedAsOf, scrubClosed } from './concernClose.js';
 
 const STATE_PATH = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'debrief-memory.json');
 const KEEP_SESSIONS = 200;
@@ -56,17 +57,30 @@ export async function debriefsForSessions(ids) {
   return out;
 }
 
+// A DEBRIEF SPOKE FOR ITS DAY. What it said about an area he has since closed
+// stays in this file as history (the "Coach said" view keeps it) and stops
+// being handed to the Coach as a carry to follow up. `closed` comes from
+// lib/injuryLog.js closedConcerns; a debrief written after the closure keeps
+// every word, because that is new evidence.
+function freshText(entry, closed = []) {
+  return scrubClosed(entry.text, closedAsOf(closed, entry.date || entry.at));
+}
+
 // The fact-sheet line for the NEXT same-routine session.
-export function lastDebriefLine(entry) {
+export function lastDebriefLine(entry, { closed = [] } = {}) {
   if (!entry?.text) return null;
-  return `YOUR LAST DEBRIEF FOR THIS ROUTINE (${entry.date || entry.at.slice(0, 10)} — follow up on its carry if today's data speaks to it, once, naturally; never re-read it back): ${entry.text}`;
+  const text = freshText(entry, closed);
+  if (!text) return null;
+  return `YOUR LAST DEBRIEF FOR THIS ROUTINE (${entry.date || entry.at.slice(0, 10)} — follow up on its carry if today's data speaks to it, once, naturally; never re-read it back): ${text}`;
 }
 
 // The Coach chat's line — the rack and the chat agree on what was last said.
-export async function debriefMemoryContext(routineId) {
+export async function debriefMemoryContext(routineId, { closed = [] } = {}) {
   const entry = await lastDebriefFor(routineId);
   if (!entry) return null;
-  return `WHAT YOU SAID AT THE RACK after his last ${entry.routineName || routineId} session (${entry.date || entry.at.slice(0, 10)}): "${entry.text}"`;
+  const text = freshText(entry, closed);
+  if (!text) return null;
+  return `WHAT YOU SAID AT THE RACK after his last ${entry.routineName || routineId} session (${entry.date || entry.at.slice(0, 10)}): "${text}"`;
 }
 
 export const _reset = async () => save({ byRoutine: {}, bySession: {} });

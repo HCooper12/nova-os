@@ -156,6 +156,7 @@ export async function resumedRefreshContext(vaultPath = null) {
     // a new conversation (twin of the turn-1 sections above)
     ...(vaultPath ? [
       { label: 'standing rules (current)', load: () => standingContext(vaultPath) },
+      { label: 'injuries (current)', load: async () => (await import('./injuryLog.js')).injuriesContext(vaultPath) },
       { label: 'learned preferences (current)', load: () => preferencesContext(vaultPath) },
       // a document filed earlier in THIS conversation must be referable by
       // the very next turn, not just the next new conversation
@@ -213,6 +214,9 @@ async function buildBaseAskContext(vaultPath, { fast = false } = {}) {
     { label: 'protocols', load: async () => (await import('./protocols.js')).protocolsContext(vaultPath, { budget: 1800 }) },
     { label: 'learned preferences', load: () => preferencesContext(vaultPath) },
     { label: 'standing rules', load: () => standingContext(vaultPath) },
+    // what hurts, and what he has closed: Nova raised a closed shoulder through
+    // the morning show, a line before Coach did (his three closures, audit #2)
+    { label: 'injuries', load: async () => (await import('./injuryLog.js')).injuriesContext(vaultPath) },
     { label: 'skills', load: async () => (await import('./skills.js')).skillsContext(vaultPath) },
     // his shelf, at the front door: "what did that Huberman episode say about
     // sleep" must not need a special lane. Newest-first here rather than

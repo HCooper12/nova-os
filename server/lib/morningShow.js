@@ -14,6 +14,7 @@
 import { metricCard, listCard } from './spokenCards.js';
 import { mondayOf as mondayOfLocal } from './cadence.js';
 import { findingCard, auditCard, proteinWeekCard } from './findingCards.js';
+import { closedAreas, closedAsOf, isStaleConcern } from './concernClose.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -397,8 +398,13 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
   if (!evening) {
     const concerns = [];
     let painPrompt = null;
+    let closed = [];
     try {
-      const open = (deps.injuries ? await deps.injuries(vaultPath) : []) || [];
+      // the log keeps resolved entries as history, and listInjuries returns
+      // them too: an area he closed must not be the morning's concern
+      const logged = (deps.injuries ? await deps.injuries(vaultPath) : []) || [];
+      closed = closedAreas(logged, { now });
+      const open = logged.filter((i) => !i.resolvedAt);
       for (const inj of open.slice(0, 2)) {
         concerns.push({ name: despeak(inj.area), note: inj.severity || 'open', tone: 'warn' });
       }
@@ -411,6 +417,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         for (const ex of sess.exercises || []) {
           const hurt = ex.pain || (ex.sets || []).some((st2) => st2.pain);
           if (!hurt) continue;
+          if (ex.pain && isStaleConcern(`${ex.pain} pain`, closedAsOf(closed, sess.date))) continue;
           concerns.push({ name: despeak(ex.name || ex.exerciseId), note: `pain · ${sess.date}`, tone: 'warn' });
           painPrompt = painPrompt || despeak(ex.name || ex.exerciseId);
         }

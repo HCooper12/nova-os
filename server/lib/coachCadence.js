@@ -342,7 +342,11 @@ export async function debriefFacts(vaultPath, session, deps = {}) {
   try {
     const { lastDebriefFor, lastDebriefLine } = await import('./debriefMemory.js');
     const last = deps.lastDebrief !== undefined ? deps.lastDebrief : await lastDebriefFor(full.routineId);
-    if (last && last.sessionId !== full.id) { const line = lastDebriefLine(last); if (line) facts.push(line); }
+    if (last && last.sessionId !== full.id) {
+      const { closedConcerns } = await import('./injuryLog.js');
+      const line = lastDebriefLine(last, { closed: await closedConcerns(vaultPath) });
+      if (line) facts.push(line);
+    }
   } catch { /* cold compose — today's behaviour */ }
   return { facts, full };
 }

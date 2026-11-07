@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { loadSessions, setSessionSummary } from './workoutSessions.js';
 import { createRecord } from './inboxStore.js';
 import { readExerciseNote } from './sessionNotes.js';
+import { closedAsOf, isStaleConcern } from './concernClose.js';
 import { expandGroup } from './muscleSecondary.js';
 
 // Coach's progression engine — pure deterministic rules over logged history,
@@ -96,6 +97,8 @@ export async function computeProgressions(vaultPath, routines) {
   // suggestion entirely. See progressionTunes.js.
   const { getTunes, tuneFor } = await import('./progressionTunes.js');
   const tunes = await getTunes(vaultPath).catch(() => []);
+  const { closedConcerns } = await import('./injuryLog.js');
+  const closed = await closedConcerns(vaultPath);
   const out = {};
 
   for (const routine of routines) {
@@ -184,7 +187,9 @@ export async function computeProgressions(vaultPath, routines) {
       // ever suppresses an increase, never invents one, and it quotes his
       // sentence back so the reason is his, not an inference.
       const lastNote = readExerciseNote(recent[0]);
-      const formGone = !!lastNote?.signals.some((x) => x === 'form-breakdown' || x === 'pain');
+      // pain in an area he has since closed holds nothing (his own close, 1 Nov)
+      const closedPain = !!lastNote?.pain && isStaleConcern(`${lastNote.pain} pain`, closedAsOf(closed, recent[0]?.date));
+      const formGone = !!lastNote?.signals.some((x) => x === 'form-breakdown' || (x === 'pain' && !closedPain));
 
       // OBJECTIVE TREND FIRST. His effort rating is near-constant, so "is it
       // moving?" is the only question that separates one lift from another.
@@ -494,9 +499,12 @@ export async function coachLiveLine(vaultPath) {
   // said to the last proposals, where the progression engine stands now.
   // Each read names its own failure, like the two above.
   try {
-    const { listInjuries } = await import('./injuryLog.js');
+    const { listInjuries, closedConcerns, closedLine } = await import('./injuryLog.js');
     const open = (await listInjuries(vaultPath)).filter((i) => !i.resolvedAt);
     bits.push(open.length ? `open injuries: ${open.map((i) => `${i.area} (${i.severity}, since ${i.startedAt})`).join(', ')}` : 'no open injuries');
+    // a chat days old still holds the worry; the turn after he closes it, this overrides it
+    const closed = closedLine(await closedConcerns(vaultPath));
+    if (closed) bits.push(closed);
   } catch { bits.push('injury log FAILED to load this turn'); }
   try {
     const { getTunes } = await import('./progressionTunes.js');
