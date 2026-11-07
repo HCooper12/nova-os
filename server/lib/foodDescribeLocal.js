@@ -11,7 +11,7 @@
 // filled in later. The result has the same shape the model path produces.
 import { loadRecentDays } from './foodLog.js';
 import { loadRecipeData } from './recipes.js';
-import { scaleTo, kcalFrom } from './nutritionFacts.js';
+import { scaleTo, kcalFrom, scaleExtras } from './nutritionFacts.js';
 
 const WORD_NUMBERS = {
   a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
@@ -221,6 +221,7 @@ export async function describeLocal(text, { vaultPath, lookup, days = 90 } = {})
       const sc = scaleTo(fact.per100g, grams);
       line.grams = Math.round(grams);
       line.macros = { ...sc, kcal: kcalFrom(sc) };
+      Object.assign(line, scaleExtras(fact.per100g, grams), fact.fdcId ? { fdcId: fact.fdcId } : {});
       line.matched = `USDA FoodData Central: ${fact.matched || p.name}`;
       line.source = line.matched;
       line.sourced = true;

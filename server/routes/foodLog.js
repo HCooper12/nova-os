@@ -48,13 +48,13 @@ export function foodLogRouter(vaultPath) {
 
   router.post('/food-log', async (req, res) => {
     try {
-      const { name, macros, source, date, items } = req.body || {};
+      const { name, macros, source, date, items, words, meal, barcode, fdcId, fibreG, sugarG, sodiumMg } = req.body || {};
       if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
       if (!macros || [macros.p, macros.c, macros.f, macros.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
       // items ride through: when a plate is itemised, addEntry sums the lines
-      const day = await addEntry({ name: name.trim(), macros, source, date, items });
+      const day = await addEntry({ name: name.trim(), macros, source, date, items, words, meal, barcode, fdcId, fibreG, sugarG, sodiumMg });
       // Snapshot the day that CHANGED, not just today: a retro edit used to
       // be skipped, so the archive (and every weekly/monthly scorecard built
       // on it) stayed permanently wrong for that date.

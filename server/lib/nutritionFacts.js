@@ -48,6 +48,20 @@ export function kcalFrom({ p = 0, c = 0, f = 0 }) {
 }
 
 /** Scale a per-100g fact to a real weight. */
+/**
+ * The optional extras (fibre, sugars, sodium) scaled to a weight. Only the
+ * ones the database actually gave: an absent value is absent, never zero,
+ * because "no fibre figure" and "0 g of fibre" are different statements.
+ */
+export function scaleExtras(per100g, grams) {
+  const k = (Number(grams) || 0) / 100;
+  const out = {};
+  if (per100g?.fibre != null) out.fibreG = +(per100g.fibre * k).toFixed(1);
+  if (per100g?.sugar != null) out.sugarG = +(per100g.sugar * k).toFixed(1);
+  if (per100g?.sodium != null) out.sodiumMg = Math.round(per100g.sodium * k);
+  return out;
+}
+
 export function scaleTo(per100g, grams) {
   const k = (Number(grams) || 0) / 100;
   return {
@@ -65,6 +79,11 @@ export function scaleTo(per100g, grams) {
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const cachePath = (name) => path.join(CACHE_DIR(), `${createHash('sha1').update(norm(name)).digest('hex').slice(0, 16)}.json`);
 
+// v2 (Nov 2026) adds fibre, sugars and sodium to the fact. A v1 entry has
+// none of them, so it is NOT served as current: the lookup refetches once and
+// rewrites it as v2. If that refetch fails (offline, rate-limited) the v1 fact
+// is still returned, since its protein, carbs and fat are as good as ever.
+const CACHE_VERSION = 2;
 async function readCache(name) {
   const p = cachePath(name);
   if (!existsSync(p)) return null;
@@ -72,7 +91,9 @@ async function readCache(name) {
     const d = JSON.parse(await readFile(p, 'utf8'));
     // a fact about a food does not go stale, but a bad early entry should be
     // replaceable — version it so the cache can be invalidated deliberately
-    return d?.v === 1 ? d : null;
+    if (d?.v === CACHE_VERSION) return d;
+    if (d?.v === 1 && d.fact) return { ...d, stale: true };
+    return null;
   } catch { return null; }
 }
 
@@ -80,15 +101,15 @@ async function writeCache(name, entry) {
   try {
     await mkdir(CACHE_DIR(), { recursive: true });
     const tmp = cachePath(name) + '.tmp';
-    await writeFile(tmp, JSON.stringify({ v: 1, ...entry }, null, 2), 'utf8');
+    await writeFile(tmp, JSON.stringify({ v: CACHE_VERSION, ...entry }, null, 2), 'utf8');
     await rename(tmp, cachePath(name));
   } catch { /* a cache miss next time is the only cost */ }
 }
 
 /* ------------------------------ the lookup -------------------------------- */
 
-function pickNutrients(food) {
-  const out = { p: null, c: null, f: null, kcal: null };
+export function pickNutrients(food) {
+  const out = { p: null, c: null, f: null, kcal: null, fibre: null, sugar: null, sodium: null };
   for (const n of food.foodNutrients || []) {
     const name = n.nutrientName || n.nutrient?.name || '';
     const val = Number(n.value ?? n.amount);
@@ -97,6 +118,9 @@ function pickNutrients(food) {
     else if (name === 'Total lipid (fat)') out.f = val;
     else if (name === 'Carbohydrate, by difference') out.c = val;
     else if (name === 'Energy' && (n.unitName === 'KCAL' || n.nutrient?.unitName === 'kcal')) out.kcal = val;
+    else if (name === 'Fiber, total dietary') out.fibre = val;
+    else if (/^(total sugars|sugars, total)/i.test(name)) out.sugar = val;
+    else if (name === 'Sodium, Na') out.sodium = val; // USDA reports sodium in mg
   }
   return out;
 }
@@ -108,12 +132,12 @@ function pickNutrients(food) {
  */
 export async function lookupPer100g(name) {
   const cached = await readCache(name);
-  if (cached) return cached.fact;
+  if (cached && !cached.stale) return cached.fact;
 
   try {
     const url = `${FDC_SEARCH}?query=${encodeURIComponent(name)}&pageSize=5&api_key=${FDC_KEY()}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS) });
-    if (!res.ok) return null;
+    if (!res.ok) return cached?.fact || null;
     const data = await res.json();
     // Prefer the data types that are actually measured in a lab, in order:
     // Foundation and SR Legacy are USDA's own analyses; Branded is
@@ -123,19 +147,25 @@ export async function lookupPer100g(name) {
       .map((f) => ({ f, n: pickNutrients(f) }))
       .filter((x) => x.n.p != null && x.n.c != null && x.n.f != null)
       .sort((a, b) => (rank[a.f.dataType] ?? 9) - (rank[b.f.dataType] ?? 9));
-    if (!foods.length) return null;
+    if (!foods.length) return cached?.fact || null;
     const best = foods[0];
     const fact = {
       source: 'USDA FoodData Central',
       dataType: best.f.dataType || 'unknown',
       matched: best.f.description || name,
       fdcId: best.f.fdcId || null,
-      per100g: { p: best.n.p, c: best.n.c, f: best.n.f },
+      per100g: {
+        p: best.n.p, c: best.n.c, f: best.n.f,
+        // optional: only what USDA gave for this food
+        ...(best.n.fibre != null ? { fibre: best.n.fibre } : {}),
+        ...(best.n.sugar != null ? { sugar: best.n.sugar } : {}),
+        ...(best.n.sodium != null ? { sodium: best.n.sodium } : {}),
+      },
     };
     await writeCache(name, { fact, at: new Date().toISOString() });
     return fact;
   } catch {
-    return null; // offline or rate-limited — the caller degrades honestly
+    return cached?.fact || null; // offline or rate-limited — the caller degrades honestly
   }
 }
 
@@ -164,6 +194,7 @@ async function resolveRow(c, lookupFn) {
     grams,
     per100g,
     fact,
+    ...(fact ? { ...scaleExtras(fact.per100g, grams), ...(fact.fdcId ? { fdcId: fact.fdcId } : {}) } : {}),
     macros: { ...scaled, kcal: kcalFrom(scaled) },
     source: fact ? `${fact.source} — ${fact.matched}${fact.dataType ? ` (${fact.dataType})` : ''}` : 'estimated, not matched to a database',
     sourced: !!fact,
@@ -235,6 +266,7 @@ export async function resolvePhotoParts(parts, { lookupFn = lookupPer100g, looku
       if (row) {
         rows.push({
           name, grams: Math.round(grams), macros: row.macros, source: row.source, sourced: true,
+          ...scaleExtras(row.fact.per100g, grams),
           ...(row.fact?.fdcId ? { fdcId: row.fact.fdcId } : {}),
         });
         continue;

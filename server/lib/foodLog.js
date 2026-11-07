@@ -81,6 +81,62 @@ const withWriteLock = createWriteLock();
 // line arithmetically honest. Editing an entry's totals by hand therefore
 // DROPS its items — they no longer describe the number.
 const ITEM_CAP = 24;
+
+// RICHER FOOD (Nov 2026). Fibre, sugars, sodium and the identity of a
+// database food (USDA fdcId, a barcode) are OPTIONAL on a line and on an entry.
+// Absent means "not known", never zero: an old entry without them reads
+// exactly as it always did, and nothing here may invent them.
+const posNum = (n, dp) => {
+  const v = Number(n);
+  if (n == null || n === '' || !Number.isFinite(v) || v < 0) return undefined;
+  return dp === 0 ? Math.round(v) : Math.round(v * 10) / 10;
+};
+export function sanitizeExtras(raw) {
+  const out = {};
+  const fibre = posNum(raw?.fibreG, 1); if (fibre !== undefined) out.fibreG = fibre;
+  const sugar = posNum(raw?.sugarG, 1); if (sugar !== undefined) out.sugarG = sugar;
+  const sodium = posNum(raw?.sodiumMg, 0); if (sodium !== undefined) out.sodiumMg = sodium;
+  const fdc = Number(raw?.fdcId);
+  if (Number.isInteger(fdc) && fdc > 0) out.fdcId = fdc;
+  const code = String(raw?.barcode ?? '').replace(/\D/g, '');
+  if (code.length >= 8 && code.length <= 14) out.barcode = code;
+  return out;
+}
+// An entry's fibre/sugar/sodium is the sum of its lines, but only when EVERY
+// line carries the figure: a partial sum would quietly understate it.
+export function extrasOfItems(items = []) {
+  const out = {};
+  if (!items.length) return out;
+  for (const [k, dp] of [['fibreG', 1], ['sugarG', 1], ['sodiumMg', 0]]) {
+    if (items.every((it) => Number.isFinite(Number(it[k])))) {
+      const t = items.reduce((a, it) => a + Number(it[k]), 0);
+      out[k] = dp === 0 ? Math.round(t) : Math.round(t * 10) / 10;
+    }
+  }
+  return out;
+}
+function setEntryExtras(entry) {
+  for (const k of ['fibreG', 'sugarG', 'sodiumMg']) delete entry[k];
+  if (entry.items?.length) Object.assign(entry, extrasOfItems(entry.items));
+}
+
+// Which meal an entry belongs to, from the clock alone, when he did not say.
+// A retro entry has no clock time, so it gets no meal rather than a guess.
+export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
+export function mealForTime(hhmm) {
+  const m = /^(\d{2}):(\d{2})$/.exec(String(hhmm || ''));
+  if (!m) return null;
+  const mins = Number(m[1]) * 60 + Number(m[2]);
+  if (mins >= 4 * 60 && mins < 10 * 60 + 30) return 'breakfast';
+  if (mins >= 10 * 60 + 30 && mins < 15 * 60) return 'lunch';
+  if (mins >= 17 * 60 && mins < 21 * 60 + 30) return 'dinner';
+  return 'snack';
+}
+export function cleanMeal(v) {
+  const m = String(v || '').toLowerCase().trim();
+  return MEALS.includes(m) ? m : null;
+}
+
 export function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
   return items.map((raw) => {
@@ -98,6 +154,7 @@ export function normalizeItems(items) {
       // "estimated, not matched to a database". Shown, never invented.
       ...(raw?.source ? { source: String(raw.source).slice(0, 120) } : {}),
       ...(raw?.sourced != null ? { sourced: !!raw.sourced } : {}),
+      ...sanitizeExtras(raw),
     };
   }).filter(Boolean).slice(0, ITEM_CAP);
 }
@@ -110,11 +167,11 @@ export function macrosOfItems(items = []) {
   return { p: round1(t.p), c: round1(t.c), f: round1(t.f), kcal: Math.round(t.kcal) };
 }
 
-export async function addEntry({ name, macros, source, date, items }) {
-  return withWriteLock(() => addEntryUnlocked({ name, macros, source, date, items }));
+export async function addEntry({ name, macros, source, date, items, words, meal, barcode, fdcId, fibreG, sugarG, sodiumMg }) {
+  return withWriteLock(() => addEntryUnlocked({ name, macros, source, date, items, words, meal, barcode, fdcId, fibreG, sugarG, sodiumMg }));
 }
 
-async function addEntryUnlocked({ name, macros, source, date, items }) {
+async function addEntryUnlocked({ name, macros, source, date, items, words, meal, barcode, fdcId, fibreG, sugarG, sodiumMg }) {
   const target = resolveLogDate(date);
   const day = await loadDay(target);
   const entry = {
@@ -128,11 +185,19 @@ async function addEntryUnlocked({ name, macros, source, date, items }) {
   // How it was logged — 'scan' | 'barcode' | 'manual' | 'history'. Optional and
   // additive: older entries simply lack it and every reader tolerates that.
   if (source) entry.source = String(source).slice(0, 20);
+  // his exact words, when he typed or said it: kept so a correction can quote him
+  const said = String(words || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (said) entry.words = said;
+  // the meal he named, else the one the clock says (same-day entries only)
+  const mealName = cleanMeal(meal) || mealForTime(entry.time);
+  if (mealName) entry.meal = mealName;
+  Object.assign(entry, sanitizeExtras({ barcode, fdcId, fibreG, sugarG, sodiumMg }));
   // the plate, itemised — and the total becomes the sum of its lines
   const lines = normalizeItems(items);
   if (lines.length) {
     entry.items = lines;
     entry.macros = macrosOfItems(lines);
+    setEntryExtras(entry);
   }
   day.entries.push(entry);
   await saveDay(day);
@@ -203,6 +268,7 @@ export async function editEntryOn(date, entryId, { name, macros }) {
     // His numbers now, not the breakdown's: keeping lines that no longer add
     // up to the total would be the fiction this feature exists to remove.
     if (macros && entry.items) delete entry.items;
+    if (macros) for (const k of ['fibreG', 'sugarG', 'sodiumMg']) delete entry[k];
     entry.edited = true; // an amended number is not the original estimate
     await saveDay(day);
     return day;
@@ -224,7 +290,7 @@ export async function removeEntryItem(date, entryId, itemId) {
     const [removed] = entry.items.splice(index, 1);
     const entryRemoved = entry.items.length === 0;
     if (entryRemoved) day.entries = day.entries.filter((e) => e.id !== entryId);
-    else entry.macros = macrosOfItems(entry.items);
+    else { entry.macros = macrosOfItems(entry.items); setEntryExtras(entry); }
     await saveDay(day);
     return { day, removed, index, entryRemoved, entry: entryRemoved ? { name: entry.name, source: entry.source, time: entry.time } : null };
   });
@@ -249,6 +315,7 @@ export async function restoreEntryItem(date, entryId, item, index = -1, entryShe
     const at = index >= 0 && index <= entry.items.length ? index : entry.items.length;
     entry.items.splice(at, 0, line);
     entry.macros = macrosOfItems(entry.items);
+    setEntryExtras(entry);
     await saveDay(day);
     return day;
   });
@@ -330,6 +397,9 @@ export function sanitizeRestoredEntry(raw, entryId) {
   if (raw.slot) entry.slot = String(raw.slot).slice(0, 40);
   if (raw.recipeId) entry.recipeId = String(raw.recipeId).slice(0, 80);
   if (raw.edited) entry.edited = true;
+  if (typeof raw.words === 'string' && raw.words.trim()) entry.words = raw.words.replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (cleanMeal(raw.meal)) entry.meal = cleanMeal(raw.meal);
+  Object.assign(entry, sanitizeExtras(raw));
   if (Array.isArray(raw.items) && raw.items.length) {
     const lines = raw.items.slice(0, ITEM_CAP).map((it) => {
       const line = normalizeItems([it])[0];
@@ -339,6 +409,7 @@ export function sanitizeRestoredEntry(raw, entryId) {
     if (lines.length) {
       entry.items = lines;
       entry.macros = macrosOfItems(lines);
+      setEntryExtras(entry);
     }
   }
   return entry;
