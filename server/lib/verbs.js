@@ -277,7 +277,8 @@ verb({
   describe: "mark one of today's rotation meals as eaten", args: { slot: SLOTS.join('|') },
   async run(vaultPath, args) {
     const r = await setEaten(vaultPath, args.slot, true);
-    return { destination: `Rotation — ${r.label} eaten (${r.name})`, said: `${r.label[0].toUpperCase()}${r.label.slice(1)} logged as eaten — ${r.name}.`, undo: { verb: 'meal.eaten', slot: r.slot, name: r.name } };
+    const { withRunningTotal } = await import('./runningTotal.js');
+    return { destination: `Rotation — ${r.label} eaten (${r.name})`, said: await withRunningTotal(vaultPath, localDay(), `${r.label[0].toUpperCase()}${r.label.slice(1)} logged as eaten — ${r.name}.`), undo: { verb: 'meal.eaten', slot: r.slot, name: r.name } };
   },
   async undo(vaultPath, u) { await setEaten(vaultPath, u.slot, false); return `${u.slot} is not eaten again`; },
 });
@@ -794,6 +795,7 @@ const SHOW_FOR = { 'reminder.set': 'Reminders', 'todo.add': 'Obsidian', 'journal
 //      clobbering — the same rule the staged pass applies to a weave.
 
 const foodLib = () => import('./foodLog.js');
+const withRunningTotal = async (...a) => (await import('./runningTotal.js')).withRunningTotal(...a);
 const sessionLib = () => import('./workoutSessions.js');
 
 const g = (n) => { const x = Number(n || 0); return Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10); };
@@ -919,7 +921,7 @@ verb({
       const r = await scaleEntryOn(args.date, args.entryId, args.scaled.opts);
       return {
         destination: `Food log — ${args.was.name} x${r.factor}: ${macroLine(r.after.macros)}`,
-        said: `Scaled. ${args.was.name}${args.scaled.itemName ? ` (${args.scaled.itemName})` : ''} is now ${macroLine(r.after.macros)}.`,
+        said: await withRunningTotal(vaultPath, args.date, `Scaled. ${args.was.name}${args.scaled.itemName ? ` (${args.scaled.itemName})` : ''} is now ${macroLine(r.after.macros)}.`),
         undo: { verb: 'foodlog.fix', date: args.date, entryId: args.entryId, was: args.was, before: r.before },
       };
     }
@@ -927,7 +929,7 @@ verb({
     const after = { ...args.was.macros, ...args.next };
     return {
       destination: `Food log — ${args.name || args.was.name}: ${macroLine(after)}`,
-      said: `Fixed. ${args.name || args.was.name} is now ${macroLine(after)}.`,
+      said: await withRunningTotal(vaultPath, args.date, `Fixed. ${args.name || args.was.name} is now ${macroLine(after)}.`),
       undo: { verb: 'foodlog.fix', date: args.date, entryId: args.entryId, was: args.was },
     };
   },
@@ -960,7 +962,7 @@ verb({
     await removeEntryOn(args.date, args.entryId);
     return {
       destination: `Food log — removed ${args.was.name}`,
-      said: `Taken out. ${args.was.name} — ${macroLine(args.was.macros)} — is off ${args.date === localDay() ? "today's" : `${args.date}'s`} log.`,
+      said: await withRunningTotal(vaultPath, args.date, `Taken out. ${args.was.name} — ${macroLine(args.was.macros)} — is off ${args.date === localDay() ? "today's" : `${args.date}'s`} log.`),
       undo: { verb: 'foodlog.remove', date: args.date, was: args.was },
     };
   },

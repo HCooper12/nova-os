@@ -382,16 +382,18 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       const { recordTodaySnapshot } = await import('./nutritionSnapshot.js');
       recordTodaySnapshot(vaultPath).catch(() => {});
       const m = meal.macros || {};
+      const { withRunningTotal } = await import('./runningTotal.js');
       return {
-        destination: `Marked ${payload.slot} eaten — ${meal.name}${meal.variant ? ` (${meal.variant})` : ''} (${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal)`,
+        destination: await withRunningTotal(vaultPath, date, `Marked ${payload.slot} eaten — ${meal.name}${meal.variant ? ` (${meal.variant})` : ''} (${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal)`, { label: true }),
         undo: { route, slot: payload.slot, mealName: meal.name },
       };
     }
     const day = await foodLog.addEntry({ name: payload.name, macros: payload.macros, items: Array.isArray(payload.items) ? payload.items : undefined });
     const entry = day.entries[day.entries.length - 1];
     const m = entry.macros;
+    const { withRunningTotal } = await import('./runningTotal.js');
     return {
-      destination: `Food log — ${entry.name} (${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal)`,
+      destination: await withRunningTotal(vaultPath, day.date, `Food log — ${entry.name} (${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal)`, { label: true }),
       undo: { route, date: day.date, entryId: entry.id },
     };
   }
