@@ -21,7 +21,7 @@
 // promise, the picture is the payload, and a failed fetch simply leaves an
 // honest typographic panel behind.
 
-import { FETCHED_KINDS, DATA_KINDS, CLAIM_KINDS } from '../../src/visualBeats.js';
+import { FETCHED_KINDS, DATA_KINDS, CLAIM_KINDS, PLACE_KINDS } from '../../src/visualBeats.js';
 import { verifyClaim } from './glassClaims.js';
 import { resolveImage, resolveClip } from './briefingMedia.js';
 import { searchVault } from './recall.js';
@@ -36,12 +36,41 @@ export const mediaUrl = (key) => (key ? `/api/briefing/media/${key}` : null);
 // training stack), and injectable for the same reason as the rest
 export const deps = {
   resolveImage, resolveClip, searchVault, captionsFor,
+  geocode: (place) => geocodePlace(place),
   buildSessionPanel: async (...a) => (await import('./panels.js')).buildSessionPanel(...a),
   buildSourcesPanel: async (...a) => (await import('./panels.js')).buildSourcesPanel(...a),
 };
 
 export function needsFetch(spec) {
-  return FETCHED_KINDS.has(spec?.kind) || DATA_KINDS.has(spec?.kind) || CLAIM_KINDS.has(spec?.kind);
+  return FETCHED_KINDS.has(spec?.kind) || DATA_KINDS.has(spec?.kind) || CLAIM_KINDS.has(spec?.kind) || PLACE_KINDS.has(spec?.kind);
+}
+
+// A PLACE ON A MAP (8 Nov 2026): the model names a place; OpenStreetMap's
+// Nominatim finds it by code (one request, Nova's own user agent, cached
+// in memory); the card draws the real map with a pin. No match, no map:
+// the card degrades to the words. `deps.geocode` is the test seam.
+const placeMemo = new Map();
+export async function geocodePlace(place, { fetchImpl = fetch } = {}) {
+  const q = String(place || '').trim();
+  if (!q) return null;
+  if (placeMemo.has(q)) return placeMemo.get(q);
+  const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({ q, format: 'jsonv2', limit: '1' })}`;
+  let hit = null;
+  try {
+    const res = await fetchImpl(url, { headers: { 'User-Agent': 'NovaOS/1.0 (personal assistant; one lookup per spoken place)', Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const rows = await res.json();
+      const r = Array.isArray(rows) ? rows[0] : null;
+      if (r && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lon))) hit = { lat: Number(r.lat), lon: Number(r.lon), name: String(r.display_name || q).split(',').slice(0, 3).join(',').trim() };
+    }
+  } catch { hit = null; }
+  placeMemo.set(q, hit);
+  return hit;
+}
+async function resolvePlace(spec, log) {
+  const hit = await deps.geocode(spec.place);
+  if (!hit) { log(`[glass] no map: ${spec.place} was not found`); return { ...spec, kind: 'key', caption: spec.caption || spec.place, state: 'no-place' }; }
+  return { ...spec, state: 'ready', lat: hit.lat, lon: hit.lon, name: hit.name };
 }
 
 // A CLAIM ON A PAGE (7 Nov 2026, lib/glassClaims.js): the model named a
@@ -110,6 +139,7 @@ export async function resolveVisual(spec, { vaultPath = null, sources = [], allo
   const base = { ...spec, state: 'ready' };
   if (!needsFetch(spec)) return base;
   if (CLAIM_KINDS.has(spec.kind)) return resolveClaim(spec, lookup, log);
+  if (PLACE_KINDS.has(spec.kind)) return resolvePlace(spec, log);
   if (DATA_KINDS.has(spec.kind)) return resolveData(spec, { vaultPath, consult });
 
   if (spec.kind === 'image') {

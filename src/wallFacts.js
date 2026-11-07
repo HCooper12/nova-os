@@ -108,7 +108,7 @@ export function wallOpenRect(width, height) {
 // --------------------------------------------------------------- the eyebrow
 // Rose's eyebrow: `KIND // SOURCE`. Nova's: the kind in words, then the
 // source it stands on (a host, a channel, "Nova's own", or the finder).
-const KIND_WORDS = { page: 'Page', video: 'Video', figure: 'Figure', quote: 'Quote', entity: 'Who', note: 'Note', key: 'Key', steps: 'Steps', list: 'List', metric: 'Figure', bars: 'Chart', image: 'Image', media: 'Listen', body: 'Body', program: 'Program', session: 'Session', sources: 'Sources', shot: 'Browser', instrument: 'Instrument' };
+const KIND_WORDS = { map: 'Map', page: 'Page', video: 'Video', figure: 'Figure', quote: 'Quote', entity: 'Who', note: 'Note', key: 'Key', steps: 'Steps', list: 'List', metric: 'Figure', bars: 'Chart', image: 'Image', media: 'Listen', body: 'Body', program: 'Program', session: 'Session', sources: 'Sources', shot: 'Browser', instrument: 'Instrument' };
 export function eyebrowOf(card) {
   const kind = KIND_WORDS[card?.kind] || 'Panel';
   const src = card?.host || card?.channel || (card?.lookup ? 'looked up' : card?.finder || 'Nova’s own');

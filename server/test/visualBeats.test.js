@@ -123,6 +123,7 @@ test('every declared kind can actually produce a spec', () => {
     quote: { text: 'the exact words the page prints', source: 1 },
     entity: { name: 'Flipper Devices', source: 3, facts: [['Founded', '2020']] },
     note: { lines: ['one line', 'two lines'] },
+    map: { place: 'Tulleys Farm' },
   };
   for (const kind of VISUAL_KINDS) {
     const spec = normaliseSpec({ kind, label: 'Panel', ...samples[kind] });

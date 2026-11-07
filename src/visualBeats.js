@@ -46,7 +46,10 @@ import { normaliseMark, markKey, DATA_KINDS } from './glassMarks.js';
 // names the page it stands on and is CHECKED against that page's text by
 // code before it is drawn (server/lib/glassClaims.js); a note is Nova's own
 // words as a titled card with up to three lines.
-export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program', 'session', 'sources', 'mark', 'page', 'video', 'figure', 'quote', 'entity', 'note'];
+export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program', 'session', 'sources', 'mark', 'page', 'video', 'figure', 'quote', 'entity', 'note', 'map'];
+// `map` (8 Nov 2026, Rose's Halloween reel): a place the model names; code
+// finds it (Nominatim) and draws the real map with a pin, or nothing.
+export const PLACE_KINDS = new Set(['map']);
 // the kinds the SERVER proves against the pages it read (never drawn
 // unproven: the frame goes up, the claim fills in once checked)
 export const CLAIM_KINDS = new Set(['page', 'video', 'figure', 'quote', 'entity']);
@@ -243,6 +246,10 @@ export function normaliseSpec(d) {
       .filter((f) => f && f.k && f.value).slice(0, 5);
     return { ...base, label: base.label || name.toUpperCase(), name, facts, source: sourceNumber(d.source) };
   }
+  if (kind === 'map') {
+    const place = clean(firstString(d, ['place', 'where', 'location', 'address', 'name']), 120);
+    return place ? { ...base, place } : null;
+  }
   if (kind === 'note') {
     const lines = (Array.isArray(d.lines) ? d.lines : Array.isArray(d.items) ? d.items : d.caption ? [d.caption] : [])
       .map((l) => clean(itemName(l), 160)).filter(Boolean).slice(0, 3);
@@ -290,7 +297,7 @@ export function keyOfSpec(spec, i) {
   const bits = [spec.kind, spec.label, spec.query || '', spec.title || '', spec.url || '',
     spec.muscle || '', spec.routine || '', (spec.remove || []).join(','), (spec.keep || []).join(','),
     spec.date || '', spec.by || '', markKey(spec.mark),
-    spec.source || '', spec.clip || '', spec.value || '', String(spec.text || '').slice(0, 40), spec.name || ''];
+    spec.source || '', spec.clip || '', spec.value || '', String(spec.text || '').slice(0, 40), spec.name || '', spec.place || ''];
   let h = 5381;
   const s = bits.join('|');
   for (let j = 0; j < s.length; j++) h = ((h * 33) ^ s.charCodeAt(j)) >>> 0;

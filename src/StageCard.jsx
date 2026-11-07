@@ -34,7 +34,7 @@ const toneOf = (t) => TONE[t] || TONE.cy;
 //           proven. Never an estimate: see server/lib/visualMoment.js.
 // 'session' and 'sources' (3 Oct 2026): the data panels, built by the server
 // from his records and lit one part at a time (src/DataPanels.jsx).
-const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program', 'session', 'sources', 'page', 'video', 'figure', 'quote', 'entity', 'note']);
+const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program', 'session', 'sources', 'page', 'video', 'figure', 'quote', 'entity', 'note', 'map']);
 
 // THE INSTRUMENTS, ON THE GLASS. The morning show already speaks each of
 // these lines; the instrument is the picture that belongs to the sentence —
@@ -105,6 +105,7 @@ export function StageCard({ card, size = 'full', face }) {
   if (card.kind === 'entity' && !(card.facts || []).length) return null;
   if (card.kind === 'note' && !(card.lines || []).length) return null;
   if (card.kind === 'page' && !card.title && !card.host) return null;
+  if (card.kind === 'map' && !(Number.isFinite(card.lat) && Number.isFinite(card.lon)) && !card.pending) return null;
   if (card.kind === 'video' && !card.title) return null;
   // media and image are drawn WITHOUT their picture on purpose — the frame is
   // the promise that lands in context, the picture is what fills it.
@@ -405,6 +406,24 @@ export function StageCard({ card, size = 'full', face }) {
           {!mini && card.host && <div style={{ marginTop: '9px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.16em'), color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>FROM {String(card.host).toUpperCase()}</div>}
         </div>
       )}
+
+      {/* A PLACE (8 Nov 2026): the real map, OpenStreetMap's own embed with a
+          pin where code found the place; a tap opens it full */}
+      {card.kind === 'map' && Number.isFinite(card.lat) && (() => {
+        const d = mini ? 0.004 : 0.012;
+        const bbox = [card.lon - d * 1.6, card.lat - d, card.lon + d * 1.6, card.lat + d].map((n) => n.toFixed(5)).join(',');
+        const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${card.lat.toFixed(5)},${card.lon.toFixed(5)}`;
+        return (
+          <div style={{ marginTop: mini ? '6px' : '10px' }}>
+            <div style={{ position: 'relative', borderRadius: mini ? '6px' : '10px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'var(--nv-void)', aspectRatio: mini ? '16/7' : '16/10', filter: 'saturate(.55) brightness(.85) contrast(1.05)' }}>
+              <iframe title={`Map of ${card.name || card.place}`} src={src} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, pointerEvents: mini ? 'none' : 'auto' }} />
+            </div>
+            <div style={{ marginTop: mini ? '4px' : '8px', font: `500 ${fz(mini ? 10.5 : 13.5)}px/1.35 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name || card.place}</div>
+            {!mini && card.caption && <div style={{ marginTop: '4px', font: `400 ${fz(12.5)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 66%, transparent)' }}>{card.caption}</div>}
+            {!mini && <a href={`https://www.openstreetmap.org/?mlat=${card.lat}&mlon=${card.lon}#map=16/${card.lat}/${card.lon}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ marginTop: '8px', display: 'inline-block', textDecoration: 'none', font: `600 ${fz(8.5)}px ${MF}`, letterSpacing: trk('.16em'), color: accent }}>OPEN THE MAP ↗</a>}
+          </div>
+        );
+      })()}
 
       {card.kind === 'note' && (
         <div style={css(`margin-top:${mini ? 5 : 11}px;display:flex;flex-direction:column;gap:${mini ? 3 : 7}px`)}>

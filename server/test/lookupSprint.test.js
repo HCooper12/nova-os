@@ -230,3 +230,24 @@ test('a full query that misses is searched again by its first two words, and the
   assert.equal(lk.searchedAs, 'Busy Bar');
   assert.equal(readSources(lk).length, 1);
 });
+
+
+test('a map: the model names a place, code finds it, the card carries the pin; a miss draws the words', async () => {
+  const { deps: rdeps, geocodePlace } = await import('../lib/visualResolve.js');
+  const saved = rdeps.geocode;
+  rdeps.geocode = async (p) => (/tulleys/i.test(p) ? { lat: 51.108, lon: -0.094, name: 'Tulleys Farm, Turners Hill' } : null);
+  const ok = await resolveVisual(normaliseSpec({ kind: 'map', label: 'WHERE', place: 'Tulleys Farm, Turners Hill' }), { log: () => {} });
+  assert.equal(ok.state, 'ready');
+  assert.equal(ok.lat, 51.108);
+  const miss = await resolveVisual(normaliseSpec({ kind: 'map', label: 'WHERE', place: 'Nowhere Particular', caption: 'the words' }), { log: () => {} });
+  assert.equal(miss.kind, 'key');
+  assert.equal(miss.caption, 'the words');
+  rdeps.geocode = saved;
+  // the geocoder itself, with a stubbed fetch: one request, Nova's own agent
+  const calls = [];
+  const hit = await geocodePlace('Melbourne Cricket Ground', { fetchImpl: async (url, opts) => { calls.push([url, opts.headers['User-Agent']]); return { ok: true, json: async () => [{ lat: '-37.82', lon: '144.983', display_name: 'Melbourne Cricket Ground, Brunton Avenue, East Melbourne, Victoria, Australia' }] }; } });
+  assert.equal(hit.name, 'Melbourne Cricket Ground, Brunton Avenue, East Melbourne');
+  assert.match(calls[0][0], /nominatim\.openstreetmap\.org\/search\?q=Melbourne\+Cricket\+Ground/);
+  assert.match(calls[0][1], /NovaOS/);
+  assert.ok(VISUAL_KINDS.includes('map'));
+});

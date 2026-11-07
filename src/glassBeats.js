@@ -78,7 +78,7 @@ export function stepsRevealed(items, spokenSoFar, span = 0) {
 // must win over the kind the model asked for.
 export function mergeVisual(spec, resolved) {
   if (!spec) return null;
-  if (!resolved) return { ...spec, pending: FETCHED.has(spec.kind) || DATA_KINDS.has(spec.kind) || CLAIM_KINDS.has(spec.kind) };
+  if (!resolved) return { ...spec, pending: FETCHED.has(spec.kind) || DATA_KINDS.has(spec.kind) || CLAIM_KINDS.has(spec.kind) || spec.kind === 'map' };
   // A CLAIM THE PAGE DID NOT PROVE (7 Nov 2026, server/lib/glassClaims.js)
   // is no panel: nothing is drawn, the previous panel holds the stage.
   if (resolved.state === 'dropped') return null;
