@@ -85,6 +85,8 @@ export async function morningReadiness(vaultPath) {
   const { computeDeloadSignal } = await import('./coach.js');
   const days = await loadRecentDays(7).catch(() => []);
   const signal = computeDeloadSignal(days);
+  // recovery says go lighter: at most one card proposing a paused deficit (his yes, Undo)
+  if (signal.advise) { try { await (await import('./pausedDeficit.js')).proposePausedDeficit(vaultPath); } catch { /* the morning card stands without it */ } }
   const lines = [`Coach — ${routine.name} is on today's card (${routine.exercises.length} exercises).`];
   try {
     const { getBlock } = await import('./trainingBlocks.js');

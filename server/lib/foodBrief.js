@@ -63,3 +63,10 @@ export async function eveningFuelLine(vaultPath, now = new Date(), deps = {}) {
   const r = await runningTotal(vaultPath, date, deps);
   return r ? eveningFuelText({ totals: r.totals, targets: r.targets }) : null;
 }
+
+/** Morning: the one top fuel check as a line, or null when nothing true needs saying. */
+export async function fuelCheckLine(vaultPath, now = new Date(), deps = {}) {
+  const { loadFuelChecks } = await import('./fuelChecks.js');
+  const { findings } = await loadFuelChecks(vaultPath, { now, deps });
+  return findings.length ? `**Fuel check.** ${findings[0].line}` : null;
+}

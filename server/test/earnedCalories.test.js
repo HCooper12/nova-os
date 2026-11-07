@@ -53,6 +53,11 @@ test('too few weigh-ins or too early never proposes, and says which', () => {
   assert.equal(earnedCheck({ on: false, since, weighIns: [], today }).verdict, 'off');
 });
 
+test('a week with the deficit paused is not held against earned calories', () => {
+  const flat = [w('2026-11-17', 82.8), w('2026-11-23', 82.9), w('2026-11-29', 82.8)];
+  assert.equal(earnedCheck({ on: true, since, weighIns: flat, today, paused: true }).verdict, 'paused');
+});
+
 test('the on/off state round-trips and defaults on', async () => {
   assert.equal((await readEarnedState()).on, true);
   await writeEarnedState({ on: false, since });

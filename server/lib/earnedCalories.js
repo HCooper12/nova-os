@@ -49,8 +49,10 @@ export function earnedFor({ active, past = [], on = true } = {}) {
 }
 
 /** Pure. Two weeks in, is his weight dropping? 'unknown' never proposes anything. */
-export function earnedCheck({ on, since, weighIns = [], today } = {}) {
+export function earnedCheck({ on, since, weighIns = [], today, paused = false } = {}) {
   if (!on) return { verdict: 'off', line: null };
+  // eating at maintenance on purpose is expected to hold weight: not a verdict on earned calories
+  if (paused) return { verdict: 'paused', line: 'Earned calories not judged this week: the deficit is paused for recovery.' };
   const dayNum = (iso) => Math.round(new Date(`${iso}T12:00:00Z`).getTime() / 86400000);
   if (dayNum(today) - dayNum(since) < STALL_DAYS) {
     return { verdict: 'early', line: `Earned calories started ${since}; two weeks are needed to judge them.` };
@@ -92,8 +94,16 @@ export async function earnedToday({ now = new Date() } = {}) {
     const past = days.filter((d) => d.date < date && d.stepsComplete !== false).map((d) => d.activeEnergyKcal);
     const today = days.find((d) => d.date === date);
     const { on } = await readEarnedState();
-    return { date, ...earnedFor({ active: today?.activeEnergyKcal, past, on }) };
+    const base = earnedFor({ active: today?.activeEnergyKcal, past, on });
+    // A PAUSED DEFICIT (lib/pausedDeficit.js) adds room by the same road. `kcal` stays
+    // the one number every reader adds to the target (the total); `earnedKcal` and
+    // `pausedKcal` say which part is which, so a label can tell him what it is.
+    // Together they never pass the deficit he is carrying.
+    const { pausedToday, combineExtra } = await import('./pausedDeficit.js');
+    const pause = await pausedToday({ today: date, days });
+    const mix = combineExtra({ earned: base.kcal, paused: pause.kcal, deficit: pause.deficitKcal });
+    return { date, ...base, kcal: mix.total, earnedKcal: mix.earned, pausedKcal: mix.paused, pausedUntil: pause.active ? pause.until : null };
   } catch {
-    return { date: null, on: false, kcal: 0, usual: null, active: null, days: 0, reason: 'unavailable' };
+    return { date: null, on: false, kcal: 0, earnedKcal: 0, pausedKcal: 0, pausedUntil: null, usual: null, active: null, days: 0, reason: 'unavailable' };
   }
 }

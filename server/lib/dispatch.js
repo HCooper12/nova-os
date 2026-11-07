@@ -190,6 +190,11 @@ async function composeMorning(vaultPath, now) {
     const food = await yesterdayFoodLine(vaultPath, now);
     if (food) lines.push(food);
   } catch { /* optional */ }
+  try {
+    const { fuelCheckLine } = await import('./foodBrief.js');
+    const check = await fuelCheckLine(vaultPath, now);
+    if (check) lines.push(check);
+  } catch { /* optional */ }
 
   // training (the plan) + the Coach's deload advisory when recovery says so
   try {
@@ -205,6 +210,7 @@ async function composeMorning(vaultPath, now) {
       const { computeDeloadSignal } = await import('./coach.js');
       const signal = computeDeloadSignal(await loadRecentDays(7));
       if (signal.advise && routine) line += ` Coach's advisory: ${signal.reason}.`;
+      if (signal.advise) await (await import('./pausedDeficit.js')).proposePausedDeficit(vaultPath, { now });
     } catch { /* advisory is garnish */ }
     lines.push(line);
   } catch {

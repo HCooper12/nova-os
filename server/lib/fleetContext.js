@@ -16,7 +16,7 @@ export const KIND_AGENT = {
   dispatch: 'Dispatch', review: 'Daily Review', 'plan-today': 'Plan Today',
   'weekly-debrief': 'Weekly Debrief', 'week-plan': 'Week Plan',
   'training-check': 'Training Check', coach: 'Coach',
-  'food-suggestion': 'Food Scout', 'meal-prep': 'Meal Prep', intake: 'Numbers Review', 'earned-off': 'Numbers Review',
+  'food-suggestion': 'Food Scout', 'meal-prep': 'Meal Prep', intake: 'Numbers Review', 'earned-off': 'Numbers Review', 'paused-deficit': 'Numbers Review',
   // a method learned from videos and podcasts, drafted for his yes (lib/playbookLearn.js)
   playbook: 'Watcher',
   money: 'Money', cfo: 'CFO', research: 'Researcher', studio: 'Studio',

@@ -313,7 +313,9 @@ export async function setIntake(vaultPath, intake) {
   if (existsSync(full)) await backupFile(full);
   const frontmatter = { type: 'profile', focus: prior?.focus || '', bestSelf: prior?.bestSelf || '', updated: localDay() };
   if (prior?.priorities?.length) frontmatter.priorities = prior.priorities;
-  if (intake) frontmatter.intake = intake;
+  // his hand-tuned check thresholds are not part of the interview: they survive it
+  const tuned = prior?.intake?.fuelChecks;
+  if (intake) frontmatter.intake = tuned && !intake.fuelChecks ? { ...intake, fuelChecks: tuned } : intake;
   await writeFile(full, matter.stringify(`# Profile\n\n${prior?.notes || ''}\n`, frontmatter), 'utf8');
   return { prior: prior?.intake || null, profile: await getProfile(vaultPath) };
 }

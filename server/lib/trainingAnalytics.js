@@ -34,7 +34,7 @@ const e1rm = (w, reps) => (reps > 0 && reps <= 12 ? w * (1 + reps / 30) : null);
 // The rule that cannot do that: if the number he would be shown is the same
 // number, it is not a record. So round first, then compare.
 const shown = (n) => Math.round(n * 10) / 10;
-const bestE1rm = (sets) => Math.max(0, ...sets.map((s) => e1rm(s.weight, s.reps) || 0)) || null;
+export const bestE1rm = (sets) => Math.max(0, ...sets.map((s) => e1rm(s.weight, s.reps) || 0)) || null;
 
 /* ---------------- PRs: best weight, best e1RM, best reps@weight ---------- */
 

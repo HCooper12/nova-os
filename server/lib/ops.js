@@ -206,7 +206,7 @@ export const AGENT_RECORD_KINDS = {
   compost: ['compost'],
   'food-suggest': ['food-suggestion'],
   mealprep: ['meal-prep'],
-  'fuel-review': ['intake', 'earned-off'],
+  'fuel-review': ['intake', 'earned-off', 'paused-deficit'],
   'training-check': ['training-check'],
   followups: ['followup'],
   'week-plan': ['week-plan'],

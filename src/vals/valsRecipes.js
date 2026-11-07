@@ -1,6 +1,6 @@
 import { isQueuedId, QUEUED_WORDS } from '../outboxOverlay.js';
 import { mono } from './shared.js';
-import { earnedOn } from '../fuelSummaryFacts.js';
+import { earnedOn, earnedWords } from '../fuelSummaryFacts.js';
 import { localDateISO } from '../localDate.js';
 import { lineKey } from '../productKey.js';
 import { kcalFromMacros } from '../fuelRead.js';
@@ -599,7 +599,7 @@ export function valsRecipes(app, ctx) {
   Object.assign(ctx, { usingLiveRecipes, rotation, profile, proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled,
     kcalCurrent: rotConsumedTot.kcal + foodLogTot.kcal,
     // today's target carries any calories he earned; past days and the week keep the plain one
-    earnedKcal, targetKcal: profile ? profile.targetKcal + earnedKcal : null });
+    earnedKcal, earnedLabel: earnedWords(st.liveEarned, localDateISO()), targetKcal: profile ? profile.targetKcal + earnedKcal : null });
 
   // PICK IT UP (his reel, 26 Sep): "500 kcal and 50 g protein left, I'm out,
   // what do I get?" — every chain and supermarket item that fits. Nova already

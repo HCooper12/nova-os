@@ -6,6 +6,7 @@ import { patternFor } from '../../src/exerciseMotion.js';
 import { formatSets, PRIMARY_RULES } from './muscleSecondary.js';
 import { VOLUME_RANGE, rangeFor } from '../../src/muscleTaxonomy.js';
 import { laneEnabled } from './modelPrefs.js';
+import { rpeTrend } from './trainingAnalytics.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -172,7 +173,20 @@ export function variationFor(ex) {
   return { name: '3-second lowering', how: 'lower every rep for a slow count of three, same weight', focus: '3s lowering, same weight — own the rep before the load' };
 }
 
-export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4, minDays = 28, minHistoryDays = 42, now = new Date(), avoidText = '', inProgram = null, declined = new Set(), tunes = new Map(), declinedVariation = new Set(), inSessionFocus = new Set() } = {}) {
+// A FLAT LIFT ON A CUT IS EXPECTED (round two, 7 Nov 2026). In a deficit the
+// body is not asked to add load, holding it is the win, and a stall card there
+// would "fix" a lift that is behaving. So on a cut (his intake goal is lose) a
+// flat run raises no exercise-change card. The safety valve is effort: when his
+// RPE is climbing at the same load the body is paying for it, and the detectors
+// run as usual. `cutting` is "on a cut AND effort is not climbing"; the caller
+// (reviewProgram) decides it from his intake and rpeTrend.
+export function cuttingHoldsStill(intakeGoal, sessions = []) {
+  if (intakeGoal !== 'lose') return false;
+  return !rpeTrend(sessions).drift?.rising;
+}
+
+export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4, minDays = 28, minHistoryDays = 42, now = new Date(), avoidText = '', inProgram = null, declined = new Set(), tunes = new Map(), declinedVariation = new Set(), inSessionFocus = new Set(), cutting = false } = {}) {
+  if (cutting) return [];
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const history = new Map();
   for (const s of sessions) {
@@ -533,7 +547,8 @@ export function findLowValueExercises(sessions = [], exercises = [], routines = 
 // that stopped progressing. This is the variation argument — he has been
 // doing it for months, and a block on something else is worth taking even
 // while it still creeps.
-export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date(), avoidText = '', inProgram = null, declined = new Set(), slowing = 0.03 } = {}) {
+export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date(), avoidText = '', inProgram = null, declined = new Set(), slowing = 0.03, cutting = false } = {}) {
+  if (cutting) return []; // slowing on a cut is expected (see cuttingHoldsStill)
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const hist = new Map();
   for (const s of sessions) {
@@ -783,6 +798,10 @@ export async function reviewProgram(vaultPath, deps = {}) {
     .then((p) => new Set(Object.entries(p || {}).filter(([, v]) => v?.kind === 'quality').map(([k]) => k.split(':')[1])))
     .catch(() => new Set());
 
+  // on a cut a flat lift is expected; rising effort at the same load is the exception
+  const intakeGoal = await (deps.intakeGoal || (async () => (await import('./profile.js')).getProfile(vaultPath).then((p) => p?.intake?.facts?.goal || null)))().catch(() => null);
+  const cutting = cuttingHoldsStill(intakeGoal, sessions);
+
   const findings = [
     ...findMappingSuspects(exercises),
     ...findChronicUnderVolume(weekly, { goalMuscles, ranges: g?.volumeRanges || null }),
@@ -790,8 +809,8 @@ export async function reviewProgram(vaultPath, deps = {}) {
     ...findJunkVolume(weekly, { ranges: g?.volumeRanges || null }),
     ...findOversizedRoutines(sessions, routines, { now, justAdded }),
     ...findLowValueExercises(sessions, exercises, routines),
-    ...findStaleLifts(sessions, exercises, { now, avoidText, inProgram, declined, tunes, declinedVariation, inSessionFocus }),
-    ...findLongTenure(sessions, exercises, { now, avoidText, inProgram, declined }),
+    ...findStaleLifts(sessions, exercises, { now, avoidText, inProgram, declined, tunes, declinedVariation, inSessionFocus, cutting }),
+    ...findLongTenure(sessions, exercises, { now, avoidText, inProgram, declined, cutting }),
     // what he told Nova himself — the highest-quality signal there is
     ...findNoteSignals(sessions, exercises),
   ];
