@@ -136,6 +136,8 @@ const debugPort = 9400 + Math.floor(Math.random() * 90);
 const chrome = await launchManagedChrome(CHROME, [
   `--user-data-dir=${profile}`,
   '--headless=new', '--hide-scrollbars', '--mute-audio', '--autoplay-policy=no-user-gesture-required',
+  // SHOT_CHROME_ARGS (8 Nov 2026): extra flags, e.g. a fake camera fed from a .y4m for the Nova's-eyes proof
+  ...String(process.env.SHOT_CHROME_ARGS || '').split(' ').filter(Boolean),
   '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader',
   '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${debugPort}`,
