@@ -7,7 +7,7 @@ import { addEntry, removeEntry, removeEntryOn, getToday, getDay, resolveLogDate 
 import { computeFoodHistory } from '../lib/foodHistory.js';
 import { startFoodScan, startFoodDescribe, startFoodRefine, getFoodScanJob } from '../lib/scanFood.js';
 import { recordDaySnapshot } from '../lib/nutritionSnapshot.js';
-import { lookupBarcode } from '../lib/barcodeLookup.js';
+import { lookupBarcode, validateBarcode } from '../lib/barcodeLookup.js';
 
 const MAX_SCAN_IMAGES = 5;
 
@@ -215,7 +215,9 @@ export function foodLogRouter(vaultPath) {
 
   router.get('/food-log/barcode/:code', async (req, res, next) => {
     try {
-      const result = await lookupBarcode(req.params.code);
+      const v = validateBarcode(req.params.code);
+      if (!v.ok) return res.status(400).json({ error: `That is not a valid barcode: ${v.reason}` });
+      const result = await lookupBarcode(v.code);
       if (!result) return res.status(404).json({ error: 'No product found for that barcode' });
       res.json(result);
     } catch (err) {

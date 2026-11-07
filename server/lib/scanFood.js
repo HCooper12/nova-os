@@ -44,13 +44,14 @@ How to combine the photos:
 - name: a short, natural name for what was eaten (use the product/packaging name when visible)
 - macros: {p, c, f, kcal} — the total for everything actually eaten across the photos; grams for p/c/f, whole-number kcal
 - components: the food broken into the parts you can actually see, each {name, grams, p, c, f, kcal, label}. name is a plain, searchable food-database name ("egg, whole, cooked", "sourdough bread", "avocado"); grams is your best estimate of the weight actually eaten. Nova looks every part up in USDA FoodData Central and scales it by your grams, so GRAMS ARE THE JOB; your p/c/f/kcal are only a fallback for a part the database cannot find. Set "label": true ONLY for a part whose p/c/f/kcal you read off a printed nutrition label (those figures are kept as printed). Prefer FEWER, well-judged lines over many guessed ones; when the thing eaten is genuinely one item (a labelled product, a single bar), return one line for it.
+- barcode: ONLY if a barcode is clearly in view, the digits printed under it exactly as you read them (8 to 14 digits, no spaces). Omit the key entirely if no barcode is visible or you are not sure of every digit; Nova checks the digits and a wrong one is worse than none.
 - confidence: "high" or "low" — low if the portion or a key value genuinely can't be pinned down from the photos + note
 - question: if confidence is low, ONE short clarifying question that would most improve the estimate. Empty string if high.${noteLine}${notFoodInstruction}
 
 Image path(s):
 ${imageList}
 
-Output ONLY a JSON object with exactly these keys: name, macros, components, confidence, question. No markdown, no code fences, no commentary before or after.`;
+Output ONLY a JSON object with these keys: name, macros, components, confidence, question (and barcode only when one is visible). No markdown, no code fences, no commentary before or after.`;
   }
 
   if (mode === 'meal') {
@@ -156,6 +157,8 @@ export function normalizeResult(parsed) {
     ...(components.length > 1 ? { components } : {}),
     // the model's parts, kept until code has audited them (applyDatabaseToScan strips this)
     _parts: components,
+    // digits the model says it read off a barcode: unverified until code checks them
+    ...(parsed.barcode != null && String(parsed.barcode).replace(/\D/g, '') ? { _barcodeRead: String(parsed.barcode).replace(/\D/g, '').slice(0, 14) } : {}),
     confidence: parsed.confidence === 'low' ? 'low' : 'high',
     question: parsed.question ? String(parsed.question).trim() : '',
     // label-per100 mode (the recipe editor) — absent on every other scan
@@ -171,7 +174,7 @@ export function normalizeResult(parsed) {
 // database-backed, rather than the scan being lost.
 export async function applyDatabaseToScan(result, { mode, lookupFn, lookup = true } = {}) {
   const parts = result._parts || [];
-  const { _parts, ...clean } = result;
+  const { _parts, _barcodeRead, ...clean } = result;
   if (mode === 'label' || mode === 'label-per100' || !parts.length) return clean;
   const { resolvePhotoParts } = await import('./nutritionFacts.js');
   const r = await resolvePhotoParts(parts, { ...(lookupFn ? { lookupFn } : {}), lookup });
@@ -189,6 +192,45 @@ export async function applyDatabaseToScan(result, { mode, lookupFn, lookup = tru
     // nothing matched means every number is the model's own guess
     confidence: allEstimated ? 'low' : clean.confidence,
     ...(allEstimated && !clean.question ? { question: 'None of this matched a food database, so these are estimates. Check the weights.' } : {}),
+  };
+}
+
+// A BARCODE IN THE PHOTO. The model only READS the digits; code decides whether
+// to believe them. A digit string that fails the GTIN check digit is a
+// misread and is never looked up, so it cannot log the wrong product. A
+// verified code that finds a product is named in the reply so he can check it
+// against the pack. The product's own per-serving figures replace the model's
+// estimate only when the photo is one packaged thing; beside a plate they are
+// mentioned and left out, because a pack in frame is not proof it was eaten.
+export async function applyBarcodeToScan(result, { read, lookupFn } = {}) {
+  const digits = String(read || '').replace(/\D/g, '');
+  if (!digits) return result;
+  const { validateBarcode, lookupBarcode } = await import('./barcodeLookup.js');
+  const v = validateBarcode(digits);
+  if (!v.ok) {
+    return { ...result, barcodeNote: `I read a barcode as ${digits} but ${v.reason}, so I did not look it up.` };
+  }
+  let product = null;
+  try { product = await (lookupFn || lookupBarcode)(v.code); } catch { product = null; }
+  if (!product) {
+    return { ...result, barcode: v.code, barcodeNote: `Barcode ${v.code} is valid but no product database has it, so these numbers are from the photo.` };
+  }
+  const single = (result.components?.length || 0) <= 1;
+  if (!single) {
+    return { ...result, barcode: v.code, barcodeNote: `Barcode ${v.code} is ${product.name} (${product.source}). I left it out of the plate; log it separately if you ate it.` };
+  }
+  const { name, macros, source, fibreG, sugarG, sodiumMg, fdcId } = product;
+  const { components: _drop, ...rest } = result;
+  return {
+    ...rest,
+    name,
+    macros,
+    barcode: v.code,
+    ...(fibreG != null ? { fibreG } : {}), ...(sugarG != null ? { sugarG } : {}), ...(sodiumMg != null ? { sodiumMg } : {}), ...(fdcId ? { fdcId } : {}),
+    sourceNote: `Matched by barcode ${v.code} to ${name} (${source}). Check it against the pack.`,
+    barcodeNote: `Barcode ${v.code} is ${name} (${source}).`,
+    confidence: 'high',
+    question: '',
   };
 }
 
@@ -237,9 +279,11 @@ export function startFoodScan(mode, imagePaths, workDir, note, deps = {}) {
         // explanation rather than a generic parse-failure message.
         if (!jsonMatch) throw new Error(text.slice(0, 200) || 'No response received');
         const normalized = normalizeResult(parseModelJson(jsonMatch[0]));
+        const read = promptMode === 'auto' ? normalized._barcodeRead : '';
         // status stays 'running' while code audits the parts
         applyDatabaseToScan(normalized, { mode: promptMode, lookupFn: deps.lookup })
-          .catch(() => { const { _parts, ...own } = normalized; return own; })
+          .catch(() => { const { _parts, _barcodeRead, ...own } = normalized; return own; })
+          .then((done) => applyBarcodeToScan(done, { read, lookupFn: deps.barcode }).catch(() => done))
           .then((done) => { job.result = done; job.status = 'ready'; });
       } catch (e) {
         job.status = 'error';

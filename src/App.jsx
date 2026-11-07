@@ -3485,9 +3485,9 @@ export default class App extends Component {
             if (meta.auto && !asks && r.name && r.macros) this.submitFoodLog();
           });
           if (meta.auto && !asks && r.name && r.macros) {
-            this.toastMsg(`Logged from the photo: ${r.name}. Tap it in the log to correct or remove it`);
+            this.toastMsg(`Logged from the photo: ${r.name}.${r.barcodeNote ? ` ${r.barcodeNote}` : ''} Tap it in the log to correct or remove it`);
           } else {
-            this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
+            this.toastMsg(`${r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving'}${r.barcodeNote ? `. ${r.barcodeNote}` : ''}`);
           }
         }
       },
