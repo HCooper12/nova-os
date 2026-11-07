@@ -10,7 +10,7 @@
 // /api/health answers, then stays up until killed (Ctrl-C or SIGTERM), and
 // removes the copies on the way out unless --keep.
 //
-//   node scripts/scratch-server.mjs [--port 4174] [--scratch <dir>] [--keep]
+//   node scripts/scratch-server.mjs [--port 4174] [--scratch <dir>] [--keep] [--real-claude] [--log <file>] [--tts]
 //   node scripts/fluidity.mjs --server http://127.0.0.1:4174 ...
 //
 // Extracted from offline-walk.mjs (3 Nov 2026), which keeps its own copy
@@ -30,6 +30,16 @@ const PORT = Number(opt('port', 4174));
 const LIVE_PORT = 4173;
 const scratch = opt('scratch', path.join(os.tmpdir(), `nova-scratch-server-${process.pid}`));
 const keep = argv.includes('--keep');
+// --real-claude (7 Nov 2026): the Rose-wall proof needs a real model turn on
+// the SCRATCH copy, so the claude CLI is not stubbed. Everything else stays
+// stubbed and stripped; the copy is the only vault it can read or write.
+const realClaude = argv.includes('--real-claude');
+// --log <file>: the server's own stdout and stderr, appended as they come
+// (otherwise only the last 4000 chars are kept, and printed on a crash)
+const logFile = opt('log', null);
+// --tts: the scratch server runs its own Kokoro sidecar on its own port, so a
+// headless proof can hear Nova (the speech clock drives the glass)
+const tts = argv.includes('--tts');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 if (PORT === LIVE_PORT) { console.error(`${TOOL}: ${LIVE_PORT} is his live server; refusing`); process.exit(1); }
@@ -52,7 +62,7 @@ execFileSync('rsync', ['-a', '--exclude', '.trash', `${liveVault}/`, `${vaultCop
 // Notion and web push keep their credentials in the data dir: off the COPY
 for (const f of ['integrations/notion.json', 'push.json', 'push-keys.json', 'push-held.json']) await rm(path.join(dataCopy, f), { force: true });
 await mkdir(shim, { recursive: true });
-for (const bin of ['claude', 'tailscale']) {
+for (const bin of realClaude ? ['tailscale'] : ['claude', 'tailscale']) {
   await writeFile(path.join(shim, bin), `#!/bin/sh\necho "${TOOL} stub: disabled" >&2\nexit 1\n`);
   await chmod(path.join(shim, bin), 0o755);
 }
@@ -67,8 +77,8 @@ const server = spawn(process.execPath, ['index.js'], {
     TELEGRAM_BOT_TOKEN: '', TELEGRAM_CHAT_ID: '', TODOIST_TOKEN: '', NOTION_TOKEN: '',
     ICLOUD_USERNAME: '', ICLOUD_APP_PASSWORD: '', BRAVE_SEARCH_KEY: '', ELEVENLABS_API_KEY: '',
     NOVA_REMINDERS_SYNC: 'off', NOVA_TAILNET_AUTOUP: '0', NOVA_COACH_CADENCE: 'off',
-    NOVA_TTS_LOCAL: '0', NOVA_STT_LOCAL: '0', NOVA_OLLAMA_NO_SPAWN: '1',
-    CLAUDE_BIN: path.join(shim, 'claude'), NOVA_CLAUDE_BIN: path.join(shim, 'claude'),
+    NOVA_TTS_LOCAL: tts ? '1' : '0', ...(tts ? { NOVA_TTS_PORT: String(PORT + 11) } : {}), NOVA_STT_LOCAL: '0', NOVA_OLLAMA_NO_SPAWN: '1',
+    ...(realClaude ? {} : { CLAUDE_BIN: path.join(shim, 'claude'), NOVA_CLAUDE_BIN: path.join(shim, 'claude') }),
     NOVA_PROJECTS_DIR: path.join(scratch, 'projects'),
     PATH: `${shim}:${process.env.PATH}`,
   },
@@ -76,8 +86,10 @@ const server = spawn(process.execPath, ['index.js'], {
   detached: true,
 });
 let log = '';
-server.stdout.on('data', (d) => { log = (log + d).slice(-4000); });
-server.stderr.on('data', (d) => { log = (log + d).slice(-4000); });
+const { appendFile } = await import('node:fs/promises');
+const tee = (d) => { log = (log + d).slice(-4000); if (logFile) appendFile(logFile, d).catch(() => {}); };
+server.stdout.on('data', tee);
+server.stderr.on('data', tee);
 
 let stopping = false;
 const stop = async (code = 0) => {

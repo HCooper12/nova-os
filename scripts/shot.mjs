@@ -135,7 +135,7 @@ await mkdir(profile, { recursive: true });
 const debugPort = 9400 + Math.floor(Math.random() * 90);
 const chrome = await launchManagedChrome(CHROME, [
   `--user-data-dir=${profile}`,
-  '--headless=new', '--hide-scrollbars', '--mute-audio',
+  '--headless=new', '--hide-scrollbars', '--mute-audio', '--autoplay-policy=no-user-gesture-required',
   '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader',
   '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${debugPort}`,

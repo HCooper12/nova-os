@@ -70,7 +70,7 @@ await mkdir(profile, { recursive: true });
 
 const dbg = 9600 + Math.floor(Math.random() * 90);
 const chrome = await launchManagedChrome(CHROME, [
-  `--user-data-dir=${profile}`, '--headless=new', '--hide-scrollbars', '--mute-audio',
+  `--user-data-dir=${profile}`, '--headless=new', '--hide-scrollbars', '--mute-audio', '--autoplay-policy=no-user-gesture-required',
   '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader',
   '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${dbg}`, `--window-size=${width},${height}`, 'about:blank',
@@ -112,7 +112,8 @@ async function attach() {
     ws.send(JSON.stringify({ id: n, method, params }));
   });
   await send('Page.enable');
-  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: true });
+  // --nomobile (7 Nov 2026): a desktop recording (the Mac wall) has no touch emulation
+  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: !argv.includes('--nomobile') });
   await send('Emulation.setTouchEmulationEnabled', { enabled: true });
   if (slow > 1) {
     await send('Animation.enable').catch(() => {});
