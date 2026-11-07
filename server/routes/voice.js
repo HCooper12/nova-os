@@ -464,7 +464,14 @@ export function voiceRouter(vaultPath) {
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const pid = projectIdOf(req.body);
-      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId, projectOpts(pid, docPlace.context ? { docRef: docPlace.context } : {})), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
+      // the pages that fit what he just said, built beside the context (they
+      // ride the turn, not the cached context: lib/vaultRetrieve.js)
+      const { vaultPagesFor } = await import('../lib/vaultRetrieve.js');
+      const [context, vaultPages] = await Promise.all([
+        askContext(sessionId, projectOpts(pid, docPlace.context ? { docRef: docPlace.context } : {})),
+        docTurn ? '' : vaultPagesFor(vaultPath, raw),
+      ]);
+      const jobId = startAsk(vaultPath, { question, context, sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, vaultPages, ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
       watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });
@@ -503,6 +510,8 @@ export function voiceRouter(vaultPath) {
   router.post('/ask/prewarm', (req, res) => {
     const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
     let warmed = false;
+    // the page index, so the search on this turn never pays the cold read
+    import('../lib/vaultRetrieve.js').then(({ warmRetrieval }) => warmRetrieval(vaultPath)).catch(() => {});
     // Only warm a process for a session that actually exists. Warming a
     // random id would park a useless child in a 4-slot pool and evict the
     // one that matters.
@@ -833,9 +842,12 @@ export function voiceRouter(vaultPath) {
       // On a resumed turn the heavy context is already in the conversation;
       // only the volatile local numbers get re-stated. Both branches are
       // awaited the same way so the fast path stays visibly the cheap one.
+      const { vaultPagesFor } = await import('../lib/vaultRetrieve.js');
+      const pagesFor = attachmentPreamble ? '' : vaultPagesFor(vaultPath, closing?.note ? question.slice(closing.note.length).trim() : question);
       const [context, liveLine] = spoken.resumed
         ? ['', await todayLocalContext().catch(() => null) || '']
         : [await askContext(null, projectOpts(projectIdOf(body), { fast: true })), ''];
+      const vaultPages = await pagesFor;
       const started = Date.now();
       // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
       // the exact string Nova's turn takes (attachments ride in front), since
@@ -845,7 +857,7 @@ export function voiceRouter(vaultPath) {
       markHisWords(asked);
       const jobId = startAsk(vaultPath, {
         question: asked, context, liveLine, direct: true,
-        sessionId: spoken.sessionId, resume: spoken.resumed, where,
+        sessionId: spoken.sessionId, resume: spoken.resumed, where, vaultPages,
       });
       // THE LINE AND A SLOW ASK (lib/handsFree.js, his call 30 Sep): a
       // consult that includes the Researcher answers at once with a

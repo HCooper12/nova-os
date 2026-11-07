@@ -34,6 +34,7 @@ import { laneSkipped } from './modelPrefs.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CONFIG_PATH = () => path.join(dataRoot(), 'daily-review.json');
+const REVIEW_TOPICS = 'training recovery protein sleep nutrition leadership';
 
 // REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('review') — a mode config the
 // trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
@@ -91,7 +92,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
 // library and shelf, food patterns, the week ahead). Every section loads
 // ONCE (`once` below) and both contexts share it, so building both costs
 // what building one did. Claude, as the escalation or his pick, gets the full one.
-export const COMPACT_REVIEW_SECTIONS = new Set([
+export const COMPACT_REVIEW_SECTIONS = new Set(['his pages', 
   'standing', 'aims', 'morning', 'evening', 'sessions', 'deload', 'streaks', 'todos', 'today-plan',
   'yesterday-review', 'goals', 'carryovers', 'weight', 'calendar-detail', 'money',
 ]);
@@ -221,7 +222,8 @@ function reviewSections(vaultPath, now) {
   // the day held. This picks the ones that bear on what he actually did: a
   // heavy session and a missed protein floor should reach the recovery and
   // nutrition material he saved, not whatever is next in the rotation.
-  add('shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: 'training recovery protein sleep nutrition leadership', limit: 4 }));
+  add('shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: REVIEW_TOPICS, limit: 4 }));
+  add('his pages', async () => (await import('./vaultRetrieve.js')).dayPagesContext(vaultPath, REVIEW_TOPICS));
   add('library', async () => {
     // Resurfacing — the library only compounds if its ideas come back.
     // This used to pick the first and last items by list position, which

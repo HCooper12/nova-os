@@ -516,6 +516,7 @@ async function main() {
     console.log(`Nova OS server listening on ${host}:${port}`);
     // the one slow context section, fetched while nobody is waiting on it
     import('./lib/askContext.js').then(({ warmBriefCache }) => warmBriefCache(process.env.VAULT_PATH)).catch(() => {});
+    import('./lib/vaultRetrieve.js').then(({ warmRetrieval }) => warmRetrieval(process.env.VAULT_PATH)).catch(() => {});
   });
 
   // Local voice: boot the Kokoro sidecar now (fire-and-forget) so the first

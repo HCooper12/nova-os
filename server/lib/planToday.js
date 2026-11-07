@@ -26,6 +26,7 @@ import { laneSkipped } from './modelPrefs.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CONFIG_PATH = () => path.join(dataRoot(), 'plan-today.json');
+const PLAN_TOPICS = 'training recovery nutrition focus leadership';
 
 // REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('plan-today') — a mode config the
 // trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
@@ -79,7 +80,7 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
 // the week's changes, the last review, yesterday's three, the stuck list,
 // what he is working toward) and leaves out the whole profile, the shelf and
 // the learned tendencies. Sections load once and both contexts share them.
-export const COMPACT_PLAN_SECTIONS = new Set([
+export const COMPACT_PLAN_SECTIONS = new Set(['his pages', 
   'standing', 'aims', 'morning', 'carryovers', 'todos', 'goals', 'week-changes', 'latest-review', 'yesterday-plan', 'stuck',
 ]);
 export async function buildPlanContexts(vaultPath, now = new Date()) {
@@ -102,7 +103,8 @@ function planSections(vaultPath, now) {
   add('profile', () => profileContext(vaultPath));
   // what he has been putting into his own head belongs in the day's plan —
   // a protocol he saved on Sunday is a candidate for Monday
-  add('his shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: 'training recovery nutrition focus leadership', limit: 3 }));
+  add('his shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: PLAN_TOPICS, limit: 3 }));
+  add('his pages', async () => (await import('./vaultRetrieve.js')).dayPagesContext(vaultPath, PLAN_TOPICS));
   add('standing', async () => (await import('./standing.js')).standingContext(vaultPath));
   add('learning', async () => (await import('./learning.js')).preferencesContext(vaultPath)); // what he tends to do (twin: the review's)
   add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);

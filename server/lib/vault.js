@@ -105,6 +105,8 @@ export class Vault {
       // his off switch for the daily review (conceptReview.js reviewable)
       review: frontmatter.review === false ? false : undefined,
       status: frontmatter.status || null, // pipeline state on Studio ideas
+      // a Source page's own transcript, as `raw: "[[Name]]"` names it
+      rawLink: typeof frontmatter.raw === 'string' ? (frontmatter.raw.match(/\[\[([^\]|#]+)/)?.[1] || null) : null,
       date,
       url: frontmatter.url || null,
       // resolved names only — THIS page's idea of its sources. The source

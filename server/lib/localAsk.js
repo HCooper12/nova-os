@@ -46,6 +46,7 @@ export const TURN_TIMEOUT_MS = () => Number(process.env.NOVA_LOCAL_ASK_TIMEOUT_M
 const SEARCH_HITS = 12;
 const READ_LINES = 120;
 const LIST_NAMES = 60;
+const LOCAL_PAGES_CHARS = 1300;         // the vault pages for this turn
 const RESULT_CHARS = 6000;              // any one tool result, after its own cap
 const LINE_CHARS = 240;
 const SEARCH_FILE_CAP = 6000;           // files a search walks before it stops
@@ -92,7 +93,7 @@ const clip = (s, n) => {
 
 /** The system prompt for one local turn. Pure: every input is handed in. The
  *  history is dropped oldest-first until the whole prompt fits the budget. */
-export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '', withAgents = false, withWeb = false } = {}) {
+export function buildLocalAskPrompt({ today = '', liveLine = '', place = 'unknown', spoken = false, direct = false, history = [], toolsInText = false, him = '', talkPrefs = '', withAgents = false, withWeb = false, vaultPages = '' } = {}) {
   const wl = whereLine(place, { oneShot: direct });
   const lengthRule = withAgents && !direct && !spoken
     ? '- Up to six sentences. Plain text, no markdown, no lists. Lead with the answer, then why, then the one thing to do.'
@@ -140,6 +141,9 @@ For a fact about the outside world that neither his vault nor TODAY holds (what 
   if (him) tail.push(clip(him, 1800));
   if (talkPrefs) tail.push(clip(talkPrefs, 700));
   if (wl) tail.push(wl);
+  // the pages that fit this question (lib/vaultRetrieve.js), clipped to the
+  // small model's budget: last, because they change every turn
+  if (vaultPages) tail.push(clip(vaultPages, LOCAL_PAGES_CHARS));
   // the fixed head first and the changing tail last: Ollama reuses the
   // cached prefix of a prompt it has seen, measured 27 Oct at 366 tok/s cold
   // against 1,063 tok/s cached, so anything that changes per turn goes after
@@ -688,7 +692,7 @@ async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, 
  * is an existing job to carry this answer: the Claude job that failed, so
  * the client already polling its id gets the stand-in's answer.
  */
-export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', spoken = false, direct = false, where = null, fallback = false, reason = null } = {}, { job: carrier = null, claudeError = null, opened: openedOverride = null, dryRun = false } = {}) {
+export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', spoken = false, direct = false, where = null, fallback = false, reason = null, vaultPages = '' } = {}, { job: carrier = null, claudeError = null, opened: openedOverride = null, dryRun = false } = {}) {
   if (!carrier) assertLaneOn('ask-nova');
   const job = carrier || { id: randomUUID().slice(0, 8), status: 'running', result: null, error: null, partial: '' };
   job.provider = 'local';
@@ -767,7 +771,7 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
       console.log(`local ask: looked it up on the web first (${web.sources.length} page(s), ${Date.now() - t0}ms, hosts ${web.hosts.join(', ') || 'none'})`);
       webFound = `[Nova's browser looked this up before you were asked.]\n${found}`;
     }
-    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs, withAgents: !!asks.length, withWeb: !!web };
+    const promptOpts = { today, liveLine, place, spoken, direct, history, him, talkPrefs, withAgents: !!asks.length, withWeb: !!web, vaultPages };
     let turn;
     try {
       // the small model's clock starts once the agents have answered: no

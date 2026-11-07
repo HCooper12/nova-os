@@ -261,7 +261,7 @@ function holdForStandIn(job, cwd, opts, { newSession, routed = null }) {
             job.error = null;
             startAskLocal(cwd, {
               question: opts.question, sessionId: opts.sessionId || null, liveLine: opts.liveLine || '',
-              spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, fallback: true, reason,
+              spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, fallback: true, reason, vaultPages: opts.vaultPages || '',
             }, { job, claudeError, opened: newSession });
           });
           return; // stays 'running'
@@ -297,7 +297,7 @@ export function startAsk(cwd, opts = {}) {
   if (local && !routed) {
     const jobId = startAskLocal(cwd, {
       question: opts.question, sessionId: opts.sessionId || null, liveLine: opts.liveLine || '',
-      spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null,
+      spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, vaultPages: opts.vaultPages || '',
     });
     const job = getMessageJob(jobId);
     if (job) holdForEscalation(job, { lane: 'ask-nova', escalate: (carrier, localError, reason) => escalateAsk(carrier, cwd, opts, localError, reason) });

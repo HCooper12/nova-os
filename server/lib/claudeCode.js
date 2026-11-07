@@ -8,6 +8,7 @@ import { isProtectedPath } from './protectedRoots.js';
 import { prepareSpec, specBlock, specRef } from './buildSpec.js';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
+import { turnWords } from './vaultRetrieve.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT, effortArgs, providerFor, fallbackEnabled, laneCanRunLocal } from './modelPrefs.js';
@@ -605,7 +606,7 @@ ${placeLines}` : ''}
 - ${JOURNAL_AUTHORSHIP_RULE}
 - VOICE: unflappable, precise, dry. Deliver good and bad news in the same even tone — never exclamatory, never flustered, no filler enthusiasm ("Great question!", "Absolutely!"). Prefer understatement to emphasis: "marginally under target" beats "way off". Numbers stated exactly, once, without ceremony. Wit is permitted and welcome, but always deadpan and brief — one dry aside at most, never a performance. Offers phrased as quiet competence: "Shall I…", "I can have that ready…", "As you wish." Disagreement delivered as calm observation of fact, not apology: state what the data shows, recommend once, defer gracefully.
 - Mention page titles naturally when useful ("your Rigour Protocols note says…").
-- BE FAST. The live context below usually already holds the answer — reply straight from it. Only read the vault (Read/Grep/Glob) when the question genuinely needs a specific page you don't already have in front of you; don't search reflexively, it just adds delay.
+- BE FAST, AND USE HIS VAULT. The live context and the pages under his question usually hold the answer: reply straight from them and name the page you used. When neither settles it and his vault could (something he saved, a book, a research brief, his training), Read or Grep before you answer rather than answering from general knowledge. Skip the lookup for small talk, and for what is already in front of you.
 - You never write anything yourself. When he asks you to CHANGE or ADD something, end your reply with ONE typed proposal line — Nova's code turns it into a pending draft he approves with a word:
   PROPOSE {"kind":"capture","text":"<the thing to file, in plain words — a to-do, shopping item, journal line, note, idea, expense, or a stash link WITH its URL>"}
   PROPOSE {"kind":"calendar","command":"<the calendar change in plain words, e.g. move gym to 6pm tomorrow>"}
@@ -1126,7 +1127,7 @@ function consultedResumeText(consulted, question, { canPropose = false } = {}) {
 // `dryRun` (server/scripts/benchLocalAsk.mjs only): the reply comes back
 // as the model wrote it, with no consult run and nothing settled, so a bench
 // over his real vault can never file, act or write.
-export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false, projectId = null }) {
+export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false, projectId = null, vaultPages = '' }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
   const claim = consulted?.claim || null;
@@ -1152,7 +1153,8 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   // another agent consults is not his task, so it carries none.
   const pb = consulted ? { block: '', titles: [] } : playbookTurn({ text: question, agent: 'nova', vaultPath: cwd, turnId: jobId });
   labelPlaybooks(job, pb.titles);
-  const promptQuestion = pb.block ? `${question}\n\n${pb.block}` : question;
+  // the pages that fit this question ride this turn, never the cached context
+  const promptQuestion = turnWords(question, pb.block, consulted ? '' : vaultPages);
 
   // NOVA DIRECTS (lib/consult.js): a reply that asks the org is not the
   // answer. Code runs the asks, says who was asked, and hands the answers
@@ -1562,7 +1564,7 @@ export async function coachPanelFor(cwd, question) {
 // thinks at DEEP_EFFORT, never below his setting. `rolled`: coachTurn.js
 // replaced a session that had grown too big or gone cold, and says so on the
 // receipt.
-export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady, consulted = null, deep = false, rolled = null }) {
+export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady, consulted = null, deep = false, rolled = null, vaultPages = '' }) {
   try { assertLaneOn('coach'); } catch (e) { if (consulted?.claim) releaseConsultSession(consulted.claim, { ok: false }); throw e; }
   const jobId = randomUUID().slice(0, 8);
   const claim = consulted?.claim || null;
@@ -1577,7 +1579,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
   // Coach's own rules and evidence standard still come first (lib/playbooks.js).
   const pb = consulted ? { block: '', titles: [] } : playbookTurn({ text: asked || question, agent: 'coach', vaultPath: cwd, turnId: jobId });
   labelPlaybooks(job, pb.titles);
-  const promptQuestion = pb.block ? `${question}\n\n${pb.block}` : question;
+  const promptQuestion = turnWords(question, pb.block, consulted ? '' : vaultPages);
 
   const args = [
     // conversational input mode — the warm pool keeps this process alive

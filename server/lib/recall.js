@@ -22,9 +22,23 @@ export function tokenize(text) {
 
 let cache = { at: 0, vaultPath: null, pages: null };
 const INDEX_TTL_MS = 60_000;
+let rebuilding = null;
 
-async function getIndex(vaultPath) {
-  if (cache.pages && cache.vaultPath === vaultPath && Date.now() - cache.at < INDEX_TTL_MS) return cache.pages;
+// `stale`: a spoken turn takes the pages as they stood a minute ago and the
+// fresh read happens behind it. A cold read of ~1,300 files took 510 ms on
+// 7 Nov, and that is dead air to a man waiting on an answer. Every other caller
+// waits for the truth, as it always did.
+async function getIndex(vaultPath, { stale = false } = {}) {
+  const same = cache.pages && cache.vaultPath === vaultPath;
+  if (same && Date.now() - cache.at < INDEX_TTL_MS) return cache.pages;
+  if (stale && same) {
+    rebuilding ||= buildIndex(vaultPath).catch(() => null).finally(() => { rebuilding = null; });
+    return cache.pages;
+  }
+  return buildIndex(vaultPath);
+}
+
+async function buildIndex(vaultPath) {
   const vault = new Vault(vaultPath);
   const pages = (await vault.listPages()).map((p) => {
     const counts = new Map();
@@ -33,7 +47,11 @@ async function getIndex(vaultPath) {
     };
     bump(tokenize(p.title), 3);
     for (const para of p.paragraphs) bump(tokenize(para), 1);
-    return { id: p.id, title: p.title, type: p.type, date: p.date, paragraphs: p.paragraphs, counts };
+    // `paragraphs` drops any block that is all bullets, and that is where a
+    // concept page keeps its points and the Injury Log keeps every entry. The
+    // retrieval reads these too (lib/vaultRetrieve.js); a transcript has none.
+    const bullets = p.id.startsWith('Raw/') ? [] : String(p.raw || '').split('\n').filter((l) => /^\s*[-*]\s/.test(l)).map((l) => l.replace(/^\s*[-*]\s+/, '').trim());
+    return { id: p.id, title: p.title, type: p.type, date: p.date, tags: p.tags, rawLink: p.rawLink || null, paragraphs: p.paragraphs, bullets, counts };
   });
   cache = { at: Date.now(), vaultPath, pages };
   return pages;
@@ -185,6 +203,10 @@ export async function searchVault(vaultPath, query, { limit = 6, withText = fals
     ...(sims.has(page.id) ? { similarity: Number(sims.get(page.id).toFixed(3)) } : {}),
   }));
 }
+
+// The two halves, for a caller that ranks its own way (lib/vaultRetrieve.js).
+export const recallIndex = (vaultPath, opts) => getIndex(vaultPath, opts);
+export const recallVectors = (vaultPath) => vectorIndex(vaultPath);
 
 // test hook
 export function _resetRecallCache() {

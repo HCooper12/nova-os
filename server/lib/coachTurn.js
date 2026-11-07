@@ -11,7 +11,8 @@
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
-import { computeProgressions } from './coach.js';
+import { computeProgressions, hisWordsOf } from './coach.js';
+import { vaultPagesFor } from './vaultRetrieve.js';
 import { goalsContext } from './fitnessGoals.js';
 import { profileContext } from './profile.js';
 import { startAskCoach, sessionContextTokens, claimConsultSession, getMessageJob } from './claudeCode.js';
@@ -260,12 +261,18 @@ async function startClaudeCoachTurn(vaultPath, { question, sessionId = null, liv
       sessionId = null;
     }
   }
+  // THE PAGES THAT FIT WHAT HE ASKED (lib/vaultRetrieve.js; audit #1: of the 14
+  // questions the vault could answer, the training ones reached this lane). His
+  // words only, never the machine's preamble, and only pages about the body: a
+  // leadership concept has no standing here. They ride the turn, after his
+  // question, so a resumed session's cached prefix stays whole.
+  const vaultPages = consulted ? '' : await vaultPagesFor(vaultPath, hisWordsOf(question), { domain: 'body' });
   if (sessionId) {
     const fresh = await coachLiveLine(vaultPath).catch(() => '');
     const preamble = [liveDelta(sessionId, fresh), live ? `[${live}]` : '', carried ? `[${carried}]` : '', placeLine, speakFirst].filter(Boolean).join('\n');
     const q = preamble ? `${preamble}\n\n${question}` : question;
     // `asked` is his question alone — the text his cards carry, never the preamble
-    return startAskCoach(vaultPath, { question: q, asked: question, sessionId, deep });
+    return startAskCoach(vaultPath, { question: q, asked: question, sessionId, deep, vaultPages });
   }
   // A CONSULTED COACH REUSES ITS ONE CONSULT SESSION (claudeCode.js
   // claimConsultSession): a resumed consult carries the live changes and the
@@ -617,5 +624,5 @@ async function startClaudeCoachTurn(vaultPath, { question, sessionId = null, liv
       if (carried) parts.push(carried);
       if (placeLine) parts.push(placeLine);
       if (speakFirst) parts.push(speakFirst);
-      return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined, deep, rolled });
+      return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined, deep, rolled, vaultPages });
 }
