@@ -259,7 +259,7 @@ export function validateLearn(raw, sources) {
     if (r?.kind === 'evidenced' && kind === 'stated') notes.push(`"${text.slice(0, 60)}" was called evidenced with no evidence given, so it is marked stated`);
     if (domain !== 'none' && kind === 'evidenced' && !evidence) kind = 'stated';
     const needs = str(r?.needs, 160);
-    rules.push({ text, kind, source: src.n, at: secToStamp(sec), ...(needs ? { needs } : {}) });
+    rules.push({ text, kind, source: src.n, at: secToStamp(sec), ...(needs ? { needs } : {}), ...(domain === 'health' ? { domain } : {}) });
   }
   if (!rules.length) {
     throw new Error(`no rule could be traced to a real line of the transcript${dropped.length ? ` (${dropped.length} dropped: ${dropped[0].why})` : ''}, so nothing was filed`);
