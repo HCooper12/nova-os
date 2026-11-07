@@ -177,6 +177,12 @@ export const LANES = [
     off: 'Nova opens without a spoken greeting. Nothing is faked in its place.',
   },
   {
+    // one id from a list code built, and code checks the id (lib/nutritionFacts.js)
+    id: 'food-pick', label: 'Food database match', group: 'conversation', def: 'haiku', defEffort: 'low',
+    hint: 'picks the right USDA entry for a food you logged; the numbers are always USDA\'s',
+    off: 'Foods with no exact name match stay marked estimated.',
+  },
+  {
     id: 'calendar-command', label: 'Calendar in plain words', group: 'conversation', local: true,
     def: process.env.NOVA_CALENDAR_MODEL || 'haiku', defEffort: 'low',
     hint: 'reads “move gym to 6pm tomorrow” into a typed calendar change',

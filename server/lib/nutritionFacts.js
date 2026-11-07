@@ -47,7 +47,6 @@ export function kcalFrom({ p = 0, c = 0, f = 0 }) {
   return Math.round(p * ATWATER.p + c * ATWATER.c + f * ATWATER.f);
 }
 
-/** Scale a per-100g fact to a real weight. */
 /**
  * The optional extras (fibre, sugars, sodium) scaled to a weight. Only the
  * ones the database actually gave: an absent value is absent, never zero,
@@ -62,6 +61,7 @@ export function scaleExtras(per100g, grams) {
   return out;
 }
 
+/** Scale a per-100g fact to a real weight. */
 export function scaleTo(per100g, grams) {
   const k = (Number(grams) || 0) / 100;
   return {
@@ -83,7 +83,7 @@ const cachePath = (name) => path.join(CACHE_DIR(), `${createHash('sha1').update(
 // none of them, so it is NOT served as current: the lookup refetches once and
 // rewrites it as v2. If that refetch fails (offline, rate-limited) the v1 fact
 // is still returned, since its protein, carbs and fat are as good as ever.
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3; // v3: picked by candidateFoods + the food-pick lane, misses kept
 async function readCache(name) {
   const p = cachePath(name);
   if (!existsSync(p)) return null;
@@ -92,7 +92,7 @@ async function readCache(name) {
     // a fact about a food does not go stale, but a bad early entry should be
     // replaceable — version it so the cache can be invalidated deliberately
     if (d?.v === CACHE_VERSION) return d;
-    if (d?.v === 1 && d.fact) return { ...d, stale: true };
+    if (d?.v < CACHE_VERSION && d.fact) return { ...d, stale: true };
     return null;
   } catch { return null; }
 }
@@ -125,18 +125,84 @@ export function pickNutrients(food) {
   return out;
 }
 
+// THE RIGHT FOOD, NOT THE MOST RESPECTABLE ONE (7 Nov 2026). Sorting by data
+// type alone let a near-miss beat the food he named: "butter chicken" became
+// ghee, "salmon" fish oil, "egg" egg white, "basmati rice" dry grain. Word rules
+// kept leaking ("egg" then Eggs Benedict, "steak" steak sauce). So code narrows
+// USDA's list to honest candidates, a small model picks one or says none fits,
+// code checks the id came from the list, and the numbers are USDA's. Each food
+// name is picked once and cached, the answer "none" included.
+const NAME_FILLER = new Set(['a', 'an', 'and', 'the', 'of', 'with', 'in', 'on', 'or', 'raw', 'cooked', 'plain', 'fresh', 'grilled', 'baked', 'boiled', 'roasted']);
+const DIFFERENT_FOOD = new Set(['oil', 'ghee', 'powder', 'powdered', 'dried', 'dry', 'uncooked', 'flour', 'lunchmeat', 'baby', 'babyfood', 'juice', 'substitute', 'imitation', 'infant', 'meatless']);
+const WEIGHED_COOKED = /\b(rice|pasta|spaghetti|noodles?|quinoa|couscous|lentils?)\b/;
+const SAYS_STATE = /\b(dry|uncooked|raw|cooked)\b/;
+// Australian words USDA does not use
+const AU_NAMES = [[/\bmince\b/g, 'ground'], [/\bcapsicums?\b/g, 'peppers'], [/\bprawns?\b/g, 'shrimp'], [/\bbeetroot\b/g, 'beets']];
+const words = (s) => norm(s).split(' ').filter(Boolean).map((w) => (w.length > 3 ? w.replace(/(es|s)$/, '') : w));
+export const usdaName = (name) => AU_NAMES.reduce((t, [re, to]) => t.replace(re, to), norm(name));
+const MAX_CANDIDATES = 12;
+
+/** Honest candidates for a name, plainest first; `foods` arrive in data-type order. */
+export function candidateFoods(name, foods) {
+  const said = usdaName(name);
+  const saidWords = new Set(words(said));
+  const want = [...saidWords].filter((w) => !NAME_FILLER.has(w));
+  if (!want.length) return [];
+  const needCooked = WEIGHED_COOKED.test(said) && !SAYS_STATE.test(said);
+  const scored = [];
+  for (const food of foods) {
+    const have = new Set(words(food.f.description));
+    if (!want.every((w) => have.has(w))) continue;
+    if ([...have].some((w) => DIFFERENT_FOOD.has(w) && !saidWords.has(w))) continue;
+    if (needCooked && !have.has('cooked') && !have.has('boiled')) continue;
+    // the head word says what it is: "Bread, egg" is bread, so it ranks after any real egg
+    const head = words(food.f.description)[0];
+    const offHead = !saidWords.has(head) && head !== 'fish' && head !== 'nut';
+    scored.push({ food, offHead, extra: [...have].filter((w) => !saidWords.has(w) && !NAME_FILLER.has(w)).length });
+  }
+  return scored.sort((a, b) => a.offHead - b.offHead || a.extra - b.extra).slice(0, MAX_CANDIDATES).map((x) => ({ ...x.food, extra: x.extra }));
+}
+
+/** The model's choice as code accepts it: an id from the list, or nothing. */
+export function acceptPick(answer, candidates) {
+  const raw = typeof answer === 'string' ? answer.replace(/```(json)?/g, '') : '';
+  let id = null;
+  try { id = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)).id; } catch { return undefined; }
+  if (id === null) return null;
+  return candidates.find((c) => c.f.fdcId === Number(id)) || undefined;
+}
+
+async function pickWithModel(name, candidates) {
+  const { runTextLane } = await import('./textLane.js');
+  const list = candidates.map((c) => `${c.f.fdcId} | ${c.f.description}`).join('\n');
+  const prompt = `A person logged the food "${name}", weighed as served. Which USDA entry is that food as normally eaten?\n\n${list}\n\nChoose the plain, typical form. Meat, fish and eggs weighed as served are cooked, so prefer a cooked entry when one is listed. A different food containing that word is wrong (steak sauce is not steak, egg bread is not egg). If none is that food, the id is null.\nOutput ONLY JSON: {"id": <number or null>}`;
+  const out = await runTextLane('food-pick', prompt, { maxTokens: 40, json: true });
+  return acceptPick(out.text, candidates);
+}
+
 /**
  * Per-100g facts for one component, from USDA. Returns null rather than a
  * guess — an honest miss lets the caller fall back to the model's own figure
  * and SAY it did, which is worth more than a confident wrong number.
  */
-export async function lookupPer100g(name) {
+export async function lookupPer100g(name, { picker = pickWithModel } = {}) {
   const cached = await readCache(name);
   if (cached && !cached.stale) return cached.fact;
 
   try {
-    const url = `${FDC_SEARCH}?query=${encodeURIComponent(name)}&pageSize=5&api_key=${FDC_KEY()}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS) });
+    const said = usdaName(name);
+    const q = WEIGHED_COOKED.test(said) && !SAYS_STATE.test(said) ? `${said} cooked` : said;
+    // USDA's own analyses and survey foods only. Branded rows are one product
+    // under a generic name ("EGG" was a chocolate egg, 58 g carbs per 100 g),
+    // so free text never uses them: barcodes do.
+    // POST, not GET: the GET form answers a bare 400 at random (seen 4 in 6 on
+    // 7 Nov 2026). One retry, then the caller degrades honestly.
+    const ask = () => fetch(`${FDC_SEARCH}?api_key=${FDC_KEY()}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+      body: JSON.stringify({ query: q, dataType: ['Foundation', 'SR Legacy', 'Survey (FNDDS)'], pageSize: 50 }),
+    });
+    let res = await ask();
+    if (!res.ok) res = await ask();
     if (!res.ok) return cached?.fact || null;
     const data = await res.json();
     // Prefer the data types that are actually measured in a lab, in order:
@@ -145,10 +211,18 @@ export async function lookupPer100g(name) {
     const rank = { Foundation: 0, SR_Legacy: 1, 'SR Legacy': 1, Survey: 2, 'Survey (FNDDS)': 2, Branded: 3 };
     const foods = (data.foods || [])
       .map((f) => ({ f, n: pickNutrients(f) }))
-      .filter((x) => x.n.p != null && x.n.c != null && x.n.f != null)
+      // Branded rows are one product under a generic name ("EGG" was a chocolate
+      // egg, 58 g carbs per 100 g), so free text never uses them: barcodes do.
+      .filter((x) => x.f.dataType !== 'Branded' && x.n.p != null && x.n.c != null && x.n.f != null)
       .sort((a, b) => (rank[a.f.dataType] ?? 9) - (rank[b.f.dataType] ?? 9));
-    if (!foods.length) return cached?.fact || null;
-    const best = foods[0];
+    const candidates = candidateFoods(name, foods);
+    // USDA answered and nothing fits, or the model says none is this food:
+    // a real miss, kept so the same name is not asked again
+    if (!candidates.length) { await writeCache(name, { fact: null, at: new Date().toISOString() }); return null; }
+    // the plain food by name needs no judgement; anything else does
+    const best = candidates[0].extra === 0 ? candidates[0] : await picker(name, candidates);
+    if (best === null) { await writeCache(name, { fact: null, at: new Date().toISOString() }); return null; }
+    if (!best) return cached?.fact || null; // no usable answer: try again another time
     const fact = {
       source: 'USDA FoodData Central',
       dataType: best.f.dataType || 'unknown',

@@ -51,7 +51,7 @@ test('a v1 cache entry is refetched, and kept as the fallback when the refetch f
     assert.deepEqual((await lookupPer100g(name)).per100g, v1.fact.per100g);
     // online: refetched, rewritten as v2 with the extras
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ foods: [{
-      dataType: 'SR Legacy', description: 'Oats', fdcId: 7,
+      dataType: 'SR Legacy', description: 'Cached oats', fdcId: 7,
       foodNutrients: [
         { nutrientName: 'Protein', value: 13 }, { nutrientName: 'Carbohydrate, by difference', value: 68 },
         { nutrientName: 'Total lipid (fat)', value: 7 }, { nutrientName: 'Fiber, total dietary', value: 10 },
@@ -60,7 +60,7 @@ test('a v1 cache entry is refetched, and kept as the fallback when the refetch f
     const fact = await lookupPer100g(name);
     assert.equal(fact.per100g.fibre, 10);
     const onDisk = JSON.parse(await readFile(path.join(dir, 'nutrition-cache', `${key}.json`), 'utf8'));
-    assert.equal(onDisk.v, 2);
+    assert.equal(onDisk.v, 3);
     // now a current entry: served with no fetch at all
     globalThis.fetch = async () => { throw new Error('must not fetch'); };
     assert.equal((await lookupPer100g(name)).per100g.fibre, 10);

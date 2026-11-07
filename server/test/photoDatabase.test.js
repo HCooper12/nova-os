@@ -109,3 +109,43 @@ test('a database match far from the model estimate is distrusted, not logged (gh
   const ok = await resolvePhotoParts([{ name: 'butter chicken', grams: 220, macros: { p: 30, c: 12, f: 20, kcal: 358 } }], { lookupFn: near });
   assert.equal(ok.components[0].sourced, true);
 });
+
+test('candidates are honest: every word named, no different food, rice must be cooked', async () => {
+  const { candidateFoods } = await import('../lib/nutritionFacts.js');
+  const foods = (...d) => d.map((description) => ({ f: { description } }));
+  const names = (n, ...d) => candidateFoods(n, foods(...d)).map((c) => c.f.description);
+  assert.deepEqual(names('butter chicken', 'Butter, ghee', 'Chicken, breast'), []);
+  assert.deepEqual(names('salmon', 'Fish oil, salmon', 'Fish, salmon, Atlantic, raw'), ['Fish, salmon, Atlantic, raw']);
+  assert.deepEqual(names('basmati rice', 'Rice, basmati, dry', 'Rice, basmati, cooked'), ['Rice, basmati, cooked']);
+  assert.deepEqual(names('beef mince', 'Beef, ground, 85% lean'), ['Beef, ground, 85% lean']);
+  assert.deepEqual(names('olive oil', 'Olive oil'), ['Olive oil']);
+  assert.deepEqual(names('Bananas', 'Bread, banana', 'Bananas, raw'), ['Bananas, raw', 'Bread, banana']);
+  assert.deepEqual(names('egg', 'Bread, egg', 'Egg, whole, cooked, scrambled, with milk'), ['Egg, whole, cooked, scrambled, with milk', 'Bread, egg']);
+  assert.equal(candidateFoods('Bananas', foods('Bananas, raw'))[0].extra, 0);
+});
+
+test('only an id from the list is accepted; null means none fits; junk is no answer', async () => {
+  const { acceptPick } = await import('../lib/nutritionFacts.js');
+  const list = [{ f: { fdcId: 7 } }, { f: { fdcId: 9 } }];
+  assert.equal(acceptPick('{"id": 9}', list), list[1]);
+  assert.equal(acceptPick('```json\n{"id": 7}\n```', list), list[0]);
+  assert.equal(acceptPick('{"id": null}', list), null);
+  assert.equal(acceptPick('{"id": 12345}', list), undefined);
+  assert.equal(acceptPick('steak', list), undefined);
+});
+
+test('a miss from USDA or the picker is kept, so the same name is not asked twice', async () => {
+  const { lookupPer100g } = await import('../lib/nutritionFacts.js');
+  const realFetch = globalThis.fetch;
+  let asked = 0;
+  try {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ foods: [{
+      dataType: 'Survey (FNDDS)', description: 'Steak sauce', fdcId: 3,
+      foodNutrients: [{ nutrientName: 'Protein', value: 1 }, { nutrientName: 'Carbohydrate, by difference', value: 22 }, { nutrientName: 'Total lipid (fat)', value: 0 }],
+    }] }) });
+    const picker = async () => { asked += 1; return null; };
+    assert.equal(await lookupPer100g('steak', { picker }), null);
+    assert.equal(await lookupPer100g('steak', { picker }), null);
+    assert.equal(asked, 1);
+  } finally { globalThis.fetch = realFetch; }
+});
