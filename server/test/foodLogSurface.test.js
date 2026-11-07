@@ -45,7 +45,7 @@ test('its data loads on arrival and re-reads after a log — it is never stale o
     'waiting for him to open a disclosure is what made it useless');
   // the SUBMIT path specifically — the first `api.addFoodLogEntry(` in the
   // file is the offline outbox's replay map, which is a different journey
-  const add = APP.slice(APP.indexOf('api.addFoodLogEntry(conn, { name, macros, source, date, items })'));
+  const add = APP.slice(APP.indexOf('api.addFoodLogEntry(conn, { name, macros, source, date, items, ...extra })'));
   assert.match(add.slice(0, add.indexOf('.catch(')), /this\.loadFoodHistory\(\)/,
     'the thing he just logged must be on the rail the moment it lands');
   assert.ok(!/if \(this\.state\.foodHistoryOpen\) this\.loadFoodHistory\(\)/.test(APP),

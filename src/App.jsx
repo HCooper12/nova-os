@@ -1557,7 +1557,7 @@ export default class App extends Component {
       capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source, p.dest),
       // items ride along (14 Oct): an itemised plate logged offline used to
       // land as bare totals, losing the lines he could drop or restore
-      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, date: p.date, words: p.words, barcode: p.barcode, fdcId: p.fdcId, fibreG: p.fibreG, sugarG: p.sugarG, sodiumMg: p.sodiumMg }),
+      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, words: p.words, barcode: p.barcode, fdcId: p.fdcId, fibreG: p.fibreG, sugarG: p.sugarG, sodiumMg: p.sodiumMg, date: p.date }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
       journal: (conn, p) => api.addJournalEntry(conn, p.text, null, { tag: p.tag, prompt: p.prompt, promptFrom: p.promptFrom }),
