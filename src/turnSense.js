@@ -81,6 +81,28 @@ export function soundsUnfinished(text, { asked = '', wantsNumber } = {}) {
   return false;
 }
 
+// THINKING ALOUD (7 Nov 2026, the Rose study, design/ROSE-STUDY.md §2 point
+// 2). "So this thing started off as a Pomodoro timer, Nova, but now
+// developers can write code for it. I think we should build something with
+// it." Two sentences, a breath between, no question, no request: a thought
+// still forming. Rose waits for it to close; Nova's hold used to send at the
+// first pause and answer half a story. True only on positive evidence: a
+// statement that sets something up (a thing named, a situation told) and
+// ends on a sentence that leans forward ("I think…", "so…", "maybe…", "we
+// could…") with nothing asked. The hold then extends once more, by code; the
+// model's own rule (talk.js) shapes the reply when it does come.
+const LEANS = /^(?:so|and|but|i think|i reckon|i guess|i mean|i was thinking|i'm thinking|maybe|perhaps|we (?:should|could|might)|i (?:should|could|might|want to|wanna)|this (?:thing|is)|it(?:'s| is)|that(?:'s| is)|the thing is|basically|anyway|now)\b/;
+const ASKS = /\?|\b(?:can you|could you|would you|will you|please|tell me|show me|look up|look it up|search|find|what(?:'s| is| are| do| did| about)|how (?:do|does|did|much|many|long)|why|where|when|who|which|do you|does it|is it|are there|should i|remind me|set|open|play|put|bring|clear|maximi[sz]e)\b/i;
+export function thinkingAloud(text) {
+  const raw = norm(text);
+  if (!raw || ASKS.test(raw)) return false;
+  const sents = raw.split(/(?<=[.!])\s+/).filter((x) => x.trim().length > 2);
+  if (sents.length < 2) return false;            // one sentence is a statement, not a story
+  const last = sents[sents.length - 1].replace(/^(?:nova[, ]+)/, '').trim();
+  if (!LEANS.test(last)) return false;
+  return words(raw).length >= 8;
+}
+
 // THE CONTINUATION WINDOW. After his turn has been sent, speech that starts
 // before Nova's reply starts speaking, or inside 3 s of the send (whichever
 // is later), belongs to the same turn: "...oh, and also". Speech heard while

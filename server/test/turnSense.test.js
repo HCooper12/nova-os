@@ -157,3 +157,16 @@ test('his own words are left alone when they only share a word or two', () => {
   assert.equal(stripEcho('your plan looks fine', 'Your squat, one moment.'), 'your plan looks fine');
   assert.equal(stripEcho('and also my knee', ''), 'and also my knee');
 });
+
+// ---- thinkingAloud (7 Nov 2026, the Rose study) ----
+test('thinking aloud: a story that leans forward with nothing asked earns the hold another breath', async () => {
+  const { thinkingAloud } = await import('../../src/turnSense.js');
+  assert.equal(thinkingAloud('So this thing started off as a Pomodoro timer, Nova, but now developers can write code for it. I think we should build something with it.'), true);
+  assert.equal(thinkingAloud('Right. So the site visit moved to Thursday. Maybe that changes the week.'), true);
+  // a question, a request or a single sentence is a turn
+  assert.equal(thinkingAloud('What do you think we should build with it?'), false);
+  assert.equal(thinkingAloud('This is the Busy Bar. Can you look it up?'), false);
+  assert.equal(thinkingAloud('I think we should build something with it.'), false);
+  assert.equal(thinkingAloud('Tick off the eggs. And the milk.'), false);
+  assert.equal(thinkingAloud(''), false);
+});

@@ -78,9 +78,15 @@ export function parseStandby(text, now = new Date()) {
   if (!q || q.length > 60) return null;
   let m;
 
-  // OFF — he is back
-  if (/^(?:(?:i'm|im|i am)\s+(?:back|here)|back|(?:ok\s+)?resume|carry on|as you were|you can talk(?: again)?|you can speak(?: again)?|stand down standby|end standby|that's me back)$/.test(q)) {
+  // OFF — he is back (and Rose's "Hey Rose, are you there?" / "wake up")
+  if (/^(?:(?:i'm|im|i am)\s+(?:back|here)|back|(?:ok\s+)?resume|carry on|as you were|you can talk(?: again)?|you can speak(?: again)?|stand down standby|end standby|that's me back|are you there|(?:are )?you (?:up|awake)|wake up|wakey wakey|morning|good morning)$/.test(q)) {
     return { on: false };
+  }
+  // SLEEP — the sign-off (7 Nov 2026, the Rose study): "you can go to sleep
+  // again", "that's all for tonight", "night". The glass goes dark to the
+  // core and Nova waits for a wake; the default standby, not a timer he set.
+  if (/^(?:(?:you can )?(?:go (?:back )?to sleep|sleep)(?: now| again)?|go to sleep|that's (?:all|it|everything)(?: for (?:now|tonight|today|the night))?|that'll (?:do|be all)(?: for (?:now|tonight|today))?|(?:good ?)?night|sign(?:ing)? off|screen off|lights out)$/.test(q)) {
+    return ON(MAX_MINUTES);
   }
 
   // TAKE N. Bare "take five" is the idiom for "stand by" (his default, 30);

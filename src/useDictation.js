@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { micStarted, micStopped } from './audioSession.js';
 import { attachMicStream } from './audioLevel.js';
 import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason, holdVerdict, extendHold, peekDue, holdFor, PEEK_LEAD_MS } from './turnEnd.js';
-import { soundsUnfinished } from './turnSense.js';
+import { soundsUnfinished, thinkingAloud } from './turnSense.js';
 import { getConnection } from './api.js';
 import { recorderSupported, openRecording, transcribeRecording } from './recorder.js';
 import { hearingChoice, resolveHearing } from './hearingEngine.js';
@@ -214,7 +214,9 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     if (!judge || !held || !turnRef.current) return false;
     let asked = '';
     try { asked = String(getAsked?.() || ''); } catch { /* no question known */ }
-    const unfinished = soundsUnfinished(text, { asked });
+    // his words dangle, or he is thinking aloud (turnSense.thinkingAloud):
+    // either earns the hold another breath
+    const unfinished = soundsUnfinished(text, { asked }) || thinkingAloud(text);
     if (holdVerdict(turnRef.current, { unfinished }) !== 'extend') return false;
     turnRef.current = extendHold(turnRef.current);
     extendedRef.current = true;
