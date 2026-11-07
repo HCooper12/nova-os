@@ -26,6 +26,7 @@ import { localDateISO } from './localDate.js';
 import { providerFor } from './modelPrefs.js';
 import { startCoachLocal, wantsChange } from './localCoach.js';
 import { coachNeedsClaude } from './coachRoute.js';
+import { playbooksFor } from './playbooks.js';
 import { holdForEscalation, becomeViewOf, failCarrier, labelRouted } from './askDispatch.js';
 import { isLocalOnlySession, sessionTurns, localTurnsSinceClaude, transcriptOf, recordAskTurn } from './localAsk.js';
 
@@ -198,7 +199,9 @@ async function escalateCoach(carrier, vaultPath, opts, localError, reason) {
 export async function startCoachTurn(vaultPath, opts = {}) {
   const { question, consulted = null, claudeOnly = false } = opts;
   const mayBeLocal = !consulted && !claudeOnly && providerFor('coach') === 'local' && !wantsChange(question);
-  const routed = mayBeLocal ? coachNeedsClaude(question, { liveSession: opts.liveSession || null }) : null;
+  let routed = mayBeLocal ? coachNeedsClaude(question, { liveSession: opts.liveSession || null }) : null;
+  // the local Coach never gets playbooks: one that fits sends the turn to Claude (his call, 7 Nov)
+  if (mayBeLocal && !routed.claude && playbooksFor({ text: question, agent: 'coach', vaultPath }).length) routed = { claude: true, why: 'a playbook fits this' };
   if (routed?.claude) console.log(`coach: ${routed.why}; Claude answers (the model on this Mac is not asked)`);
   if (mayBeLocal && !routed.claude) {
     // the lane guard, as Claude's path has it: another lane's id is never the Coach's

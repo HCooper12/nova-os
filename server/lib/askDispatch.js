@@ -28,6 +28,7 @@ import { startAskLocal, isLocalOnlySession, localTurnsSinceClaude, transcriptOf,
 import { providerFor, laneCanRunLocal, fallbackEnabled, localBoard, laneEnabled } from './modelPrefs.js';
 import { localModelConfigured, memoryHeadroom } from './localModel.js';
 import { needsClaude } from './askRoute.js';
+import { playbooksFor } from './playbooks.js';
 
 /** Can the model on this Mac stand in right now? A cheap, synchronous
  *  reading: configured, and either already running or with memory to load. */
@@ -287,7 +288,11 @@ export function startAsk(cwd, opts = {}) {
   // one that needs the evidence, a judgement or another agent goes to Claude,
   // whose Nova can ask Coach and the Researcher
   const local = providerFor('ask-nova') === 'local' && !opts.consulted;
-  const routed = local ? needsClaude(opts.question) : null;
+  // a question a playbook he approved fits goes to Claude: the small model
+  // never gets playbooks, and it must not quietly answer without one (his call, 7 Nov)
+  const routed = local
+    ? needsClaude(opts.question) || (playbooksFor({ text: opts.question, agent: 'nova', vaultPath: cwd }).length ? 'a playbook fits this' : null)
+    : null;
   if (routed) console.log(`ask: ${routed}; Claude answers (the model on this Mac is not asked)`);
   if (local && !routed) {
     const jobId = startAskLocal(cwd, {

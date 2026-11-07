@@ -203,6 +203,8 @@ function runModel(prompt, { cwd }) {
 const SENSITIVE = /\b(calori\w*|macro\w*|protein|dose|dosage|\d+\s?(mg|mcg|iu)\b|supplement\w*|creatine|diet\w*|fasting|injur\w*|pain|medic\w*|symptom\w*|sleep|hormone\w*|testosterone|invest\w*|stocks?|shares?|crypto\w*|retire\w*|super(annuation)?|tax\w*|loan\w*|mortgage\w*|debt|interest rate|legal\w*|lawsuit\w*|contract\w*|liabilit\w*|lawyer\w*|copyright|trademark|visa)\b/i;
 const DOMAINS = ['health', 'money', 'legal'];
 const AGENTS = ['all', 'nova', 'coach', 'studio'];
+const HEALTH_WORDS = /\b(health|training|workout|exercise|lifting|strength|hypertrophy|muscle|cardio|running|sleep|recovery|nutrition|diet|calorie|protein|fat loss|supplement|injury|pain|rehab|mobility|hormone|testosterone)\b/i;
+export const isHealthTopic = (topic, triggers = [], rules = []) => HEALTH_WORDS.test([topic, ...triggers].join(' ')) || rules.some((r) => r.domain === 'health');
 
 const str = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const strs = (v, { max = 300, cap = 20, min = 3 } = {}) => (Array.isArray(v) ? v : []).map((x) => str(x, max)).filter((x) => x.length >= min).slice(0, cap);
@@ -280,7 +282,9 @@ export function validateLearn(raw, sources) {
     title: topic.replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim(),
     summary: str(raw?.summary, 300),
     triggers: triggers.length ? triggers : [norm(topic)],
-    agents: agents.includes('all') || !agents.length ? ['all'] : [...new Set(agents)],
+    // a health playbook is Coach's alone, decided by code (his call, 7 Nov 2026):
+    // a claim from a video must not reach an agent without Coach's evidence standard
+    agents: isHealthTopic(topic, triggers, rules) ? ['coach'] : agents.includes('all') || !agents.length ? ['all'] : [...new Set(agents)],
     sources: sources.map((s) => ({ n: s.n, title: str(s.title, 160), speaker: str(s.speaker, 100) || 'unknown', url: s.url })),
     when: clean(raw?.when, 8),
     method: clean((Array.isArray(raw?.method) ? raw.method : []).map((m) => String(m ?? '').replace(/^\s*(?:step\s+)?\d+[.):]\s*/i, '')), 20),

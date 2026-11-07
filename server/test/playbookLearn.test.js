@@ -272,3 +272,11 @@ test('validate: numbered method steps lose their own numbers; a pipe in a speake
   assert.equal(parse(raw).sources.length, 1);
   assert.equal(formatPlaybook(parse(raw)), raw);
 });
+
+test('a health playbook is Coach alone, whatever the model asked for', async () => {
+  const { isHealthTopic } = await import('../lib/playbookLearn.js');
+  assert.equal(isHealthTopic('Hypertrophy programming'), true);
+  assert.equal(isHealthTopic('Better sleep', []), true);
+  assert.equal(isHealthTopic('Offers', ['pricing'], [{ domain: 'health' }]), true);
+  assert.equal(isHealthTopic('Sales follow-ups', ['follow-up email'], [{ domain: 'money' }]), false);
+});
