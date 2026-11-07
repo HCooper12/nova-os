@@ -668,6 +668,7 @@ export default class App extends Component {
     projectIntakeText: '', projectIntakeSession: null, projectIntakeBusy: false, projectIntakeTurns: [], projectIntakeError: null, projectIntakeFiled: null,
     liveWishlist: null, wishlistDemo: null, wishlistUi: null, wishlistError: null, wishlistAnswered: null,
     liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
+    foodLogExtra: null, // optional facts about what is being logged: his words, a barcode, an fdcId, fibre/sugar/sodium
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     foodEntryUndo: null, // the last whole meal removed with its ×, held 30s for Undo
     // a rotation dish ticked or un-ticked from Fuel (the strip, or a log row's
@@ -1556,7 +1557,7 @@ export default class App extends Component {
       capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source, p.dest),
       // items ride along (14 Oct): an itemised plate logged offline used to
       // land as bare totals, losing the lines he could drop or restore
-      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, date: p.date }),
+      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, date: p.date, words: p.words, barcode: p.barcode, fdcId: p.fdcId, fibreG: p.fibreG, sugarG: p.sugarG, sodiumMg: p.sodiumMg }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
       journal: (conn, p) => api.addJournalEntry(conn, p.text, null, { tag: p.tag, prompt: p.prompt, promptFrom: p.promptFrom }),
@@ -2779,7 +2780,9 @@ export default class App extends Component {
     // up to what he is about to log. Same rule the server applies on edit.
     const val = typeof e === 'string' ? e : e.target.value;
     const drops = field !== 'foodLogName' && this.state.foodLogItems;
-    this.setState({ [field]: val, ...(drops ? { foodLogItems: null } : {}), ...(field !== 'foodLogName' ? { foodEstimateLines: null } : {}) });
+    const ex = this.state.foodLogExtra;
+    const keepIdentity = field !== 'foodLogName' && ex ? { foodLogExtra: { words: ex.words, barcode: ex.barcode, fdcId: ex.fdcId } } : {};
+    this.setState({ [field]: val, ...keepIdentity, ...(drops ? { foodLogItems: null } : {}), ...(field !== 'foodLogName' ? { foodEstimateLines: null } : {}) });
     if (drops) this.toastMsg('Your number now — the itemised lines were dropped');
   }
   // Retro tracking: flip the food log to a past day. The list, adds, and
@@ -3037,6 +3040,7 @@ export default class App extends Component {
     const source = this.state.foodLogFillSource || 'manual';
     // the plate's lines, when a scan or a description produced them
     const items = this.state.foodLogItems || undefined;
+    const extra = this.state.foodLogExtra || {};
     // OPTIMISTIC: the entry appears (and the macro gauges move) in the same
     // frame, and the form clears so the next thing can be typed immediately.
     // Duplication is impossible by construction — the server's reply carries
@@ -3046,10 +3050,10 @@ export default class App extends Component {
     const previousDay = this.state.foodLogDate ? this.state.liveFoodLogView : this.state.liveFoodLog;
     const previousForm = {
       foodLogName: this.state.foodLogName, foodLogP: this.state.foodLogP, foodLogC: this.state.foodLogC,
-      foodLogF: this.state.foodLogF, foodLogKcal: this.state.foodLogKcal, foodLogFillSource: this.state.foodLogFillSource,
+      foodLogF: this.state.foodLogF, foodLogKcal: this.state.foodLogKcal, foodLogFillSource: this.state.foodLogFillSource, foodLogExtra: this.state.foodLogExtra,
     };
     const clearForm = {
-      foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null, foodLogItems: null,
+      foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null, foodLogItems: null, foodLogExtra: null,
       foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
       foodEstimateLines: null, foodRefineThread: [], foodRefineInput: '',
     };
@@ -3061,7 +3065,7 @@ export default class App extends Component {
     this.setState({ ...clearForm, foodLogBusy: true, foodLogError: null });
     // one key for the try AND any replay: a timed-out log that landed is not filed twice
     const idemKey = newIdempotencyKey('food');
-    withIdempotencyKey(idemKey, () => api.addFoodLogEntry(conn, { name, macros, source, date, items })).then((day) => {
+    withIdempotencyKey(idemKey, () => api.addFoodLogEntry(conn, { name, macros, source, date, items, ...extra })).then((day) => {
       this.noteLocalWrite('foodLog');
       this.applyFoodLogDay(day); // whole-day replace — the temp row is gone
       this.setState({ foodLogBusy: false });
@@ -3077,7 +3081,7 @@ export default class App extends Component {
         // still needs re-typing. `source` is the captured value, not a state
         // read — the form has already been cleared by this point.
         this.setState({ foodLogBusy: false });
-        this.enqueueOutbox('food', name, { name, macros, source, date, items }, idemKey);
+        this.enqueueOutbox('food', name, { name, macros, source, date, items, ...extra }, idemKey);
         return;
       }
       // a real rejection: give him his numbers back so nothing typed is lost
@@ -3452,6 +3456,7 @@ export default class App extends Component {
             foodEstimateLines: plate, foodRefineThread: [], foodRefineInput: '',
             foodScanBusy: false, foodScanError: null, foodDescribeInput: '',
             foodLogFillSource: 'described',
+            foodLogExtra: { words: meta.text },
             foodLogItems: r.components?.length > 1 ? r.components : null,
             foodScanQuestion: asks ? r.question : null,
             foodScanQAPhotos: [], foodScanQANote: asks ? meta.text : '',
@@ -3468,6 +3473,7 @@ export default class App extends Component {
             foodScanBusy: false, foodScanError: null,
             foodScanPhotos: [], foodScanNote: '',
             foodLogFillSource: 'scan', // provenance survives to the log entry
+            foodLogExtra: r.barcode ? { barcode: r.barcode, fdcId: r.fdcId, fibreG: r.fibreG, sugarG: r.sugarG, sodiumMg: r.sodiumMg } : null,
             foodLogItems: r.components?.length > 1 ? r.components : null,
             foodScanQuestion: asks ? r.question : null,
             // keep what produced the question so an answer can re-estimate
@@ -3901,6 +3907,7 @@ export default class App extends Component {
       this.setState({
         foodScanBusy: false,
         foodLogFillSource: 'barcode',
+        foodLogExtra: { barcode: r.barcode || code, fdcId: r.fdcId, fibreG: r.fibreG, sugarG: r.sugarG, sodiumMg: r.sodiumMg },
         foodLogName: r.name || '',
         foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
         foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
