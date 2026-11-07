@@ -24,6 +24,9 @@ export function composeWidgetToday({ now = new Date(), targets = {}, food = null
     protein: { value: food ? Math.round(num(food.p) ?? 0) : null, goal: targets.protein?.value ?? null },
     kcal: { value: food ? Math.round(num(food.kcal) ?? 0) : null, goal: targets.kcal?.value ?? null },
     steps: { value: num(today?.steps), goal: targets.steps?.value ?? null },
+    // when Health's figure was read (his pick A, 5 Nov): the widget shows it
+    // quietly beside "Steps" so an hour-old number reads as old, not wrong
+    stepsAt: today?.steps != null && typeof today?.stepsAt === 'string' ? today.stepsAt : null,
     hrv: vitals.ok
       ? { value: vitals.hrv, date: vitals.date, lo: vitals.band?.lo ?? null, hi: vitals.band?.hi ?? null, verdict: vitals.verdict }
       : null,

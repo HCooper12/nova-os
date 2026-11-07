@@ -75,6 +75,11 @@ export function healthDataRouter(vaultPath) {
       const fromHealthKit = body?.source === 'healthkit';
       const result = await ingestHealthPayload({ date, metrics, manual: body?.manual === true, rawBody,
         ...(fromHealthKit ? { skipDateShift: true, source: 'healthkit' } : {}) });
+      // why background wakes failed since the last one that landed: the phone
+      // keeps the list (a failed push cannot reach the Mac to say so itself)
+      const { cleanBgMisses } = await import('../lib/bgMisses.js');
+      const misses = cleanBgMisses(body?.bgMisses);
+      if (misses.length) await logPushAttempt({ ok: true, kind: 'bg-misses', misses });
       if (!result.ok) return res.status(400).json({ error: result.error });
       if (result.allDropped) {
         const which = result.droppedKeys?.length ? result.droppedKeys.join(', ') : 'that reading';
