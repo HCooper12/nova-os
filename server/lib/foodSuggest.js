@@ -3,6 +3,7 @@ import { recurringFoods, normalizeName } from './foodHistory.js';
 import { loadRecipeData } from './recipes.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
+import { laneSkipped } from './modelPrefs.js';
 
 // "You've had crumpets with Duo Penotti a few times lately — save it to your
 // recipe bank?" Recurring off-plan foods become inbox proposals the user
@@ -79,20 +80,28 @@ export async function runFoodSuggestions(vaultPath, { now = Date.now() } = {}) {
 // drifts past the hour or the server restarts (the same failure class as the
 // missed health pushes). The per-item dedupe makes any extra run harmless.
 let lastSuggestDate = null;
+export async function foodSuggestTick(vaultPath, { now = new Date(), run = runFoodSuggestions } = {}) {
+  try {
+    const today = now.toDateString();
+    if (now.getHours() >= 18 && lastSuggestDate !== today) {
+      lastSuggestDate = today;
+      // paused by default since 7 Nov (modelPrefs.js `food-suggest`): the beat
+      // above still lands, so the board reads paused, never broken
+      if (laneSkipped('food-suggest', 'food suggestions')) return { skipped: true };
+      return await run(vaultPath);
+    }
+  } catch (err) {
+    console.error('food suggestions failed:', err.message);
+  }
+  return null;
+}
+export const _resetFoodSuggestDay = () => { lastSuggestDate = null; };
+
 export function startFoodSuggestScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('food-suggest');
-    try {
-      const now = new Date();
-      const today = now.toDateString();
-      if (now.getHours() >= 18 && lastSuggestDate !== today) {
-        lastSuggestDate = today;
-        await runFoodSuggestions(vaultPath);
-      }
-    } catch (err) {
-      console.error('food suggestions failed:', err.message);
-    }
+    await foodSuggestTick(vaultPath);
   };
   tick();
   setInterval(tick, 3600_000);

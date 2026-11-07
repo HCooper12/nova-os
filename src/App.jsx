@@ -69,6 +69,7 @@ import { createValsMemo, verifyVals } from './vals/compose.js';
 import { glassSnapshot, bindGlassSentences } from './novaThreadFacts.js';
 import { wishlistFromHistory } from './wishlistActions.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
+import { READ_MS, unreadOnScreen, openedNow } from './readSignal.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
 // THE DAILY FIVE — statically imported, never lazy. These are what a session
@@ -2083,6 +2084,9 @@ export default class App extends Component {
     }
   }
   componentDidUpdate(prevProps, prevState, motion) {
+    // the read signal (src/readSignal.js): quiet, and only ever a stamp
+    if (prevState.screen !== this.state.screen || prevState.liveInbox !== this.state.liveInbox) this.armReadSignal();
+    if (prevState.inboxExpanded !== this.state.inboxExpanded) this.markRead(openedNow(this.state.inboxExpanded, prevState.inboxExpanded, this.state.liveInbox?.items));
     // the after-read waits for the frame: rAF runs before that frame's paint,
     // so the layout it reads is the one the paint needed anyway
     if (motion?.settle) requestAnimationFrame(() => settlePlay(motion.settle));
@@ -9237,6 +9241,27 @@ export default class App extends Component {
       if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source, dest }, idemKey); return; }
       this.toastFail('Capture failed: ' + e.message);
     });
+  }
+  // WAS IT READ (audit #4). Three seconds on the screen an auto-delivered record
+  // lands on, with the page in front of him, and it takes its one stamp. Never
+  // optimistic and never a toast: a measure must not be felt.
+  armReadSignal() {
+    clearTimeout(this.readTimer);
+    if (!unreadOnScreen(this.state.screen, this.state.liveInbox?.items).length) return;
+    this.readTimer = setTimeout(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      this.markRead(unreadOnScreen(this.state.screen, this.state.liveInbox?.items));
+    }, READ_MS + 40);
+  }
+  markRead(list) {
+    const conn = getConnection();
+    if (!conn || !list?.length || this.state.connectionStatus === 'demo') return;
+    this.readSent ||= new Set();
+    for (const { id, via } of list) {
+      if (this.readSent.has(id)) continue;
+      this.readSent.add(id);
+      api.inboxSeen(conn, id, true, via).catch(() => { this.readSent.delete(id); });
+    }
   }
   // SEEN — the third verb. Optimistic (it is metadata, not a filing, and the
   // server's record replaces it a moment later); the record stays pending.

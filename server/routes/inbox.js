@@ -231,7 +231,8 @@ export function inboxRouter(vaultPath) {
   // back. The record stays pending either way.
   router.post('/inbox/:id/seen', async (req, res) => {
     try {
-      const record = await setSeen(req.params.id, req.body?.seen !== false);
+      const via = typeof req.body?.via === 'string' && /^[a-z-]{1,16}$/.test(req.body.via) ? req.body.via : null;
+      const record = await setSeen(req.params.id, req.body?.seen !== false, { via });
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });

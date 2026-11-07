@@ -2450,9 +2450,18 @@ export async function reopenRecord(id) {
 // just stops being NEW: the Home line, and one day the Org Map's marker, can
 // tell "15 waiting" from "3 you have not looked at". Operational metadata in
 // server/data, never the vault; reversible with the same call.
-export async function setSeen(id, seen = true, { now = Date.now() } = {}) {
+// THE READ SIGNAL (audit #4): 0 of 184 auto-delivered records carried a seenAt,
+// because this refused everything not pending, so whether he reads a brief was
+// unknowable. A record that delivered itself now takes one stamp, the first
+// time he opens where it landed, with `via` saying where: home, journal, or
+// opened (he expanded the card). It is a measure, so it never clears.
+export async function setSeen(id, seen = true, { now = Date.now(), via = null } = {}) {
   const record = await getRecord(id);
   if (!record) throw new Error('record not found');
+  if (record.status === 'filed' && record.auto) {
+    if (!seen || record.seenAt) return record;
+    return updateRecord(id, { seenAt: new Date(now).toISOString(), seenVia: via || 'app' });
+  }
   if (record.status !== 'pending') throw new Error('only a pending record can be marked seen');
   return updateRecord(id, { seenAt: seen ? new Date(now).toISOString() : null });
 }

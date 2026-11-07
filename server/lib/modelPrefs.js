@@ -604,6 +604,16 @@ export const LANES = [
     hint: 'Thursday\u2019s prep list from the rotation — computed, no model',
     off: 'No weekly prep list is drafted. The rotation and the shopping list keep working; you build the prep list yourself.',
   },
+  {
+    // STOP WHAT NOBODY WANTS (audit #4, 7 Nov 2026). The rule: at least 10
+    // records in the last 30 days and none kept. This lane is the only one that
+    // met it: 21 cards, 21 discarded (13 of 13 after the audit's de-duplication).
+    // Paused, not removed: his switch brings it straight back, and his choice
+    // outranks `defaultOff`. `plan` (4 of 11 kept) stays on.
+    id: 'food-suggest', label: 'Food Scout', group: 'daily', def: null, deterministic: true, defaultOff: true,
+    hint: 'offers foods you keep logging for your recipe bank. Paused 7 Nov 2026: you discarded all 21 cards in the last 30 days. Turn it on here to bring it back.',
+    off: 'No "Save it to your recipe bank?" cards. Your food log and recipes keep working as ever.',
+  },
 ];
 
 const LANE_BY_ID = new Map(LANES.map((l) => [l.id, l]));
@@ -903,11 +913,13 @@ export function modelFor(laneId) {
 }
 
 /** Is this lane switched on? Unset means on — a lane you have never touched
- *  behaves exactly as it always did. */
+ *  behaves exactly as it always did. A lane shipped `defaultOff` is off until
+ *  he turns it on, and then his word stands. */
 export function laneEnabled(laneId) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown model lane: ${laneId}`);
-  return loadRaw()[laneId]?.enabled !== false;
+  const saved = loadRaw()[laneId]?.enabled;
+  return typeof saved === 'boolean' ? saved : !lane.defaultOff;
 }
 
 /** The error a switched-off lane raises. One shape everywhere, so every
