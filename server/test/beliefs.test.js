@@ -213,3 +213,11 @@ test('the cross verb is hidden from the model catalogue', async () => {
   assert.ok(VERB_IDS.includes('belief.drop'));
   assert.ok(!describeForModel().includes('belief.drop'));
 });
+
+test('beliefs speak to him, and system rules are not listed', async () => {
+  const { toYou, SYSTEM_RULE } = await import('../lib/beliefs.js');
+  assert.equal(toYou('He experiences this on his left side'), 'You experience this on your left side');
+  assert.equal(toYou('Hayden is cutting; he has time'), 'You are cutting; you have time');
+  assert.ok(SYSTEM_RULE.test("If a capture's content is empty"));
+  assert.ok(!SYSTEM_RULE.test('Keep lateral raises in the program'));
+});

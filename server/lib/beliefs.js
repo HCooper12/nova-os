@@ -107,6 +107,19 @@ const clip = (s, n = 140) => { const t = String(s || '').replace(/\s+/g, ' ').tr
 
 /* ----------------------------------------------------------- the readers */
 
+// What Works is written about him; this page speaks to him. Display only: the page keeps its words.
+export const toYou = (s) => String(s || '')
+  .replace(/\bHayden is\b/g, 'You are').replace(/\bHayden\b/g, 'You')
+  .replace(/\bHe is\b/g, 'You are').replace(/\bhe is\b/g, 'you are')
+  .replace(/\bHe does not\b/g, 'You do not').replace(/\bhe does not\b/g, 'you do not')
+  .replace(/\b(He|he) (has|was)\b/g, (m, a, b) => `${a === 'He' ? 'You' : 'you'} ${b === 'has' ? 'have' : 'were'}`)
+  .replace(/\bHe (\w+?)s\b/g, 'You $1').replace(/\bhe (\w+?)s\b/g, 'you $1')
+  .replace(/\bHe\b/g, 'You').replace(/\bhe\b/g, 'you')
+  .replace(/\bHis\b/g, 'Your').replace(/\bhis\b/g, 'your').replace(/\bhim\b/g, 'you');
+
+// Rules about how the system runs, not beliefs about him. They stay in force; they are just not listed.
+export const SYSTEM_RULE = /\b(capture|placeholder|verification|test text|inbox|record|pipeline|lane|prompt|agent)s?\b/i;
+
 const WORKS_SECTIONS = [
   { heading: /^responds to/i, area: 'training', kind: 'session-pattern' },
   { heading: /^avoid/i, area: 'training', kind: 'session-pattern' },
@@ -200,7 +213,7 @@ async function gather(vaultPath) {
   for (const w of works) {
     const kind = TEMPORARY.test(w.text) && w.section.kind !== 'decision' ? 'temporary-state' : w.section.kind;
     push({
-      source: 'works', key: w.line, area: w.section.area, kind, since: w.date, strikeable: true, text: clip(w.text, 150), who: 'Coach', whenWord: null,
+      source: 'works', key: w.line, area: w.section.area, kind, since: w.date, strikeable: true, text: clip(toYou(w.text), 150), who: 'Coach', whenWord: null,
       ref: { line: w.line },
     });
   }
@@ -208,6 +221,7 @@ async function gather(vaultPath) {
   // 3. Standing Instructions
   const { loadStanding } = await import('./standing.js');
   for (const r of await safe(() => loadStanding(vaultPath), [])) {
+    if (SYSTEM_RULE.test(r.rule)) continue;
     push({
       source: 'standing', key: r.raw, area: 'rules', kind: TEMPORARY.test(r.rule) ? 'temporary-state' : 'standing-rule', since: r.added, strikeable: true,
       text: clip(r.rule, 150), who: 'You', whenWord: null, ref: { raw: r.raw },
@@ -270,8 +284,9 @@ export async function loadBeliefs(vaultPath, { now = new Date() } = {}) {
     if (reason) row.from = `${from}${aged.age != null && !imm ? ` · ${aged.age} days old` : ''}`;
     (reason ? checks : rest).push(row);
   }
-  // oldest first: what has gone longest unchecked leads
-  checks.sort((a, b) => (b.ageDays ?? -1) - (a.ageDays ?? -1));
+  // newest first: recent beliefs are the ones most worth a look, and 43 at once
+  // is a chore. The rest wait behind Show all.
+  checks.sort((a, b) => (a.ageDays ?? Infinity) - (b.ageDays ?? Infinity));
   const groups = [];
   if (checks.length) groups.push({ key: 'check', title: 'Worth checking', hue: CHECK_HUE, count: 'may be out of date', n: checks.length, items: checks });
   for (const a of AREAS) {
@@ -284,6 +299,7 @@ export async function loadBeliefs(vaultPath, { now = new Date() } = {}) {
 /* ------------------------------------------------------------- the Home card */
 
 export const HOME_QUIET_DAYS = 7;
+export const HOME_MAX = 5;
 
 function homeFor(checks, state, now) {
   const quiet = state.homeQuietUntil && new Date(state.homeQuietUntil).getTime() > now.getTime();
@@ -291,7 +307,7 @@ function homeFor(checks, state, now) {
   const lead = checks[0];
   return {
     show: true, count: checks.length,
-    line: checks.length === 1 ? 'One thing may be out of date.' : `${checks.length} things may be out of date.`,
+    line: checks.length === 1 ? 'One thing may be out of date.' : `${Math.min(checks.length, HOME_MAX)} things may be out of date.`,
     lead: { text: lead.text, from: lead.from, reason: lead.reason },
     more: checks.slice(1, 3).map((c) => c.text),
   };

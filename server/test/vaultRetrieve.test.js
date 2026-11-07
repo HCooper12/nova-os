@@ -56,7 +56,7 @@ test('what an answer may draw on: never a transcript, a log, state, an agent run
   }
   assert.ok(retrievable({ id: 'Wiki/Concepts/X' }));
   assert.ok(retrievable({ id: 'Wiki/Library/Interests' }));
-  assert.ok(retrievable({ id: 'Wiki/Health/What Works For Hayden' }));
+  assert.ok(!retrievable({ id: 'Wiki/Health/What Works For Hayden' }), 'Coach reads it with struck lines removed');
   assert.ok(retrievable({ id: 'Wiki/Inbox/Compound vs Isolation Lifts' }));
   assert.ok(!retrievable({ id: 'Wiki/Journal/2026-10-10' }), 'his authorship rule: nearly all of it is the agents\'');
   assert.ok(!retrievable({ id: 'Wiki/Inbox/Coach review — x' }));

@@ -43,6 +43,7 @@ const FOLDERS = ['Wiki/Concepts/', 'Wiki/Sources/', 'Wiki/Topics/', 'Wiki/Librar
 const NOT_KNOWLEDGE = [
   /^Wiki\/Health\/(?:Workouts|Health Log|Recipe Photos)\//,
   /^Wiki\/Health\/(?:Exercise State|Exercise Library|Progression Tuning|Daily Rotation|Shopping List|Meal Prep Portions|Training Block|Fitness Goals)$/,
+  /^Wiki\/Health\/What Works For Hayden/, // Coach reads it with struck lines removed; a search would not
   /^Wiki\/Library\/(?:Review Log|Repertoire)/,
   /^Wiki\/Inbox\/(?:Report|Coach review)\b/,
 ];
