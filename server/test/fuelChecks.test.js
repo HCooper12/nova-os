@@ -132,6 +132,43 @@ test('too few weigh-ins, or too short a span, or too few logged days: silent, ne
   assert.deepEqual(fast({ foodDays: eatingFar.slice(0, 5) }), []);
 });
 
+test('the loader never throws: every source failing leaves every check silent', async () => {
+  const boom = async () => { throw new Error('unreadable'); };
+  const r = await F.loadFuelChecks(vault, { now: at(18), deps: { profile: null, sessions: boom, workouts: boom, day: boom, targets: boom, planned: boom, health: boom, foodDays: boom } });
+  assert.deepEqual(r.findings, []);
+  assert.equal(r.thresholds.carbsPerHour, 60);
+});
+
+test('the loader reads his own overrides from the profile and reaches the checks', async () => {
+  const entries = [{ id: 'a', name: 'Toast', macros: { p: 10, c: 30, f: 5, kcal: 250 } }];
+  const deps = {
+    profile: { intake: { fuelChecks: { hardMinutes: 50 } } },
+    sessions: async () => [], workouts: async () => USUAL, planned: async () => null, health: async () => [], foodDays: async () => [],
+    day: async () => ({ entries }), targets: async () => ({ kcal: 2300, protein: 167 }),
+  };
+  const r = await F.loadFuelChecks(vault, { now: at(17), deps });
+  assert.equal(r.findings[0]?.key, 'hard-day-underfuelled');
+});
+
+// ---- session fuel ----------------------------------------------------------
+
+test('a planned session over 75 minutes: carbs an hour from minute 30, the number from the thresholds', () => {
+  const [f] = F.fuelChecks({ now: at(8), planned: { name: 'Ride', minutes: 150 } });
+  assert.equal(f.key, 'session-fuel');
+  assert.match(f.line, /2\.5|150 minute/);
+  assert.match(f.line, /60 g of carbs an hour from minute 30/);
+  assert.match(f.line, /around 120 g in all/);
+  const [g] = F.fuelChecks({ now: at(8), thresholds: F.resolveThresholds({ carbsPerHour: 40 }), planned: { minutes: 120 } });
+  assert.match(g.line, /40 g of carbs an hour/);
+  assert.match(g.line, /2 hour/);
+});
+
+test('his ordinary lifting sessions produce nothing: 75 minutes exactly, no planned length, 60 minutes', () => {
+  assert.deepEqual(F.fuelChecks({ now: at(8), planned: { name: 'Push B', sets: 18, minutes: 75 } }), []);
+  assert.deepEqual(F.fuelChecks({ now: at(8), planned: { name: 'Push B', sets: 18, minutes: null } }), []);
+  assert.deepEqual(F.fuelChecks({ now: at(8), planned: { name: 'Push B', sets: 18, minutes: 60 } }), []);
+});
+
 test('a hard-day finding outranks it', () => {
   const out = F.fuelChecks({ now: at(17), weighIns: weigh(1.3), sessionsAll: BACKWARDS, foodDays: eatingFull, workouts: LONG, food: food(500), targets });
   assert.deepEqual(out.map((f) => f.key), ['hard-day-underfuelled', 'losing-too-fast']);

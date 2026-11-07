@@ -220,11 +220,43 @@ export function fuelChecks(input = {}) {
   const now = input.now instanceof Date ? input.now : new Date();
   const ctx = { ...input, now };
   const findings = [];
-  for (const f of [hardDayFinding(ctx, t), losingFastFinding(ctx, t)]) if (f) findings.push(f);
+  for (const f of [hardDayFinding(ctx, t), losingFastFinding(ctx, t), sessionFuelFinding(ctx, t)]) if (f) findings.push(f);
   return findings.sort((a, b) => a.rank - b.rank);
 }
 
+// ------------------------------------------------- 13. session fuel --
+
+/**
+ * Pure. Only a planned session longer than the limit (75 min by default) gets
+ * a line: carbs an hour from minute 30. His ordinary lifting sessions have no
+ * planned length at all and sit under it, so they produce nothing.
+ */
+function sessionFuelFinding({ planned }, t) {
+  const minutes = Number(planned?.minutes);
+  if (!(minutes > t.sessionFuelMinutes)) return null;
+  const grams = Math.round((t.carbsPerHour * (minutes - t.carbsFromMinute)) / 60 / 5) * 5;
+  const hours = minutes % 60 === 0 ? `${minutes / 60} hour` : `${Math.round(minutes)} minute`;
+  return {
+    key: 'session-fuel',
+    rank: 3,
+    severity: 'low',
+    data: { kind: 'session-fuel', minutes, carbsPerHour: t.carbsPerHour, fromMinute: t.carbsFromMinute, totalG: grams },
+    line: `Your calendar has a ${hours} workout today. A session that long is fuelled in the middle: about ${t.carbsPerHour} g of carbs an hour from minute ${t.carbsFromMinute}, around ${grams} g in all.`,
+  };
+}
+
 // ------------------------------------------------------------- the loader --
+
+const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
+async function plannedMinutesFromCalendar(now) {
+  const { fetchEventsForDay, WORKOUT_RE } = await import('./calendar.js');
+  // a slow calendar must never slow a food log's reply: no answer in 2.5 s is no plan
+  const events = await Promise.race([fetchEventsForDay(now), new Promise((resolve) => setTimeout(() => resolve([]), 2500).unref())]);
+  const ev = events.find((e) => WORKOUT_RE.test(e.label || '') && e.time && e.end);
+  if (!ev) return null;
+  const m = toMin(ev.end) - toMin(ev.time);
+  return m > 0 ? m : null;
+}
 
 /**
  * The thin async half: gathers the real records and calls fuelChecks().
@@ -256,8 +288,11 @@ export async function loadFuelChecks(vaultPath, { now = new Date(), deps = {} } 
       const { exercises } = await loadExerciseLibrary(vaultPath);
       const { routines, schedule } = await loadRoutines(vaultPath, exercises);
       const routine = routines.find((r) => r.id === schedule?.[WEEKDAYS[(now.getDay() + 6) % 7]]);
-      if (!routine) return null;
-      return { name: routine.name, sets: routine.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0), minutes: null };
+      // A routine has no duration. The only planned length Nova holds is a
+      // training-looking event on today's calendar with a start and an end.
+      const minutes = await plannedMinutesFromCalendar(now);
+      if (!routine && minutes == null) return null;
+      return { name: routine?.name || 'the calendar workout', sets: routine ? routine.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0) : null, minutes };
     }), null),
     // sleep is read through the loader's gate: a night he has not confirmed is held back
     swallow(deps.health || (async () => (await import('./healthData.js')).loadRecentDays(28)), []),
