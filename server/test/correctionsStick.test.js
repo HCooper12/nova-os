@@ -381,6 +381,7 @@ test('a contradiction reaches the block Coach reads, as something to put to him'
   assert.match(ctx, /RECORDS THAT DISAGREE/);
   assert.match(ctx, /Ask which is true/);
   assert.match(ctx, /Profile says "No injuries or limitations at the moment\."/);
+  assert.doesNotMatch(await injuriesContext(vault, { compare: false }), /RECORDS THAT DISAGREE/, 'Coach asks; Nova does not ask as well');
   await rm(path.join(vault, 'Wiki/Profile.md'));
   assert.doesNotMatch(await injuriesContext(vault), /RECORDS THAT DISAGREE/, 'a page that is gone claims nothing');
 });

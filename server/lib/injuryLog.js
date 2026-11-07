@@ -126,7 +126,9 @@ export function closedLine(closed = []) {
 }
 
 // The context block: active entries loud, recent resolutions one line.
-export async function injuriesContext(vaultPath) {
+// `compare: false` for a lane that should not put the disagreement to him:
+// Coach owns that question, and one asker is the point of this whole fix.
+export async function injuriesContext(vaultPath, { compare = true } = {}) {
   const injuries = await listInjuries(vaultPath).catch(() => []);
   const active = injuries.filter((i) => !i.resolvedAt);
   const parts = [];
@@ -137,7 +139,7 @@ export async function injuriesContext(vaultPath) {
   }
   const closed = closedLine(closedAreas(injuries));
   if (closed) parts.push(closed);
-  const disagree = contradictionBlock(await disagreements(vaultPath, injuries));
+  const disagree = compare ? contradictionBlock(await disagreements(vaultPath, injuries)) : null;
   if (disagree) parts.push(disagree);
   return parts.length ? parts.join('\n\n') : null;
 }
