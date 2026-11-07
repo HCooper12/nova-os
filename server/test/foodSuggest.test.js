@@ -127,3 +127,13 @@ test('a dismissed food asks once more only after 60 days AND a doubled habit —
   await day('2026-08-12', ['New Snack']);
   assert.equal((await runFoodSuggestions(vault, { now: t0 + 200 * DAY })).proposed, 0, 'twice declined is a standing no');
 });
+
+test('a food he said he will not eat is never offered, however often it is logged', async () => {
+  await writeFile(path.join(vault, 'Wiki/Profile.md'), "# Profile\n\n## Fuel\n\n- Won't eat Vegemite or possibly Brussels sprouts. (said 2026-10-26)\n", 'utf8');
+  await day('2026-08-13', ['Vegemite Toast']);
+  await day('2026-08-14', ['Vegemite Toast']);
+  await day('2026-08-15', ['Vegemite Toast']);
+  const res = await runFoodSuggestions(vault);
+  assert.ok(!res.records.some((r) => /Vegemite/.test(r.decision.payload.name)));
+  await rm(path.join(vault, 'Wiki/Profile.md'));
+});

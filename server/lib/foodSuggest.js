@@ -4,6 +4,8 @@ import { loadRecipeData } from './recipes.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
 import { laneSkipped } from './modelPrefs.js';
+import { profileContext } from './profile.js';
+import { refusedFoods, refusedIn } from './profileFacts.js';
 
 // "You've had crumpets with Duo Penotti a few times lately — save it to your
 // recipe bank?" Recurring off-plan foods become inbox proposals the user
@@ -35,8 +37,10 @@ export async function runFoodSuggestions(vaultPath, { now = Date.now() } = {}) {
   const declines = latestDeclines(mine, { statuses: NO, subjectOf: (r) => r.decision.payload.key, metricOf: (r) => r.decision.payload.count ?? MIN_COUNT });
 
   const exclude = new Set([...recipeKeys, ...settled]);
+  const refused = refusedFoods(await profileContext(vaultPath, { only: ['fuel'] }).catch(() => ''));
   const candidates = [];
   for (const it of await recurringFoods({ days: WINDOW_DAYS, minCount: MIN_COUNT, excludeKeys: exclude })) {
+    if (refusedIn(it.name, refused)) continue;
     const no = respectNo({ declined: declines.get(it.key), now, cooldownDays: DECLINE_COOLDOWN_DAYS, metric: it.count, materialChange: 1, maxReturns: 1 });
     if (!no.raise) continue;
     candidates.push({ ...it, history: no.history });

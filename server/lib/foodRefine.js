@@ -26,12 +26,12 @@ import { kcalFrom } from './nutritionFacts.js';
 const MAX_LINES = 24;
 const r1 = (n) => Math.round((Number(n) || 0) * 10) / 10;
 
-export function buildRefinePrompt({ name, lines, correction, history = [] }) {
+export function buildRefinePrompt({ name, lines, correction, history = [], him = '' }) {
   const plate = lines.map((l, i) => `${i}. ${l.name}${l.grams ? ` (${l.grams} g)` : ''} — ${r1(l.macros.p)} g protein, ${r1(l.macros.c)} g carbs, ${r1(l.macros.f)} g fat`).join('\n');
   const said = history.length ? `\nWhat he already told you about this plate, oldest first:\n${history.map((h) => `- "${h}"`).join('\n')}\n` : '';
   return `You are refining a nutrition estimate of one plate of food Hayden ate. The current estimate${name ? ` ("${name}")` : ''} is these numbered lines:
 ${plate}
-${said}
+${said}${him ? `\nWhat he has said about how he eats: ${him}\n` : ''}
 His correction now: "${correction}"
 
 Revise the plate to reflect everything he has said. Rules:

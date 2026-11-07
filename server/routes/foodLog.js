@@ -201,7 +201,7 @@ export function foodLogRouter(vaultPath) {
   router.post('/food-log/refine', (req, res) => {
     try {
       const { name, lines, macros, correction, history } = req.body || {};
-      res.json({ jobId: startFoodRefine({ name, lines, macros, correction, history }) });
+      res.json({ jobId: startFoodRefine({ name, lines, macros, correction, history }, { vaultPath }) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

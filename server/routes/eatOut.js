@@ -12,7 +12,7 @@ function parseNum(v) {
 
 // vaultPath is unused here — the catalogue is code-derived operational data,
 // not vault content — kept for signature parity with the other routers.
-export function eatOutRouter(_vaultPath) {
+export function eatOutRouter(vaultPath) {
   const router = Router();
 
   router.get('/eat-out', async (req, res, next) => {
@@ -40,6 +40,9 @@ export function eatOutRouter(_vaultPath) {
         return res.status(400).json({ error: 'give at least one of kcal, p, c, f' });
       }
       const catalogue = await loadCatalogue();
+      const { profileContext } = await import('../lib/profile.js');
+      const { refusedFoods } = await import('../lib/profileFacts.js');
+      query.refused = refusedFoods(await profileContext(vaultPath, { only: ['fuel'] }).catch(() => ''));
       res.json(whatFits(catalogue, query));
     } catch (err) {
       next(err);

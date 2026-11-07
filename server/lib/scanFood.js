@@ -7,6 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
+import { profileContext } from './profile.js';
+import { fuelFacts } from './profileFacts.js';
 
 // Reading a label is OCR — the fast model handles it and the macros are always
 // reviewed before logging. Estimating a meal photo is visual portion/ingredient
@@ -420,7 +422,9 @@ export function startFoodRefine({ name, lines, macros, correction, history } = {
     const previous = previousPlate({ name, lines, macros });
     if (!previous.lines.length) throw new Error('there is no estimate to refine yet');
     const past = (Array.isArray(history) ? history : []).map((h) => String(h || '').trim().slice(0, 400)).filter(Boolean).slice(-8);
-    const prompt = buildRefinePrompt({ name: previous.name, lines: previous.lines, correction: said, history: past });
+    // "Drinks his coffee black": his own fuel lines, a sentence or two, no more
+    const him = deps.vaultPath ? fuelFacts(await profileContext(deps.vaultPath, { only: ['fuel'] }).catch(() => '')) : '';
+    const prompt = buildRefinePrompt({ name: previous.name, lines: previous.lines, correction: said, history: past, him });
     const run = deps.run || ((args) => new Promise((resolve, reject) => {
       // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
       const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });

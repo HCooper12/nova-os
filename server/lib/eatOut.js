@@ -12,6 +12,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createWriteLock } from './vaultStateFile.js';
+import { refusedIn } from './profileFacts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -239,6 +240,8 @@ export function whatFits(catalogue, query = {}) {
   const kind = query.kind && query.kind !== 'all' ? query.kind : null;
   const mode = query.mode === 'pairs' ? 'pairs' : 'single';
   const limit = Number.isFinite(Number(query.limit)) && Number(query.limit) > 0 ? Number(query.limit) : 40;
+  // what he said he will not eat never comes back as a suggestion
+  const refused = Array.isArray(query.refused) ? query.refused : [];
 
   const cat = catalogue && typeof catalogue === 'object' ? catalogue : emptyCatalogue();
   const allBrands = Object.values(cat.brands || {}).filter((b) => {
@@ -253,7 +256,7 @@ export function whatFits(catalogue, query = {}) {
     const results = [];
     for (const b of allBrands) {
       for (const item of b.items || []) {
-        if (!fits(item, q)) continue;
+        if (!fits(item, q) || refusedIn(item.name, refused)) continue;
         results.push({ ...item, macros: item.macros, name: item.name, fit: buildFit(item.macros, q) });
       }
     }
@@ -272,7 +275,7 @@ export function whatFits(catalogue, query = {}) {
   // pairs mode: two different items from the same brand
   const pairResults = [];
   for (const b of allBrands) {
-    const items = (b.items || []).slice();
+    const items = (b.items || []).filter((item) => !refusedIn(item.name, refused));
     // per brand only consider the 60 highest-protein fitting-or-under-budget items
     const candidates = items
       .filter((it) => (q.kcal == null || it.macros.kcal <= q.kcal) && (q.c == null || it.macros.c <= q.c) && (q.f == null || it.macros.f <= q.f))

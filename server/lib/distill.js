@@ -12,6 +12,8 @@ import { modelFor, laneSkipped, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { weeklyWindowOpen } from './cadence.js';
+import { profileContext } from './profile.js';
+import { goalsBlock } from './profileFacts.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
 import { readJsonRetry } from './readJsonRetry.js';
 
@@ -104,8 +106,8 @@ export async function findCandidates(vaultPath, { cap = MAX_TARGETS } = {}) {
 
 /* -------------------------------- the job -------------------------------- */
 
-export function buildDistillPrompt(candidates) {
-  return `Distillation pass over Hayden's vault (you are in a STAGED COPY — work freely, everything is reviewed before touching the real vault). These capture pages were filed by Nova's inbox and are currently ORPHANS — no [[wikilinks]] in or out, invisible to the knowledge graph:
+export function buildDistillPrompt(candidates, { goals = '' } = {}) {
+  return `${goals ? `${goals}\n\n` : ''}Distillation pass over Hayden's vault (you are in a STAGED COPY — work freely, everything is reviewed before touching the real vault). These capture pages were filed by Nova's inbox and are currently ORPHANS — no [[wikilinks]] in or out, invisible to the knowledge graph:
 
 ${candidates.map((c) => `- ${c.relPath}`).join('\n')}
 
@@ -158,11 +160,12 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
   const workDir = path.join(os.tmpdir(), 'nova-distill', jobId);
   const stagingVault = path.join(workDir, 'vault');
   await stageVault(vaultPath, stagingVault);
+  const goals = goalsBlock(await profileContext(vaultPath, { only: ['toward', 'training'] }).catch(() => ''));
 
   const result = await new Promise((resolve) => {
     // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
     const child = spawn(CLAUDE_BIN, [
-      '-p', buildDistillPrompt(candidates),
+      '-p', buildDistillPrompt(candidates, { goals }),
       '--permission-mode', 'bypassPermissions',
       ...boundaryArgs('Read,Write,Edit,Glob,Grep'),
       '--output-format', 'json',

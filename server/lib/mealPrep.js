@@ -5,6 +5,8 @@ import { mondayOf } from './cadence.js';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
 import { createRecord, listRecords } from './inboxStore.js';
+import { profileContext } from './profile.js';
+import { refusedFoods, refusedIn } from './profileFacts.js';
 import { weeklyWindowOpen } from './cadence.js';
 
 // The meal-prep loop. Hayden's stated preference: the same meals week to
@@ -151,6 +153,15 @@ export function floorFix({ slots, recipes, gap }) {
   return { ...best, clears: best.gain >= gap, line: `closest fix: ${best.slot} → ${best.to} (+${best.gain}g${best.gain >= gap ? ', clears it' : ` of the ${gap}g gap`})` };
 }
 
+// Pure. An ingredient is a string or the parser's { qty, name }.
+export function refusedInPlan(recipes = [], refused = []) {
+  return recipes.flatMap((r) => {
+    const words = [r.name, ...(r.ingredients || []).map((i) => (typeof i === 'string' ? i : i?.name || ''))].join(' ');
+    const food = refusedIn(words, refused);
+    return food ? [{ recipe: r.name, food }] : [];
+  });
+}
+
 export async function composeMealPrep(vaultPath) {
   const { recipes, profile } = await loadRecipeData(vaultPath);
   const rotation = await loadRotation(vaultPath, recipes);
@@ -162,6 +173,11 @@ export async function composeMealPrep(vaultPath) {
   const floor = profile?.proteinFloorG || null;
   const planned = Math.round(rotation.totals?.p || 0);
   const lines = [];
+  // what he said he will not eat (his Fuel section): code reads it, no model
+  const refused = refusedFoods(await profileContext(vaultPath, { only: ['fuel'] }).catch(() => ''));
+  for (const { recipe, food } of refusedInPlan(chosen, refused)) {
+    lines.push(`⚠ ${recipe} has ${food} in it, and you said you won't eat that. Swap it or change the recipe?`);
+  }
   if (!chosen.length) {
     lines.push('The rotation has no meals set — pick recipes on the Recipes screen and re-run.');
   } else {
@@ -179,7 +195,7 @@ export async function composeMealPrep(vaultPath) {
   let recurring = [];
   try {
     const { recurringFoods } = await import('./foodHistory.js');
-    recurring = (await recurringFoods({ days: 21, minCount: 2 })).slice(0, 3);
+    recurring = (await recurringFoods({ days: 21, minCount: 2 })).filter((r) => !refusedIn(r.name, refused)).slice(0, 3);
     if (recurring.length) {
       const offPlan = recurring.filter((r) => !chosen.some((c) => { const a = c.name.toLowerCase(), b = String(r.name).toLowerCase(); return a === b || a.includes(b) || b.includes(a); }));
       if (offPlan.length) lines.push(`Off-plan regulars (added to the list, labelled — drop any you don't want): ${offPlan.map((r) => `${r.name} ×${r.count}`).join(' · ')}.`);

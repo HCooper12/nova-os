@@ -44,6 +44,14 @@ export const PROFILE_READERS = [
   { id: 'project-research', label: 'Project research', module: 'lib/projectResearch.js', talks: false },
   { id: 'project-intake', label: 'Project intake', module: 'lib/projectIntake.js', talks: true },
   { id: 'project-draft', label: 'Project jobs', module: 'lib/projectJobs.js', talks: false },
+  // audit #5, 7 Nov 2026. mealPrep, the Food Scout and the takeaway finder read
+  // his fuel lines by code and add nothing to any prompt.
+  { id: 'meal-prep', label: 'Weekly meal prep', module: 'lib/mealPrep.js', talks: false },
+  { id: 'food-suggest', label: 'Food Scout', module: 'lib/foodSuggest.js', talks: false },
+  { id: 'eat-out', label: 'Pick it up', module: 'routes/eatOut.js', talks: false },
+  { id: 'food-refine', label: 'Correcting a plate', module: 'lib/scanFood.js', talks: false },
+  { id: 'ingest', label: 'Filing a source', module: 'lib/ingest.js', talks: false },
+  { id: 'distill', label: 'Distill', module: 'lib/distill.js', talks: false },
 ];
 
 // Modules that carry NOVA_LENS but deliberately do not read profileContext.
