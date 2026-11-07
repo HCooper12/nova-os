@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo, Fragment } from 'react';
 import { css } from './css.js';
 import { sentenceCase } from './novaThreadFacts.js';
 import { SessionPanel, SourcesPanel } from './DataPanels.jsx';
@@ -33,7 +33,7 @@ const toneOf = (t) => TONE[t] || TONE.cy;
 //           proven. Never an estimate: see server/lib/visualMoment.js.
 // 'session' and 'sources' (3 Oct 2026): the data panels, built by the server
 // from his records and lit one part at a time (src/DataPanels.jsx).
-const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program', 'session', 'sources']);
+const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program', 'session', 'sources', 'page', 'video', 'figure', 'quote', 'entity', 'note']);
 
 // THE INSTRUMENTS, ON THE GLASS. The morning show already speaks each of
 // these lines; the instrument is the picture that belongs to the sentence —
@@ -96,6 +96,15 @@ export function StageCard({ card, size = 'full', face }) {
   // in the page's own words; one whose record could not be read never
   // reaches here (glassBeats.dataCard draws no panel for it)
   if ((card.kind === 'session' || card.kind === 'sources') && !card.data && !card.pending) return null;
+  // a claim the page did not prove is no card (glassBeats.mergeVisual drops
+  // it before here; this is the belt to that brace)
+  if (card.state === 'dropped') return null;
+  if (card.kind === 'figure' && !card.value) return null;
+  if (card.kind === 'quote' && !card.text) return null;
+  if (card.kind === 'entity' && !(card.facts || []).length) return null;
+  if (card.kind === 'note' && !(card.lines || []).length) return null;
+  if (card.kind === 'page' && !card.title && !card.host) return null;
+  if (card.kind === 'video' && !card.title) return null;
   // media and image are drawn WITHOUT their picture on purpose — the frame is
   // the promise that lands in context, the picture is what fills it.
   const mini = size === 'mini';
@@ -299,6 +308,101 @@ export function StageCard({ card, size = 'full', face }) {
         </div>
       )}
 
+      {/* THE WALL OF REFERENCES (7 Nov 2026, design/ROSE-STUDY.md §3). Six
+          cards read off Rose's HUD, in Nova's materials. A page and a video
+          are the search's own strings; a figure, a quote and an entity were
+          checked against their page before they reached here; a note is
+          Nova's own words. */}
+      {card.kind === 'page' && (
+        <div style={{ marginTop: mini ? '6px' : '10px', display: 'flex', gap: mini ? '8px' : '12px', alignItems: 'flex-start' }}>
+          {card.image && (
+            <div style={{ flex: 'none', width: mini ? '52px' : '104px', borderRadius: mini ? '5px' : '8px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black' }}>
+              <img src={card.image} alt="" style={{ display: 'block', width: '100%', aspectRatio: '4/3', objectFit: 'cover' }} />
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ font: `500 ${fz(mini ? 10.5 : 15)}px/1.3 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 2, WebkitBoxOrient: 'vertical', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.title || card.host}</div>
+            {!mini && (card.lines || []).slice(0, 2).map((l, i) => (
+              <div key={i} style={{ marginTop: i ? '3px' : '7px', font: `400 ${fz(12.5)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 68%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{l}</div>
+            ))}
+            {!mini && !(card.lines || []).length && card.caption && (
+              <div style={{ marginTop: '7px', font: `400 ${fz(12.5)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 68%, transparent)' }}>{card.caption}</div>
+            )}
+            {!mini && card.url && (
+              <a href={card.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+                style={{ marginTop: '9px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', font: `600 ${fz(8.5)}px ${MF}`, letterSpacing: trk('.16em'), color: accent }}>
+                {String(card.host || 'OPEN').toUpperCase()} ↗
+              </a>
+            )}
+            {!mini && card.read === false && (
+              <div style={{ marginTop: '7px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.16em'), color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>{card.pending ? 'READING' : 'NOT READ'}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {card.kind === 'video' && (
+        <div style={{ marginTop: mini ? '6px' : '10px' }}>
+          <div style={{ position: 'relative', borderRadius: mini ? '6px' : '10px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black', aspectRatio: card.portrait ? '9/16' : '16/9', maxHeight: card.portrait ? (mini ? '84px' : '46vh') : undefined, width: card.portrait ? (mini ? '48px' : '54%') : '100%' }}>
+            {card.playing && card.videoId && !mini ? (
+              <iframe title={card.title} src={`https://www.youtube-nocookie.com/embed/${card.videoId}?autoplay=1&rel=0&modestbranding=1`} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
+            ) : (
+              <>
+                {card.poster && <img src={card.poster} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: .92 }} />}
+                {!mini && (
+                  <button type="button" aria-label={`Play ${card.title}`} onClick={(e) => { e.stopPropagation(); card.onPlay ? card.onPlay(card) : window.open(card.url, '_blank', 'noopener'); }}
+                    style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 44, height: 44, borderRadius: '50%', border: `1px solid color-mix(in srgb, ${accent} 60%, transparent)`, background: 'color-mix(in srgb, var(--nv-void) 70%, transparent)', color: accent, font: '600 16px var(--nv-font-ui)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>▶</button>
+                )}
+              </>
+            )}
+          </div>
+          <div style={{ marginTop: mini ? '4px' : '8px', font: `500 ${fz(mini ? 10.5 : 13.5)}px/1.35 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 2, WebkitBoxOrient: 'vertical' }}>{card.title}</div>
+          {!mini && card.channel && <div style={{ marginTop: '4px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.18em'), color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{String(card.channel).toUpperCase()}{card.durationS ? ` · ${Math.round(card.durationS / 60)} MIN` : ''}</div>}
+        </div>
+      )}
+
+      {card.kind === 'figure' && (
+        <div style={css(`padding:${mini ? '6px 0 2px' : '12px 0 4px'}`)}>
+          <b style={{ display: 'block', font: `600 ${fz(mini ? 22 : 48)}px/1 var(--nv-font-ui)`, color: accent, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.015em' }}>
+            {card.value}{card.unit && <span style={{ fontSize: '.4em', marginLeft: '5px', color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', letterSpacing: 0 }}>{card.unit}</span>}
+          </b>
+          {card.caption && !mini && <div style={{ marginTop: '8px', font: `400 ${fz(13)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 72%, transparent)' }}>{card.caption}</div>}
+          {!mini && card.host && <div style={{ marginTop: '8px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.16em'), color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>ON {String(card.host).toUpperCase()}</div>}
+        </div>
+      )}
+
+      {card.kind === 'quote' && (
+        <div style={{ marginTop: mini ? '5px' : '10px' }}>
+          <div style={{ font: `400 ${fz(mini ? 11 : 17)}px/1.4 var(--nv-font-serif)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 4, WebkitBoxOrient: 'vertical' }}>“{card.text}”</div>
+          {!mini && (card.who || card.host) && <div style={{ marginTop: '8px', font: `500 ${fz(8.5)}px ${MF}`, letterSpacing: trk('.16em'), color: accent }}>— {String(card.who || card.host).toUpperCase()}</div>}
+        </div>
+      )}
+
+      {card.kind === 'entity' && (
+        <div style={{ marginTop: mini ? '5px' : '10px' }}>
+          <div style={{ font: `400 ${fz(mini ? 12 : 22)}px/1.15 var(--nv-font-serif)`, color: 'color-mix(in srgb, var(--nv-ink) 96%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+          {!mini && card.caption && <div style={{ marginTop: '4px', font: `400 ${fz(12.5)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 62%, transparent)' }}>{card.caption}</div>}
+          <div style={{ marginTop: mini ? '5px' : '10px', display: 'grid', gridTemplateColumns: mini ? '1fr' : 'max-content 1fr', gap: mini ? '3px' : '5px 14px' }}>
+            {(card.facts || []).slice(0, mini ? 2 : 5).map((f, i) => (
+              <Fragment key={i}>
+                <span style={{ font: `600 ${fz(mini ? 7.5 : 8.5)}px ${MF}`, letterSpacing: trk('.14em'), color: 'color-mix(in srgb, var(--nv-ink) 42%, transparent)', alignSelf: 'baseline' }}>{String(f.k).toUpperCase()}</span>
+                {!mini && <span style={{ font: `500 ${fz(13)}px/1.35 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 90%, transparent)' }}>{f.value}</span>}
+              </Fragment>
+            ))}
+          </div>
+          {!mini && card.host && <div style={{ marginTop: '9px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.16em'), color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>FROM {String(card.host).toUpperCase()}</div>}
+        </div>
+      )}
+
+      {card.kind === 'note' && (
+        <div style={css(`margin-top:${mini ? 5 : 11}px;display:flex;flex-direction:column;gap:${mini ? 3 : 7}px`)}>
+          {(mini ? (card.lines || []).slice(0, 1) : (card.lines || [])).map((l, i) => (
+            <div key={i} style={{ font: `${i === 0 ? 500 : 400} ${fz(mini ? 11 : i === 0 ? 15 : 13)}px/1.4 var(--nv-font-ui)`, color: `color-mix(in srgb, var(--nv-ink) ${i === 0 ? 94 : 70}%, transparent)`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{l}</div>
+          ))}
+        </div>
+      )}
+
       {card.kind === 'metric' && (
         <div style={css(`text-align:center;padding:${mini ? '6px 0 2px' : '14px 0 6px'}`)}>
           <b style={{ font: `600 ${fz(mini ? 22 : 54)}px/1 var(--nv-font-ui)`, color: accent, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>
@@ -317,6 +421,10 @@ export function StageCard({ card, size = 'full', face }) {
             </div>
           ))}
         </div>
+      )}
+
+      {card.kind === 'bars' && card.foot && !mini && (
+        <div style={{ marginTop: '8px', font: `400 ${fz(11.5)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 52%, transparent)' }}>{card.foot}</div>
       )}
 
       {card.kind === 'list' && (

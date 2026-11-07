@@ -21,6 +21,8 @@ import { CAPTIONS_KEY, captionsOn } from '../novaFocusFacts.js';
 import { FiledRows } from '../motion/FiledRows.jsx';
 import { AskTaps } from '../QuickCapture.jsx';
 import { VoiceAttach } from '../VoiceAttach.jsx';
+import { glassCommand, glassReceipt } from '../glassVoice.js';
+import { notify } from '../island.js';
 
 // THE NOVA THREAD (29 Sep 2026) — design/mockups/63-redesign-nova-r2.html,
 // variation D · Rising, his pick: "The rising option D mock up seems to be the
@@ -81,8 +83,23 @@ export function NovaThread({ v }) {
   // ---- the microphone: the classic Voice screen's wiring, plus the take ----
   const inputRef = useRef('');
   inputRef.current = T.composer.value;
+  // THE GLASS OBEYS WORDS (7 Nov 2026, src/glassVoice.js): "maximise the
+  // chart", "clear the screen", "put the video away" act on the stage here
+  // and never reach a model; anything else is sent on as before
+  const glassRef = useRef(null);
+  const moveGlass = (t) => {
+    const api = glassRef.current;
+    if (!api) return false;
+    let cmd = null;
+    try { cmd = glassCommand(t, api.state()); } catch { cmd = null; }
+    if (!cmd || !api.run(cmd)) return false;
+    const line = glassReceipt(cmd);
+    notify({ id: 'glass-move', title: 'GLASS', message: line, tone: 'nova', duration: 1800 });
+    T.sayLine?.(line);
+    return true;
+  };
   const sendRef = useRef(v.sendOrb);
-  sendRef.current = v.sendOrb;
+  sendRef.current = (t) => { if (!moveGlass(t)) v.sendOrb(t); };
   // a tap on a mic that has heard nothing keeps listening and says so
   const [nudged, nudge] = useNudge();
   // KEEP GOING (27 Oct 2026): the mic stays open after a spoken send for
@@ -256,6 +273,7 @@ export function NovaThread({ v }) {
   const send = (text) => {
     const words = String(text ?? T.composer.value ?? '').trim();
     if (!words && !(T.composer.attach?.pending || []).length) return;
+    if (words && moveGlass(words)) { T.composer.setTyped?.(''); return; }
     T.composer.send(text);
     // his typed words replace the recording he chose to type out
     if (typingFor) { dropTake(typingFor); setTypingFor(null); }
@@ -300,7 +318,7 @@ export function NovaThread({ v }) {
     return (
       <div ref={rootRef} className="nv-nt nv-nt-mac" data-screen-label="Voice">
         <VoiceAttach a={v.voiceAttach} where="mac" />
-        <NovaMac T={T} S={S} dict={dict} onTalk={startTalking} onSend={send} fieldRef={fieldRef} captions={captions} history={history}
+        <NovaMac T={T} S={S} dict={dict} onTalk={startTalking} onSend={send} fieldRef={fieldRef} captions={captions} history={history} glassRef={glassRef}
           onStatus={ONE_NOVA_CHROME.status ? () => setStatusOpen(true) : null} />
         {statusOpen && <StatusSheet T={T} dict={dict} S={S} captions={captions} onCaptions={toggleCaptions} onClose={() => setStatusOpen(false)} />}
         {held && <HoldMenu held={held} T={T} takes={tk} onClose={() => setHeld(null)} onReplay={() => setHeld(null)} />}
@@ -394,7 +412,7 @@ export function NovaThread({ v }) {
       {/* THE STAGE: the foot of this same scroll, where the page opens. The
           brief's question (gold, it waits on his call) sits on it in place of
           the last exchange, where he is, not up in the history. */}
-      <NovaStage T={T} S={S} dict={dict} onTalk={startTalking} onOpen={openSheet} chrome={ONE_NOVA_CHROME}
+      <NovaStage T={T} S={S} dict={dict} onTalk={startTalking} onOpen={openSheet} chrome={ONE_NOVA_CHROME} glassRef={glassRef}
         onStatus={() => setStatusOpen(true)} captions={captions} apiRef={stageApi}
         close={T.close ? <CloseCard c={T.close} onTalk={startTalking} /> : null} />
 

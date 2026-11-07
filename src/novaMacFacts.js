@@ -125,7 +125,7 @@ export function panelKey(card) {
 // The newest three, in the order they arrived (the mockup's three slots;
 // an older one leaves the glass, it stays on the line in the history).
 export const MAX_DOCKED = 3;
-export function dockOrder(cards) {
+export function dockOrder(cards, max = MAX_DOCKED) {
   const by = new Map();
   for (const c of cards || []) {
     if (!c) continue;
@@ -136,14 +136,14 @@ export function dockOrder(cards) {
   // a host keeps its first arrival's place, its newest light's face
   const firstAt = new Map();
   (cards || []).forEach((c, i) => { if (c && !firstAt.has(panelKey(c))) firstAt.set(panelKey(c), i); });
-  return [...by.entries()].sort((a, b) => firstAt.get(a[0]) - firstAt.get(b[0])).slice(-MAX_DOCKED).map(([key, card]) => ({ key, card }));
+  return [...by.entries()].sort((a, b) => firstAt.get(a[0]) - firstAt.get(b[0])).slice(-max).map(([key, card]) => ({ key, card }));
 }
 
 // The panels while he is spoken to: the ones already said (the rail, newest
 // first) and the one being said now.
-export function liveDock(stage) {
+export function liveDock(stage, max = MAX_DOCKED) {
   if (!stage?.hero) return { panels: [], lit: '' };
-  const panels = dockOrder([...(stage.rail || []).slice().reverse(), stage.hero]);
+  const panels = dockOrder([...(stage.rail || []).slice().reverse(), stage.hero], max);
   return { panels, lit: panelKey(stage.hero) };
 }
 

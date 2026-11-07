@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>110 · The wall of references</title>
+<!--
+  MOCKUP 110 — THE WALL OF REFERENCES (7 Nov 2026, design/ROSE-STUDY.md).
+  Rose's HUD in Nova's materials: a lookup fills the Mac stage with the pages
+  and clips code read, the model's figures, quotes and entity cards on them;
+  the one being said is lit and straight, the rest held at a seeded tilt; T
+  squares them. The phone shows the same cards as a rail under the hero.
+
+  Every number here is src/wallFacts.js (WALL, WALL_CORE, wallLayout) and
+  src/novaMac.css; the build reads the same file, so the two cannot drift.
+  The content is SAMPLE content, labelled so: no real statistic or claim is
+  shown here (the honesty rule). Frame A: Mac, 1440 × 900, speaking with the
+  wall up. Frame B: iPhone, 402 × 874, speaking with the rail.
+-->
+<style>
+  :root {
+    --nv-font-ui: 'Rajdhani', 'Instrument Sans', system-ui, sans-serif; --nv-font-serif: 'Instrument Serif', Georgia, serif; --nv-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --nv-void: #06070d; --nv-bg1: #0a0f1e; --nv-bg2: #111a32; --nv-ink: #e8ecf6; --nv-ink60: rgba(232,236,246,.62); --nv-ink50: rgba(232,236,246,.5); --nv-ink40: rgba(232,236,246,.38);
+    --nv-glass: rgba(16,20,36,.62); --nv-glass2: rgba(26,32,54,.8); --nv-edge: rgba(130,175,255,.24); --nv-cy: #59e6ff; --nv-vi: #8f7bff; --nv-say: #50e4a8; --nv-good: #5bd68a; --nv-radius: 10px; --nv-bracket: rgba(89,230,255,.55);
+  }
+  body { margin: 0; background: #000; color: var(--nv-ink); font-family: var(--nv-font-ui); }
+  .sheet { padding: 28px; display: grid; gap: 40px; justify-items: start; }
+  h1 { margin: 0; font: 400 26px var(--nv-font-serif); } h1 small { display: block; margin-top: 6px; font: 400 14px var(--nv-font-ui); color: var(--nv-ink50); }
+  .frame { position: relative; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, #0f1a33, var(--nv-void) 70%); box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+  .frame::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(130,175,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(130,175,255,.06) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; }
+  .mac { width: 1440px; height: 900px; }
+  .cap { position: absolute; left: 28px; top: -30px; font: 500 12px var(--nv-font-mono); color: var(--nv-ink40); letter-spacing: .1em; text-transform: uppercase; }
+  /* the capsule rail (mockup 108) */
+  .rail { position: absolute; left: 12px; top: 16px; width: 60px; height: 320px; border-radius: 30px; background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); opacity: .3; }
+  /* the core at the presenter spot: WALL_CORE {cx:258, cy:158, s:.5} */
+  .core { position: absolute; left: calc(258px - 70px); top: calc(158px - 70px); width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, #c9fff0 0%, var(--nv-say) 18%, rgba(80,228,168,.45) 40%, transparent 70%); filter: blur(.2px); box-shadow: 0 0 80px -10px var(--nv-say); }
+  .core::after { content: ''; position: absolute; inset: 14px; border-radius: 50%; border: 1.5px solid rgba(150,250,240,.55); border-right-color: transparent; }
+  .under { position: absolute; left: calc(258px - 190px); top: 233px; width: 380px; }
+  .stword { display: flex; align-items: center; gap: 9px; font: 600 20px var(--nv-font-ui); } .stword i { width: 10px; height: 10px; border-radius: 50%; background: var(--nv-say); box-shadow: 0 0 10px var(--nv-say); }
+  .plate { margin-top: 14px; padding: 14px 16px; border-radius: 16px; background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+  .plate .you { font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); } .plate .you b { color: var(--nv-ink); margin-right: 6px; }
+  .plate .say { margin-top: 8px; font: 400 21px/1.3 var(--nv-font-serif); } .plate .say u { text-decoration: none; color: var(--nv-say); border-bottom: 2px solid var(--nv-say); }
+  .lk { margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); } .lk i { width: 7px; height: 7px; border-radius: 50%; background: var(--nv-good); }
+  /* the wall: WALL {left:108, right:36, top:36, gap:18}, 3 columns at 1440 → colW 420 */
+  .slot { position: absolute; width: 420px; transform: rotate(var(--tilt, 0deg)); transform-origin: 50% 40%; }
+  .slot.lit { --tilt: 0deg !important; z-index: 2; }
+  .pnl { position: relative; box-sizing: border-box; width: 100%; padding: 14px 16px 16px; border-radius: var(--nv-radius); background: var(--nv-glass); -webkit-backdrop-filter: blur(26px) saturate(1.5); backdrop-filter: blur(26px) saturate(1.5);
+    box-shadow: inset 0 0 0 1px var(--nv-edge), inset 0 1px 0 rgba(190,225,255,.18), 0 30px 60px -30px rgba(0,0,0,.9); opacity: .74; }
+  .slot.lit .pnl { opacity: 1; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h, var(--nv-cy)) 60%, transparent), inset 0 1px 0 rgba(190,225,255,.3), 0 0 60px -24px var(--h, var(--nv-cy)), 0 30px 60px -30px rgba(0,0,0,.9); }
+  .pnl::before, .pnl::after { content: ''; position: absolute; width: 14px; height: 14px; border-color: var(--h, var(--nv-bracket)); border-style: solid; opacity: .75; }
+  .pnl::before { left: -1px; top: -1px; border-width: 1.5px 0 0 1.5px; border-radius: var(--nv-radius) 0 0 0; } .pnl::after { right: -1px; bottom: -1px; border-width: 0 1.5px 1.5px 0; border-radius: 0 0 var(--nv-radius) 0; }
+  .ptag { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); } .ptag > i { width: 8px; height: 8px; border-radius: 50%; background: var(--h, var(--nv-cy)); }
+  .peye { display: inline-flex; gap: 6px; font: 600 10px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--nv-ink50); } .peye em { font-style: normal; color: var(--h, var(--nv-cy)); } .peye i { font-style: normal; color: var(--nv-ink40); }
+  .ptitle { margin: 0 0 8px; font: 400 19px/1.15 var(--nv-font-serif); } .pbody { font-size: 14px; color: var(--nv-ink60); line-height: 1.45; }
+  .pfoot { position: absolute; right: 14px; bottom: 8px; font: 500 9px var(--nv-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nv-ink40); }
+  .page { display: flex; gap: 12px; } .page .img { flex: none; width: 104px; aspect-ratio: 4/3; border-radius: 8px; background: linear-gradient(135deg, #22304f, #0d1424); box-shadow: inset 0 0 0 1px rgba(89,230,255,.2); }
+  .page .t { font: 500 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); } .page .l { margin-top: 6px; font-size: 12.5px; } .page .h { margin-top: 9px; font: 600 8.5px var(--nv-font-mono); letter-spacing: .16em; color: var(--nv-cy); }
+  .vid .box { position: relative; aspect-ratio: 16/9; border-radius: 10px; background: linear-gradient(160deg, #1b2a3b, #080c14); box-shadow: inset 0 0 0 1px rgba(89,230,255,.2); } .vid .box::after { content: '▶'; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(6,7,13,.7); color: var(--nv-cy); box-shadow: inset 0 0 0 1px rgba(89,230,255,.6); font-size: 16px; }
+  .vid .t { margin-top: 8px; font: 500 13.5px/1.35 var(--nv-font-ui); color: var(--nv-ink); } .vid .c { margin-top: 4px; font: 500 8px var(--nv-font-mono); letter-spacing: .18em; color: var(--nv-ink40); }
+  .fig b { display: block; font: 600 48px/1 var(--nv-font-ui); color: var(--nv-cy); letter-spacing: -.015em; } .fig b span { font-size: .4em; margin-left: 5px; color: var(--nv-ink50); } .fig .c { margin-top: 8px; font-size: 13px; } .fig .on { margin-top: 8px; font: 500 8px var(--nv-font-mono); letter-spacing: .16em; color: var(--nv-ink40); }
+  .quote .q { font: 400 17px/1.4 var(--nv-font-serif); color: var(--nv-ink); } .quote .w { margin-top: 8px; font: 500 8.5px var(--nv-font-mono); letter-spacing: .16em; color: var(--nv-cy); }
+  .ent .n { font: 400 22px/1.15 var(--nv-font-serif); color: var(--nv-ink); } .ent .c { margin-top: 4px; font-size: 12.5px; } .ent dl { margin: 10px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 5px 14px; } .ent dt { font: 600 8.5px var(--nv-font-mono); letter-spacing: .14em; color: var(--nv-ink40); align-self: baseline; } .ent dd { margin: 0; font: 500 13px/1.35 var(--nv-font-ui); color: var(--nv-ink); } .ent .on { margin-top: 9px; font: 500 8px var(--nv-font-mono); letter-spacing: .16em; color: var(--nv-ink40); }
+  .note .l1 { font: 500 15px/1.4 var(--nv-font-ui); color: var(--nv-ink); } .note .l { margin-top: 7px; font: 400 13px/1.4 var(--nv-font-ui); }
+  .bars { display: flex; align-items: flex-end; gap: 9px; height: 104px; margin-top: 16px; } .bars i { flex: 1; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--nv-cy), rgba(89,230,255,.35)); } .bars + .f { margin-top: 8px; font-size: 11.5px; color: var(--nv-ink50); }
+  .keys { position: absolute; left: 108px; bottom: 30px; display: flex; gap: 14px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink40); } .keys kbd { font: 500 11px var(--nv-font-ui); padding: 1px 6px; border-radius: 5px; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); color: var(--nv-ink60); }
+  .composer { position: absolute; left: calc(50% - 340px); bottom: 22px; width: 680px; height: 64px; border-radius: 32px; background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+  .histbtn { position: absolute; right: 20px; top: 16px; height: 36px; padding: 0 14px; border-radius: 18px; display: flex; align-items: center; gap: 8px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink60); background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+  /* phone */
+  .phone { width: 402px; height: 874px; border-radius: 48px; }
+  .phone .pcore { position: absolute; left: 44px; top: 68px; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle, #c9fff0 0%, var(--nv-say) 25%, rgba(80,228,168,.4) 50%, transparent 72%); box-shadow: 0 0 40px -6px var(--nv-say); }
+  .phone .head { position: absolute; left: 112px; top: 76px; } .phone .head b { display: block; font: 600 17px var(--nv-font-ui); } .phone .head span { font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); }
+  .phone .pplate { position: absolute; left: 12px; right: 12px; top: 150px; bottom: 96px; padding: 14px 20px 16px; border-radius: 30px; background: color-mix(in srgb, var(--nv-bg1) 62%, transparent); box-shadow: 0 0 0 .5px rgba(232,236,246,.14), 0 1px 0 rgba(232,236,246,.22) inset; display: flex; flex-direction: column; overflow: hidden; }
+  .who { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 8px; border-radius: 14px; font: 600 14px var(--nv-font-ui); background: rgba(232,236,246,.07); box-shadow: inset 0 0 0 1px rgba(80,228,168,.45); } .who i { width: 12px; height: 12px; border-radius: 50%; background: var(--nv-say); }
+  .asked { margin: 10px 0 0; font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .asked b { color: var(--nv-ink); margin-right: 6px; }
+  .hero { margin-top: 10px; padding: 8px 12px 10px; border-radius: 16px; background: rgba(232,236,246,.06); box-shadow: inset 0 0 0 .5px rgba(232,236,246,.16); }
+  .hero .ptag { font-size: 12px; } .hero .fig b { font-size: 40px; }
+  .prail { margin: 10px -20px 0; } .prailrow { display: flex; gap: 10px; padding: 2px 20px 6px; overflow: hidden; }
+  .rc { flex: none; width: 269px; padding: 9px 12px 10px; border-radius: 16px; background: rgba(232,236,246,.06); box-shadow: inset 0 0 0 .5px rgba(232,236,246,.16); }
+  .rc.lit { box-shadow: inset 0 0 0 1px rgba(80,228,168,.7), 0 0 24px -10px var(--nv-say); background: rgba(80,228,168,.09); }
+  .rc .peye { font-size: 9px; margin-bottom: 4px; } .rc .peye em { color: var(--nv-say); } .rc .mt { font: 500 11px/1.3 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .rc .mb { font: 600 22px/1 var(--nv-font-ui); color: var(--nv-ink); }
+  .pwords { margin-top: 12px; font: 400 19px/1.3 var(--nv-font-serif); } .pwords u { text-decoration: none; color: var(--nv-say); border-bottom: 2px solid var(--nv-say); }
+  .phint { position: absolute; left: 0; right: 0; bottom: 60px; text-align: center; font: 500 13px var(--nv-font-ui); color: var(--nv-ink40); }
+  .pcomp { position: absolute; left: 14px; right: 14px; bottom: 14px; height: 50px; border-radius: 25px; background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>110 · The wall of references<small>A lookup fills the stage with pages, clips, figures, quotes and who-cards; the one being said is lit. Sample content, labelled. Facts: src/wallFacts.js.</small></h1>
+
+  <!-- FRAME A: the Mac, speaking, wall up -->
+  <div class="frame mac" data-state="speak">
+    <span class="cap">A · Mac 1440 × 900 · speaking · 10 cards · lit = the page being said</span>
+    <div class="rail"></div>
+    <div class="histbtn">History <kbd>⌘</kbd><kbd>\</kbd></div>
+    <div class="core"></div>
+    <div class="under">
+      <div class="stword"><i></i>Speaking</div>
+      <div class="plate">
+        <div class="you"><b>You</b>Why don't you look it up? It's called the Sample Bar.</div>
+        <div class="say">It is a desk timer with an open API, sir. <u>The sample page</u> lists the endpoints.</div>
+        <div class="lk"><i></i>3 of 3 pages read</div>
+      </div>
+    </div>
+
+    <!-- column 1 (x 546), column 2 (x 984); rows stack by measured height; tilts seeded -->
+    <div class="slot lit" style="left:546px; top:36px; --h: var(--nv-cy)"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Page</em><i>//</i>sample-news.example</span></div><div class="pbody page"><div class="img"></div><div><div class="t">Sample Bar: a desk timer that is also a developer kit (sample)</div><div class="l">A sample first line from the page, as the page prints it.</div><div class="h">SAMPLE-NEWS.EXAMPLE ↗</div></div></div><span class="pfoot">read</span></div></div>
+    <div class="slot" style="left:990px; top:30px; --tilt:-1.6deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Video</em><i>//</i>Sample channel</span></div><div class="pbody vid"><div class="box"></div><div class="t">Sample Bar review: a better gadget (sample clip)</div><div class="c">SAMPLE CHANNEL · 6 MIN</div></div><span class="pfoot">sample channel</span></div></div>
+    <div class="slot" style="left:540px; top:218px; --tilt:1.1deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Page</em><i>//</i>docs.example</span></div><div class="pbody page"><div><div class="t">Sample Bar developer documentation (sample)</div><div class="l">The HTTP API reference, as the docs page prints it.</div><div class="h">DOCS.EXAMPLE ↗</div></div></div><span class="pfoot">read</span></div></div>
+    <div class="slot" style="left:988px; top:262px; --tilt:.8deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Figure</em><i>//</i>docs.example</span></div><h3 class="ptitle">Endpoints</h3><div class="pbody fig"><b>NN<span>endpoints</span></b><div class="c">documented in the sample reference (a figure code proved on page 2)</div><div class="on">ON DOCS.EXAMPLE</div></div><span class="pfoot">docs.example</span></div></div>
+    <div class="slot" style="left:108px; top:420px; --tilt:-.9deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Who</em><i>//</i>sample-news.example</span></div><h3 class="ptitle">Sample Devices</h3><div class="pbody ent"><div class="n">Sample Devices</div><div class="c">the company behind it (sample)</div><dl><dt>FOUNDED</dt><dd>YYYY</dd><dt>KNOWN FOR</dt><dd>a sample product</dd><dt>BASED</dt><dd>a sample city</dd></dl><div class="on">FROM SAMPLE-NEWS.EXAMPLE</div></div><span class="pfoot">sample-news.example</span></div></div>
+    <div class="slot" style="left:544px; top:386px; --tilt:-2deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Quote</em><i>//</i>sample-news.example</span></div><h3 class="ptitle">Sample news</h3><div class="pbody quote"><div class="q">“A sample sentence quoted exactly as the page prints it.”</div><div class="w">— SAMPLE NEWS</div></div><span class="pfoot">sample-news.example</span></div></div>
+    <div class="slot" style="left:986px; top:470px; --tilt:1.4deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Chart</em><i>//</i>Nova’s own</span></div><h3 class="ptitle">Endpoints by namespace</h3><div class="pbody"><div class="bars"><i style="height:100%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:40%"></i><i style="height:30%"></i><i style="height:18%"></i></div><div class="f">Counted from the sample reference (provenance line, code’s).</div></div><span class="pfoot">nova</span></div></div>
+    <div class="slot" style="left:110px; top:650px; --tilt:1.8deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Note</em><i>//</i>Nova’s own</span></div><h3 class="ptitle">Consumer product or dev kit?</h3><div class="pbody note"><div class="l1">A finished product you can buy (sample line).</div><div class="l">A second sample line, Nova’s own words.</div><div class="l">A third.</div></div><span class="pfoot">nova</span></div></div>
+    <div class="slot" style="left:548px; top:556px; --tilt:.6deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Page</em><i>//</i>shop.example</span></div><div class="pbody page"><div class="img"></div><div><div class="t">Sample Bar, price and availability (sample)</div><div class="l">A sample first line.</div><div class="h">SHOP.EXAMPLE ↗</div></div></div><span class="pfoot">read</span></div></div>
+    <div class="slot" style="left:984px; top:690px; --tilt:-1.2deg"><div class="pnl"><div class="ptag"><i></i><span class="peye"><em>Figure</em><i>//</i>shop.example</span></div><h3 class="ptitle">Price</h3><div class="pbody fig"><b>NNN<span>USD</span></b><div class="c">as the shop page prints it (sample)</div><div class="on">ON SHOP.EXAMPLE</div></div><span class="pfoot">shop.example</span></div></div>
+
+    <div class="keys"><span><kbd>T</kbd> tidy</span><span><kbd>Esc</kbd> clear</span><span><kbd>↵</kbd> open</span></div>
+    <div class="composer"></div>
+  </div>
+
+  <!-- FRAME B: the phone, speaking, rail under the hero -->
+  <div class="frame phone" data-state="speak">
+    <span class="cap">B · iPhone 402 × 874 · speaking · hero + rail, a third of the next card showing</span>
+    <div class="pcore"></div>
+    <div class="head"><b>Nova</b><span>Speaking</span></div>
+    <div class="pplate">
+      <div class="who"><i></i>Nova</div>
+      <p class="asked"><b>You</b>Why don't you look it up? It's called the Sample Bar.</p>
+      <div class="hero"><div class="ptag"><i style="background:var(--nv-say)"></i><span class="peye"><em style="color:var(--nv-say)">Page</em><i>//</i>sample-news.example</span><span style="margin-left:auto">1 of 4</span></div><div class="pbody page"><div class="img" style="width:72px"></div><div><div class="t">Sample Bar: a desk timer that is also a developer kit (sample)</div><div class="l">A sample first line from the page.</div></div></div></div>
+      <div class="prail"><div class="prailrow">
+        <div class="rc lit"><span class="peye"><em>Video</em><i>//</i>Sample channel</span><div class="mt">Sample Bar review: a better gadget</div></div>
+        <div class="rc"><span class="peye"><em>Figure</em><i>//</i>docs.example</span><div class="mb">NN</div></div>
+        <div class="rc"><span class="peye"><em>Who</em><i>//</i>sample-news</span><div class="mt">Sample Devices</div></div>
+      </div></div>
+      <div class="pwords">It is a desk timer with an open API, sir. <u>The sample page</u> lists the endpoints.</div>
+    </div>
+    <div class="phint">Scroll up for history</div>
+    <div class="pcomp"></div>
+  </div>
+</div>
+</body>
+</html>

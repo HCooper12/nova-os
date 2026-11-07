@@ -1,7 +1,7 @@
 import { bubbleProse } from '../bubbleProse.js';
 import { fixOffered } from '../turnSense.js';
 import { providerNote, receiptNote, whereLabel, deviceName } from '../conversationSync.js';
-import { enrichBody, enrichProgram, activeBeat } from '../glassBeats.js';
+import { enrichBody, enrichProgram, activeBeat, lookupCards } from '../glassBeats.js';
 import { tabLabel } from '../tabOrder.js';
 import { undoLabel } from '../chatUndo.js';
 import { clock, panelsOf, settleStage, stageLine, bylineOf, gistOf, newestAt, contestOf } from '../novaThreadFacts.js';
@@ -177,6 +177,10 @@ export function valsNovaThread(app, ctx, v) {
       // the chrome's novaContest gives (novaThreadFacts.contestOf)
       contest: contestOf(st),
       stage,
+      // THE WALL (7 Nov 2026, design/ROSE-STUDY.md): the lookup's own cards
+      // (pages and clips code put up before the model spoke) and the query,
+      // up from the moment the search returns, through thinking and speaking
+      lookup: lookupView(st),
       engine: st.coreStyle,
       // the close (the morning brief's questions): the Coach-deck card, gold
       // because it waits on his call
@@ -242,6 +246,8 @@ export function valsNovaThread(app, ctx, v) {
       // Nova mid-sentence, and the agents asked this turn ride the 'ask' poll
       go: (k) => app.navigate(k),
       stop: () => app.stopSpeaking(),
+      // a word back from code when his words moved the glass (src/glassVoice.js)
+      sayLine: (t) => { if (t && st.voiceSpeak) app.speakTtsSentence(t, null, { stance: 'ack' }); },
       consultLane: 'ask',
       // what the Mac's code-built panels read (src/novaMacFacts.js codePanels):
       // his week, the Inbox records, his calendar; and the proposal's Undo
@@ -276,4 +282,19 @@ const CONNECTION = {
 function connectionOf(chip) {
   if (!chip?.label) return null;
   return CONNECTION[chip.label] || { word: chip.label, hue: 'var(--nv-ink50)' };
+}
+
+// the lookup as the stage draws it: null until a search has put something
+// on the glass or the server has said it is looking
+function lookupView(st) {
+  const cards = lookupCards(st.glassVisuals);
+  const lk = st.askLookup;
+  if (!cards.length && !lk) return null;
+  return {
+    query: lk?.query || null,
+    done: lk ? !!lk.done : true,
+    pages: lk?.pages || [],
+    searchError: lk?.searchError || null,
+    cards,
+  };
 }

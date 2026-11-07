@@ -316,3 +316,38 @@
   .nv-mac-sets .row .bar, .nv-mac-brief .pts li, .nv-mac-cal .ev.new, .nv-mac-cal .cdecide { animation: none; }
   :root[data-nova-mac] [data-island-root] { transition: none; }
 }
+
+/* THE WALL OF REFERENCES (7 Nov 2026, design/ROSE-STUDY.md phase 2, mockup
+   110). Thirteen panels at once, the core at the presenter spot, the one
+   being said lit and straight, the rest held at a seeded tilt; T squares
+   them. Facts: src/wallFacts.js. */
+.nv-mac-wall { position: absolute; inset: 0; z-index: 13; pointer-events: none; }
+.nv-mac-wall[data-hidden] { opacity: 0; pointer-events: none; }
+.nv-mac-slot { position: absolute; pointer-events: auto; transform: rotate(var(--tilt, 0deg)); transform-origin: 50% 40%;
+  transition: left var(--nv-spring-smooth-ms) var(--nv-spring-smooth), top var(--nv-spring-smooth-ms) var(--nv-spring-smooth), width var(--nv-spring-smooth-ms) var(--nv-spring-smooth), transform var(--nv-spring-smooth-ms) var(--nv-spring-smooth); }
+.nv-mac-slot.lit { --tilt: 0deg !important; z-index: 2; }
+.nv-mac-slot.open { transform: none; z-index: 3; transition: none; }
+.nv-mac-slot.gone { pointer-events: none; }
+.nv-mac-slot .nv-mac-pnl { width: 100%; padding: 14px 16px 16px; }
+.nv-mac-slot .nv-mac-pnl.in { opacity: .74; transform: none; }
+.nv-mac-slot .nv-mac-pnl.in.held { opacity: .86; }
+.nv-mac-slot .nv-mac-pnl.in.lit { opacity: 1; }
+.nv-mac-slot .nv-mac-pnl.in.arriving { opacity: .62; }
+.nv-mac-slot .nv-mac-pnl .ptitle { font-size: 19px; margin-bottom: 8px; }
+.nv-mac-slot .nv-mac-pnl.open .ptitle { font-size: 26px; }
+.nv-mac-slot .nv-mac-pnl .pbody { font-size: 14px; }
+/* Rose's eyebrow, in Nova's type: KIND // SOURCE */
+.nv-mac-pnl .peye { display: inline-flex; align-items: baseline; gap: 6px; font: 600 10px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--nv-ink50); }
+.nv-mac-pnl .peye em { font-style: normal; color: var(--h); }
+.nv-mac-pnl .peye i { font-style: normal; color: var(--nv-ink40); }
+.nv-mac-pnl .pfoot { position: absolute; right: 14px; bottom: 8px; font: 500 9px var(--nv-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nv-ink40); pointer-events: none; }
+.nv-mac-pnl.open .pfoot { display: none; }
+/* the wall's own line under the core while the pages are read */
+.nv-mac-lkline { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-lkline i { width: 7px; height: 7px; border-radius: 50%; background: var(--nv-cy); animation: nvMacBreathe 1.4s ease-in-out infinite; }
+.nv-mac-lkline.done i { animation: none; background: var(--nv-good); }
+/* the wall's keys, bottom left, mockup 110 */
+.nv-mac-wallkeys { position: absolute; left: 108px; bottom: 30px; z-index: 15; display: flex; gap: 14px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink40); }
+.nv-mac-wallkeys b { font-weight: 500; color: var(--nv-ink60); }
+.nv-mac[data-wall] .nv-mac-histbtn { opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .nv-mac-slot { transition: none; } }

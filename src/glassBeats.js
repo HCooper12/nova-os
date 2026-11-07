@@ -1,6 +1,7 @@
 import { anatomyOf, sideFor, muscleVar } from './muscleHue.js';
 import { expandGroup, canonicalGroup, legacyGroup } from './muscleTaxonomy.js';
 import { DATA_KINDS, hostOf, marksOfHost, resolveMark, litNow, sentenceAfter, hueOf, finderWords } from './glassMarks.js';
+import { CLAIM_KINDS } from './visualBeats.js';
 
 // WHAT IS ON THE GLASS RIGHT NOW.
 //
@@ -77,10 +78,25 @@ export function stepsRevealed(items, spokenSoFar, span = 0) {
 // must win over the kind the model asked for.
 export function mergeVisual(spec, resolved) {
   if (!spec) return null;
-  if (!resolved) return { ...spec, pending: FETCHED.has(spec.kind) || DATA_KINDS.has(spec.kind) };
+  if (!resolved) return { ...spec, pending: FETCHED.has(spec.kind) || DATA_KINDS.has(spec.kind) || CLAIM_KINDS.has(spec.kind) };
+  // A CLAIM THE PAGE DID NOT PROVE (7 Nov 2026, server/lib/glassClaims.js)
+  // is no panel: nothing is drawn, the previous panel holds the stage.
+  if (resolved.state === 'dropped') return null;
   return { ...spec, ...resolved, pending: false };
 }
 const FETCHED = new Set(['image', 'media']);
+
+// THE LOOKUP'S OWN CARDS (7 Nov 2026, lib/lookupSprint.js): the pages and
+// clips code put on the glass before the model spoke, keyed `lk:…` in the
+// same visuals map. In arrival order (pages, then clips), ready to draw.
+export function lookupCards(visuals) {
+  const out = [];
+  for (const [key, v] of Object.entries(visuals || {})) {
+    if (!key.startsWith('lk:') || !v || !v.kind) continue;
+    out.push({ key, card: { ...v, key } });
+  }
+  return out.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+}
 
 // A DATA PANEL, ready to draw (3 Oct 2026): the server's build merged in,
 // with the finder's hue and words. A record that could not be read is NO
@@ -211,9 +227,14 @@ export function glassOf(st, app) {
     const rail = before(data.h).slice(-4).reverse().map(panel).filter(Boolean);
     return { hero: data.hero, rail, n: data.n, total: data.total, key: data.key };
   }
-  const hero = panel(beats[idx]);
+  let hero = panel(beats[idx]);
+  // a dropped claim (or a panel still unproven) leaves the last good panel
+  // on the stage rather than a gap
+  let h = idx;
+  while (!hero && h > 0) { h--; if (beats[h].spec?.kind !== 'mark') hero = panel(beats[h]); }
   if (!hero) return null;
-  return { hero, rail: before(idx).slice(-4).reverse().map(panel).filter(Boolean) };
+  const spentTo = hero === panel(beats[idx]) ? idx : h;
+  return { hero, rail: before(spentTo).slice(-8).reverse().map(panel).filter(Boolean), key: beats[spentTo]?.key };
 }
 
 // ------------------------------------------------------------ the stance --

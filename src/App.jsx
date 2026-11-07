@@ -591,6 +591,9 @@ export default class App extends Component {
     // far, and `glassSpokenTo` how far the VOICE has got — which is what
     // decides which panel is the hero. See src/glassBeats.js.
     glassBeats: [], glassVisuals: {}, glassSpokenTo: 0,
+    // the lookup running for this turn (lib/lookupSprint.js): its query and
+    // which pages were read, never the page bodies
+    askLookup: null,
     // what "New chat" cleared, so the tap that ends a days-long conversation
     // is undoable like everything else here (his 9 Sep report)
     voiceChatUndo: (() => {
@@ -8734,6 +8737,7 @@ export default class App extends Component {
       intervalMs: 150,
       onProgress: (job) => {
         if (job.visuals) this.absorbVisuals(job.visuals);
+        if (job.lookup) this.setState((s) => (JSON.stringify(s.askLookup) === JSON.stringify(job.lookup) ? null : { askLookup: job.lookup }));
         // A SLOW AGENT STARTED (the Researcher): the server's code-written
         // line, said once per line per reply, and shown in the island under
         // that agent's name. State-driven: no slow ask, nothing said.
@@ -10744,7 +10748,7 @@ export default class App extends Component {
   // updater when nothing actually changed, because they run on a 150ms poll
   // and a whole-app re-render per tick is the thing P7 fixed.
   resetGlass() {
-    this.setState({ glassBeats: [], glassVisuals: {}, glassSpokenTo: 0 });
+    this.setState({ glassBeats: [], glassVisuals: {}, glassSpokenTo: 0, askLookup: null });
   }
   setGlassBeats(beats) {
     this.setState((s) => {

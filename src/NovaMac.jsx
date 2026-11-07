@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { WALL_CORE, WALL_MAX, wallWanted, wallLayout, wallColWidth, wallOpenRect, eyebrowOf } from './wallFacts.js';
 import { CoreFace } from './NovaThreadParts.jsx';
 import { StageCard } from './StageCard.jsx';
 import { SafeVisual } from './SafeVisual.jsx';
@@ -169,7 +170,7 @@ function Meter() {
   return <div ref={ref} className="nv-mac-meter" role="img" aria-label="Your voice, live">{Array.from({ length: 34 }, (_, i) => <i key={i} />)}</div>;
 }
 
-export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, history, onStatus }) {
+export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, history, onStatus, glassRef = null }) {
   const rootRef = useRef(null);
   const coreRef = useRef(null);
   const underRef = useRef(null);
@@ -260,14 +261,23 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const [hoverKey, setHoverKey] = useState(null);
   const [replay, setReplay] = useState(null);                       // { panels, idx }
   const [cut, setCut] = useState(false);                             // Esc stopped him mid-answer
+  // ---- THE WALL OF REFERENCES (7 Nov 2026, src/wallFacts.js, mockup 110):
+  // every panel of the answer and every page or clip the lookup put up, at
+  // once; T squares them; "bring back" reaches into what was put away
+  const [tidy, setTidy] = useState(false);
+  const [heights, setHeights] = useState({});
+  const [playing, setPlaying] = useState(null);
+  const [wallHistory, setWallHistory] = useState([]);
+  const [brought, setBrought] = useState(() => new Map());
+  const lookupCards = T.lookup?.cards || [];
   const liveSig = T.stage ? `${T.stage.key}|${(T.stage.rail || []).length}` : '';
-  const live = T.stage ? liveDock(T.stage) : null;
+  const live = T.stage ? liveDock(T.stage, WALL_MAX) : null;
   const liveRef = useRef(live);
   liveRef.current = live;
   useEffect(() => {
     if (!liveSig) return;
     const l = liveRef.current;
-    setAnswer((a) => ({ panels: dockOrder([...(a.from === 'live' ? a.panels.map((p) => p.card) : []), ...l.panels.map((p) => p.card)]), from: 'live' }));
+    setAnswer((a) => ({ panels: dockOrder([...(a.from === 'live' ? a.panels.map((p) => p.card) : []), ...l.panels.map((p) => p.card)], WALL_MAX), from: 'live' }));
   }, [liveSig]);
   // the hero being said keeps its live face (a data panel's light changes)
   const panelsNow = answer.from === 'live' && live
@@ -278,7 +288,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   useEffect(() => {
     if (wasSpeaking.current && !speaking) {
       const kept = lastNova?.settled?.panels;
-      setAnswer((a) => (kept?.length ? { panels: dockOrder(kept), from: 'answer' } : a.panels.length ? { ...a, from: 'answer' } : a));
+      setAnswer((a) => (kept?.length ? { panels: dockOrder(kept, WALL_MAX), from: 'answer' } : a.panels.length ? { ...a, from: 'answer' } : a));
     }
     wasSpeaking.current = speaking;
   }, [speaking, lastNova]);
@@ -287,7 +297,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   useEffect(() => {
     const k = S.key;
     if ((k === 'listening' || k === 'thinking') && wasTurn.current !== 'listening' && wasTurn.current !== 'thinking') {
-      setAnswer({ panels: [], from: null }); setGone(new Set()); setOpenKey((o) => (o && pinned.has(o) ? o : null)); setCut(false); setReplay(null); setFreshAt(null); mountedAt.current = lastNova?.at ?? null;
+      setAnswer({ panels: [], from: null }); setGone(new Set()); setOpenKey((o) => (o && pinned.has(o) ? o : null)); setCut(false); setReplay(null); setFreshAt(null); mountedAt.current = lastNova?.at ?? null; setPlaying(null); setTidy(false);
     }
     if (k === 'speaking' && wasTurn.current !== 'speaking') { setCut(false); setGone(new Set()); }
     wasTurn.current = k;
@@ -302,7 +312,8 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   }, [replay]);
 
   // code's panels first (the mockup's sets, brief, day), then the model's
-  const source = replay ? replay.panels : [...codeNow.map((c) => ({ key: c.key, card: c })), ...panelsNow.filter((p) => !code.some((c) => c.key === p.key) && !coveredByCode(p.card, code)).slice(0, Math.max(0, MAX_DOCKED - code.length))];
+  const allModel = panelsNow.filter((p) => !code.some((c) => c.key === p.key) && !coveredByCode(p.card, code));
+  const source = replay ? replay.panels : [...codeNow.map((c) => ({ key: c.key, card: c })), ...allModel.slice(0, Math.max(0, MAX_DOCKED - code.length))];
   const docked = (() => {
     const out = [];
     for (const [key, card] of pinned) out.push({ key, card, pinned: true });
@@ -313,9 +324,47 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   })();
   const litKey = replay ? (replay.panels[replay.idx]?.key || null) : speaking && !cut ? (codeLit || (live ? live.lit : null)) : null;
   const shownDock = docked.filter((p) => !p.out);
-  const answerHeld = !turning && !replay && (answer.from === 'answer' || (!!fresh && code.length > 0)) && shownDock.length > 0;
-  const hasDock = shownDock.length > 0 && !hist;
-  const focus = turning || answerHeld || !!replay;
+  // THE WALL: a page or video beat the model wrote is a LIGHT on the card the
+  // lookup already put up, never a second card
+  const lightOf = (card) => (card?.kind === 'page' && !card.lookup && card.source ? `lk:p${card.source}` : card?.kind === 'video' && !card.lookup && card.clip ? `lk:v${card.clip}` : null);
+  const wallAll = (() => {
+    const seen = new Set();
+    const out = [];
+    const add = (key, card, extra = {}) => { if (!key || !card || seen.has(key) || gone.has(key)) return; seen.add(key); out.push({ key, card, ...extra }); };
+    for (const [key, card] of pinned) add(key, card, { pinned: true });
+    for (const [key, card] of brought) add(key, card, { brought: true });
+    for (const l of lookupCards) add(l.key, l.card);
+    const model = replay ? replay.panels : [...codeNow.map((c) => ({ key: c.key, card: c })), ...allModel];
+    for (const p of model) { if (lightOf(p.card)) continue; add(p.key, p.card); }
+    return out.slice(0, WALL_MAX);
+  })();
+  const wallOn = !hist && wallWanted({ panels: wallAll.filter((w) => !w.card.lookup).length, lookup: lookupCards.length });
+  const heroCard = replay ? replay.panels[replay.idx]?.card : T.stage?.hero;
+  const litShown = wallOn ? (speaking && !cut && lightOf(heroCard)) || litKey : litKey;
+  const colW = wallColWidth(view.w);
+  const wallKeys = wallAll.map((w) => w.key).join('|');
+  const lay = useMemo(() => wallLayout(wallAll.map((w) => w.key), { width: view.w, heights, tidy }), [wallKeys, view.w, heights, tidy]); // eslint-disable-line react-hooks/exhaustive-deps
+  const layAt = new Map(lay.map((l) => [l.key, l]));
+  useEffect(() => {
+    if (!wallOn || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver((entries) => {
+      setHeights((h) => {
+        let next = null;
+        for (const e of entries) {
+          const k = e.target.dataset.wallkey;
+          const v = e.target.offsetHeight;
+          if (k && v && Math.abs((h[k] || 0) - v) > 1) { next = next || { ...h }; next[k] = v; }
+        }
+        return next || h;
+      });
+    });
+    for (const w of wallAll) { const el = panelRefs.current.get(w.key); if (el) { el.dataset.wallkey = w.key; ro.observe(el); } }
+    return () => ro.disconnect();
+  }, [wallOn, wallKeys]); // eslint-disable-line react-hooks/exhaustive-deps
+  const wallHeld = wallOn && !turning && wallAll.length > 0;
+  const answerHeld = (!turning && !replay && (answer.from === 'answer' || (!!fresh && code.length > 0)) && shownDock.length > 0) || wallHeld;
+  const hasDock = shownDock.length > 0 && !hist && !wallOn;
+  const focus = turning || answerHeld || !!replay || wallOn;
   const proposal = lastNova?.proposal || null;
   const hasCalPanel = docked.some((p) => p.card?.macKind === 'calendar');
   const calDay = (code.find((c) => c.macKind === 'calendar')?.head?.sub || '').split(' ')[0];
@@ -351,7 +400,10 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const plateSpeaker = useMemo(() => ({ ...speaker, hue: sayHue }), [speaker.key, sayHue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- WHERE THINGS SIT: travel on the house curve (mockup travel()) -----
-  const frame = frameFor({ state: dataState === 'panels' ? 'idle' : mstate, docked: hasDock, hist, focus, width: view.w });
+  const frame0 = frameFor({ state: dataState === 'panels' ? 'idle' : mstate, docked: hasDock, hist, focus, width: view.w });
+  // the wall: the core at the presenter spot (the phone's rule), its words
+  // the width of one column under it
+  const frame = wallOn ? { cx: WALL_CORE.cx, cy: WALL_CORE.cy, s: WALL_CORE.s, uw: colW, mx: view.w / 2, off: 150 } : frame0;
   const coreK = macCoreScale(S.key === 'listening' ? 'listening' : S.key === 'thinking' ? 'thinking' : speaking ? 'speaking' : 'rest', frame.s);
   const cur = useRef(null);
   const anim = useRef({ id: 0, raf: 0 });
@@ -410,8 +462,8 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
 
   // ---- THE THREADS: core to each satellite and each docked panel ---------
   const threadState = useRef({});
-  threadState.current = { sats, docked, litKey, hoverKey, openKey, mstate, speaking, hist };
-  const needThreads = sats.length > 0 || (shownDock.length > 0 && !hist);
+  threadState.current = { sats, docked: wallOn ? [] : docked, litKey: litShown, hoverKey, openKey, mstate, speaking, hist };
+  const needThreads = sats.length > 0 || (shownDock.length > 0 && !hist && !wallOn);
   useEffect(() => {
     const svg = tetherRef.current;
     if (!svg) return undefined;
@@ -476,6 +528,9 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
 
   // ---- touching the glass ------------------------------------------------
   const putAway = (keys) => {
+    const cards = wallAll.filter((w) => keys.includes(w.key)).map((w) => ({ key: w.key, card: w.card }));
+    if (cards.length) setWallHistory((h) => [...cards, ...h.filter((x) => !keys.includes(x.key))].slice(0, 40));
+    setBrought((b) => { if (!keys.some((k) => b.has(k))) return b; const n = new Map(b); keys.forEach((k) => n.delete(k)); return n; });
     setGone((g) => { const n = new Set(g); keys.forEach((k) => n.add(k)); return n; });
     setPinned((p) => { if (!keys.some((k) => p.has(k))) return p; const n = new Map(p); keys.forEach((k) => n.delete(k)); return n; });
     if (openKey && keys.includes(openKey)) setOpenKey(null);
@@ -485,9 +540,45 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const togglePin = (d) => setPinned((p) => { const n = new Map(p); if (n.has(d.key)) n.delete(d.key); else n.set(d.key, d.card); return n; });
   const focusPanel = (key) => panelRefs.current.get(key)?.focus({ preventScroll: true });
 
+  // ---- THE GLASS OBEYS WORDS (src/glassVoice.js): what is up, and the moves
+  const asNamed = (w) => ({ key: w.key, kind: w.card.kind, title: panelHead(w.card).title || w.card.title || '', label: w.card.label || '', host: w.card.host || '', channel: w.card.channel || '' });
+  const glassApi = useRef(null);
+  glassApi.current = {
+    state: () => {
+      const up = wallOn ? wallAll : docked.filter((d) => !d.out);
+      const k = litShown || openKey;
+      const h = up.find((x) => x.key === k);
+      return { panels: up.map(asNamed), hero: h ? asNamed(h) : null, history: wallHistory.map(asNamed) };
+    },
+    run: (cmd) => {
+      const up = wallOn ? wallAll : docked.filter((d) => !d.out);
+      switch (cmd.cmd) {
+        case 'tidy': setTidy(true); return true;
+        case 'clear': { const keys = up.filter((d) => !d.pinned).map((d) => d.key); if (keys.length) putAway(keys); setOpenKey(null); return true; }
+        case 'restore': setOpenKey(null); return true;
+        case 'history': setHist(true); return true;
+        case 'maximise': setOpenKey(cmd.key); return true;
+        case 'away': putAway([cmd.key]); return true;
+        case 'bring': {
+          const h = wallHistory.find((x) => x.key === cmd.key);
+          setGone((g) => { const n = new Set(g); n.delete(cmd.key); return n; });
+          if (h && !up.some((w) => w.key === cmd.key) && !lookupCards.some((l) => l.key === cmd.key) && !allModel.some((p) => p.key === cmd.key)) setBrought((b) => new Map(b).set(cmd.key, h.card));
+          return true;
+        }
+        case 'clear-except': { const keys = up.filter((d) => d.key !== cmd.key && !d.pinned).map((d) => d.key); if (keys.length) putAway(keys); return true; }
+        default: return false;
+      }
+    },
+  };
+  useEffect(() => {
+    if (!glassRef) return undefined;
+    glassRef.current = { state: () => glassApi.current.state(), run: (c) => glassApi.current.run(c) };
+    return () => { glassRef.current = null; };
+  }, [glassRef]);
+
   // ---- keys: ⌥Space to talk, Esc, ⌘\ --------------------------------------
   const keys = useRef({});
-  keys.current = { dict, onTalk, speaking, openKey, docked, hist, turning, T, cut, replay };
+  keys.current = { dict, onTalk, speaking, openKey, docked, hist, turning, T, cut, replay, wallOn, wallAll };
   useEffect(() => {
     let ptt = false;
     const down = (e) => {
@@ -499,6 +590,11 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
         if (!k.dict.on) k.onTalk();
         return;
       }
+      if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey && !e.altKey && keys.current.wallOn && !/^(?:INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) {
+        e.preventDefault();
+        setTidy((t) => !t);
+        return;
+      }
       if (e.key === 'Escape') {
         // the status sheet over the stage closes first (its own backdrop close)
         const sheet = document.querySelector('.nv-nt-sheetroot');
@@ -506,7 +602,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
         if (k.openKey) { const o = k.openKey; setOpenKey(null); requestAnimationFrame(() => focusPanel(o)); return; }
         if (k.speaking) { k.T.stop?.(); setCut(true); return; }
         if (k.dict.on) { k.dict.abandon(); return; }
-        const loose = k.docked.filter((d) => !d.pinned && !d.out).map((d) => d.key);
+        const loose = (k.wallOn ? k.wallAll : k.docked).filter((d) => !d.pinned && !d.out).map((d) => d.key);
         if (loose.length && !k.hist) { putAway(loose); return; }
         if (k.hist) { setHist(false); return; }
         return;
@@ -562,7 +658,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const edgeOn = focus;
   return (
     <div ref={rootRef} className="nv-mac" data-fixed="" data-state={dataState} data-focus={focus ? '1' : undefined} data-peek={peek ? '1' : undefined}
-      data-hist={hist ? '1' : undefined} data-open={openKey ? '1' : undefined} onWheel={onWheel}
+      data-hist={hist ? '1' : undefined} data-open={openKey ? '1' : undefined} data-wall={wallOn ? '1' : undefined} onWheel={onWheel}
       style={{ '--fx-hue': sayHue }}>
       <canvas ref={emberRef} className="nv-mac-embers" aria-hidden="true" />
 
@@ -630,11 +726,11 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
       </div>
 
       {/* THE RUNNING GLASS, docked in a column beside the core */}
-      <div className="nv-mac-col" style={{ top: colTop, right: COLUMN.right, width: COLUMN.width, maxHeight: colRoom }} data-hidden={hist ? '1' : undefined}>
+      <div className="nv-mac-col" style={{ top: colTop, right: COLUMN.right, width: COLUMN.width, maxHeight: colRoom }} data-hidden={hist || wallOn ? '1' : undefined}>
         {docked.map((d, i) => (
           <MacPanel key={d.key} d={d}
             refFn={(el) => { if (el) panelRefs.current.set(d.key, el); else panelRefs.current.delete(d.key); }}
-            lit={litKey === d.key} held={!litKey} open={openKey === d.key} dim={!!openKey && openKey !== d.key}
+            lit={litShown === d.key} held={!litShown} open={openKey === d.key} dim={!!openKey && openKey !== d.key}
             hover={hoverKey === d.key} pinned={!!d.pinned} out={!!d.out} view={view}
             onHover={(on) => setHoverKey(on ? d.key : (k) => (k === d.key ? null : k))}
             onOpen={() => setOpenKey(d.key)} onClose={() => { setOpenKey(null); requestAnimationFrame(() => focusPanel(d.key)); }}
@@ -645,6 +741,37 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
             onRecord={T.openRecord} onUndo={T.undoProposal} />
         ))}
       </div>
+
+      {/* THE WALL OF REFERENCES (mockup 110): every panel at once, in its slot */}
+      {wallOn && (
+        <div className="nv-mac-wall" data-tidy={tidy ? '1' : undefined}>
+          {wallAll.map((d) => {
+            const l = layAt.get(d.key);
+            if (!l) return null;
+            const isOpen = openKey === d.key;
+            const lit = litShown === d.key;
+            return (
+              <div key={d.key} className={`nv-mac-slot${lit ? ' lit' : ''}${isOpen ? ' open' : ''}`} style={{ left: l.x + l.dx, top: l.y + l.dy, width: l.w, '--tilt': `${l.tilt}deg` }}>
+                <MacPanel d={d} wall eyebrow={eyebrowOf(d.card)} openRect={wallOpenRect(view.w, view.h)} arriving={!speaking && !!d.card.lookup && !(T.lookup?.done ?? true)}
+                  refFn={(el) => { if (el) panelRefs.current.set(d.key, el); else panelRefs.current.delete(d.key); }}
+                  lit={lit} held={!litShown} open={isOpen} dim={!!openKey && openKey !== d.key} hover={hoverKey === d.key} pinned={!!d.pinned} out={false} view={view}
+                  onHover={(on) => setHoverKey(on ? d.key : (k) => (k === d.key ? null : k))}
+                  onOpen={() => setOpenKey(d.key)} onClose={() => { setOpenKey(null); requestAnimationFrame(() => focusPanel(d.key)); }}
+                  onPin={() => togglePin(d)} onAway={() => putAway([d.key])}
+                  onMove={(step) => { const at = wallAll.findIndex((x) => x.key === d.key); const nx = wallAll[(at + step + wallAll.length) % wallAll.length]; if (nx) focusPanel(nx.key); }}
+                  playing={playing === d.key} onPlay={() => setPlaying(d.key)}
+                  decide={null} proposal={null} onRecord={T.openRecord} onUndo={T.undoProposal} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {wallOn && (
+        <div className="nv-mac-wallkeys" aria-hidden="true">
+          <span><Kbd>T</Kbd> <b>{tidy ? 'scatter' : 'tidy'}</b></span><span><Kbd>Esc</Kbd> <b>clear</b></span><span><Kbd>↵</Kbd> <b>open</b></span>
+          {T.lookup?.query && <span className={`nv-mac-lkline${T.lookup.done ? ' done' : ''}`}><i />{T.lookup.done ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read` : `Reading on ${T.lookup.query}`}</span>}
+        </div>
+      )}
 
       {/* THE COMPOSER */}
       <MacComposer refEl={composerRef} T={T} dict={dict} fieldRef={fieldRef} onSend={onSend} onTalk={onTalk} />
@@ -691,7 +818,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
 // ONE DOCKED PANEL: hover lifts it and lights its thread; a click or Enter
 // opens it in place (the full card, its real actions); the pin keeps it
 // through the next question; × puts it away; arrows move between panels.
-function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover, onOpen, onClose, onPin, onAway, onMove, decide, proposal, onRecord, onUndo, view }) {
+function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover, onOpen, onClose, onPin, onAway, onMove, decide, proposal, onRecord, onUndo, view, wall = false, eyebrow = null, openRect = null, arriving = false, playing = false, onPlay = null }) {
   const ref = useRef(null);
   const [inOn, setIn] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setIn(true)); return () => cancelAnimationFrame(id); }, []);
@@ -719,12 +846,17 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
       { transformOrigin: '0 0', transform: 'none' },
     ], { duration: Number.parseFloat(cssv('--nv-spring-snappy-ms')) || 640, easing: cssv('--nv-spring-snappy') || 'cubic-bezier(.32,.72,0,1)' });
   }, [open]);
-  const card = open ? { ...d.card, label: '', compact: false } : { ...d.card, label: '', compact: true };
-  const openStyle = open ? { position: 'fixed', top: OPEN_PANEL.top, right: OPEN_PANEL.right, width: OPEN_PANEL.width, maxHeight: view.h - OPEN_PANEL.top - COMPOSER.foot - COMPOSER.h - 22 } : null;
+  const card = { ...d.card, label: '', compact: !open, ...(wall ? { playing, onPlay } : {}) };
+  const openStyle = open
+    ? (openRect ? { position: 'fixed', left: openRect.x, top: openRect.y, width: openRect.w, maxHeight: openRect.h }
+      : { position: 'fixed', top: OPEN_PANEL.top, right: OPEN_PANEL.right, width: OPEN_PANEL.width, maxHeight: view.h - OPEN_PANEL.top - COMPOSER.foot - COMPOSER.h - 22 })
+    : null;
+  // a page or a video draws its own title; the other wall cards keep the head's
+  const title = wall && (d.card.kind === 'page' || d.card.kind === 'video') ? '' : h.title;
   return (
     <section ref={(el) => { ref.current = el; refFn(el); }} aria-expanded={open}
       data-out={out ? '1' : undefined} data-fixed={open ? '' : undefined} aria-hidden={out || undefined} tabIndex={out ? -1 : 0}
-      className={`nv-mac-pnl${out ? ' out' : ''}${inOn ? ' in' : ''}${lit ? ' lit' : ''}${held && !lit ? ' held' : ''}${open ? ' open' : ''}${dim ? ' dim' : ''}${hover ? ' hov' : ''}${pinned ? ' pinned' : ''}`}
+      className={`nv-mac-pnl${out ? ' out' : ''}${inOn ? ' in' : ''}${lit ? ' lit' : ''}${held && !lit ? ' held' : ''}${open ? ' open' : ''}${dim ? ' dim' : ''}${hover ? ' hov' : ''}${pinned ? ' pinned' : ''}${arriving ? ' arriving' : ''}`}
       style={{ '--h': h.hue, ...openStyle }} data-hueval={hueVal}
       aria-label={`${h.title || 'Panel'}, ${h.words}. Enter to ${open ? 'close' : 'open'}`}
       onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)} onFocus={(e) => { if (e.target === e.currentTarget) onHover(true); }} onBlur={() => onHover(false)}
@@ -736,13 +868,13 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
         if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); onMove(-1); }
       }}>
       <div className="ptag">
-        <i /><span><em>{h.words}</em>{pinned ? <span className="kept"> · kept</span> : null}{h.sub ? ` · ${h.sub}` : null}</span>
+        <i /><span>{eyebrow ? <span className="peye"><em>{eyebrow.kind}</em><i>//</i>{eyebrow.source}</span> : <em>{h.words}</em>}{pinned ? <span className="kept"> · kept</span> : null}{h.sub && !eyebrow ? ` · ${h.sub}` : null}</span>
         <span className="pact">
           <button type="button" className="pin" aria-pressed={pinned} aria-label={pinned ? 'Stop keeping this panel' : 'Keep this panel through the next question'} onClick={onPin}><Gl n="pin" /></button>
           <button type="button" className="px" aria-label="Put this panel away" onClick={onAway}><Gl n="x" /></button>
         </span>
       </div>
-      {h.title && <h3 className="ptitle">{h.title}</h3>}
+      {title && <h3 className="ptitle">{title}</h3>}
       <div className="pbody">
         <SafeVisual what="nova-mac-panel" resetKey={`${d.key}:${open ? 1 : 0}`}>
           {d.card.macKind ? <CodeBody c={d.card} open={open} proposal={proposal} onRecord={onRecord} onUndo={onUndo} /> : <StageCard card={card} face="summary" />}
@@ -762,6 +894,7 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
           )}
         </div>
       )}
+      {wall && !open && <span className="pfoot">{d.card.lookup ? (d.card.read === false ? 'not read' : 'read') : d.card.host || d.card.channel || 'nova'}</span>}
       {open && <button type="button" className="pclose" onClick={onClose}><Kbd>Esc</Kbd> Close</button>}
     </section>
   );
