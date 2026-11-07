@@ -1,4 +1,5 @@
 import { projectsWaiting as projectsWaitingFor } from './valsProjects.js';
+import { beliefsHomeCard } from './valsBeliefs.js';
 import { agentsWorkingLabels } from './agentsWorking.js';
 import { nextWorkBlock, currentWorkBlock, leadLeadsNow, untilWords, leftWords } from '../workBlock.js';
 import { KIND_LABEL, situationFace, situationReply } from './valsLeader.js';
@@ -888,6 +889,8 @@ const bodyMetrics = demoMode
   // PROJECTS (phase 1): a project that needs him is a card in the feed, in
   // both idioms; null when nothing waits, so Home is unchanged
   const projectsWaiting = projectsWaitingFor(st, go);
+  // WHAT NOVA BELIEVES: about weekly, only when something is worth checking (valsBeliefs.js)
+  const beliefsCard = beliefsHomeCard(st, app);
 
   return {
     // connection truth
@@ -1160,6 +1163,7 @@ const bodyMetrics = demoMode
     focalVital: pickFocalVital(ringVitals),
     commandDeck,
     projectsWaiting,
+    beliefsCard,
     noteCard,
     // WAS THAT YOUR WHOLE NIGHT? (3 Nov 2026): one question, as content, the
     // day a night recorded far shorter than his usual; both idioms draw it

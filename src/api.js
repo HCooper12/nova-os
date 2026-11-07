@@ -767,6 +767,12 @@ export const api = {
   // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)
   inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
+  // WHAT NOVA BELIEVES (server/lib/beliefs.js): the read, a tick, a cross (a receipt on the inbox rails), the Home card's quiet week
+  beliefs: (conn) => call(conn, '/api/beliefs'),
+  beliefsHome: (conn) => call(conn, '/api/beliefs/home'),
+  beliefTick: (conn, id) => post(conn, `/api/beliefs/${encodeURIComponent(id)}/confirm`),
+  beliefCross: (conn, id) => post(conn, `/api/beliefs/${encodeURIComponent(id)}/drop`),
+  beliefsQuiet: (conn) => post(conn, '/api/beliefs/home/quiet'),
   // a project's video, also into his library: only ever from his tap (Projects phase 2)
   inboxFileToLibrary: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/file-to-library`),
   // the tag on a capture: move it, or re-read it with a detail (mockup 103)

@@ -545,6 +545,8 @@ export function valsTrainSummary(app, ctx, v) {
     close: () => app.closeTrainCoach(),
     count: waiting.count,
     where: deck?.where || '',
+    // what Coach acts on, one tap away (server/lib/beliefs.js): closes the sheet, opens Settings > You > What Nova believes
+    openBeliefs: () => { app.closeTrainCoach(); setTimeout(() => app.openBeliefs(), 160); },
     deck: deck && cards.length ? { ...deck, cards } : null,
     declineAsking: askingCard ? {
       id: askingCard.id,

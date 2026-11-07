@@ -13,6 +13,8 @@ export const PINNED_CARDS = [
   ['training', 'Training'], ['practice', 'Practice'], ['trends', 'Trends'], ['day', 'Your day'],
   // Projects phase 1 (29 Oct 2026): shown only when a project waits on him
   ['projects', 'Projects'],
+  // About weekly, only when something Nova believes is worth checking (server/lib/beliefs.js)
+  ['beliefs', 'What Nova believes'],
 ];
 // Cards that arrive OFF: "Your day, drawn" is a morning card by default
 // (mockup 86) and stays all day only when he pins it here.
@@ -20,7 +22,7 @@ export const PINNED_DEFAULT_OFF = ['day'];
 export const PINNED_KEY = 'novaos.pinned';
 // a card added since he last saved normally joins at the END; these join at
 // the TOP instead, so 'Right now' stays where it always was until he moves it
-export const PINNED_LEAD = ['highlight'];
+export const PINNED_LEAD = ['highlight', 'beliefs'];
 
 // Pure: `stored` is whatever localStorage handed back (or garbage, or
 // nothing) → the list the Edit sheet and the card grid both read. Unknown

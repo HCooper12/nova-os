@@ -445,7 +445,7 @@ export function restoreFoodScanPhotos() {
 
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveLibrary', 'liveLeader', 'livePractice', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveFoodHistory', 'liveFoodRecent', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveProjects', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveFoodRecent', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveProjects', 'liveBeliefsHome', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutArchived', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -660,6 +660,7 @@ export default class App extends Component {
     // retro tracking: null = today; a past YYYY-MM-DD flips the log view and
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
+    liveBeliefsHome: null, beliefsView: null, beliefsError: null, beliefsRows: {}, beliefsShowAll: false,
     liveProjects: null, projectsShowAll: false, projectOpen: (() => { try { const m = window.location.hash.match(/^#\/projects\/([0-9a-z]{4,12})/); return m ? m[1] : null; } catch { return null; } })(), projectDetail: null, projectDetailError: null,
     projectThreads: {}, projectSessions: {}, projectAskText: '', projectAskBusy: false,
     // THE VOICE CONVERSATION'S PROJECT (1 Nov 2026): {id, name} while one is
@@ -2251,6 +2252,7 @@ export default class App extends Component {
     apply('earned', (r) => this.setState({ liveEarned: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories, liveStashFull: r }));
     apply('projects', (r) => this.setState({ liveProjects: r.projects || [] }));
+    apply('beliefsHome', (r) => this.setState({ liveBeliefsHome: r }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
     apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutArchived: r.archived || [], liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
@@ -8325,6 +8327,80 @@ export default class App extends Component {
   // screen (it mounts on arrival, and on a boot straight into #/settings,
   // which the arrival hook in componentDidUpdate never sees). Each loader
   // refuses a second request while one is in flight. Reads only.
+  // ---------- What Nova believes (server/lib/beliefs.js) ----------
+  // The page is a read of what the agents act on. A tick stamps a date and the
+  // row holds its after-state for a beat before it leaves Worth checking; a
+  // cross goes through the verb registry, so it has a receipt and the Undo is
+  // the Inbox's own. `beliefsRows` carries each row's short life: ticking,
+  // ticked, crossing, crossed (with the one line said back), leaving.
+  loadBeliefs() {
+    const conn = getConnection();
+    if (!conn) return Promise.resolve();
+    return api.beliefs(conn)
+      .then((d) => this.setState({ beliefsView: d, beliefsError: null }))
+      .catch((e) => this.setState({ beliefsError: e.message }));
+  }
+  setBeliefRow(id, row) {
+    this.setState((s) => {
+      const rows = { ...(s.beliefsRows || {}) };
+      if (row) rows[id] = row; else delete rows[id];
+      return { beliefsRows: rows };
+    });
+  }
+  // after the row has held its after-state, fold it away, then ask again
+  settleBeliefRow(id, holdMs) {
+    setTimeout(() => {
+      const cur = this.state.beliefsRows?.[id];
+      if (!cur) return;
+      this.setBeliefRow(id, { ...cur, phase: 'leaving' });
+      setTimeout(() => { this.loadBeliefs().then(() => this.setBeliefRow(id, null)); }, 320);
+    }, holdMs);
+  }
+  tickBelief(id) {
+    const conn = getConnection();
+    if (!conn || this.state.beliefsRows?.[id]) return;
+    this.setBeliefRow(id, { phase: 'ticked' });
+    api.beliefTick(conn, id)
+      .then(() => { this.settleBeliefRow(id, 1300); this.refreshBeliefsHome(); })
+      .catch((e) => { this.setBeliefRow(id, null); this.toastMsg(`Could not mark that as still true: ${e.message}`); });
+  }
+  crossBelief(id) {
+    const conn = getConnection();
+    if (!conn || this.state.beliefsRows?.[id]) return;
+    this.setBeliefRow(id, { phase: 'crossing' });
+    api.beliefCross(conn, id)
+      .then((r) => {
+        this.setBeliefRow(id, { phase: 'crossed', recordId: r.recordId, said: r.said });
+        this.settleBeliefRow(id, 6500);
+        this.refreshBeliefsHome();
+      })
+      .catch((e) => { this.setBeliefRow(id, null); this.toastMsg(`Could not change that: ${e.message}. Nothing changed.`); });
+  }
+  undoBeliefCross(id) {
+    const conn = getConnection();
+    const row = this.state.beliefsRows?.[id];
+    if (!conn || !row?.recordId) return;
+    this.setBeliefRow(id, { ...row, phase: 'undoing' });
+    api.inboxUndo(conn, row.recordId)
+      .then(() => this.loadBeliefs().then(() => { this.setBeliefRow(id, null); this.refreshBeliefsHome(); }))
+      .catch((e) => { this.setBeliefRow(id, row); this.toastMsg(`Could not undo: ${e.message}`); });
+  }
+  refreshBeliefsHome() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.beliefsHome(conn).then((h) => this.setState({ liveBeliefsHome: h })).catch(() => {});
+  }
+  // The Home card was tapped or dismissed: quiet for seven days
+  quietBeliefsHome(open = false) {
+    const conn = getConnection();
+    this.setState((s) => ({ liveBeliefsHome: s.liveBeliefsHome ? { ...s.liveBeliefsHome, show: false } : s.liveBeliefsHome }));
+    if (conn) api.beliefsQuiet(conn).catch(() => {});
+    if (open) this.openBeliefs();
+  }
+  openBeliefs() {
+    this.navigate('settings');
+    setTimeout(() => { this.openSettingsPage('you'); setTimeout(() => this.openSettingsPage('beliefs'), 40); }, 60);
+  }
   ensureSettingsData() {
     if (!getConnection() || this.state.connectionStatus === 'offline') return;
     if (this.state.liveCalendarList == null) this.loadCalendarList();

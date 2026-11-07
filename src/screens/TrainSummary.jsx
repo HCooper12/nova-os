@@ -922,6 +922,7 @@ function CoachSheet({ s, v, parts }) {
               <button type="button" className="nv-ts-undo" onClick={s.receipt.undo}>Undo</button>
             </div>
           )}
+          {s.openBeliefs ? <div style={{ margin: '8px 0 0 -8px' }}><TextAction onClick={s.openBeliefs}>What Nova believes ›</TextAction></div> : null}
           <span className="nv-ts-hk">Goals and the conversation</span>
           <Pane v={paneV} />
         </div>

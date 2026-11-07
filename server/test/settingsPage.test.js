@@ -140,7 +140,8 @@ test('search finds settings by every word, and opens each on its own page', () =
   assert.deepEqual(searchSettings('').length, 0);
   assert.equal(searchSettings('zebra').length, 0);
   assert.ok(searchSettings('hologram').some((x) => x.lit === 'core'));
-  assert.equal(SEARCH_INDEX.length, 28, 'the mockup indexes 28 settings');
+  assert.equal(SEARCH_INDEX.length, 29, 'the mockup indexes 28 settings, and What Nova believes (7 Nov) is the 29th');
+  assert.deepEqual(searchSettings('believes').map((x) => [x.page, x.lit]), [['you', 'beliefs']]);
 });
 
 test('quiet hours: the window across midnight, its length, and the line under the ring', () => {

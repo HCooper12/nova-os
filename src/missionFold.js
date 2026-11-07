@@ -56,6 +56,7 @@ export const FOLD_LABELS = {
   stuck: 'Stuck',
   deck: 'Command deck',
   projects: 'Projects',
+  beliefs: 'What Nova believes',
   review: 'Daily review',
   noticed: 'Nova noticed',
   shortcuts: 'Shortcuts',
@@ -103,6 +104,10 @@ export function foldStatus(key, v = {}) {
     case 'projects': {
       const w = v.projectsWaiting;
       return w ? `${w.count} waiting on you · ${text(w.items?.[0]?.name)}` : 'nothing waiting';
+    }
+    case 'beliefs': {
+      const b = v.beliefsCard;
+      return b ? `${b.count} may be out of date` : 'nothing to check';
     }
     case 'review':
       return v.review?.state === 'card' ? text(v.review.title) : v.review?.state === 'all-done' ? 'done for today' : 'nothing due today';
@@ -182,6 +187,10 @@ export function foldInstrument(key, v = {}) {
     }
     case 'projects': {
       const n = Number(v.projectsWaiting?.count) || 0;
+      return { kind: 'count', hue: n ? 'gold' : faint, text: String(n) };
+    }
+    case 'beliefs': {
+      const n = Number(v.beliefsCard?.count) || 0;
       return { kind: 'count', hue: n ? 'gold' : faint, text: String(n) };
     }
     case 'review':

@@ -12,6 +12,7 @@ import {
   snapshot, playPush, playPop, beginPop, paintPop, settlePop, releasePop, finishRunning, mainEl,
   startsSwipe, swipeDecision, decideDirection, reducedMotion, PUSH_MS,
 } from '../settingsNav.js';
+import { BeliefsPage } from './BeliefsPage.jsx';
 import { Ico, Tile, NavRow, SwitchRow, Group, HeaderCard, ActRow, Stages, Val } from './SettingsKit.jsx';
 import {
   VoicePage, NotifPage, AppearancePage, CheckPage, YouPage, CalendarsPage, ModelsPage, ModelGroupPage,
@@ -170,7 +171,7 @@ function PageBody({ id, P, open }) {
   if (id === 'notif') return <NotifPage P={P} />;
   if (id === 'app') return <AppearancePage P={P} />;
   if (id === 'check') return <CheckPage P={P} />;
-  if (id === 'you') return <YouPage P={P} />;
+  if (id === 'you') return <YouPage P={P} open={open} />;
   if (id === 'cals') return <CalendarsPage P={P} />;
   if (id === 'models') return <ModelsPage P={P} open={open} />;
   if (id.startsWith('mg:')) return <ModelGroupPage P={P} id={id.slice(3)} />;
@@ -180,6 +181,7 @@ function PageBody({ id, P, open }) {
   if (id === 'notion') return <NotionPage P={P} />;
   if (id === 'tabs') return <TabsPage P={P} />;
   if (id === 'train') return <TrainPage P={P} />;
+  if (id === 'beliefs') return <BeliefsPage P={P} />;
   return null;
 }
 

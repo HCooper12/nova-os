@@ -58,6 +58,8 @@ export function valsSummary(app, ctx, m) {
     waiting: waitingCard(m),
     // a project waiting on him (valsProjects.projectsWaiting); null otherwise
     projects: m.projectsWaiting || null,
+    // the weekly "is this still true" card: null unless something is worth checking
+    beliefs: m.beliefsCard || null,
     training: trainingCard(m, ctx),
     practice: m.practiceCard ? { card: m.practiceCard } : null,
     trends: trendsCard(st, ctx, m, demoMode),
@@ -77,7 +79,7 @@ export function valsSummary(app, ctx, m) {
     foot: dayPinned ? null : 'Until 11:00, or until you have seen all five. To keep it all day, hold any card and add it.',
   } : null;
   cardData.day = dayPinned ? yourDay : null;
-  const WIDE = new Set(['highlight', 'body', 'today', 'training', 'day']);
+  const WIDE = new Set(['highlight', 'beliefs', 'body', 'today', 'training', 'day']);
   const cards = pinnedList
     .filter((p) => p.on && cardData[p.key])
     .map((p) => ({ key: p.key, wide: p.size ? p.size === 'wide' : WIDE.has(p.key), sized: !!p.size, label: p.label, ...cardData[p.key] }));

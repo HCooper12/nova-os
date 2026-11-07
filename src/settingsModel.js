@@ -26,6 +26,7 @@ export const PAGES = {
   notion: 'Notion',
   tabs: 'Tab bar',
   train: 'Train',
+  beliefs: 'What Nova believes',
 };
 
 export function isPage(id) {
@@ -213,6 +214,7 @@ export const SEARCH_INDEX = [
   ['About you', 'you', 'about', 'profile focus priorities', 'You'],
   ['Your numbers', 'you', 'numbers', 'intake calories protein', 'You'],
   ['What Nova has noticed', 'you', 'ladder', 'trust learning kept dismissed', 'You'],
+  ['What Nova believes', 'you', 'beliefs', 'believes injuries standing rules what works out of date check', 'You'],
 ].map(([label, page, lit, words, where]) => ({ label, page, lit, words, where }));
 
 // every word he typed must appear in the setting's name, its words or its page

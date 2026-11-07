@@ -45,10 +45,10 @@ const S = 'var(--nv-font-serif)';
 // One place for the three orders, so a new section is added to all three or
 // the dev assert below names the one it was left out of (audit [63]).
 const ORDERS = {
-  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'stuck', 'lead', 'practice', 'focus', 'today', 'deck', 'projects', 'review', 'noticed', 'shortcuts', 'agents'],
-  day: ['working', 'wrap', 'focus', 'lead', 'practice', 'plan', 'stuck', 'today', 'deck', 'projects', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
+  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'stuck', 'lead', 'practice', 'focus', 'today', 'deck', 'projects', 'beliefs', 'review', 'noticed', 'shortcuts', 'agents'],
+  day: ['working', 'wrap', 'focus', 'lead', 'practice', 'plan', 'stuck', 'today', 'deck', 'projects', 'beliefs', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
   // by evening the wrap IS the news — it leads, under anything still running
-  evening: ['working', 'wrap', 'focus', 'plan', 'stuck', 'lead', 'practice', 'today', 'deck', 'projects', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
+  evening: ['working', 'wrap', 'focus', 'plan', 'stuck', 'lead', 'practice', 'today', 'deck', 'projects', 'beliefs', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
 };
 let ordersChecked = false;
 export function assertOrdersCover(sectionKeys, orders = ORDERS) {
@@ -467,6 +467,23 @@ export function MissionStructured({ v }) {
             sub={item.title}
             trailing={item.dryRun ? <Tag>DRY RUN</Tag> : <span style={{ color: 'var(--nv-ink40)' }}>›</span>} />
         ))}
+      </Group>
+    ) : null,
+
+    // WHAT NOVA BELIEVES (his call, 7 Nov 2026): about weekly, only when something
+    // is worth checking, styled as content in the feed. Absent otherwise.
+    beliefs: v.beliefsCard ? (
+      <Group key="beliefs" label="What Nova believes" accent="--nv-gold" trailing={
+        <Interactive as="span" onClick={v.beliefsCard.open} base={{ cursor: 'pointer', font: `600 12px ${UI}`, color: 'var(--nv-acc)' }} hoverStyle={{ filter: 'brightness(1.15)' }}>
+          Check ›
+        </Interactive>
+      }>
+        <GRow first onClick={v.beliefsCard.open}
+          title={<span style={{ fontFamily: S, fontSize: '19px', lineHeight: 1.2 }}>{v.beliefsCard.line}</span>}
+          sub={`${v.beliefsCard.lead.text}. ${v.beliefsCard.lead.from}`}
+          trailing={<span style={{ color: 'var(--nv-ink40)' }}>›</span>} />
+        <GRow title={<span style={{ font: `400 13px ${UI}`, color: 'var(--nv-ink60)' }}>Nova asks again in a week</span>}
+          trailing={<TextAction tone="quiet" compact onClick={v.beliefsCard.dismiss}>Not now</TextAction>} />
       </Group>
     ) : null,
 

@@ -447,7 +447,7 @@ function layoutCards(cards) {
 // headers — their rings and strip carry the colour — and are lit in Nova's
 // own cyan.
 // Mockup 101: Training takes the gold its medal and routine tile wear.
-const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', projects: 'var(--nv-gold)', training: 'var(--nv-gold)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
+const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', projects: 'var(--nv-gold)', beliefs: 'var(--nv-gold)', training: 'var(--nv-gold)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
 const CARD_LIGHT = { ...CARD_HUE, body: 'var(--nv-cy)', today: 'var(--nv-cy)', day: 'var(--nv-cy)' };
 // its own colours, per card (the dyn glow): Body its three rings, Today the
 // moments on its rail, the rest their tile's two hues
@@ -751,6 +751,26 @@ function ProjectsCard({ card, cls, style }) {
   );
 }
 
+// WHAT NOVA BELIEVES — the weekly "is this still true", as content in the feed
+// (banner blindness: the serif line carries the news, no pill, no push). It
+// opens the page and goes quiet for seven days; "Not now" does the same.
+function BeliefsCard({ card, cls, style }) {
+  return (
+    <section className={cls} style={{ ...style, padding: '14px 16px' }} aria-label={`What Nova believes: ${card.line}`}>
+      <CardHead icon="waiting" label="What Nova believes" tile={[CARD_HUE.beliefs, 'var(--nv-cy)']} />
+      <p style={{ margin: '8px 0 0', font: '400 var(--nv-sum-hl-size)/1.35 var(--nv-sum-hl-font)', color: 'var(--nv-ink)', textWrap: 'pretty' }}>{card.line}</p>
+      <div style={{ marginTop: '8px', paddingLeft: '10px', borderLeft: '2px solid var(--nv-gold)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+        <b style={{ font: `500 15px/1.3 ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere' }}>{card.lead.text}</b>
+        <span style={{ font: `400 13px ${UI}`, color: 'var(--nv-ink60)' }}>{card.lead.from}</span>
+      </div>
+      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+        <Pill label="Check them" onClick={card.open} accent="--nv-gold" />
+        <Pill tone="quiet" label="Not now" onClick={card.dismiss} />
+      </div>
+    </section>
+  );
+}
+
 // TRAINING — today's session, or the record with its medal; the card is Train's door.
 function TrainingCard({ card, cls, style }) {
   const rec = card.record;
@@ -860,6 +880,7 @@ function PinnedCard({ card, i }) {
     case 'plan': return <PlanCard card={card} cls={cls} style={style} />;
     case 'waiting': return <WaitingCard card={card} cls={cls} style={style} />;
     case 'projects': return <ProjectsCard card={card} cls={cls} style={style} />;
+    case 'beliefs': return <BeliefsCard card={card} cls={cls} style={style} />;
     case 'training': return <TrainingCard card={card} cls={cls} style={style} />;
     case 'practice': return <PracticeTile card={card.card} cls={cls} style={style} />;
     case 'trends': return <TrendsCard card={card} cls={cls} style={style} />;

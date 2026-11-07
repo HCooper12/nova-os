@@ -159,10 +159,10 @@ function immediateReason(text, closedFor, since, confirmed) {
 const AREAS = [
   { key: 'training', title: 'Body and training', hue: 'var(--nv-cy)' },
   { key: 'fuel', title: 'Fuel', hue: 'var(--nv-good)' },
-  { key: 'rules', title: 'How you want Nova to work', hue: 'var(--nv-gold)' },
-  { key: 'you', title: 'About you', hue: 'var(--nv-vi)' },
+  { key: 'rules', title: 'How you want Nova to work', hue: 'var(--nv-vi)' },
+  { key: 'you', title: 'About you', hue: 'var(--nv-mg)' },
 ];
-const CHECK_HUE = 'var(--nv-warn)';
+const CHECK_HUE = 'var(--nv-gold)';
 
 async function safe(fn, fallback) { try { return await fn(); } catch { return fallback; } }
 

@@ -604,6 +604,46 @@ export function valsSettings(app, ctx, v) {
     check: { value: '5 tests' },
   };
 
+  // WHAT NOVA BELIEVES: the server's read of what the agents act on (lib/beliefs.js).
+  // A short list per group, then "Show all N". A row keeps its place while it
+  // plays its tick or cross (beliefsRows), so a change is acted out, not stated.
+  const bv = st.beliefsView;
+  const brows = st.beliefsRows || {};
+  const SHORT_LIST = 3;
+  const beliefsShowAll = !!st.beliefsShowAll;
+  const bGroups = (bv?.groups || []).map((g) => {
+    const items = g.items.map((r) => ({ ...r, phase: brows[r.id]?.phase || null, said: brows[r.id]?.said || null }));
+    const shown = beliefsShowAll ? items : items.slice(0, SHORT_LIST);
+    return { key: g.key, title: g.title, hue: g.hue, count: g.count, n: g.n, items: shown, hidden: items.length - shown.length };
+  });
+  const bHidden = bGroups.reduce((n, g) => n + g.hidden, 0);
+  // the editor lives on the You page: back to it when it is the parent, else push it
+  const toYou = (lit) => {
+    if (path[path.length - 2] === 'you') { app.closeSettingsPage(); setTimeout(() => app.setState({ settingsLit: lit }), 90); } else go('you', lit);
+  };
+  const beliefs = {
+    connected: !demo && connected,
+    offline,
+    loading: connected && !bv && !st.beliefsError,
+    error: st.beliefsError || null,
+    total: bv?.total ?? 0,
+    worth: bv?.worthChecking ?? st.liveBeliefsHome?.count ?? 0,
+    groups: bGroups,
+    showAllLabel: bHidden > 0 ? `Show all ${bv?.total}` : null,
+    showAll: beliefsShowAll,
+    toggleAll: () => app.setState({ beliefsShowAll: !beliefsShowAll }),
+    load: () => app.loadBeliefs(),
+    tick: (id) => app.tickBelief(id),
+    cross: (id) => app.crossBelief(id),
+    undo: (id) => app.undoBeliefCross(id),
+    // a derived row links to the editor that owns it
+    editors: {
+      numbers: { label: 'Change in Your numbers', run: () => toYou('numbers') },
+      profile: { label: 'Change in About you', run: () => toYou('about') },
+      ladder: { label: 'See what Nova has noticed', run: () => toYou('ladder') },
+    },
+  };
+
   const names = { you: you.name };
   for (const g of models.groups) names[`mg:${g.id}`] = g.label;
   // the numeral the sidebar gives Settings, read off the sidebar's own row
@@ -633,7 +673,7 @@ export function valsSettings(app, ctx, v) {
       summary: style === 'summary',
       coreStyle: st.coreStyle,
       statusBanner: !!v.statusBanner,
-      you, rows, voice, notif, app: app_, check, cals, models, snap, mac, browser, notion, tabs, train,
+      beliefs, you, rows, voice, notif, app: app_, check, cals, models, snap, mac, browser, notion, tabs, train,
       wake: voice.wake,
       calm: app_.calm,
     },

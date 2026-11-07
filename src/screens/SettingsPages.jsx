@@ -358,7 +358,7 @@ export function CheckPage({ P }) {
 
 // ------------------------------------------------------------------- you --
 
-export function YouPage({ P }) {
+export function YouPage({ P, open }) {
   const Y = P.you;
   const n = Y.numbers;
   return (
@@ -376,6 +376,9 @@ export function YouPage({ P }) {
             )}
           </Group>
           <AboutFacets Y={Y} staleAt={P.staleAt} />
+          <Group label="What Nova believes" k="beliefs" i={2} foot="What your agents act on right now: your injuries, rules and habits. Check any of it is still true.">
+            <NavRow k="beliefs" tile={<Tile icon="checkc" hue="var(--nv-gold)" />} label="What Nova believes" value={P.beliefs.worth ? `${P.beliefs.worth} to check` : ''} onOpen={() => open('beliefs')} />
+          </Group>
           {(Y.ladder.length > 0 || Y.noticed.length > 0) && (
             <Group label="What Nova has noticed" k="ladder" i={3} foot={`Learned from what you kept and dismissed, and it decides what Nova does without asking.${Y.demo ? ' Demo figures.' : ''}`}>
               {Y.ladder.length ? Y.ladder.map((l) => {
