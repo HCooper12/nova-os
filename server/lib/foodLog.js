@@ -275,6 +275,92 @@ export async function editEntryOn(date, entryId, { name, macros }) {
   });
 }
 
+// "IT WAS 2 SERVINGS" (Nov 2026). A logged entry scaled by a factor, every
+// part together: each line's macros, grams and extras, and the entry total as
+// the SUM of its lines (the itemised-plate contract). Pure, so the confirm
+// card can show the diff before anything is written and the write uses the
+// very same arithmetic. `itemId` + `grams` scales ONE line to a new weight;
+// `grams` alone sets the whole plate's weight, which needs every line weighed.
+export const SCALE_MIN = 0.05;
+export const SCALE_MAX = 20;
+const round0 = (n) => Math.round(Math.max(0, Number(n) || 0));
+function scaleMacros(m = {}, k) {
+  return { p: round1((Number(m.p) || 0) * k), c: round1((Number(m.c) || 0) * k), f: round1((Number(m.f) || 0) * k), kcal: round0((Number(m.kcal) || 0) * k) };
+}
+function scaleLineExtras(o, k) {
+  const out = {};
+  for (const key of ['fibreG', 'sugarG']) if (Number.isFinite(Number(o[key])) && o[key] != null) out[key] = round1(o[key] * k);
+  if (o.sodiumMg != null && Number.isFinite(Number(o.sodiumMg))) out.sodiumMg = round0(o.sodiumMg * k);
+  return out;
+}
+export function scaleEntry(entry, { factor, itemId, grams } = {}) {
+  if (!entry) throw new Error('that entry is no longer there');
+  const out = JSON.parse(JSON.stringify(entry));
+  const items = out.items || [];
+  let k = Number(factor);
+  let only = null; // the one line being re-weighed, if any
+  if (itemId) {
+    only = items.find((it) => it.id === itemId);
+    if (!only) throw new Error('that line is no longer there');
+  }
+  if (grams != null && grams !== '') {
+    const g = Number(grams);
+    if (!Number.isFinite(g) || g <= 0) throw new Error('a weight needs to be a number of grams above zero');
+    if (only) {
+      if (!(only.grams > 0)) throw new Error(`there is no weight on file for ${only.name}, so say it as servings instead`);
+      k = g / only.grams;
+    } else {
+      if (!items.length || !items.every((it) => it.grams > 0)) throw new Error('this entry has no weights on file, so say it as servings instead (for example "it was 2 servings")');
+      k = g / items.reduce((a, it) => a + it.grams, 0);
+    }
+  }
+  if (!Number.isFinite(k) || k <= 0) throw new Error('say how much more or less it was');
+  if (k < SCALE_MIN || k > SCALE_MAX) throw new Error(`that is a ${k < 1 ? 'tiny' : 'huge'} change (x${Math.round(k * 100) / 100}), so say it again to be sure`);
+  if (items.length) {
+    for (const it of items) {
+      if (only && it !== only) continue;
+      it.macros = scaleMacros(it.macros, k);
+      if (it.grams > 0) it.grams = Math.max(1, Math.round(it.grams * k));
+      Object.assign(it, scaleLineExtras(it, k));
+    }
+    out.macros = macrosOfItems(items);
+    setEntryExtras(out);
+  } else {
+    if (only) throw new Error('that entry has no itemised lines');
+    out.macros = scaleMacros(out.macros, k);
+    Object.assign(out, scaleLineExtras(out, k));
+  }
+  out.edited = true; // an amended number is not the original estimate
+  return { entry: out, factor: Math.round(k * 1000) / 1000 };
+}
+
+export async function scaleEntryOn(date, entryId, opts) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    const i = day.entries.findIndex((e) => e.id === entryId);
+    if (i < 0) throw new Error('that entry is no longer there');
+    const before = JSON.parse(JSON.stringify(day.entries[i]));
+    const { entry, factor } = scaleEntry(before, opts);
+    day.entries[i] = entry;
+    await saveDay(day);
+    return { day, before, after: entry, factor };
+  });
+}
+
+// Put an entry back exactly as it was (the undo of a scale): replaced in place
+// by id, byte for byte, from the copy the server itself held.
+export async function replaceEntryOn(date, entry) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    const i = day.entries.findIndex((e) => e.id === entry.id);
+    if (i < 0) day.entries.push(entry); else day.entries[i] = entry;
+    await saveDay(day);
+    return day;
+  });
+}
+
 // Drop ONE line of a plate. The entry's total is recomputed from what is
 // left; when the last line goes so does the entry, because an empty plate is
 // not a meal. Everything needed to put it back rides in the return.

@@ -809,12 +809,41 @@ async function findLogEntry(entryRaw, dateRaw) {
   if (!entries.length) throw new Error(`nothing is logged for ${day.date}`);
   const want = say(entryRaw);
   // "the last thing I logged" / "that" — the most recent entry, no matching
-  if (/^(the )?(last|latest|most recent)( (thing|one|entry|item))?( i logged)?$|^that$/i.test(want)) {
+  if (/^(the )?(last|latest|most recent)( (thing|one|entry|item))?( i logged)?$|^(that|it|this)$/i.test(want)) {
     return { day, entry: entries[entries.length - 1] };
   }
   const m = matchName(entries.map((e) => ({ id: e.id, name: e.name })), want);
   if (!m.hit) throw new Error(m.ambiguous ? m.why : `nothing called "${want}" is logged on ${day.date}`);
   return { day, entry: entries.find((e) => e.id === m.hit.id) };
+}
+
+// "make the rice 200 g": the thing he names may be a whole entry or ONE LINE of
+// a plate. An entry match wins; failing that, the newest entry holding a line
+// by that name is the target and the line comes back with it.
+async function findLogTarget(entryRaw, dateRaw, itemRaw) {
+  const want = say(entryRaw);
+  const isLast = /^(the )?(last|latest|most recent)( (thing|one|entry|item))?( i logged)?$|^(that|it|this)$/i.test(want);
+  if (!isLast && !itemRaw) {
+    const { getDay } = await foodLib();
+    const day = await getDay(String(dateRaw || '').trim() || undefined);
+    const entries = day.entries || [];
+    // a name that IS an entry's name is that entry; otherwise a line of a
+    // plate called that (newest first) beats a loose word match on an entry
+    // ("the rice" is the rice line, not "Chicken rice" as a whole)
+    const exact = entries.find((e) => e.name.toLowerCase() === want.toLowerCase());
+    if (exact) return { day, entry: exact };
+    for (const entry of [...entries].reverse()) {
+      const m = matchName(entry.items || [], want);
+      if (m.hit) return { day, entry, item: m.hit };
+    }
+  }
+  const found = await findLogEntry(entryRaw, dateRaw);
+  if (itemRaw) {
+    const m = matchName(found.entry.items || [], say(itemRaw));
+    if (!m.hit) throw new Error(m.ambiguous ? m.why : `no line called "${say(itemRaw)}" in ${found.entry.name}`);
+    return { ...found, item: m.hit };
+  }
+  return found;
 }
 
 // The entry as it stands NOW — a pending edit that has gone stale must not write
@@ -832,8 +861,29 @@ verb({
     p: 'optional new protein in grams', c: 'optional new carbs in grams',
     f: 'optional new fat in grams', kcal: 'optional new calories',
     name: 'optional new name', date: 'optional YYYY-MM-DD, defaults to today',
+    scale: 'optional multiplier for "it was 2 servings" (2), "that was half" (0.5), "double that" (2): every line and the total scale together',
+    grams: 'optional new weight in grams for "make the rice 200 g" (one line, or the whole plate when every line has a weight)',
+    item: 'optional line within the entry that scale or grams applies to',
   },
   async resolve(args) {
+    const wantsScale = (args.scale != null && String(args.scale).trim() !== '') || (args.grams != null && String(args.grams).trim() !== '');
+    if (wantsScale) {
+      const { scaleEntry } = await foodLib();
+      const { day, entry, item } = await findLogTarget(args.entry, args.date, args.item);
+      const opts = {
+        ...(args.scale != null && String(args.scale).trim() !== '' ? { factor: Number(args.scale) } : {}),
+        ...(args.grams != null && String(args.grams).trim() !== '' ? { grams: Number(args.grams) } : {}),
+        ...(item ? { itemId: item.id } : {}),
+      };
+      // a lone line IS the plate: scaling it scales the entry
+      const r = scaleEntry(entry, opts); // throws in plain words when it cannot
+      return {
+        entry: args.entry, date: day.date, entryId: entry.id,
+        was: { name: entry.name, macros: { ...entry.macros } },
+        next: {}, name: null,
+        scaled: { opts, factor: r.factor, itemName: item?.name || null, after: { ...r.entry.macros } },
+      };
+    }
     const { day, entry } = await findLogEntry(args.entry, args.date);
     const next = {};
     for (const k of ['p', 'c', 'f', 'kcal']) {
@@ -848,6 +898,11 @@ verb({
     return { entry: args.entry, date: day.date, entryId: entry.id, was: { name: entry.name, macros: { ...entry.macros } }, next, name };
   },
   titleFor(args) {
+    if (args.scaled) {
+      const x = args.scaled.factor;
+      const what = args.scaled.itemName ? `${args.scaled.itemName} in ${args.was.name}` : args.was.name;
+      return `Food log · ${what} x${x} — ${macroLine(args.was.macros)} → ${macroLine(args.scaled.after)}`;
+    }
     const after = { ...args.was.macros, ...args.next };
     const label = args.name && args.name !== args.was.name ? `"${args.was.name}" → "${args.name}"` : args.was.name;
     return `Food log · ${label} — ${macroLine(args.was.macros)} → ${macroLine(after)}`;
@@ -859,6 +914,15 @@ verb({
     if (!sameMacros(now.macros, args.was.macros) || now.name !== args.was.name) {
       throw new Error(`"${now.name}" changed since you asked (it now reads ${macroLine(now.macros)}) — say the correction again`);
     }
+    if (args.scaled) {
+      const { scaleEntryOn } = await foodLib();
+      const r = await scaleEntryOn(args.date, args.entryId, args.scaled.opts);
+      return {
+        destination: `Food log — ${args.was.name} x${r.factor}: ${macroLine(r.after.macros)}`,
+        said: `Scaled. ${args.was.name}${args.scaled.itemName ? ` (${args.scaled.itemName})` : ''} is now ${macroLine(r.after.macros)}.`,
+        undo: { verb: 'foodlog.fix', date: args.date, entryId: args.entryId, was: args.was, before: r.before },
+      };
+    }
     await editEntryOn(args.date, args.entryId, { name: args.name || undefined, macros: args.next });
     const after = { ...args.was.macros, ...args.next };
     return {
@@ -868,6 +932,11 @@ verb({
     };
   },
   async undo(vaultPath, u) {
+    if (u.before) { // a scale: the entry returns exactly as it was, lines and all
+      const { replaceEntryOn } = await foodLib();
+      await replaceEntryOn(u.date, u.before);
+      return `${u.was.name} back to ${macroLine(u.was.macros)}`;
+    }
     const { editEntryOn } = await foodLib();
     await editEntryOn(u.date, u.entryId, { name: u.was.name, macros: u.was.macros });
     return `${u.was.name} back to ${macroLine(u.was.macros)}`;
@@ -1735,6 +1804,29 @@ export function parseCommand(text, ctx = {}) {
     const field = /^prot/.test(m[3]) ? 'p' : /^carb/.test(m[3]) ? 'c' : /^fat/.test(m[3]) ? 'f' : 'kcal';
     return { any: [{ verb: 'foodlog.fix', args: { entry: m[1], [field]: Number(m[2]) } }], fallthrough: true };
   }
+  // "IT WAS 2 SERVINGS": scaling what is already logged. Candidates, never a
+  // silent write, and only if there is something logged to scale.
+  {
+    const NUMWORD = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, half: 0.5, 'a half': 0.5, 'half a': 0.5, 'a third': 1 / 3, 'a quarter': 0.25, quarter: 0.25, 'one and a half': 1.5 };
+    const numOf = (w) => (/^\d+(?:\.\d+)?$/.test(w) ? Number(w) : NUMWORD[w]);
+    const WORDS = Object.keys(NUMWORD).sort((a, b) => b.length - a.length).join('|');
+    if ((m = q.match(new RegExp(`^(?:actually,?\\s+)?(?:it|that|this)\\s+(?:was|is)\\s+(?:only\\s+|just\\s+)?(\\d+(?:\\.\\d+)?|${WORDS})\\s*(?:x\\s*)?(?:servings?|serves?|portions?|times(?:\\s+that)?)$`)))) {
+      const n = numOf(m[1]);
+      if (n > 0) return { any: [{ verb: 'foodlog.fix', args: { entry: 'that', scale: n } }], fallthrough: true };
+    }
+    if ((m = q.match(/^(?:actually,?\s+)?(?:it|that|this)\s+(?:was|is)\s+(?:only\s+|just\s+)?(half|a half|a third|a quarter|double|twice|triple)(?:\s+(?:of\s+)?(?:that|it|this|as much))?$/))) {
+      const n = { half: 0.5, 'a half': 0.5, 'a third': 1 / 3, 'a quarter': 0.25, double: 2, twice: 2, triple: 3 }[m[1]];
+      return { any: [{ verb: 'foodlog.fix', args: { entry: 'that', scale: n } }], fallthrough: true };
+    }
+    if ((m = q.match(/^(double|triple|halve|half)\s+(?:that|it|this)$/)) || (m = q.match(/^(twice)\s+(?:that|it|this)$/))) {
+      const n = { double: 2, twice: 2, triple: 3, halve: 0.5, half: 0.5 }[m[1]];
+      return { any: [{ verb: 'foodlog.fix', args: { entry: 'that', scale: n } }], fallthrough: true };
+    }
+    // "make the rice 200 g" / "change the chicken to 150 grams"
+    if ((m = q.match(/^(?:make|change|set)\s+(?:the\s+|my\s+)?(.+?)\s+(?:to\s+|=\s*)?(\d{1,4}(?:\.\d+)?)\s*(?:g|grams?)$/))) {
+      return { any: [{ verb: 'foodlog.fix', args: { entry: m[1], grams: Number(m[2]) } }], fallthrough: true };
+    }
+  }
   // "take the protein bar off today's log" — a removal that names the log is
   // sure; a bare "remove X" stays a shopping edit, which is what it usually is
   if ((m = q.match(/^(?:take|get)\s+(?:the\s+)?(.+?)\s+(?:off|out of)\s+(?:the\s+|my\s+|today's\s+)*food\s*log$/))
@@ -1874,8 +1966,8 @@ async function probe(vaultPath, cand) {
     // command when a protein bar is logged, and ordinary conversation when
     // it is not
     if (cand.verb === 'foodlog.fix') {
-      const { entry } = await findLogEntry(cand.args.entry, cand.args.date);
-      return { ok: true, label: `the food log entry "${entry.name}"` };
+      const { entry, item } = await findLogTarget(cand.args.entry, cand.args.date, cand.args.item);
+      return { ok: true, label: item ? `the line "${item.name}" in "${entry.name}"` : `the food log entry "${entry.name}"` };
     }
     if (cand.verb === 'recipe.ingredient') {
       const { loadRecipes } = await import('./recipes.js');
