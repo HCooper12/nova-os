@@ -387,7 +387,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
         undo: { route, slot: payload.slot, mealName: meal.name },
       };
     }
-    const day = await foodLog.addEntry({ name: payload.name, macros: payload.macros });
+    const day = await foodLog.addEntry({ name: payload.name, macros: payload.macros, items: Array.isArray(payload.items) ? payload.items : undefined });
     const entry = day.entries[day.entries.length - 1];
     const m = entry.macros;
     return {

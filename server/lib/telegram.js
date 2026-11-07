@@ -291,8 +291,9 @@ export function foodRecordFromScan(result, caption = '') {
       route: 'food',
       confidence: low ? 'low' : 'high',
       title: `Log ${name} — ${macros.p}P · ${macros.c}C · ${macros.f}F · ${macros.kcal} kcal`,
-      reason: `Read from your photo${low ? ' — LOW confidence, check the numbers' : ''}${result?.question ? `. ${String(result.question).trim()}` : ''}.`,
-      payload: { name, macros },
+      reason: `Read from your photo${low ? ' — LOW confidence, check the numbers' : ''}${result?.question ? `. ${String(result.question).trim()}` : ''}${result?.sourceNote ? `. ${String(result.sourceNote).trim().replace(/\.$/, '')}` : ''}.`,
+      // the audited lines ride along so approving files an itemised plate
+      payload: { name, macros, ...(Array.isArray(result?.components) && result.components.length > 1 ? { items: result.components } : {}) },
     },
   };
 }

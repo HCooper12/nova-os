@@ -43,7 +43,7 @@ How to combine the photos:
 
 - name: a short, natural name for what was eaten (use the product/packaging name when visible)
 - macros: {p, c, f, kcal} — the total for everything actually eaten across the photos; grams for p/c/f, whole-number kcal
-- components: the plate broken into the parts you can actually see, each {name, grams, p, c, f, kcal} — "3 eggs" 150g, "sourdough" 54g, "half an avocado" 70g. They MUST add up to the total above: Nova sums your lines and shows him the sum, and he can delete any single line he thinks is wrong. Prefer FEWER, well-judged lines over many guessed ones; when the thing eaten is genuinely one item (a labelled product, a single bar), return one line for it.
+- components: the food broken into the parts you can actually see, each {name, grams, p, c, f, kcal, label}. name is a plain, searchable food-database name ("egg, whole, cooked", "sourdough bread", "avocado"); grams is your best estimate of the weight actually eaten. Nova looks every part up in USDA FoodData Central and scales it by your grams, so GRAMS ARE THE JOB; your p/c/f/kcal are only a fallback for a part the database cannot find. Set "label": true ONLY for a part whose p/c/f/kcal you read off a printed nutrition label (those figures are kept as printed). Prefer FEWER, well-judged lines over many guessed ones; when the thing eaten is genuinely one item (a labelled product, a single bar), return one line for it.
 - confidence: "high" or "low" — low if the portion or a key value genuinely can't be pinned down from the photos + note
 - question: if confidence is low, ONE short clarifying question that would most improve the estimate. Empty string if high.${noteLine}${notFoodInstruction}
 
@@ -58,7 +58,7 @@ Output ONLY a JSON object with exactly these keys: name, macros, components, con
 
 - name: a short, natural description of what's in the photo
 - macros: {p, c, f, kcal} — your best estimate for the portion shown (grams of protein/carbs/fat, whole-number kcal)
-- components: the plate broken into the parts you can actually see, each {name, grams, p, c, f, kcal} — "chicken thigh" 180g, "jasmine rice" 200g, "sauce" 40g. They MUST add up to the total above: Nova sums your lines and shows him the sum, and he can delete any single line he thinks is wrong. Prefer FEWER, well-judged lines over many guessed ones.
+- components: the plate broken into the parts you can actually see, each {name, grams, p, c, f, kcal} — "chicken thigh, cooked" 180g, "jasmine rice, cooked" 200g, "sauce" 40g. name is a plain, searchable food-database name. Nova looks every part up in USDA FoodData Central and scales it by your grams, so GRAMS ARE THE JOB; your p/c/f/kcal are only a fallback for a part the database cannot find. Prefer FEWER, well-judged lines over many guessed ones.
 - confidence: "high" or "low" — low if portion size, hidden ingredients (oil, sauce, dressing), or preparation are genuinely hard to judge from the photo
 - question: if confidence is low, ONE short clarifying question that would meaningfully improve the estimate. Empty string if confidence is high.${noteLine}${notFoodInstruction}
 
@@ -134,13 +134,14 @@ function normalizeComponents(raw) {
     const name = String(c?.name || '').trim().slice(0, 80);
     const m = c?.macros && typeof c.macros === 'object' ? c.macros : c || {};
     const macros = { p: Number(m.p) || 0, c: Number(m.c) || 0, f: Number(m.f) || 0, kcal: Math.round(Number(m.kcal) || 0) };
-    if (!name || macros.kcal <= 0) return null;
     const grams = Number(c?.grams);
-    return { name, ...(Number.isFinite(grams) && grams > 0 ? { grams: Math.round(grams) } : {}), macros };
+    // a weighed part with no figures of its own is still worth a database lookup
+    if (!name || (macros.kcal <= 0 && !(Number.isFinite(grams) && grams > 0))) return null;
+    return { name, ...(Number.isFinite(grams) && grams > 0 ? { grams: Math.round(grams) } : {}), macros, ...(c?.label === true ? { label: true } : {}) };
   }).filter(Boolean).slice(0, 24);
 }
 
-function normalizeResult(parsed) {
+export function normalizeResult(parsed) {
   const macros = parsed.macros || {};
   const components = normalizeComponents(parsed.components);
   return {
@@ -153,6 +154,8 @@ function normalizeResult(parsed) {
     },
     // one line is not a breakdown — it is the same number twice
     ...(components.length > 1 ? { components } : {}),
+    // the model's parts, kept until code has audited them (applyDatabaseToScan strips this)
+    _parts: components,
     confidence: parsed.confidence === 'low' ? 'low' : 'high',
     question: parsed.question ? String(parsed.question).trim() : '',
     // label-per100 mode (the recipe editor) — absent on every other scan
@@ -161,7 +164,35 @@ function normalizeResult(parsed) {
   };
 }
 
-export function startFoodScan(mode, imagePaths, workDir, note) {
+// PHOTOS USE THE DATABASE. A meal or auto scan arrives as parts and grams
+// from the model; code looks each part up in USDA, scales it and sums. Label
+// modes are untouched: a printed label is already the ground truth. If the
+// lookup cannot run at all the model's own result stays, unlabelled as
+// database-backed, rather than the scan being lost.
+export async function applyDatabaseToScan(result, { mode, lookupFn, lookup = true } = {}) {
+  const parts = result._parts || [];
+  const { _parts, ...clean } = result;
+  if (mode === 'label' || mode === 'label-per100' || !parts.length) return clean;
+  const { resolvePhotoParts } = await import('./nutritionFacts.js');
+  const r = await resolvePhotoParts(parts, { ...(lookupFn ? { lookupFn } : {}), lookup });
+  if (!r.components.length) return clean;
+  const keepLines = r.components.length > 1 || r.components[0].sourced;
+  const allEstimated = r.sourced === 0;
+  const { components: _old, ...rest } = clean;
+  return {
+    ...rest,
+    macros: r.macros,
+    ...(keepLines ? { components: r.components } : {}),
+    sourceNote: r.unsourced
+      ? `${r.sourced} of ${r.components.length} parts matched to USDA data or the label; the rest are estimated. Energy computed from the macros.`
+      : `All ${r.components.length} parts matched to USDA data or the label. Energy computed from the macros.`,
+    // nothing matched means every number is the model's own guess
+    confidence: allEstimated ? 'low' : clean.confidence,
+    ...(allEstimated && !clean.question ? { question: 'None of this matched a food database, so these are estimates. Check the weights.' } : {}),
+  };
+}
+
+export function startFoodScan(mode, imagePaths, workDir, note, deps = {}) {
   const promptModeEarly = mode === 'meal' ? 'meal' : mode === 'label' ? 'label' : mode === 'label-per100' ? 'label-per100' : 'auto';
   // both label modes are OCR — the fast lane
   const lane = promptModeEarly.startsWith('label') ? 'scan-food-label' : 'scan-food-meal';
@@ -205,8 +236,11 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
         // ever breaks that (e.g. an unusual photo) fall back to its own plain-text
         // explanation rather than a generic parse-failure message.
         if (!jsonMatch) throw new Error(text.slice(0, 200) || 'No response received');
-        job.result = normalizeResult(parseModelJson(jsonMatch[0]));
-        job.status = 'ready';
+        const normalized = normalizeResult(parseModelJson(jsonMatch[0]));
+        // status stays 'running' while code audits the parts
+        applyDatabaseToScan(normalized, { mode: promptMode, lookupFn: deps.lookup })
+          .catch(() => { const { _parts, ...own } = normalized; return own; })
+          .then((done) => { job.result = done; job.status = 'ready'; });
       } catch (e) {
         job.status = 'error';
         job.error = e.message;

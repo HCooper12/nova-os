@@ -142,43 +142,59 @@ export async function lookupPer100g(name) {
 /* ------------------------------- the total -------------------------------- */
 
 /**
+ * ONE component to ONE audited row: USDA first, the model's own per-100g
+ * figure second (labelled estimated), or null when neither exists. Shared by
+ * the typed describe path and the photo path so the two cannot drift.
+ * `lookupFn` is injectable so tests never touch the network.
+ */
+async function resolveRow(c, lookupFn) {
+  const grams = Number(c?.grams) || 0;
+  if (!c?.name || grams <= 0) return null;
+  const fact = lookupFn ? await lookupFn(c.name) : null;
+  // The model's own per-100g figure is the fallback, and it is LABELLED as
+  // such. A number whose provenance he can see is a number he can correct.
+  const per100g = fact?.per100g
+    || (c.per100g && Number.isFinite(Number(c.per100g.p)) ? {
+      p: Number(c.per100g.p) || 0, c: Number(c.per100g.c) || 0, f: Number(c.per100g.f) || 0,
+    } : null);
+  if (!per100g) return null;
+  const scaled = scaleTo(per100g, grams);
+  return {
+    name: c.name,
+    grams,
+    per100g,
+    fact,
+    macros: { ...scaled, kcal: kcalFrom(scaled) },
+    source: fact ? `${fact.source} — ${fact.matched}${fact.dataType ? ` (${fact.dataType})` : ''}` : 'estimated, not matched to a database',
+    sourced: !!fact,
+  };
+}
+
+function totalRows(rows, { sumKcal = false } = {}) {
+  const t = rows.reduce((a, r) => ({
+    p: a.p + r.macros.p, c: a.c + r.macros.c, f: a.f + r.macros.f, kcal: a.kcal + (r.macros.kcal || 0),
+  }), { p: 0, c: 0, f: 0, kcal: 0 });
+  const macros = { p: Math.round(t.p), c: Math.round(t.c), f: Math.round(t.f) };
+  macros.kcal = sumKcal ? Math.round(t.kcal) : kcalFrom(t); // derived, always
+  return macros;
+}
+
+/**
  * Turn the model's component breakdown into ONE audited total.
  * @param {{name:string, grams:number, per100g?:{p,c,f}}[]} components
  * @returns {{macros, components, sourced, unsourced, note}}
  */
-export async function computeFromComponents(components, { lookup = true } = {}) {
+export async function computeFromComponents(components, { lookup = true, lookupFn } = {}) {
   const rows = [];
+  // `lookup:false` keeps the arithmetic tests hermetic — a unit test of
+  // multiplication must not fail because a rate-limited public API had a
+  // bad minute, which is exactly what happened on the first run of these.
+  const fn = lookup ? (lookupFn || lookupPer100g) : null;
   for (const c of (components || []).slice(0, 12)) {
-    const grams = Number(c.grams) || 0;
-    if (!c?.name || grams <= 0) continue;
-    // `lookup:false` keeps the arithmetic tests hermetic — a unit test of
-    // multiplication must not fail because a rate-limited public API had a
-    // bad minute, which is exactly what happened on the first run of these.
-    const fact = lookup ? await lookupPer100g(c.name) : null;
-    // The model's own per-100g figure is the fallback, and it is LABELLED as
-    // such. A number whose provenance he can see is a number he can correct.
-    const per100g = fact?.per100g
-      || (c.per100g && Number.isFinite(Number(c.per100g.p)) ? {
-        p: Number(c.per100g.p) || 0, c: Number(c.per100g.c) || 0, f: Number(c.per100g.f) || 0,
-      } : null);
-    if (!per100g) continue;
-    const scaled = scaleTo(per100g, grams);
-    rows.push({
-      name: c.name,
-      grams,
-      per100g,
-      macros: { ...scaled, kcal: kcalFrom(scaled) },
-      source: fact ? `${fact.source} — ${fact.matched}${fact.dataType ? ` (${fact.dataType})` : ''}` : 'estimated, not matched to a database',
-      sourced: !!fact,
-    });
+    const row = await resolveRow(c, fn);
+    if (row) { delete row.fact; rows.push(row); }
   }
-  const total = rows.reduce((a, r) => ({
-    p: a.p + r.macros.p, c: a.c + r.macros.c, f: a.f + r.macros.f,
-  }), { p: 0, c: 0, f: 0 });
-  const macros = {
-    p: Math.round(total.p), c: Math.round(total.c), f: Math.round(total.f),
-    kcal: kcalFrom(total), // derived, always
-  };
+  const macros = totalRows(rows);
   const sourced = rows.filter((r) => r.sourced).length;
   return {
     macros,
@@ -189,4 +205,45 @@ export async function computeFromComponents(components, { lookup = true } = {}) 
       ? `${sourced} of ${rows.length} components matched to USDA data; energy computed from the macros.`
       : 'no components could be resolved',
   };
+}
+
+/**
+ * A PHOTO'S BREAKDOWN, AUDITED BY CODE. The model names each part and says
+ * how many grams it sees, plus its own macros as a fallback. Each part is
+ * looked up in USDA and scaled to those grams; a part USDA misses keeps the
+ * model's figure and says so ("estimated"). A part read straight off a
+ * nutrition label (`label: true`) keeps the label's figures, since a printed
+ * label beats a database average. The total is the sum of the lines, so the
+ * itemised-plate contract (entry macros = sum of items) holds from the start.
+ * @param {{name, grams?, label?, macros?:{p,c,f,kcal}}[]} parts
+ */
+export async function resolvePhotoParts(parts, { lookupFn = lookupPer100g, lookup = true } = {}) {
+  const rows = [];
+  for (const c of (parts || []).slice(0, 24)) {
+    const name = String(c?.name || '').trim().slice(0, 80);
+    if (!name) continue;
+    const grams = Number(c.grams) || 0;
+    const m = c.macros || {};
+    const own = { p: Number(m.p) || 0, c: Number(m.c) || 0, f: Number(m.f) || 0, kcal: Math.round(Number(m.kcal) || 0) };
+    const hasOwn = own.kcal > 0 || own.p + own.c + own.f > 0;
+    const keep = (source, sourced) => ({
+      name, ...(grams > 0 ? { grams: Math.round(grams) } : {}), macros: own, source, sourced,
+    });
+    if (c.label) { if (hasOwn) rows.push(keep('read from the label', true)); continue; }
+    if (grams > 0 && lookup) {
+      const row = await resolveRow({ name, grams }, lookupFn);
+      if (row) {
+        rows.push({
+          name, grams: Math.round(grams), macros: row.macros, source: row.source, sourced: true,
+          ...(row.fact?.fdcId ? { fdcId: row.fact.fdcId } : {}),
+        });
+        continue;
+      }
+    }
+    // USDA missed (or no weight to scale): the model's figure stays, flagged
+    if (hasOwn) rows.push(keep('estimated, not matched to a database', false));
+  }
+  const macros = totalRows(rows.map((r) => ({ macros: r.macros })), { sumKcal: true });
+  const sourced = rows.filter((r) => r.sourced).length;
+  return { macros, components: rows, sourced, unsourced: rows.length - sourced };
 }
