@@ -4,7 +4,7 @@
 // records are compared. Temp data and vault, set before any import.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -16,7 +16,7 @@ await mkdir(path.join(vault, 'Wiki', 'Health'), { recursive: true });
 
 const {
   areaTerms, namesArea, closesArea, closedAreas, closedAsOf, isStaleConcern, scrubClosed,
-  readClosure, hearClosure, closeFromCard, _resetPendingAsk,
+  readClosure, hearClosure, closeFromCard, _resetPendingAsk, recordContradictions, contradictionBlock,
 } = await import('../lib/concernClose.js');
 const {
   addInjury, listInjuries, resolveInjury, resolveInjuries, reopenInjuries, injuriesContext, closedConcerns, closedLine, _reset,
@@ -327,4 +327,60 @@ test('the model reaches the same verb, and a name it cannot place is said back',
   await assert.rejects(() => runVerb(vault, 'the knee', { verb: 'injury.close', args: { area: 'knee' } }), /no open entry for "knee"/);
   const out = await runVerb(vault, 'his shoulder', { verb: 'injury.close', args: { area: 'shoulder' } });
   assert.match(out.acted.said, /Closed Shoulder/);
+});
+
+/* ------------------------- do the records agree? ------------------------- */
+
+const HIP = { id: 'h', area: 'Lower back / hip (above glutes)', note: 'Dull ache', severity: 'niggle', startedAt: '2026-10-15' };
+const ACTIVE_SHOULDER = { id: 's', area: 'Shoulder', note: 'Lateral raises paused pending a physio assessment.', severity: 'moderate', startedAt: '2026-10-13' };
+
+test('Profile against the log: the disagreement the audit found, in the words on his pages', () => {
+  const profile = 'Goal muscles: side and rear delts. No injuries or limitations at the moment. Logs every set in Nova.';
+  const [line, ...rest] = recordContradictions({ profile, injuries: [HIP], now: NOW });
+  assert.equal(rest.length, 0);
+  assert.match(line, /Profile says "No injuries or limitations at the moment\."/);
+  assert.match(line, /Lower back \/ hip \(above glutes\) \(since 2026-10-15\) as active/);
+  assert.deepEqual(recordContradictions({ profile, injuries: [SHOULDER_ENTRY], now: NOW }), [], 'nothing active, nothing to disagree with');
+});
+
+test('his three sentences, as a What Works line against an active entry, each read as a contradiction', () => {
+  for (const said of [SAID_15_OCT, SAID_30_OCT, SAID_1_NOV]) {
+    const whatWorks = `## Decisions log\n- 2026-11-01 — ${said}\n`;
+    const lines = recordContradictions({ injuries: [ACTIVE_SHOULDER], whatWorks, now: NOW });
+    assert.equal(lines.length, 1, said);
+    assert.match(lines[0], /^What Works \(2026-11-01\) says/);
+    assert.match(lines[0], /still holds Shoulder as active/);
+  }
+});
+
+test('a closing line older than the entry is history, not a contradiction: the pain came back after it', () => {
+  const whatWorks = '- 2026-09-01 — His shoulder is fine.\n';
+  assert.deepEqual(recordContradictions({ injuries: [ACTIVE_SHOULDER], whatWorks, now: NOW }), []);
+});
+
+test('a Profile or What Works line that still worries about a closed area is named', () => {
+  const closedProfile = recordContradictions({ profile: 'He has shoulder pain on overhead work.', injuries: [SHOULDER_ENTRY], now: NOW });
+  assert.equal(closedProfile.length, 1);
+  assert.match(closedProfile[0], /he closed that area/);
+  const later = recordContradictions({ injuries: [SHOULDER_ENTRY], whatWorks: '- 2026-11-07 — Fine.\n- 2026-11-08 — His shoulder pain limits raises.\n', now: NOW });
+  assert.equal(later.length, 1);
+  assert.match(later[0], /written after he closed/);
+});
+
+test('when the three pages agree, nothing is raised', () => {
+  const lines = recordContradictions({ profile: 'Trains four days a week.', injuries: [SHOULDER_ENTRY, HIP], whatWorks: '- 2026-11-01 — He does not count his shoulder entries as an injury.\n', now: NOW });
+  assert.deepEqual(lines, []);
+  assert.equal(contradictionBlock([]), null);
+});
+
+test('a contradiction reaches the block Coach reads, as something to put to him', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Lower back / hip', note: 'Dull ache', severity: 'niggle' });
+  await writeFile(path.join(vault, 'Wiki/Profile.md'), '# Profile\n\nNo injuries or limitations at the moment.\n', 'utf8');
+  const ctx = await injuriesContext(vault);
+  assert.match(ctx, /RECORDS THAT DISAGREE/);
+  assert.match(ctx, /Ask which is true/);
+  assert.match(ctx, /Profile says "No injuries or limitations at the moment\."/);
+  await rm(path.join(vault, 'Wiki/Profile.md'));
+  assert.doesNotMatch(await injuriesContext(vault), /RECORDS THAT DISAGREE/, 'a page that is gone claims nothing');
 });

@@ -12,9 +12,13 @@ import { localDateISO } from './localDate.js';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
-import { closedAreas } from './concernClose.js';
+import { readFile } from 'node:fs/promises';
+import { closedAreas, recordContradictions, contradictionBlock } from './concernClose.js';
 
 const REL_PATH = 'Wiki/Health/Injury Log.md';
+// the two other pages that speak about his body, read to compare them
+const PROFILE_REL = 'Wiki/Profile.md';
+const WHAT_WORKS_REL = 'Wiki/Health/What Works For Hayden.md';
 
 const stateFile = createVaultStateFile({
   relPath: REL_PATH,
@@ -133,7 +137,17 @@ export async function injuriesContext(vaultPath) {
   }
   const closed = closedLine(closedAreas(injuries));
   if (closed) parts.push(closed);
+  const disagree = contradictionBlock(await disagreements(vaultPath, injuries));
+  if (disagree) parts.push(disagree);
   return parts.length ? parts.join('\n\n') : null;
+}
+
+// A page that cannot be read compares as empty: no contradiction is claimed
+// from a page nobody saw.
+async function disagreements(vaultPath, injuries) {
+  const read = (rel) => readFile(path.join(vaultPath, rel), 'utf8').catch(() => '');
+  const [profile, whatWorks] = await Promise.all([read(PROFILE_REL), read(WHAT_WORKS_REL)]);
+  return recordContradictions({ profile, injuries, whatWorks });
 }
 
 export const _injuryFileRelPath = REL_PATH;

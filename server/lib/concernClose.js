@@ -345,3 +345,53 @@ export async function hearClosure(vaultPath, text, { source = 'voice', forceConf
   if (out.proposal) return { whole: read.whole, said: `${out.proposal.title}, say yes and it's done.`, proposal: out.proposal, note: `[He closed ${areas}. It waits for his yes because he is driving. Say that in one short line.]` };
   return { whole: read.whole, said: out.acted.said, acted: out.acted, note: `[Code has just closed ${areas} in his Injury Log on his own words, with a receipt he can undo. Say so in one short line first, then answer the rest. Do not ask about it again.]` };
 }
+
+/* ------------------------- do the records agree? ------------------------- */
+
+const SAYS_NO_INJURY = /[^.!?\n]*\bno (?:current |active |known |major )?(?:injur(?:y|ies)|limitations?)\b[^.!?\n]*[.!?]?/i;
+
+/** Pure. Code compares the three places that speak about his body. Each line
+ *  names both sides, so the Coach can put the choice to him in one sentence.
+ *  An old audit: Profile said "No injuries", the log said moderate, and What
+ *  Works said he does not count it. All three rode one prompt, unreconciled. */
+export function recordContradictions({ profile = '', injuries = [], whatWorks = '', now = new Date() } = {}) {
+  const out = [];
+  const active = (injuries || []).filter((i) => !i.resolvedAt);
+  const closed = closedAreas(injuries, { now });
+  const profileText = String(profile || '');
+
+  const none = active.length ? profileText.match(SAYS_NO_INJURY) : null;
+  if (none) {
+    const held = active.map((i) => `${i.area} (since ${i.startedAt})`).join(', ');
+    out.push(`Profile says "${none[0].trim()}", but the Injury Log holds ${held} as active.`);
+  }
+  for (const sentence of profileText.split(/(?<=[.!?])\s+|\n+/)) {
+    if (isStaleConcern(sentence, closed)) out.push(`Profile says "${sentence.trim().slice(0, 160)}", but he closed that area in the Injury Log.`);
+  }
+
+  const lines = String(whatWorks || '').split('\n')
+    .map((l) => l.match(/^- (\d{4}-\d{2}-\d{2}) \S* ?(.+)$/))
+    .filter(Boolean)
+    .map((m) => ({ date: m[1], text: m[2] }));
+  const noted = new Set();
+  for (const group of areaGroups(active)) {
+    const entries = active.filter((i) => areaKey(i.area) === areaKey(group.area));
+    const started = entries.map((i) => i.startedAt).sort()[0];
+    // a closing line older than the entry is history: the pain came back after it
+    const line = lines.find((l) => closesArea(l.text, group.area) && (!started || l.date >= started));
+    if (line && !noted.has(group.area)) {
+      noted.add(group.area);
+      out.push(`What Works (${line.date}) says "${line.text.slice(0, 160)}", but the Injury Log still holds ${group.area} as active.`);
+    }
+  }
+  for (const line of lines) {
+    const after = closed.filter((c) => line.date > c.resolvedAt);
+    if (after.length && isStaleConcern(line.text, after)) out.push(`What Works (${line.date}) says "${line.text.slice(0, 160)}", written after he closed that area in the Injury Log.`);
+  }
+  return out;
+}
+
+export function contradictionBlock(lines = []) {
+  if (!lines.length) return null;
+  return `RECORDS THAT DISAGREE (code compared his Profile, Injury Log and What Works For Hayden). Put one to him once, in one short line, the next time training or injuries come up. Ask which is true. Do not act on either side until he says:\n${lines.map((l) => `- ${l}`).join('\n')}`;
+}
