@@ -248,6 +248,7 @@ export async function computeFromComponents(components, { lookup = true, lookupF
  * itemised-plate contract (entry macros = sum of items) holds from the start.
  * @param {{name, grams?, label?, macros?:{p,c,f,kcal}}[]} parts
  */
+const MATCH_SPREAD = 2;
 export async function resolvePhotoParts(parts, { lookupFn = lookupPer100g, lookup = true } = {}) {
   const rows = [];
   for (const c of (parts || []).slice(0, 24)) {
@@ -263,6 +264,17 @@ export async function resolvePhotoParts(parts, { lookupFn = lookupPer100g, looku
     if (c.label) { if (hasOwn) rows.push(keep('read from the label', true)); continue; }
     if (grams > 0 && lookup) {
       const row = await resolveRow({ name, grams }, lookupFn);
+      // A free-text database search can land on the wrong food (measured on
+      // his own log: "butter chicken" matched ghee at 5x the calories, "basmati
+      // rice" matched the dry grain at 2.5x). When the model gave its own
+      // figure for this part and the match is more than 2x away from it in
+      // either direction, the match is the likelier mistake: keep the model's
+      // figure, labelled estimated, and say what was rejected.
+      const disagrees = hasOwn && own.kcal >= 50 && row && (row.macros.kcal > own.kcal * MATCH_SPREAD || row.macros.kcal < own.kcal / MATCH_SPREAD);
+      if (disagrees) {
+        rows.push(keep(`estimated, not matched to a database (USDA "${row.fact.matched}" was too far from the estimate to trust)`, false));
+        continue;
+      }
       if (row) {
         rows.push({
           name, grams: Math.round(grams), macros: row.macros, source: row.source, sourced: true,

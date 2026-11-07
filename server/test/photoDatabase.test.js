@@ -24,8 +24,8 @@ const parsed = {
   name: 'Chicken rice',
   macros: { p: 999, c: 999, f: 999, kcal: 9999 }, // the model's own total must not survive
   components: [
-    { name: 'chicken thigh, cooked', grams: 180, p: 10, c: 0, f: 5, kcal: 85 },
-    { name: 'jasmine rice, cooked', grams: 200, p: 1, c: 10, f: 0, kcal: 44 },
+    { name: 'chicken thigh, cooked', grams: 180, p: 45, c: 0, f: 20, kcal: 360 },
+    { name: 'jasmine rice, cooked', grams: 200, p: 5, c: 55, f: 1, kcal: 250 },
     { name: 'mystery sauce', grams: 40, p: 1, c: 6, f: 2, kcal: 46 },
   ],
   confidence: 'high', question: '',
@@ -96,4 +96,16 @@ test('the Telegram record carries the audited lines and the source note', async 
   assert.equal(rec.decision.payload.items.length, 3);
   assert.match(rec.decision.reason, /matched to USDA/);
   assert.equal(rec.decision.payload.macros.kcal, r.macros.kcal);
+});
+
+test('a database match far from the model estimate is distrusted, not logged (ghee for butter chicken)', async () => {
+  const wrong = async () => ({ source: 'USDA FoodData Central', dataType: 'SR Legacy', matched: 'Butter, Clarified butter (ghee)', fdcId: 9, per100g: { p: 0.3, c: 0, f: 99.5 } });
+  const r = await resolvePhotoParts([{ name: 'butter chicken', grams: 220, macros: { p: 30, c: 12, f: 20, kcal: 358 } }], { lookupFn: wrong });
+  assert.equal(r.components[0].sourced, false);
+  assert.equal(r.components[0].macros.kcal, 358, 'the model figure stays');
+  assert.match(r.components[0].source, /too far from the estimate/);
+  // within 2x it is trusted
+  const near = async () => ({ source: 'USDA FoodData Central', dataType: 'SR Legacy', matched: 'Chicken curry', fdcId: 3, per100g: { p: 12, c: 5, f: 9 } });
+  const ok = await resolvePhotoParts([{ name: 'butter chicken', grams: 220, macros: { p: 30, c: 12, f: 20, kcal: 358 } }], { lookupFn: near });
+  assert.equal(ok.components[0].sourced, true);
 });

@@ -147,7 +147,7 @@ test('removing a line recomputes the entry extras, and a hand edit of the totals
 
 test('a photo part from USDA arrives with extras and fdcId on its line', async () => {
   const { resolvePhotoParts } = await import('../lib/nutritionFacts.js');
-  const r = await resolvePhotoParts([{ name: 'oats', grams: 100, macros: { p: 1, c: 1, f: 1, kcal: 17 } }], {
+  const r = await resolvePhotoParts([{ name: 'oats', grams: 100, macros: { p: 13, c: 66, f: 7, kcal: 380 } }], {
     lookupFn: async () => ({ source: 'USDA FoodData Central', matched: 'Oats', fdcId: 7, per100g: { p: 13, c: 68, f: 7, fibre: 10, sodium: 2 } }),
   });
   assert.equal(r.components[0].fibreG, 10);
