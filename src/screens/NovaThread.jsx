@@ -92,14 +92,24 @@ export function NovaThread({ v }) {
     if (!glass) return false;
     let cmd = null;
     try { cmd = glassCommand(t, glass.state()); } catch { cmd = null; }
-    if (!cmd || !glass.run(cmd)) return false;
+    if (!cmd) return false;   // not a glass command: the words go to Nova (8 Nov: a missing check here threw on EVERY plain sentence)
+    let ran = false;
+    try { ran = glass.run(cmd); } catch { ran = false; }
+    if (!ran) return false;
+    // the camera's moves answer with their own line, once the Mac has looked
+    if (ran && typeof ran.then === 'function') {
+      ran.then((line) => { if (line) { notify({ id: 'glass-move', title: 'NOVA', message: line, tone: 'nova', duration: 2600 }); T.sayLine?.(line); } }).catch(() => {});
+      return true;
+    }
     const line = glassReceipt(cmd);
-    notify({ id: 'glass-move', title: 'GLASS', message: line, tone: 'nova', duration: 1800 });
-    T.sayLine?.(line);
+    if (line) { notify({ id: 'glass-move', title: 'GLASS', message: line, tone: 'nova', duration: 1800 }); T.sayLine?.(line); }
     return true;
   };
   const sendRef = useRef(v.sendOrb);
   sendRef.current = (t) => { if (!moveGlass(t)) v.sendOrb(t); };
+  // dev-only: the instruments send words the way his voice does (through
+  // the glass first), never a production path
+  if (import.meta.env.DEV && typeof window !== 'undefined') window.__novaSay = (t) => sendRef.current(t);
   // a tap on a mic that has heard nothing keeps listening and says so
   const [nudged, nudge] = useNudge();
   // KEEP GOING (27 Oct 2026): the mic stays open after a spoken send for

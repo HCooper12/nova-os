@@ -352,3 +352,54 @@
 .nv-mac[data-wall] .nv-mac-histbtn { opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .nv-mac-slot { transition: none; } }
 .nv-mac-answer { margin: 10px 0 0; font: 400 21px/1.3 var(--nv-font-serif); color: var(--nv-ink); }
+
+/* THE WORDS, FOLDED (8 Nov 2026, his call): the plate on the wall is a strip
+   until the arrow, W or "show the transcript" opens it */
+.nv-mac-plate.folded { padding: 10px 14px; }
+.nv-mac-plate.folded .nv-mac-pwords { margin: 0; }
+.nv-mac-pwords { display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 10px; padding: 0; border: 0; background: none; color: var(--nv-ink60); font: 500 13px var(--nv-font-ui); text-align: left; cursor: pointer; }
+.nv-mac-pwords .who { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 7px; border-radius: 13px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink); background: rgba(232, 236, 246, .07); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-hue) 45%, transparent); flex: none; }
+.nv-mac-pwords .who i { width: 10px; height: 10px; border-radius: 50%; }
+.nv-mac-pwords .q { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: italic 400 14px var(--nv-font-serif); color: var(--nv-ink50); }
+.nv-mac-pwords .arrow { margin-left: auto; color: var(--nv-ink50); }
+.nv-mac-pwords .lbl { color: var(--nv-ink50); }
+.nv-mac-pwords:hover .arrow, .nv-mac-pwords:hover .lbl { color: var(--nv-ink); }
+
+/* ROSE-GRADE MOTION ON THE CARDS (8 Nov 2026, keynote-motion): a card lands
+   on a bouncy spring from below; the one being said gets one light passing
+   over it and a breathing live dot; a cover drifts slowly (Ken Burns). */
+.nv-mac-slot { animation: nvSlotIn var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; }
+@keyframes nvSlotIn { from { opacity: 0; transform: translate3d(0, 26px, 0) scale(.96) rotate(var(--tilt, 0deg)); filter: blur(6px); } to { opacity: 1; filter: none; } }
+.nv-mac-slot .nv-mac-pnl { overflow: hidden; }
+.nv-mac-slot.lit .nv-mac-pnl .pscan { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: linear-gradient(104deg, transparent 38%, color-mix(in srgb, var(--h) 26%, transparent) 50%, transparent 62%); transform: translate3d(-110%, 0, 0); animation: nvScanOnce 1.1s var(--nv-ease) .12s 1 both; mix-blend-mode: screen; }
+@keyframes nvScanOnce { to { transform: translate3d(110%, 0, 0); } }
+.nv-mac-slot.lit .ptag > i { animation: nvMacBreathe 1.4s ease-in-out infinite; box-shadow: 0 0 10px var(--h); }
+.nv-mac-slot .pbody img { animation: nvKen 18s ease-in-out infinite alternate; transform-origin: 50% 50%; }
+@keyframes nvKen { from { transform: scale(1); } to { transform: scale(1.07) translate3d(-1.5%, -1%, 0); } }
+/* asleep: the core alone, dimmed; the wall gone */
+.nv-mac[data-sleep] .nv-mac-core { opacity: .55; filter: saturate(.6); transition: opacity var(--nv-dur-slow) var(--nv-ease), filter var(--nv-dur-slow) var(--nv-ease); }
+.nv-mac[data-sleep] .nv-mac-wall, .nv-mac[data-sleep] .nv-mac-wallkeys { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-mac-slot { animation: nvSlotFade var(--nv-dur-base) var(--nv-ease) both; }
+  .nv-mac-slot.lit .nv-mac-pnl .pscan, .nv-mac-slot .pbody img, .nv-mac-slot.lit .ptag > i { animation: none; }
+}
+@keyframes nvSlotFade { from { opacity: 0; } }
+
+/* NOVA'S EYES (8 Nov 2026, Rose's camera): the live feed as the ground, a
+   faint grid over it, boxes in the speaking hue landing on a spring */
+.nv-mac-cam { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+.nv-mac-cam video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .55; filter: saturate(.8) contrast(1.05); transform: scaleX(-1); }
+.nv-mac-cam .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(130,175,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(130,175,255,.07) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; }
+.nv-mac-cam .box { position: absolute; border: 1.5px solid var(--nv-say); border-radius: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 0 24px -6px var(--nv-say); transform: scaleX(-1); animation: nvBoxIn var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; }
+.nv-mac-cam .box span { position: absolute; left: -1.5px; top: -22px; transform: scaleX(-1); transform-origin: 50% 50%; padding: 2px 7px; border-radius: 5px 5px 5px 0; font: 600 10px var(--nv-font-mono); letter-spacing: .12em; text-transform: uppercase; color: #06111a; background: var(--nv-say); white-space: nowrap; }
+@keyframes nvBoxIn { from { opacity: 0; scale: .9; } to { opacity: 1; scale: 1; } }
+.nv-mac-cam .camoff { position: absolute; right: 20px; top: 64px; height: 32px; padding: 0 12px; border-radius: 16px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink60); background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+.nv-mac[data-camera] .nv-mac-embers { opacity: .35; }
+@media (prefers-reduced-motion: reduce) { .nv-mac-cam .box { animation: none; } }
+.nv-mac-cam .feed { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .6; filter: saturate(.8) contrast(1.05); }
+.nv-mac-cam[data-source="phone"] .box, .nv-mac-cam[data-source="phone"] .box span { transform: none; }
+.nv-mac-cam .waiting { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); font: 400 15px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-cam .camsrc { position: absolute; right: 20px; top: 64px; display: flex; gap: 4px; padding: 3px; border-radius: 18px; background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+.nv-mac-cam .camsrc button { height: 28px; padding: 0 12px; border-radius: 14px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink60); background: transparent; }
+.nv-mac-cam .camsrc button.on { color: var(--nv-ink); background: rgba(255,255,255,.1); }
+.nv-mac-cam .camsrc .camoff { position: static; height: 28px; box-shadow: none; background: transparent; }

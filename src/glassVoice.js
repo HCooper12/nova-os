@@ -20,8 +20,24 @@ const VERBS = [
   { cmd: 'clear', re: /^(?:clear (?:the )?(?:screen|glass|wall|view|panels|everything|them|it|all)|clear(?: view| up)?|put (?:them|it|everything|the panels) away|close (?:them|everything|the panels|all of them)|take (?:them|it|everything) down|wipe (?:it|the screen))$/ },
   { cmd: 'restore', re: /^(?:put (?:it|that|them) back|bring (?:it|that|them) back|un ?maximise|minimise(?: (?:it|that))?|minimize(?: (?:it|that))?|close (?:it|that)|go back|back)$/ },
   { cmd: 'history', re: /^(?:(?:show|open) (?:the )?history|history)$/ },
+  // THE CAMERA (8 Nov 2026, Rose's pumpkin reel): open it, close it, box
+  // what he names, say what he is holding
+  { cmd: 'camera-on', re: /^(?:(?:open|turn on|switch on|start|bring up) (?:the |your |my )?camera|camera on|open (?:your |the )?eyes|look (?:at me|at the desk|through the camera))$/ },
+  // the phone as the Mac's camera (lib/cameraRelay.js): said on the phone
+  // it starts beaming; said on the Mac it looks through the phone
+  { cmd: 'camera-beam', re: /^(?:be (?:my|the) camera|(?:stream|send|beam|share) (?:your|the|this|my) camera(?: to the mac)?|use (?:this|my) phone as (?:the|a|my) camera|phone camera on|become the camera)$/ },
+  { cmd: 'camera-phone', re: /^(?:use (?:the|my) phone(?:'?s)? camera|use (?:the|my) phone|look through (?:the|my) phone|(?:switch|change) (?:the )?camera to (?:the |my )?phone|phone camera|camera source phone)$/ },
+  { cmd: 'camera-mac', re: /^(?:use (?:the|your|this) (?:mac|macbook|laptop)(?:'?s)? camera|(?:switch|change) (?:the )?camera to (?:the )?(?:mac|macbook|laptop)|camera source mac)$/ },
+  { cmd: 'camera-off', re: /^(?:(?:close|turn off|switch off|stop|kill) (?:the |your |my )?camera|camera off|close (?:your |the )?eyes)$/ },
+  { cmd: 'see-held', re: /^(?:what (?:am i|'?m i) holding|what(?:'s| is) (?:this|that)(?: thing)?|what (?:do you|can you) see|look at (?:this|that)|can you see (?:this|what i'?m holding)|do you know what this is)$/ },
+  { cmd: 'unbox', re: /^(?:clear (?:the )?boxes|(?:remove|hide|drop) (?:the |all the )?boxes|unbox (?:it|them|everything)|clear (?:the )?highlights?)$/ },
+  // the words (8 Nov 2026, his call): the wall shows no spoken text by
+  // default; "show the transcript" opens it, "hide the words" folds it
+  { cmd: 'words', re: /^(?:show (?:me )?(?:the )?(?:words|text|transcript|subtitles|captions)|(?:words|subtitles|captions|transcript) on|what did you (?:just )?say|show (?:me )?what you said|expand the (?:words|text|transcript))$/ },
+  { cmd: 'nowords', re: /^(?:hide (?:the )?(?:words|text|transcript|subtitles|captions)|(?:words|subtitles|captions|transcript) off|fold the (?:words|text|transcript)|collapse the (?:words|text|transcript))$/ },
 ];
 const OBJECT_VERBS = [
+  { cmd: 'highlight', re: /^(?:(?:highlight|box|outline|circle|mark|find|point (?:at|to)|show me) (?:the |a |my )?(.+?)(?: (?:in|on) (?:the )?(?:camera|view|frame|desk))?)$/ },
   { cmd: 'maximise', re: /^(?:maximi[sz]e|max|enlarge|expand|open(?: up)?|zoom (?:in on|into|on)|make (?:\S+ )?bigger|blow up|focus on|show me)\s+(.+)$/ },
   { cmd: 'away', re: /^(?:put (.+?) away|close (.+)|hide (.+)|get rid of (.+)|drop (.+)|remove (.+)|lose (.+))$/ },
   { cmd: 'bring', re: /^(?:bring (?:back|up) (.+)|bring (.+) (?:back|up)|show (.+) again|put (.+) (?:back )?(?:up|on (?:the )?(?:screen|glass))|pull up (.+)|get (.+) back)$/ },
@@ -76,6 +92,11 @@ export function glassCommand(words, { panels = [], hero = null, history = [] } =
     if (!m) continue;
     const what = String(firstGroup(m) || '').replace(/\s+(?:for me|please|now)$/, '').trim();
     if (!what) continue;
+    if (v.cmd === 'highlight') {
+      // "show me the chart" is a panel; "highlight the pumpkin" is the camera
+      if (matchPanel(what, panels)) { const t = matchPanel(what, panels); return { cmd: 'maximise', key: t.key, title: t.title || t.label }; }
+      return { cmd: 'highlight', what };
+    }
     if (v.cmd === 'clear-except') {
       const keep = THAT.test(what) ? hero : matchPanel(what, panels);
       return keep ? { cmd: 'clear-except', key: keep.key, title: keep.title || keep.label } : null;
@@ -97,6 +118,16 @@ export function glassReceipt(cmd) {
     case 'clear': return 'Cleared.';
     case 'restore': return 'Back as it was.';
     case 'history': return 'History.';
+    case 'words': return 'Words on.';
+    case 'camera-on': return 'Camera on.';
+    case 'camera-off': return 'Camera off.';
+    case 'camera-beam': return 'Streaming to the Mac.';
+    case 'camera-phone': return 'Looking through your phone.';
+    case 'camera-mac': return 'Mac camera.';
+    case 'unbox': return 'Boxes cleared.';
+    case 'highlight': return '';   // code says what it boxed, from the count
+    case 'see-held': return '';
+    case 'nowords': return 'Words off.';
     case 'maximise': return `${cmd.title || 'That'}, larger.`;
     case 'away': return `${cmd.title || 'That'} is away.`;
     case 'bring': return `${cmd.title || 'That'} is back.`;

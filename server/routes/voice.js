@@ -185,6 +185,50 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // NOVA'S EYES (8 Nov 2026, lib/see.js): one frame from his Mac's camera,
+  // labelled boxes back from the model on this Mac, or what is being held.
+  // HIS PHONE AS THE CAMERA (lib/cameraRelay.js): the phone posts frames,
+  // the Mac shows the latest and the model looks at the same one
+  router.post('/camera/frame', async (req, res) => {
+    const { setFrame } = await import('../lib/cameraRelay.js');
+    const r = setFrame(req.body?.image, { from: typeof req.body?.from === 'string' ? req.body.from : 'phone' });
+    if (r.error) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+  router.get('/camera/frame', async (req, res) => {
+    const { latestFrame } = await import('../lib/cameraRelay.js');
+    const f = latestFrame();
+    if (!f) return res.status(404).json({ error: 'no live frame' });
+    res.set({ 'Content-Type': f.type, 'Cache-Control': 'no-store', 'X-Frame-Seq': String(f.seq), 'X-Frame-At': new Date(f.at).toISOString() });
+    res.end(f.buf);
+  });
+  router.get('/camera/state', async (req, res) => {
+    const { relayState } = await import('../lib/cameraRelay.js');
+    res.json(relayState());
+  });
+
+  router.post('/see', async (req, res) => {
+    try {
+      const { see, seeLine, warmSee } = await import('../lib/see.js');
+      if (req.body?.warm === true) { const w = await warmSee(); console.log(`see: warm ${w.ok ? `${w.ms}ms` : `failed (${w.error})`} ${w.model}`); return res.json(w); }
+      let image = typeof req.body?.image === 'string' ? req.body.image : '';
+      // the phone's frame, when the Mac is looking through the phone
+      if (!image && req.body?.source === 'phone') {
+        const { latestDataUrl } = await import('../lib/cameraRelay.js');
+        image = latestDataUrl() || '';
+        if (!image) return res.json({ error: 'the phone is not sending a picture right now', said: "I can't see through the phone right now." });
+      }
+      if (!image) return res.status(400).json({ error: 'image is required' });
+      const want = typeof req.body?.want === 'string' && req.body.want.trim() ? req.body.want.trim().slice(0, 120) : null;
+      const held = req.body?.held === true;
+      const out = await see(image, { want, held });
+      console.log(`see: ${out.error ? `failed (${out.error})` : held ? `held=${JSON.stringify(out.held)}` : `${(out.boxes || []).length}/${(out.all || []).length} box(es)${want ? ` for "${want}"` : ''}`} ${out.ms ? `${out.ms}ms` : ''} ${out.model || ''}`);
+      res.json({ ...out, said: seeLine(out, { want }) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.post('/ask', async (req, res) => {
     try {
       let question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';

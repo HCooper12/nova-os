@@ -655,6 +655,16 @@ export const api = {
   projectThread: (conn, projectId) => call(conn, `/api/conversation?limit=200&projectId=${encodeURIComponent(projectId)}`),
   // photos/videos with a question — stored first, named by id on the ask
   attach: (conn, files) => post(conn, '/api/attachments', { files }, { timeoutMs: 180_000 }),
+  // one camera frame → labelled boxes, or the thing being held (lib/see.js)
+  see: (conn, body) => post(conn, '/api/see', body, { timeoutMs: 40_000 }),
+  // his phone as the camera (lib/cameraRelay.js): frames up, the latest down
+  cameraFrame: (conn, image) => post(conn, '/api/camera/frame', { image, from: 'phone' }, { timeoutMs: 4000 }),
+  cameraState: (conn) => call(conn, '/api/camera/state'),
+  cameraFrameBlob: async (conn) => {
+    const res = await fetch(baseOf(conn) + `/api/camera/frame?t=${Date.now()}`, { headers: { Authorization: `Bearer ${conn.token}` }, cache: 'no-store' });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  },
   // fired the moment the mic opens, before a question exists — boots the
   // conversation's process (and a cold session's context) while he talks.
   // Failure is silently fine: it only ever costs him latency, never an answer.

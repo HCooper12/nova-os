@@ -4022,6 +4022,15 @@ export default class App extends Component {
   }
   removePendingAttach(i) { this.setState((s) => ({ pendingAttach: s.pendingAttach.filter((_, k) => k !== i) })); }
   // upload what is pending, hand back the id (or null when nothing pending)
+  // NOVA'S EYES (8 Nov 2026, lib/see.js): one camera frame to the Mac
+  seeFrame(body) {
+    const conn = getConnection();
+    if (!conn) return Promise.reject(new Error('the Mac is not reachable'));
+    return api.see(conn, body);
+  }
+  cameraState() { const conn = getConnection(); return conn ? api.cameraState(conn) : Promise.resolve({ live: false }); }
+  cameraFrameBlob() { const conn = getConnection(); return conn ? api.cameraFrameBlob(conn) : Promise.resolve(null); }
+  beamFrame(image) { const conn = getConnection(); return conn ? api.cameraFrame(conn, image) : Promise.reject(new Error('the Mac is not reachable')); }
   async flushAttachments(conn) {
     const pending = this.state.pendingAttach;
     if (!pending.length) return null;

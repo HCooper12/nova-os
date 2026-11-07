@@ -181,6 +181,8 @@ export function valsNovaThread(app, ctx, v) {
       // (pages and clips code put up before the model spoke) and the query,
       // up from the moment the search returns, through thinking and speaking
       lookup: lookupView(st),
+      // asleep (standby, lib/standby.js): the wall clears to the core alone
+      standby: !!st.liveStandby?.on,
       engine: st.coreStyle,
       // the close (the morning brief's questions): the Coach-deck card, gold
       // because it waits on his call
@@ -248,6 +250,14 @@ export function valsNovaThread(app, ctx, v) {
       stop: () => app.stopSpeaking(),
       // a word back from code when his words moved the glass (src/glassVoice.js)
       sayLine: (t) => { if (t && st.voiceSpeak) app.speakTtsSentence(t, null, { stance: 'ack' }); },
+      // a camera frame attached to the next question ("what am I holding?")
+      attachSnapshot: (dataUrl) => app.setState((s) => ({ pendingAttach: [...(s.pendingAttach || []), { name: 'camera.jpg', kind: 'image', dataUrl, thumb: dataUrl }].slice(0, 6) })),
+      ask: (t) => v.sendOrb(t),
+      see: (body) => app.seeFrame(body),
+      // his phone as the camera (lib/cameraRelay.js)
+      cameraState: () => app.cameraState(),
+      cameraFrame: () => app.cameraFrameBlob(),
+      beamFrame: (image) => app.beamFrame(image),
       consultLane: 'ask',
       // what the Mac's code-built panels read (src/novaMacFacts.js codePanels):
       // his week, the Inbox records, his calendar; and the proposal's Undo

@@ -93,3 +93,15 @@ test('the receipt is a word, in code\'s voice', () => {
   assert.equal(glassReceipt({ cmd: 'maximise', title: 'Price' }), 'Price, larger.');
   assert.equal(glassReceipt({ cmd: 'clear-except', title: 'Price' }), 'Just Price now.');
 });
+
+test('the words: "show the transcript" opens them, "hide the words" folds them (8 Nov)', () => {
+  assert.deepEqual(glassCommand('show me the transcript', {}), { cmd: 'words' });
+  assert.deepEqual(glassCommand('subtitles on', {}), { cmd: 'words' });
+  assert.deepEqual(glassCommand('hide the words', {}), { cmd: 'nowords' });
+  assert.equal(glassReceipt({ cmd: 'words' }), 'Words on.');
+});
+
+test('a plain sentence is never a glass command: nothing throws, nothing runs (8 Nov regression)', () => {
+  assert.equal(glassCommand("Why don't you look it up? It's called the Busy Bar, by Flipper Devices.", { panels: PANELS, hero: PANELS[0] }), null);
+  assert.equal(glassCommand('what did TechCrunch say about it', { panels: PANELS }), null);
+});

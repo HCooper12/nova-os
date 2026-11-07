@@ -548,6 +548,43 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
   const [railGone, setRailGone] = useState(() => new Set());
   const railShown = railCards.filter((c) => !railGone.has(c.key));
   useEffect(() => { if (S.key === 'listening') setRailGone(new Set()); }, [S.key]);
+  // asleep: the rail clears too (his yes, 8 Nov)
+  useEffect(() => { if (T.standby) setRailGone(new Set(railCards.map((c) => c.key))); }, [T.standby]); // eslint-disable-line react-hooks/exhaustive-deps
+  // HIS PHONE AS THE MAC'S CAMERA (8 Nov 2026, lib/cameraRelay.js): "be my
+  // camera" opens the back camera here and posts a small frame four times a
+  // second; the Mac shows it live and looks at it when he asks for boxes
+  const [beam, setBeam] = useState(false);
+  const beamVideo = useRef(null);
+  const beamStream = useRef(null);
+  const [beamSent, setBeamSent] = useState(0);
+  useEffect(() => {
+    if (!beam) { beamStream.current?.getTracks().forEach((t) => t.stop()); beamStream.current = null; return undefined; }
+    let live = true;
+    let timer = null;
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false })
+      .then((stream) => {
+        if (!live) { stream.getTracks().forEach((t) => t.stop()); return; }
+        beamStream.current = stream;
+        const v = beamVideo.current;
+        if (v) { v.srcObject = stream; v.play().catch(() => {}); }
+        const c = document.createElement('canvas');
+        let busy = false;
+        timer = setInterval(async () => {
+          if (busy || !v || !v.videoWidth) return;
+          busy = true;
+          try {
+            const w = 640; const h = Math.round((v.videoHeight / v.videoWidth) * w);
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(v, 0, 0, w, h);
+            await T.beamFrame?.(c.toDataURL('image/jpeg', 0.7));
+            if (live) setBeamSent((n) => n + 1);
+          } catch { /* the next frame */ }
+          busy = false;
+        }, 250);
+      })
+      .catch(() => { if (live) setBeam(false); });
+    return () => { live = false; clearInterval(timer); beamStream.current?.getTracks().forEach((t) => t.stop()); beamStream.current = null; };
+  }, [beam]); // eslint-disable-line react-hooks/exhaustive-deps
   const glassApi = useRef(null);
   glassApi.current = {
     state: () => {
@@ -564,6 +601,8 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         case 'clear': setRailGone(new Set(up.map((c) => c.key))); return true;
         case 'clear-except': setRailGone(new Set(up.filter((c) => c.key !== cmd.key).map((c) => c.key))); return true;
         case 'tidy': case 'restore': return true;
+        case 'camera-beam': case 'camera-on': setBeam(true); return true;
+        case 'camera-off': setBeam(false); return true;
         default: return false;
       }
     },
@@ -651,6 +690,14 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
           )}
         </div>
 
+        {/* BEAMING: this phone is the Mac's camera (lib/cameraRelay.js) */}
+        {beam && (
+          <div className="nv-nt-beam" role="status">
+            <video ref={beamVideo} muted playsInline autoPlay />
+            <span><i />Camera to the Mac{beamSent ? ` · ${beamSent} frames` : ''}</span>
+            <button type="button" onClick={() => setBeam(false)}>Stop</button>
+          </div>
+        )}
         {/* Listening and Thinking: his words */}
         <div className="nv-nt-stheard" aria-hidden={!(S.key === 'listening' || S.key === 'thinking')}>
           <small>Hearing you</small>
