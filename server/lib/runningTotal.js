@@ -34,7 +34,11 @@ export async function targetsForDay(vaultPath, date, deps = {}) {
   }
   const { resolveTargets } = await import('./goalBoard.js');
   const t = resolveTargets(goals, profile);
-  return targetsOn(goals?.targetHistory || [], date, { kcal: t.kcal.value, protein: t.protein.value });
+  const day = targetsOn(goals?.targetHistory || [], date, { kcal: t.kcal.value, protein: t.protein.value });
+  // today's earned room counts; a past day keeps the target it had
+  const earned = deps.earned !== undefined ? deps.earned : await (await import('./earnedCalories.js')).earnedToday();
+  if (earned?.date === date && earned.kcal > 0 && day?.kcal) return { ...day, kcal: day.kcal + earned.kcal };
+  return day;
 }
 
 /**

@@ -885,6 +885,13 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'earned-off') {
+    const { readEarnedState, writeEarnedState } = await import('./earnedCalories.js');
+    const prior = await readEarnedState();
+    await writeEarnedState({ ...prior, on: false });
+    return { destination: 'Earned calories are off; your target stays at its plain number', undo: { route, prior } };
+  }
+
   if (route === 'intake') {
     // THE INTAKE's yes (lib/intake.js): code recomputes the plan from the
     // facts he answered — never trusting a number that rode in the payload —
@@ -1521,6 +1528,11 @@ export async function undoFiling(vaultPath, undo) {
     const { restoreProfileText } = await import('./profile.js');
     await restoreProfileText(vaultPath, undo.priorText ?? null);
     return 'restored your profile page as it was';
+  }
+  if (undo.route === 'earned-off') {
+    const { writeEarnedState } = await import('./earnedCalories.js');
+    await writeEarnedState({ ...undo.prior, since: new Date().toISOString().slice(0, 10) });
+    return 'earned calories are back on; the two weeks start again';
   }
   if (undo.route === 'intake') {
     const { restoreTargets } = await import('./recipes.js');

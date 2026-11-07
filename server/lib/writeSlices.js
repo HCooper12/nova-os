@@ -42,7 +42,7 @@ export const WRITE_SLICE_MAP = [
   // finishing a session rewrites the overview, the streak, and the fuel
   // cross-reference; routine/exercise edits move the library and the plan
   { test: /^\/workouts(\/|$)/, slices: ['workoutExercises', 'workoutRoutines', 'workoutGoals', 'trainOverview', 'fuelCross', 'streaks'] },
-  { test: /^\/health-data(\/|$)/, slices: ['healthData', 'healthInsight', 'streaks'] },
+  { test: /^\/health-data(\/|$)/, slices: ['healthData', 'healthInsight', 'streaks', 'earned'] },
 
   // — Capture —
   // a journal entry is a real vault note: it lands in the note list and the
@@ -80,7 +80,7 @@ export const KIND_SLICE_MAP = {
   notes: ['notes', 'graph', 'library'],
   money: ['money'],
   calendar: ['calendar'],
-  health: ['healthData', 'healthInsight', 'streaks'],
+  health: ['healthData', 'healthInsight', 'streaks', 'earned'],
   alerts: ['alerts'],
   // 'inbox'  — an approval can write a note, a todo, a list item: untagged
   // 'forge'  — broad, cross-cutting: untagged

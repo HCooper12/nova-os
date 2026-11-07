@@ -43,6 +43,10 @@ export async function buildWidgetToday(vaultPath, { now = new Date() } = {}) {
     let profile = null;
     try { ({ profile } = await loadRecipeData(vaultPath)); } catch { /* no collection yet */ }
     targets = resolveTargets(goals, profile);
+    // a day he moved more than usual has a little more room (lib/earnedCalories.js)
+    const { earnedToday } = await import('./earnedCalories.js');
+    const earned = (await earnedToday({ now })).kcal;
+    if (earned > 0 && targets.kcal?.value) targets = { ...targets, kcal: { ...targets.kcal, value: targets.kcal.value + earned } };
   } catch { /* targets stay null: no rings, said honestly */ }
 
   // today's food log is the whole day: rotation meals write into it when ticked

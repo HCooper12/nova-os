@@ -96,6 +96,12 @@ export function intakeRouter(vaultPath) {
     }
   });
 
+  // EARNED CALORIES (lib/earnedCalories.js): today's room above the target
+  router.get('/fuel/earned', async (req, res) => {
+    const { earnedToday } = await import('../lib/earnedCalories.js');
+    res.json(await earnedToday());
+  });
+
   // THE WEEKLY REVIEW (lib/fuelReview.js): what it last saw, or a run now
   router.get('/intake/review', async (req, res) => {
     const { readReviewState } = await import('../lib/fuelReview.js');

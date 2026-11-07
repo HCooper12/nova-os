@@ -223,6 +223,28 @@ export async function runFuelReview(vaultPath, { now = new Date(), force = false
       last.title = title;
     }
   }
+  // EARNED CALORIES, HIS CONDITION: two weeks with weight not dropping and the
+  // review says so, and proposes switching them off. His call, on the rails.
+  try {
+    const { earnedCheck, readEarnedState } = await import('./earnedCalories.js');
+    const state2 = await readEarnedState();
+    const check = earnedCheck({ ...state2, weighIns: weighInsOf(days), today });
+    if (check.line) last.lines = [...(last.lines || []), check.line];
+    if (check.verdict === 'stalled') {
+      const { listRecords, createRecord } = await import('./inboxStore.js');
+      const waiting = (await listRecords()).find((x) => x.source === 'fuel-review-earned' && x.status === 'pending');
+      if (!waiting) {
+        const { randomUUID } = await import('node:crypto');
+        const title = 'Switch earned calories off? Your weight has not dropped in two weeks';
+        const body = `${check.line}\n\nA yes keeps your target at its plain number. Undo brings earned calories back.`;
+        await createRecord({
+          id: randomUUID().slice(0, 8), kind: 'earned-off', text: title, source: 'fuel-review-earned',
+          mode: 'review-all', status: 'pending', decision: { route: 'earned-off', title, payload: { body } },
+          createdAt: now.toISOString(),
+        });
+      }
+    }
+  } catch { /* the weekly review stands without this line */ }
   await writeReviewState({ week, last });
   return { ...last, fresh: true };
 }

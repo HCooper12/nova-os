@@ -114,11 +114,13 @@ function Plate({ p, onOpen, openRef }) {
         <PlateRing protein={p.protein} />
         <div className="nv-fs-side">
           <div>
-            <div className="nv-fs-kh"><span>Calories</span><span>{right}</span></div>
+            <div className="nv-fs-kh"><span>Calories{k.earned && <em className="nv-fs-earn"> +{k.earned.kcal}<i> earned</i></em>}</span><span>{right}</span></div>
             <span className="nv-fs-kv"><CountUp value={k.value} format={kc} fromZero />{k.target != null ? <small> of {kc(k.target)}</small> : <small> kcal</small>}</span>
             {k.target != null && (
-              <div className="nv-fs-kbar" role="img" aria-label={`${kc(k.value)} of ${kc(k.target)} kilocalories`}>
+              <div className="nv-fs-kbar" role="img" aria-label={`${kc(k.value)} of ${kc(k.target)} kilocalories${k.earned ? `, ${k.earned.kcal} of them earned today` : ''}`}>
+                {k.earned && <i className="earn" style={{ left: `${k.earned.basePct}%` }} />}
                 <i style={{ width: `${k.pct}%` }} />
+                {k.earned && <i className="base" style={{ left: `${k.earned.basePct}%` }} />}
               </div>
             )}
           </div>

@@ -2009,6 +2009,11 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-fs-kbar > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--nv-fs-k); box-shadow: 0 0 10px -2px var(--nv-fs-k);
   transition: width .9s cubic-bezier(.2,.8,.2,1); animation: nvSumBarIn .9s cubic-bezier(.2,.8,.2,1) .15s backwards; }
 /* the target, a tick at the bar's end */
+.nv-fs-kbar > i.earn { right: 0; width: auto; left: auto; background: var(--nv-cy); opacity: .55; box-shadow: none; border-radius: 0 4px 4px 0; transition: left 480ms var(--nv-spring-smooth); }
+.nv-fs-kbar > i.base { top: -2px; bottom: -2px; width: 2px; background: var(--nv-ink60); box-shadow: none; border-radius: 1px; }
+.nv-fs-earn { font-style: normal; font-weight: 600; color: var(--nv-cy); }
+.nv-fs-earn > i { font-style: normal; }
+@media (max-width: 389px) { .nv-fs-earn > i { display: none; } }
 .nv-fs-kbar::after { content: ''; position: absolute; right: -3px; top: -4px; width: 3px; height: 16px; border-radius: 2px; background: var(--nv-ink60); }
 .nv-fs-mf { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid var(--nv-sum-sep); }
 .nv-fs-mf > span { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }

@@ -31,6 +31,7 @@ export const SLICES = {
   // loaded them on arrival, so a make-up day marked on the server was invisible
   carryovers: '/api/workouts/carryovers',
   fuelCross: '/api/train/fuel-cross',
+  earned: '/api/fuel/earned',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
   projects: '/api/projects', // Projects phase 1: his projects and the linked three

@@ -2244,6 +2244,7 @@ export default class App extends Component {
     apply('trainOverview', (r) => this.setState({ liveTrainOverview: r }));
     apply('trainToday', (r) => this.setState({ liveTrainToday: r?.today || null }));
     apply('fuelCross', (r) => this.setState({ liveFuelCross: r }));
+    apply('earned', (r) => this.setState({ liveEarned: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories, liveStashFull: r }));
     apply('projects', (r) => this.setState({ liveProjects: r.projects || [] }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));

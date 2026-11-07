@@ -1,5 +1,7 @@
 import { isQueuedId, QUEUED_WORDS } from '../outboxOverlay.js';
 import { mono } from './shared.js';
+import { earnedOn } from '../fuelSummaryFacts.js';
+import { localDateISO } from '../localDate.js';
 import { lineKey } from '../productKey.js';
 import { kcalFromMacros } from '../fuelRead.js';
 import { dtf } from './fmt.js';
@@ -591,10 +593,13 @@ export function valsRecipes(app, ctx) {
   const effIngredients = activeAlt ? activeAlt.ingredients.map((name) => ({ qty: '', name })) : (liveOr ? liveOr.ingredients : []);
   const effMethod = activeAlt ? activeAlt.method : (liveOr ? liveOr.method : []);
 
+  const earnedKcal = earnedOn(st.liveEarned, localDateISO());
   // shared with valsMission (protein gauge + the home BODY strip's fuel tile —
   // same eaten-today truth as the Recipes EATEN TODAY strip)
   Object.assign(ctx, { usingLiveRecipes, rotation, profile, proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled,
-    kcalCurrent: rotConsumedTot.kcal + foodLogTot.kcal, targetKcal: profile ? profile.targetKcal : null });
+    kcalCurrent: rotConsumedTot.kcal + foodLogTot.kcal,
+    // today's target carries any calories he earned; past days and the week keep the plain one
+    earnedKcal, targetKcal: profile ? profile.targetKcal + earnedKcal : null });
 
   // PICK IT UP (his reel, 26 Sep): "500 kcal and 50 g protein left, I'm out,
   // what do I get?" — every chain and supermarket item that fits. Nova already
@@ -782,7 +787,7 @@ export function valsRecipes(app, ctx) {
       kcal: Math.round(rotConsumedTot.kcal + foodLogTot.kcal),
       proteinTarget,
       proteinPct: proteinTarget ? Math.min(100, Math.round(((rotConsumedTot.p + foodLogTot.p) / proteinTarget) * 100)) : null,
-      targetKcal: profile ? profile.targetKcal : null,
+      targetKcal: profile ? profile.targetKcal + earnedKcal : null,
     } : null,
 
     // the redesigned Fuel hero: ring + coloured macros + the gap-fill line

@@ -650,6 +650,7 @@ export const api = {
   prewarmAsk: (conn, sessionId) => post(conn, '/api/ask/prewarm', { sessionId }).catch(() => null),
   trainOverview: (conn) => call(conn, '/api/train/overview'),
   fuelCross: (conn) => call(conn, '/api/train/fuel-cross'),
+  earned: (conn) => call(conn, '/api/fuel/earned'),
   // the Code screen (round 3): every write names the ticked paths; the server
   // checks each one (server/lib/codeChanges.js) before git runs
   codeChanges: (conn, workspace, sessionId) => call(conn, `/api/claude-code/changes?workspace=${encodeURIComponent(workspace || 'repo')}${sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : ''}`),
