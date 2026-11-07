@@ -4,6 +4,7 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, reopenRecord, retryRecord, rerouteRecord, MODES } from '../lib/inbox.js';
 import { listRecords, getRecord, recentInbox } from '../lib/inboxStore.js';
+import { hearClosure } from '../lib/concernClose.js';
 
 export function inboxRouter(vaultPath) {
   const router = express.Router();
@@ -16,6 +17,9 @@ export function inboxRouter(vaultPath) {
       const mode = MODES.includes(req.body?.mode) ? req.body.mode : 'auto-high';
       const source = req.body?.source === 'voice' ? 'voice' : 'text';
       const dest = req.body?.dest === 'wishlist' ? 'wishlist' : null;
+      // "my shoulder is fine" typed into the box closes it, rather than filing a note about it
+      const closing = await hearClosure(vaultPath, text, { source }).catch(() => null);
+      if (closing?.whole && closing.acted) return res.json({ id: closing.acted.recordId, status: 'filed', kind: 'act' });
       const record = await startCapture(vaultPath, { text, source, mode, dest });
       // `kind` says which lane took it (a recipe import, a video watch, a channel study, research), so a door can say what Nova decided
       res.json({ id: record.id, status: record.status, kind: record.kind || null });
@@ -40,6 +44,8 @@ export function inboxRouter(vaultPath) {
       if (/^provided input$/i.test(text)) {
         return res.status(400).json({ error: 'placeholder input', text: 'Your Shortcut sent the literal words Provided Input — in the text field, delete them and insert Provided Input as the blue variable chip instead.' });
       }
+      const closing = await hearClosure(vaultPath, text, { direct: true }).catch(() => null);
+      if (closing?.whole && closing.acted) return res.json({ id: closing.acted.recordId, status: 'filed', text: closing.said });
       const record = await startCapture(vaultPath, { text, source: 'voice', mode: req.body?.mode === 'review-all' ? 'review-all' : 'auto-high' });
 
       res.set('Content-Type', 'application/json');

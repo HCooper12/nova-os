@@ -116,6 +116,25 @@ async function openTodo(vaultPath, text, { wantChecked = false } = {}) {
   return m.hit;
 }
 
+// HIS WORDS CLOSE A CONCERN (audit #2, his three closures of the shoulder).
+// The door (lib/concernClose.js hearClosure) calls this for the sentences code
+// can read; the model's ACT reaches it for the ones it cannot.
+verb({
+  id: 'injury.close', tier: 'act',
+  describe: 'close a concern in his Injury Log, only when HE says it is fine, gone, or to ignore it; never on your own reading',
+  args: { area: 'the body area, in his words', ids: 'optional: the entry ids, when code already found them' },
+  async run(vaultPath, args) {
+    const { closeArea } = await import('./concernClose.js');
+    const { ids, area } = await closeArea(vaultPath, args);
+    return { destination: `Injury Log — closed ${area}`, said: `Closed ${area} in your Injury Log. Say undo if that's wrong.`, undo: { verb: 'injury.close', ids, area } };
+  },
+  async undo(vaultPath, u) {
+    const { reopenInjuries } = await import('./injuryLog.js');
+    await reopenInjuries(vaultPath, u.ids);
+    return `${u.area} is open in your Injury Log again`;
+  },
+});
+
 verb({
   id: 'todo.done', tier: 'act',
   describe: 'tick a to-do off his list', args: { text: 'the to-do, in his words' },

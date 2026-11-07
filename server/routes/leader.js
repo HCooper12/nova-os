@@ -6,6 +6,7 @@ import {
 import { readThread, appendThread, markReplySeen } from '../lib/leaderThread.js';
 import { startAskLeader } from '../lib/claudeCode.js';
 import { markHisWords } from '../lib/consult.js';
+import { hearClosure } from '../lib/concernClose.js';
 
 export function leaderRouter(vaultPath) {
   const router = Router();
@@ -125,7 +126,10 @@ export function leaderRouter(vaultPath) {
       const quote = req.body?.quote && typeof req.body.quote === 'object' && typeof req.body.quote.title === 'string' && req.body.quote.title.trim()
         ? { kind: String(req.body.quote.kind || 'item').slice(0, 24), title: req.body.quote.title.trim().slice(0, 160), label: String(req.body.quote.label || '').slice(0, 80) }
         : null;
-      const asked = quote ? `[He is talking about ${quote.label || 'this'}: "${quote.title}"]\n\n${question}` : question;
+      // his words close a concern from this chat too (lib/concernClose.js)
+      const closing = await hearClosure(vaultPath, question, { source: 'leader' }).catch(() => null);
+      const heard = closing?.note ? `${closing.note}\n\n${question}` : question;
+      const asked = quote ? `[He is talking about ${quote.label || 'this'}: "${quote.title}"]\n\n${heard}` : heard;
       // his line, kept as he typed it, before the turn starts: a reload while
       // the Leader works still shows what he said
       try { await appendThread({ who: 'you', text: question, sessionId, quote }); } catch { /* the turn still runs */ }

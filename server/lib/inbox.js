@@ -333,7 +333,26 @@ async function ensureInboxNote(vaultPath, relPath, headline) {
 // Files a normalized decision into the vault / data stores. Plain code only —
 // returns { destination, undo } where undo carries exactly what is needed to
 // revert this one filing later.
-export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {}) {
+// A card he approved can say a concern is over. The Coach's learning on 1 Nov
+// said so, in his words, and filed to What Works while the Injury Log stayed
+// active, so Coach went on reading it before every answer.
+const CLOSES_ON_FILE = new Set(['coach-learning', 'routine-edit', 'progression-tune']);
+
+export async function fileDecision(vaultPath, decision, opts = {}) {
+  const out = await fileRoute(vaultPath, decision, opts);
+  if (!CLOSES_ON_FILE.has(decision.route)) return out;
+  const { closeFromCard } = await import('./concernClose.js');
+  const p = decision.payload || {};
+  const closed = await closeFromCard(vaultPath, [p.insight, p.reason, p.why, p.note, decision.reason]).catch(() => null);
+  if (!closed) return out;
+  return {
+    ...out,
+    destination: `${out.destination}; Injury Log — closed ${closed.area}`,
+    undo: { ...out.undo, reopensInjuries: closed },
+  };
+}
+
+async function fileRoute(vaultPath, decision, { source = 'inbox' } = {}) {
   const { route, payload } = decision;
   const date = todayISO();
 
@@ -1246,6 +1265,14 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
 // Best-effort, honest revert of one filing. Returns a human summary; throws
 // with a clear message when the target changed since filing.
 export async function undoFiling(vaultPath, undo) {
+  const said = await undoRoute(vaultPath, undo);
+  if (!undo?.reopensInjuries?.ids?.length) return said;
+  const { reopenInjuries } = await import('./injuryLog.js');
+  await reopenInjuries(vaultPath, undo.reopensInjuries.ids);
+  return `${said}, and reopened ${undo.reopensInjuries.area} in the Injury Log`;
+}
+
+async function undoRoute(vaultPath, undo) {
   // A COACH PLAN CHANGE, reversed in full: every touched routine gets its
   // prior entries back, the COACH highlights disappear, and the library
   // keeps any exercise that was created (harmless, and sessions may already

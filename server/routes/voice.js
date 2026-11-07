@@ -296,6 +296,18 @@ export function voiceRouter(vaultPath) {
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('standby', standby.text)).catch(() => {});
         return res.json({ text: standby.text, reflex: true, standby: standby.standby });
       }
+      // HIS WORDS CLOSE A CONCERN (lib/concernClose.js): "my shoulder is fine"
+      // updates the Injury Log before any model, so the record cannot go on
+      // disagreeing with him. Said alone it is answered here in one line;
+      // inside a longer turn the rest still goes to whoever answers.
+      const { hearClosure } = await import('../lib/concernClose.js');
+      const closing = attachmentPreamble || docTurn ? null : await hearClosure(vaultPath, raw, { forceConfirm: forceConfirmFor(ctx.where.place) }).catch(() => null);
+      if (closing?.whole) {
+        console.log(`concern closure q=${JSON.stringify(question.slice(0, 80))}`);
+        import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', closing.said)).catch(() => {});
+        return res.json({ text: closing.said, reflex: true, acted: closing.acted || null, proposal: closing.proposal || null });
+      }
+      if (closing?.note) question = `${closing.note}\n\n${question}`;
       // THE VERBS' FAST PATH: a command the grammar is sure about ("tick off
       // the eggs", "had lunch", "move dentist to errands") runs here against
       // his real lists — no model, a receipt with undo, honest "which one?"
@@ -750,6 +762,14 @@ export function voiceRouter(vaultPath) {
         answered(standby.text);
         return res.json({ text: standby.text, reflex: true, standby: standby.standby, sessionId: null });
       }
+      const { hearClosure } = await import('../lib/concernClose.js');
+      const closing = attachmentPreamble ? null : await hearClosure(vaultPath, question, { direct: true }).catch(() => null);
+      if (closing?.whole) {
+        console.log('ask/sync concern closure');
+        answered(closing.said);
+        return res.json({ text: closing.said, reflex: true, acted: closing.acted || null });
+      }
+      if (closing?.note) question = `${closing.note}\n\n${question}`;
       const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
       // `direct`: Siri has no screen to open and nobody to answer a follow-up,
       // so a job runs on his board's model and a screen-only verb says so

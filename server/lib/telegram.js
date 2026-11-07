@@ -128,7 +128,11 @@ async function answerAsk(vaultPath, state, chatId, question) {
   // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
   const { markHisWords } = await import('./consult.js');
   markHisWords(question);
-  const jobId = startAsk(vaultPath, { question, context: await buildAskContext(vaultPath, state.sessionId, { fast: true }), sessionId: state.sessionId });
+  // his words close a concern from this door too (lib/concernClose.js)
+  const { hearClosure } = await import('./concernClose.js');
+  const closing = await hearClosure(vaultPath, question, { source: 'telegram' }).catch(() => null);
+  const asked = closing?.note ? `${closing.note}\n\n${question}` : question;
+  const jobId = startAsk(vaultPath, { question: asked, context: await buildAskContext(vaultPath, state.sessionId, { fast: true }), sessionId: state.sessionId });
   const deadline = Date.now() + 150_000;
   while (Date.now() < deadline) {
     const job = getMessageJob(jobId);

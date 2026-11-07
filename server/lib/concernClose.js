@@ -154,3 +154,194 @@ export function scrubClosed(text, closed = []) {
   }
   return kept.join('\n').trim();
 }
+
+/* ------------------------------ his own words ----------------------------- */
+
+const SIDE = /\b(left|right)\b/;
+
+// Entries grouped by area: "Shoulder" twice is one area, and closing it closes both.
+function areaGroups(active = []) {
+  const out = new Map();
+  for (const i of active) {
+    const key = areaKey(i.area);
+    if (!key) continue;
+    if (!out.has(key)) out.set(key, { area: i.area, ids: [] });
+    out.get(key).ids.push(i.id);
+  }
+  return [...out.values()];
+}
+
+// Two areas named by one word ("my back" with a lower and an upper back on the
+// log, "my shoulder" with a left and a right) are his to tell apart.
+function sharesAWord(a, b) {
+  const words = (g) => { const t = areaTerms(g.area); return new Set([...t.exact, ...t.loose]); };
+  const other = words(b);
+  return [...words(a)].some((w) => other.has(w));
+}
+
+function settleNamed(groups, text) {
+  if (groups.length < 2 || !groups.some((g, i) => groups.some((h, j) => i !== j && sharesAWord(g, h)))) return { pick: groups };
+  const side = lower(text).match(SIDE)?.[1];
+  const sided = side ? groups.filter((g) => lower(g.area).includes(side)) : [];
+  return sided.length === 1 ? { pick: sided } : { ask: groups };
+}
+
+// No area named. "the pain's gone" is about a body whichever one; "close that
+// concern" is about the last thing raised; "ignore that, it's okay" could be
+// about anything, so only the line before it can make it about an injury.
+const BARE_PAIN = [
+  /^(?:the |that |this )?(?:pain|ache|soreness|niggle|injury)(?:'s| is| has)?\s+(?:\w+\s+)?(?:gone|fine|okay|ok|healed|sorted|cleared(?: up)?|resolved)\b/,
+  /\b(?:doesn't|does not|no longer|don't)\s+(?:hurt|hurts|ache|aches)\s*(?:any ?more|now)?\b/,
+  /\bno more pain\b/,
+];
+const BARE_CONCERN = [
+  /\bclose (?:that|this|the)\s+(?:concern|injury|issue|entry)\b/,
+  /\b(?:that|this|the) (?:concern|injury)(?:'s| is)?\s+(?:closed|done|over|gone)\b/,
+  /\b(?:drop|forget|ignore|disregard)\s+(?:that|this|the)\s+(?:concern|injury)\b/,
+];
+const BARE_WEAK = [
+  /\b(?:ignore|forget|disregard)\s+(?:that|this|it)\b.*\b(?:it's|its|it is|that's|that is)\s+(?:okay|ok|fine|alright)\b/,
+  /\b(?:it's|its|it is|that's|that is)\s+(?:okay|ok|fine|alright)\b.*\b(?:ignore|forget|disregard)\s+(?:that|this|it)\b/,
+];
+const anyOf = (list, t) => list.some((re) => re.test(t));
+
+function bareLevel(text) {
+  const t = lower(text);
+  if (ASKS.test(t) || NOT_OK.test(t) || KEEP_IT.test(t)) return null;
+  const sentences = clauses(text);
+  if (sentences.some((s) => anyOf(BARE_PAIN, s))) return 'pain';
+  if (sentences.some((s) => anyOf(BARE_CONCERN, s))) return 'concern';
+  return anyOf(BARE_WEAK, t) ? 'weak' : null;
+}
+
+// Is that the whole of what he said, or is there a question still to answer?
+function isWhole(text, closes) {
+  const sentences = clauses(text);
+  const rest = sentences.filter((s) => !closes(s)).join(' ').split(' ').filter(Boolean).length;
+  const said = sentences.filter(closes).join(' ').split(' ').filter(Boolean).length;
+  return rest <= 3 && said <= 14;
+}
+
+/** Pure: read one thing he said against the active entries. `lastSaid` is the
+ *  line Nova or Coach said just before, when there is one. Never guesses:
+ *  `ask` names the areas that fit and closes nothing. */
+export function readClosure(text, active = [], { lastSaid = null } = {}) {
+  const none = { kind: 'none' };
+  const groups = areaGroups(active);
+  if (!groups.length || !lower(text)) return none;
+  const named = groups.filter((g) => closesArea(text, g.area));
+  if (named.length) {
+    const whole = isWhole(text, (s) => named.some((g) => closesArea(s, g.area)));
+    const { pick, ask } = settleNamed(named, text);
+    return ask ? { kind: 'ask', groups: ask, whole } : { kind: 'close', groups: pick, whole };
+  }
+  const level = bareLevel(text);
+  if (!level) return none;
+  const whole = isWhole(text, (s) => bareLevel(s) === level);
+  const inTheLastLine = lastSaid ? groups.filter((g) => namesArea(lastSaid, g.area)) : [];
+  if (inTheLastLine.length === 1) return { kind: 'close', groups: inTheLastLine, whole };
+  if (inTheLastLine.length > 1) return { kind: 'ask', groups: inTheLastLine, whole };
+  if (level === 'weak') return none;
+  // the last line was about something else, so "that concern" is too
+  if (level === 'concern' && lastSaid) return none;
+  return groups.length === 1 ? { kind: 'close', groups, whole } : { kind: 'ask', groups, whole };
+}
+
+const areaList = (groups) => {
+  const names = groups.map((g) => g.area);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+};
+
+/** Close by name (the verb's way in): the model's ACT, or a card's text. */
+export async function closeArea(vaultPath, { area, ids = null }) {
+  const { listInjuries, resolveInjuries } = await import('./injuryLog.js');
+  const active = (await listInjuries(vaultPath)).filter((i) => !i.resolvedAt);
+  const picked = Array.isArray(ids) && ids.length ? active.filter((i) => ids.includes(i.id)) : null;
+  let groups = picked ? areaGroups(picked) : areaGroups(active).filter((g) => namesArea(area, g.area));
+  if (!groups.length) throw new Error(`there's no open entry for "${String(area).trim()}" in your Injury Log`);
+  const settled = settleNamed(groups, area);
+  if (settled.ask) throw new Error(`that could be ${areaList(settled.ask)} — which one?`);
+  groups = settled.pick;
+  const closed = await resolveInjuries(vaultPath, groups.flatMap((g) => g.ids));
+  return { ids: closed.map((c) => c.id), area: areaList(groups) };
+}
+
+/** A filed card that says an injury no longer counts closes it too. This is
+ *  the 1 Nov gap: his yes on "he does not count his shoulder entries as an
+ *  injury" wrote What Works and left the log saying moderate. Only ever called
+ *  with text he approved. Ambiguity closes nothing: a card cannot be asked. */
+export async function closeFromCard(vaultPath, texts = []) {
+  const { listInjuries, resolveInjuries } = await import('./injuryLog.js');
+  const active = (await listInjuries(vaultPath).catch(() => [])).filter((i) => !i.resolvedAt);
+  const words = texts.filter(Boolean).join('. ');
+  if (!active.length || !words) return null;
+  const { pick } = settleNamed(areaGroups(active).filter((g) => closesArea(words, g.area)), words);
+  if (!pick?.length) return null;
+  const closed = await resolveInjuries(vaultPath, pick.flatMap((g) => g.ids));
+  return closed.length ? { ids: closed.map((c) => c.id), area: areaList(pick) } : null;
+}
+
+// "Which one?" stays open for one answer, a few minutes. Held in memory: a
+// restart loses a question nobody answered, and he simply says it again.
+const ASK_TTL_MS = 5 * 60_000;
+let pendingAsk = null;
+export const _resetPendingAsk = () => { pendingAsk = null; };
+
+function answerToAsk(text) {
+  const held = pendingAsk;
+  if (!held) return null;
+  if (Date.now() - held.at > ASK_TTL_MS) { pendingAsk = null; return null; }
+  const t = lower(text);
+  if (t.split(' ').length > 8) { pendingAsk = null; return null; }
+  pendingAsk = null;
+  if (/^(?:no|nope|neither|none|leave it|never ?mind|not now|keep (?:it|them))\b/.test(t)) return { leave: true };
+  if (/\b(?:both|all of them|all)\b/.test(t)) return { groups: held.groups };
+  if (held.groups.length === 1 && /^(?:yes|yep|yeah|yea|ok|okay|sure|do it|go ahead|please)\b/.test(t)) return { groups: held.groups };
+  const picks = held.groups.filter((g) => namesArea(t, g.area));
+  return picks.length ? { groups: picks } : null;
+}
+
+// Cheap first look, so a door pays nothing on an ordinary question.
+const MAY_CLOSE = /\b(?:fine|ok|okay|alright|all right|good|better|healed|gone|sorted|resolved|fixed|cleared|normal|ignore|disregard|dismiss|forget|close|drop|stop|hurt|hurts|ache|aches|injury|concern|issue|problem|count|counts|no more)\b/;
+
+async function lastLineSaid({ now = Date.now(), withinMs = 30 * 60_000 } = {}) {
+  try {
+    const { readTurns } = await import('./conversationLog.js');
+    const rows = await readTurns({ limit: 6 });
+    const last = rows.filter((r) => r.who === 'nova').pop();
+    return last && now - new Date(last.at).getTime() < withinMs ? last.text : null;
+  } catch { return null; }
+}
+
+/** THE DOOR. Every way his words reach Nova calls this before a model. Returns
+ *  null when it was not about a concern; otherwise `said` (the one line, when
+ *  it is the whole of what he said, `whole`) and `note` (a bracket for the
+ *  model, when there is more to answer). Closing runs the verb, so it has a
+ *  receipt and an undo like every other act. */
+export async function hearClosure(vaultPath, text, { source = 'voice', forceConfirm = false, direct = false } = {}) {
+  const words = String(text || '').trim();
+  if (!words || words.length > 2000) return null;
+  const answer = answerToAsk(words);
+  if (answer?.leave) return { whole: true, said: 'Left it open.', note: '[He left the concern open. Say so in a few words.]' };
+  let read = null;
+  if (answer) read = { kind: 'close', groups: answer.groups, whole: true };
+  else {
+    if (!MAY_CLOSE.test(lower(words))) return null;
+    const { listInjuries } = await import('./injuryLog.js');
+    const active = (await listInjuries(vaultPath).catch(() => [])).filter((i) => !i.resolvedAt);
+    if (!active.length) return null;
+    const lastSaid = bareLevel(words) ? await lastLineSaid() : null;
+    read = readClosure(words, active, { lastSaid });
+  }
+  if (read.kind === 'none') return null;
+  const areas = areaList(read.groups);
+  if (read.kind === 'ask') {
+    pendingAsk = { at: Date.now(), groups: read.groups };
+    const said = `Which one do you want closed: ${read.groups.map((g) => g.area).join(', or ')}?`;
+    return { whole: read.whole, said, asked: true, note: `[He may be closing a concern, and more than one area fits: ${areas}. Code closed nothing. Ask him which, in one short line.]` };
+  }
+  const { runVerb } = await import('./verbs.js');
+  const out = await runVerb(vaultPath, words, { verb: 'injury.close', args: { area: areas, ids: read.groups.flatMap((g) => g.ids) } }, { source, forceConfirm, direct });
+  if (out.proposal) return { whole: read.whole, said: `${out.proposal.title}, say yes and it's done.`, proposal: out.proposal, note: `[He closed ${areas}. It waits for his yes because he is driving. Say that in one short line.]` };
+  return { whole: read.whole, said: out.acted.said, acted: out.acted, note: `[Code has just closed ${areas} in his Injury Log on his own words, with a receipt he can undo. Say so in one short line first, then answer the rest. Do not ask about it again.]` };
+}

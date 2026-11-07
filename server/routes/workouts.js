@@ -625,6 +625,11 @@ export function workoutsRouter(vaultPath) {
       // told these are his own words (lib/consult.js consultedBrief)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(q);
+      // his words close a concern from the Coach tab too. The Coach still
+      // answers, told what code just did, so the tab needs no new reply shape.
+      const { hearClosure } = await import('../lib/concernClose.js');
+      const closing = await hearClosure(vaultPath, question, { source: 'coach' }).catch(() => null);
+      if (closing?.note) q = `${closing.note}\n\n${q}`;
       res.json({ jobId: await startCoachTurn(vaultPath, { question: q, sessionId, liveSession: req.body?.liveSession }) });
     } catch (e) {
       res.status(500).json({ error: e.message });

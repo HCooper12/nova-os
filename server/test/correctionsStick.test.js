@@ -4,7 +4,7 @@
 // records are compared. Temp data and vault, set before any import.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -15,7 +15,8 @@ await mkdir(process.env.NOVA_DATA_DIR, { recursive: true });
 await mkdir(path.join(vault, 'Wiki', 'Health'), { recursive: true });
 
 const {
-  areaTerms, namesArea, closedAreas, closedAsOf, isStaleConcern, scrubClosed,
+  areaTerms, namesArea, closesArea, closedAreas, closedAsOf, isStaleConcern, scrubClosed,
+  readClosure, hearClosure, closeFromCard, _resetPendingAsk,
 } = await import('../lib/concernClose.js');
 const {
   addInjury, listInjuries, resolveInjury, resolveInjuries, reopenInjuries, injuriesContext, closedConcerns, closedLine, _reset,
@@ -139,4 +140,191 @@ test('resolving several entries is one write and undoing reopens exactly those',
   const after = await listInjuries(vault);
   assert.equal(after.length, before.length + 2);
   assert.ok(after.filter((i) => i.area === 'Knee').every((i) => !i.resolvedAt));
+});
+
+/* ------------------------------ his own words ----------------------------- */
+
+// His three sentences, word for word from the conversation record.
+const SAID_15_OCT = "My shoulder pain is okay at the moment, so ignore this and re-evaluate as needed. I like the single arm shoulder press so I’ll be keeping that";
+const SAID_30_OCT = 'No, I have not gone to the physio. Ignore anything that is currently relating to my shoulder, as my shoulder is okay at the moment, so we can close that concern.';
+const SAID_1_NOV = 'Like I’ve already said to you before we are going to ignore the shoulder injury point because it is not a shoulder injury and I’m not going to see a physio so ignore that for now and keep lateral razors in the program however they are best suited. Otherwise, I’m liking the idea of the plan overall so create a visual depiction of the plan that I can read and look at';
+
+const SHOULDER = [{ id: 'a', area: 'Shoulder' }, { id: 'b', area: 'Shoulder' }];
+const TWO = [...SHOULDER, { id: 'c', area: 'Lower back / hip (above glutes)' }];
+
+test('his three sentences each close the shoulder, and none of them is the whole turn', () => {
+  for (const said of [SAID_15_OCT, SAID_30_OCT, SAID_1_NOV]) {
+    const r = readClosure(said, TWO);
+    assert.equal(r.kind, 'close', said);
+    assert.deepEqual(r.groups.map((g) => g.area), ['Shoulder'], 'only the area he named');
+    assert.deepEqual(r.groups[0].ids, ['a', 'b'], 'both Shoulder entries');
+  }
+  assert.equal(readClosure(SAID_1_NOV, TWO).whole, false, 'the plan request still reaches the model');
+  assert.equal(readClosure(SAID_15_OCT, TWO).whole, false);
+});
+
+test('the short ways he says it, alone, are the whole turn', () => {
+  for (const said of ['my shoulder is fine', "My shoulder's okay.", 'ignore the shoulder', 'close the shoulder concern', 'it is not a shoulder injury']) {
+    const r = readClosure(said, TWO);
+    assert.equal(r.kind, 'close', said);
+    assert.equal(r.whole, true, said);
+  }
+});
+
+test('words with no area: the pain word speaks for one area, and asks across several', () => {
+  const one = [{ id: 'c', area: 'Knee' }];
+  assert.equal(readClosure("the pain's gone", one).kind, 'close');
+  assert.equal(readClosure('close that concern', one).kind, 'close');
+  const r = readClosure("the pain's gone", TWO);
+  assert.equal(r.kind, 'ask', 'several areas: never a guess');
+  assert.deepEqual(r.groups.map((g) => g.area), ['Shoulder', 'Lower back / hip (above glutes)']);
+  assert.equal(readClosure('close that concern', TWO).kind, 'ask');
+});
+
+test('"that" is whatever was just said: the line before settles it, or leaves it alone', () => {
+  const asked = { lastSaid: 'Have you seen the physio about your shoulder yet?' };
+  const r = readClosure("ignore that, it's okay", TWO, asked);
+  assert.equal(r.kind, 'close');
+  assert.deepEqual(r.groups.map((g) => g.area), ['Shoulder']);
+  assert.equal(readClosure("ignore that, it's okay", TWO).kind, 'none', 'with nothing before it, it could be about anything');
+  assert.equal(readClosure("ignore that, it's okay", TWO, { lastSaid: 'Your calorie target looks low this week.' }).kind, 'none');
+  assert.equal(readClosure('close that concern', TWO, { lastSaid: 'Your calorie target looks low this week.' }).kind, 'none');
+  assert.equal(readClosure('close that concern', TWO, { lastSaid: 'Your shoulder and your hip both came up.' }).kind, 'ask');
+});
+
+test('what does not close a concern', () => {
+  const said = [
+    'is my shoulder okay to train?',
+    'my shoulder is not fine',
+    "my shoulder isn't okay",
+    'my shoulder still hurts but the press is fine',
+    'my shoulder is fine but it still pinches on the press',
+    "don't ignore my shoulder",
+    'if my shoulder is fine I will press',
+    'ignore the shoulder press',
+    'the shoulder press is fine',
+    'my mate\'s shoulder is fine',
+    'my shoulder is getting better',
+    'that hip thrust is fine',
+    'the plan is fine',
+    "I'm fine",
+    'okay',
+  ];
+  for (const s of said) assert.equal(readClosure(s, TWO).kind, 'none', s);
+  assert.ok(!closesArea('my shoulder is fine, my knee is sore.', 'Knee'), 'one area closed is not another');
+});
+
+test('two areas one word fits are asked about; a side he names settles it', () => {
+  const sides = [{ id: 'l', area: 'Left shoulder' }, { id: 'r', area: 'Right shoulder' }];
+  assert.equal(readClosure('my shoulder is fine', sides).kind, 'ask');
+  const left = readClosure('my left shoulder is fine', sides);
+  assert.equal(left.kind, 'close');
+  assert.deepEqual(left.groups.map((g) => g.area), ['Left shoulder']);
+  const backs = [{ id: 'u', area: 'Upper back' }, { id: 'd', area: 'Lower back' }];
+  assert.equal(readClosure('my back is fine', backs).kind, 'ask');
+  assert.equal(readClosure('my lower back is fine', backs).groups[0].area, 'Lower back');
+  const both = readClosure('my knee is fine and my shoulder is fine', [{ id: 'k', area: 'Knee' }, ...SHOULDER]);
+  assert.equal(both.kind, 'close', 'two areas he named are two areas he closed');
+  assert.equal(both.groups.length, 2);
+});
+
+const fresh = async () => {
+  _reset();
+  _resetPendingAsk();
+  await rm(path.join(vault, 'Wiki', 'Health', 'Injury Log.md'), { force: true });
+  _reset();
+};
+const recordFor = async (id) => (await import('../lib/inboxStore.js')).getRecord(id);
+
+test('the door closes it on the rails: one line back, a receipt, an undo that reopens it', async () => {
+  await fresh();
+  const a = await addInjury(vault, { area: 'Shoulder', note: 'one', severity: 'niggle' });
+  const b = await addInjury(vault, { area: 'Shoulder', note: 'two', severity: 'moderate' });
+  const heard = await hearClosure(vault, 'my shoulder is fine');
+  assert.equal(heard.whole, true);
+  assert.equal(heard.said, "Closed Shoulder in your Injury Log. Say undo if that's wrong.");
+  assert.ok((await listInjuries(vault)).every((i) => i.resolvedAt), 'both entries');
+  const raw = await readFile(path.join(vault, 'Wiki/Health/Injury Log.md'), 'utf8');
+  assert.match(raw, /## Active\n\n_none/);
+  const record = await recordFor(heard.acted.recordId);
+  assert.equal(record.kind, 'act');
+  assert.equal(record.status, 'filed');
+  const { undoRecord } = await import('../lib/inbox.js');
+  await undoRecord(vault, record.id);
+  assert.ok((await listInjuries(vault)).every((i) => !i.resolvedAt));
+  assert.deepEqual((await listInjuries(vault)).map((i) => i.id), [a.id, b.id]);
+});
+
+test('inside a longer turn it still closes, and the model is told, not asked', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'moderate' });
+  const heard = await hearClosure(vault, SAID_30_OCT);
+  assert.ok(heard.acted);
+  assert.ok((await listInjuries(vault)).every((i) => i.resolvedAt));
+  const longer = await (async () => { await fresh(); await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'moderate' }); return hearClosure(vault, SAID_1_NOV); })();
+  assert.equal(longer.whole, false);
+  assert.match(longer.note, /^\[Code has just closed Shoulder/);
+  assert.match(longer.note, /Do not ask about it again/);
+  const { hisWordsOf } = await import('../lib/coach.js');
+  assert.equal(hisWordsOf(`${longer.note}\n\n${SAID_1_NOV}`), SAID_1_NOV, 'his words stay his words');
+});
+
+test('several areas: the door asks, closes nothing, and his next word settles it', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'niggle' });
+  await addInjury(vault, { area: 'Knee', note: 'y', severity: 'niggle' });
+  const asked = await hearClosure(vault, "the pain's gone");
+  assert.equal(asked.asked, true);
+  assert.equal(asked.said, 'Which one do you want closed: Shoulder, or Knee?');
+  assert.ok((await listInjuries(vault)).every((i) => !i.resolvedAt), 'nothing closed on a guess');
+  const answered = await hearClosure(vault, 'the knee');
+  assert.ok(answered.acted);
+  const after = await listInjuries(vault);
+  assert.ok(after.find((i) => i.area === 'Knee').resolvedAt);
+  assert.ok(!after.find((i) => i.area === 'Shoulder').resolvedAt);
+  await hearClosure(vault, "the pain's gone");
+  assert.equal((await hearClosure(vault, 'neither')), null, 'one area left, and that word closes nothing');
+});
+
+test('an ordinary question costs the door nothing and changes nothing', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'niggle' });
+  assert.equal(await hearClosure(vault, 'what should I eat for dinner tonight'), null);
+  assert.equal(await hearClosure(vault, 'is the shoulder press better than a machine'), null);
+  assert.ok((await listInjuries(vault)).every((i) => !i.resolvedAt));
+});
+
+test('the 1 Nov path: a learning that says an injury no longer counts closes the log, and undo reopens it', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'moderate' });
+  await addInjury(vault, { area: 'Knee', note: 'y', severity: 'niggle' });
+  const { fileDecision, undoFiling } = await import('../lib/inbox.js');
+  const insight = 'He does not count his shoulder entries as an injury and will not see a physio. Keep lateral raises in his program wherever they fit best, and do not hold shoulder work back waiting on a physio assessment.';
+  const out = await fileDecision(vault, { route: 'coach-learning', payload: { action: 'learn', insight, kind: 'decision' } });
+  assert.match(out.destination, /What Works For Hayden/);
+  assert.match(out.destination, /Injury Log — closed Shoulder/);
+  const after = await listInjuries(vault);
+  assert.ok(after.find((i) => i.area === 'Shoulder').resolvedAt);
+  assert.ok(!after.find((i) => i.area === 'Knee').resolvedAt, 'the other area is untouched');
+  const said = await undoFiling(vault, out.undo);
+  assert.match(said, /reopened Shoulder/);
+  assert.ok((await listInjuries(vault)).every((i) => !i.resolvedAt));
+  assert.doesNotMatch(await readFile(path.join(vault, 'Wiki/Health/What Works For Hayden.md'), 'utf8'), /does not count his shoulder/);
+});
+
+test('a learning about something else leaves the log alone', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'moderate' });
+  assert.equal(await closeFromCard(vault, ['He finishes on triceps when time is short.']), null);
+  assert.ok((await listInjuries(vault)).every((i) => !i.resolvedAt));
+});
+
+test('the model reaches the same verb, and a name it cannot place is said back', async () => {
+  await fresh();
+  await addInjury(vault, { area: 'Shoulder', note: 'x', severity: 'moderate' });
+  const { describeForModel, runVerb } = await import('../lib/verbs.js');
+  assert.match(describeForModel(), /"verb":"injury\.close"/);
+  await assert.rejects(() => runVerb(vault, 'the knee', { verb: 'injury.close', args: { area: 'knee' } }), /no open entry for "knee"/);
+  const out = await runVerb(vault, 'his shoulder', { verb: 'injury.close', args: { area: 'shoulder' } });
+  assert.match(out.acted.said, /Closed Shoulder/);
 });
