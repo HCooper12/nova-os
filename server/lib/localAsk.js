@@ -36,6 +36,7 @@ import { describeForModel } from './verbs.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { gaveUp, agentsFor, webLookup } from './askRoute.js';
 import { gatherWeb, webCanRun, searchResting, searchQuery, sourcesBlock, withSources } from './localResearch.js';
+import { readSources } from './lookupSprint.js';
 
 export const PROMPT_BUDGET = 9000;      // chars of system prompt before his question
 export const MAX_ROUNDS = 4;            // vault lookups per turn
@@ -692,7 +693,7 @@ async function converse(job, { cwd, question, promptOpts, deadline, ctl = null, 
  * is an existing job to carry this answer: the Claude job that failed, so
  * the client already polling its id gets the stand-in's answer.
  */
-export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', spoken = false, direct = false, where = null, fallback = false, reason = null, vaultPages = '' } = {}, { job: carrier = null, claudeError = null, opened: openedOverride = null, dryRun = false } = {}) {
+export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', spoken = false, direct = false, where = null, fallback = false, reason = null, vaultPages = '', presearched = null } = {}, { job: carrier = null, claudeError = null, opened: openedOverride = null, dryRun = false } = {}) {
   if (!carrier) assertLaneOn('ask-nova');
   const job = carrier || { id: randomUUID().slice(0, 8), status: 'running', result: null, error: null, partial: '' };
   job.provider = 'local';
@@ -735,8 +736,15 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
     // webLookup) and searches it in Nova's browser before the turn, so the
     // small model answers from pages rather than memory. The model may still
     // search again itself (web_research). The bench reads the model alone.
-    const web = !dryRun && webAvailable() ? { sources: [], hosts: [] } : null;
-    const lookup = !!web && webLookup(question);
+    // THE SPRINT ALREADY READ THE PAGES (lib/lookupSprint.js, 7 Nov): they
+    // are the turn's sources and nothing is searched twice
+    const web = !dryRun && (presearched || webAvailable()) ? { sources: [], hosts: [] } : null;
+    const lookup = !!web && !presearched && webLookup(question);
+    if (web && presearched) {
+      const read = readSources(presearched);
+      web.sources.push(...read.map((s) => ({ n: s.n, url: s.url, title: s.title, text: s.text, via: 'sprint' })));
+      for (const h of presearched.hostsRead || []) if (!web.hosts.includes(h)) web.hosts.push(h);
+    }
     let agentAnswers = '';
     let webFound = '';
     // the model must be able to answer before anyone is asked or anything
@@ -763,6 +771,10 @@ export function startAskLocal(cwd, { question, sessionId = null, liveLine = '', 
       }
       // a give-up after this hands Claude what the agents already said
       job.agentAnswers = agentAnswers;
+    }
+    if (web && presearched) {
+      job.lookup = presearched;
+      webFound = `[Nova's browser looked this up before you were asked.]\n${web.sources.length ? `WEB PAGES for "${presearched.query}" (answer only from these, cite by number):\n\n${sourcesBlock(web.sources, { budget: WEB_PAGES * WEB_PAGE_CHARS })}` : `The search for "${presearched.query}" found no page that could be read${presearched.searchError ? ` (${presearched.searchError})` : ''}. Tell him plainly; do not answer from memory.`}`;
     }
     if (lookup) {
       job.partial = progressLine({ name: 'web_research' });

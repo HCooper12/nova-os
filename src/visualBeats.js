@@ -39,7 +39,17 @@ import { normaliseMark, markKey, DATA_KINDS } from './glassMarks.js';
 // names one logged workout, or the joint answer's contributors, and an
 // address to light; code builds the panel from his records and checks every
 // address against it.
-export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program', 'session', 'sources', 'mark'];
+// `page`, `video`, `figure`, `quote`, `entity` and `note` (7 Nov 2026, the
+// Rose study, design/ROSE-STUDY.md): the wall of references a lookup
+// raises. A page or a clip is one code already put on the glass from the
+// search (the model lights it by number); a figure, a quote or an entity
+// names the page it stands on and is CHECKED against that page's text by
+// code before it is drawn (server/lib/glassClaims.js); a note is Nova's own
+// words as a titled card with up to three lines.
+export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program', 'session', 'sources', 'mark', 'page', 'video', 'figure', 'quote', 'entity', 'note'];
+// the kinds the SERVER proves against the pages it read (never drawn
+// unproven: the frame goes up, the claim fills in once checked)
+export const CLAIM_KINDS = new Set(['page', 'video', 'figure', 'quote', 'entity']);
 
 // Kinds that need something fetched before they are whole. The others are
 // typographic and land instantly — which is what lets a beat ALWAYS have its
@@ -198,10 +208,50 @@ export function normaliseSpec(d) {
       .filter((b) => b && b.value != null && Number.isFinite(Number(b.value)))
       .slice(0, 6)
       .map((b) => ({ name: clean(itemName(b), 18), value: Number(b.value) }));
-    return bars.length >= 2 ? { ...base, bars } : null;   // one bar is a number, not a chart
+    if (bars.length < 2) return null;   // one bar is a number, not a chart
+    // a chart may say where its numbers were counted from (Rose's caption line)
+    const foot = clean(firstString(d, ['foot', 'provenance', 'source_note']), 120) || null;
+    const src = sourceNumber(d.source);
+    return { ...base, bars, ...(foot ? { foot } : {}), ...(src ? { source: src } : {}) };
+  }
+  // ---- the wall of references (7 Nov 2026) ----
+  if (kind === 'page') {
+    const src = sourceNumber(d.source ?? d.page ?? d.n);
+    return src ? { ...base, source: src } : null;
+  }
+  if (kind === 'video') {
+    const c = sourceNumber(d.clip ?? d.video ?? d.n);
+    return c ? { ...base, clip: c } : null;
+  }
+  if (kind === 'figure') {
+    const value = clean(d.value, 28);
+    const src = sourceNumber(d.source);
+    if (!value) return null;
+    return { ...base, value, unit: clean(d.unit, 16) || null, source: src };   // no source: dropped by the gate, with the reason logged
+  }
+  if (kind === 'quote') {
+    const text = clean(firstString(d, ['text', 'quote', 'words', 'caption']), 240);
+    const src = sourceNumber(d.source);
+    if (!text) return null;
+    return { ...base, caption: null, text, who: clean(firstString(d, ['who', 'speaker', 'author']), 60) || null, source: src };
+  }
+  if (kind === 'entity') {
+    const name = clean(firstString(d, ['name', 'label', 'title']), 60);
+    if (!name) return null;
+    const raw = Array.isArray(d.facts) ? d.facts : Array.isArray(d.items) ? d.items : [];
+    const facts = raw.map((f) => (Array.isArray(f) ? { k: clean(f[0], 24), value: clean(f[1], 60) } : f && typeof f === 'object' ? { k: clean(firstString(f, ['k', 'key', 'name', 'label']), 24), value: clean(firstString(f, ['value', 'v', 'text']) || f.value, 60) } : null))
+      .filter((f) => f && f.k && f.value).slice(0, 5);
+    return { ...base, label: base.label || name.toUpperCase(), name, facts, source: sourceNumber(d.source) };
+  }
+  if (kind === 'note') {
+    const lines = (Array.isArray(d.lines) ? d.lines : Array.isArray(d.items) ? d.items : d.caption ? [d.caption] : [])
+      .map((l) => clean(itemName(l), 160)).filter(Boolean).slice(0, 3);
+    if (!lines.length) return null;
+    return { ...base, caption: lines[0], lines };
   }
   return null;
 }
+const sourceNumber = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null; };
 
 // THE STANCE (4 Oct 2026, his call): when Nova disagrees with, or advises
 // against, something he proposed or asked to do, that sentence is said in
@@ -239,7 +289,8 @@ const PANEL_SIGNS = ['kind', 'panel', 'mark'];
 export function keyOfSpec(spec, i) {
   const bits = [spec.kind, spec.label, spec.query || '', spec.title || '', spec.url || '',
     spec.muscle || '', spec.routine || '', (spec.remove || []).join(','), (spec.keep || []).join(','),
-    spec.date || '', spec.by || '', markKey(spec.mark)];
+    spec.date || '', spec.by || '', markKey(spec.mark),
+    spec.source || '', spec.clip || '', spec.value || '', String(spec.text || '').slice(0, 40), spec.name || ''];
   let h = 5381;
   const s = bits.join('|');
   for (let j = 0; j < s.length; j++) h = ((h * 33) ^ s.charCodeAt(j)) >>> 0;

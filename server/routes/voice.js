@@ -72,10 +72,10 @@ export function fromMacOf(req) {
 // /api/tts for (absent = the engine's default, exactly as /api/tts treats
 // it). ElevenLabs has no cache to warm, so it is skipped: a paid round trip
 // for a line the client fetches anyway would be spent twice.
-export async function ackForTurn({ question, lane, voiceId } = {}, deps = {}) {
+export async function ackForTurn({ question, lane, voiceId, topic = null } = {}, deps = {}) {
   try {
     const next = deps.nextAck || (await import('../lib/acks.js')).nextAck;
-    const ack = await next({ question, lane });
+    const ack = await next({ question, lane, topic });
     if (!ack) return null;
     const engine = deps.engine ? deps.engine() : ttsEngine();
     if (engine === 'local') {
@@ -471,10 +471,17 @@ export function voiceRouter(vaultPath) {
         askContext(sessionId, projectOpts(pid, docPlace.context ? { docRef: docPlace.context } : {})),
         docTurn ? '' : vaultPagesFor(vaultPath, raw),
       ]);
-      const jobId = startAsk(vaultPath, { question, context, sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, vaultPages, ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
+      // THE LOOKUP (lib/lookupSprint.js): his undressed words and the turn
+      // before decide it; the ack says the thing being looked up
+      const { lookupWanted, lookupCanRun } = await import('../lib/lookupSprint.js');
+      const { sessionTurns } = await import('../lib/localAsk.js');
+      const previous = sessionId ? (sessionTurns(sessionId).slice(-1)[0]?.q || '') : '';
+      const want = docTurn ? null : lookupWanted(raw, { previous });
+      const looking = want && lookupCanRun() ? want : null;
+      const jobId = startAsk(vaultPath, { question, raw, previous, context, sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, vaultPages, ...(docTurn ? { lookup: null } : {}), ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
       watchAnswerFor(jobId, 'nova');
-      const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
-      res.json({ jobId, ...(ack ? { ack } : {}) });
+      const ack = await ackForTurn({ question: raw, lane: looking ? 'lookup' : 'ask', voiceId: req.body?.voiceId, topic: looking ? looking.query : null });
+      res.json({ jobId, ...(ack ? { ack } : {}), ...(looking ? { lookup: { query: looking.query } } : {}) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

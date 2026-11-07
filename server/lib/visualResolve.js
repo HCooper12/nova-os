@@ -21,7 +21,8 @@
 // promise, the picture is the payload, and a failed fetch simply leaves an
 // honest typographic panel behind.
 
-import { FETCHED_KINDS, DATA_KINDS } from '../../src/visualBeats.js';
+import { FETCHED_KINDS, DATA_KINDS, CLAIM_KINDS } from '../../src/visualBeats.js';
+import { verifyClaim } from './glassClaims.js';
 import { resolveImage, resolveClip } from './briefingMedia.js';
 import { searchVault } from './recall.js';
 import { momentInNote, pickMoment, captionsFor } from './visualMoment.js';
@@ -38,7 +39,19 @@ export const deps = {
 };
 
 export function needsFetch(spec) {
-  return FETCHED_KINDS.has(spec?.kind) || DATA_KINDS.has(spec?.kind);
+  return FETCHED_KINDS.has(spec?.kind) || DATA_KINDS.has(spec?.kind) || CLAIM_KINDS.has(spec?.kind);
+}
+
+// A CLAIM ON A PAGE (7 Nov 2026, lib/glassClaims.js): the model named a
+// figure, a quote, an entity, a page or a clip and the number of the source
+// it stands on; the pages the sprint read are in memory, so the check is
+// instant. A claim that fails is `dropped` with its reason: the client draws
+// nothing for it and the log says why. Nothing here softens a miss.
+export function resolveClaim(spec, lookup, log = () => {}) {
+  const v = verifyClaim(spec, typeof lookup === 'function' ? lookup() : lookup);
+  if (v.ok) return { ...v.spec, state: 'ready' };
+  log(`[glass] dropped a ${spec.kind}: ${v.why}`);
+  return { ...spec, state: 'dropped', reason: v.why };
 }
 
 // A DATA PANEL (3 Oct 2026): built by code from his records, or not at all.
@@ -91,9 +104,10 @@ export async function findMoment(spec, { vaultPath, videoId, allowCaptions = tru
 
 // Never throws and never returns null: a panel that could not be filled comes
 // back as itself, which is a perfectly honest thing to leave on the glass.
-export async function resolveVisual(spec, { vaultPath = null, sources = [], allowCaptions = true, consult = null } = {}, onUpdate = null) {
+export async function resolveVisual(spec, { vaultPath = null, sources = [], allowCaptions = true, consult = null, lookup = null, log = (m) => console.warn(m) } = {}, onUpdate = null) {
   const base = { ...spec, state: 'ready' };
   if (!needsFetch(spec)) return base;
+  if (CLAIM_KINDS.has(spec.kind)) return resolveClaim(spec, lookup, log);
   if (DATA_KINDS.has(spec.kind)) return resolveData(spec, { vaultPath, consult });
 
   if (spec.kind === 'image') {

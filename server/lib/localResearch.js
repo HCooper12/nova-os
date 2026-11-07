@@ -284,6 +284,14 @@ const clipText = (text, maxChars) => {
  * result the answer must be able to state. `deps.fetchImpl` and
  * `deps.chromeRead` are the test seams.
  */
+/** The og:image of a page, absolute, or null. Pure. */
+export function ogImageIn(html, baseUrl) {
+  const h = String(html || '').slice(0, 300_000);
+  const m = h.match(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["']/i) || h.match(/<meta[^>]+content=["']([^"']+)["'][^>]*property=["']og:image(?::secure_url)?["']/i);
+  if (!m) return null;
+  try { return new URL(m[1].replace(/&amp;/g, '&'), baseUrl).href; } catch { return null; }
+}
+
 export async function readPage(url, { maxChars = 6000, timeoutMs = READ_TIMEOUT_MS, deps = {} } = {}) {
   const fetchImpl = deps.fetchImpl || fetch;
   const chromeRead = deps.chromeRead || readWithBrowser;
@@ -325,7 +333,9 @@ export async function readPage(url, { maxChars = 6000, timeoutMs = READ_TIMEOUT_
       const text = readableText(html.replace(/<head\b[\s\S]*?<\/head>/i, ' '));
       const title = textOf((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '') || host;
       if (text.length < 1500 && HUMAN_CHECK.test(`${title}\n${text}`)) return done({ ok: false, via: 'fetch', reason: 'the site asked for a human check' });
-      if (text.length >= THIN_PAGE) return done({ ok: true, via: 'fetch', title, text: clipText(text, maxChars) });
+      // the page's own picture (og:image), for the glass's page card; the
+      // sprint caches it on Nova's origin before it is shown
+      if (text.length >= THIN_PAGE) return done({ ok: true, via: 'fetch', title, text: clipText(text, maxChars), image: ogImageIn(html, url) });
       why = 'the fetched page had almost no readable words';
     }
   } catch (e) {

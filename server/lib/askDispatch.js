@@ -23,7 +23,10 @@
 // pool writes 'error', a stand-in that can run keeps it 'running', and the
 // local turn then writes its own progress, result and status into that same
 // object. A poll can never see the error first.
-import { startAskNova, getMessageJob } from './claudeCode.js';
+import { startAskNova, getMessageJob, registerAskJob } from './claudeCode.js';
+import { randomUUID } from 'node:crypto';
+import { lookupWanted, lookupCanRun, runLookupSprint, sprintLine, readSources } from './lookupSprint.js';
+import { publishLookup, lookupPanels } from './visualStream.js';
 import { startAskLocal, isLocalOnlySession, localTurnsSinceClaude, transcriptOf, sessionTurns, recordAskTurn } from './localAsk.js';
 import { providerFor, laneCanRunLocal, fallbackEnabled, localBoard, laneEnabled } from './modelPrefs.js';
 import { localModelConfigured, memoryHeadroom } from './localModel.js';
@@ -261,7 +264,7 @@ function holdForStandIn(job, cwd, opts, { newSession, routed = null }) {
             job.error = null;
             startAskLocal(cwd, {
               question: opts.question, sessionId: opts.sessionId || null, liveLine: opts.liveLine || '',
-              spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, fallback: true, reason, vaultPages: opts.vaultPages || '',
+              spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, fallback: true, reason, vaultPages: opts.vaultPages || '', presearched: opts.lookup || null,
             }, { job, claudeError, opened: newSession });
           });
           return; // stays 'running'
@@ -281,9 +284,61 @@ function holdForStandIn(job, cwd, opts, { newSession, routed = null }) {
   });
 }
 
+// LOOK IT UP FIRST (7 Nov 2026, lib/lookupSprint.js, design/ROSE-STUDY.md).
+// Code decides from his own words (`raw`, undressed of the on-screen block)
+// that this turn needs the outside world; the sprint searches, reads and
+// finds clips inside its budget, publishing each page and clip onto the
+// glass as it lands; THEN the model is asked, with the pages after his
+// words. The job he polls is a carrier minted at once (he hears the ack and
+// sees the wall fill), which becomes a live view of the model's job the
+// moment that starts. Never for a consult, never twice (`opts.lookup` set).
+function startLookupAsk(cwd, opts, want) {
+  const carrier = { id: randomUUID().slice(0, 8), status: 'running', result: null, error: null, partial: '', visuals: {}, lookup: null, sprintLine: null, inner: null };
+  registerAskJob(carrier);
+  console.log(`ask: looking up "${want.query}" first (${want.why})`);
+  // a sprint longer than a breath says so, once, in code's words
+  const slow = setTimeout(() => { if (!carrier.inner) carrier.sprintLine = sprintLine(carrier.lookup || { query: want.query }); }, 2500);
+  slow.unref?.();
+  const publish = (lk) => {
+    if (carrier.inner) { carrier.inner.lookup = lk; carrier.inner.visuals = { ...(carrier.inner.visuals || {}), ...lookupPanels(lk) }; } else publishLookup(carrier, lk);
+  };
+  runLookupSprint(want.query, { onSearched: publish, onPage: publish, onClips: publish })
+    .then((lookup) => {
+      clearTimeout(slow);
+      console.log(`ask: lookup "${lookup.query}": ${readSources(lookup).length}/${lookup.sources.length} page(s) read, ${lookup.clips.length} clip(s), ${lookup.timings.total}ms, hosts ${lookup.hostsRead.join(', ') || 'none'}${lookup.searchError ? `, search failed: ${lookup.searchError}` : ''}`);
+      const innerId = startAskNow(cwd, { ...opts, lookup });
+      const inner = getMessageJob(innerId);
+      if (!inner) { failCarrier(carrier, 'The turn could not be started after the lookup.'); return; }
+      mirrorJob(carrier, inner);
+    })
+    .catch((e) => { clearTimeout(slow); failCarrier(carrier, `The lookup failed: ${e.message}`); });
+  return carrier.id;
+}
+
+// the carrier becomes a live view of the model's job: every field the poll
+// reads comes from the inner job; the lookup's own cards stay on the glass
+function mirrorJob(carrier, inner) {
+  const own = { ...(carrier.visuals || {}) };
+  carrier.inner = inner;
+  for (const k of ['status', 'result', 'error', 'partial', 'stage', 'consult', 'noGlass', 'sessionId', 'lookup', 'provider', 'escalated', 'reason', 'sprintLine', 'markChecks', 'agentAnswers', 'claudeError']) {
+    Object.defineProperty(carrier, k, { enumerable: true, configurable: true, get: () => inner[k], set: (v) => { inner[k] = v; } });
+  }
+  Object.defineProperty(carrier, 'visuals', { enumerable: true, configurable: true, get: () => ({ ...own, ...(inner.visuals || {}) }), set: (v) => { inner.visuals = v; } });
+}
+
 /** Start one Ask Nova turn on whichever model should answer it; returns the
- *  job id (synchronously, like startAskNova). Same options as startAskNova. */
+ *  job id (synchronously, like startAskNova). Same options as startAskNova,
+ *  plus `raw` (his undressed words) for the lookup decision. */
 export function startAsk(cwd, opts = {}) {
+  if (opts.lookup === undefined && !opts.consulted && !opts.direct) {
+    const want = lookupWanted(opts.raw || opts.question, { previous: opts.previous || '' });
+    if (want && lookupCanRun()) return startLookupAsk(cwd, opts, want);
+    if (want) console.log(`ask: a lookup was wanted ("${want.query}") but the web cannot be searched right now`);
+  }
+  return startAskNow(cwd, opts);
+}
+
+function startAskNow(cwd, opts = {}) {
   // code decides which questions the small model may take (lib/askRoute.js):
   // one that needs the evidence, a judgement or another agent goes to Claude,
   // whose Nova can ask Coach and the Researcher
@@ -297,7 +352,7 @@ export function startAsk(cwd, opts = {}) {
   if (local && !routed) {
     const jobId = startAskLocal(cwd, {
       question: opts.question, sessionId: opts.sessionId || null, liveLine: opts.liveLine || '',
-      spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, vaultPages: opts.vaultPages || '',
+      spoken: !!opts.spoken, direct: !!opts.direct, where: opts.where || null, vaultPages: opts.vaultPages || '', presearched: opts.lookup || null,
     });
     const job = getMessageJob(jobId);
     if (job) holdForEscalation(job, { lane: 'ask-nova', escalate: (carrier, localError, reason) => escalateAsk(carrier, cwd, opts, localError, reason) });

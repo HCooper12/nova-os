@@ -116,6 +116,13 @@ test('every declared kind can actually produce a spec', () => {
     session: { date: '2026-09-28' },
     sources: {},
     mark: { mark: { lift: 'Bench press', set: 3 } },
+    // the wall of references (7 Nov 2026, design/ROSE-STUDY.md)
+    page: { source: 2 },
+    video: { clip: 1 },
+    figure: { value: '81', unit: 'endpoints', source: 2 },
+    quote: { text: 'the exact words the page prints', source: 1 },
+    entity: { name: 'Flipper Devices', source: 3, facts: [['Founded', '2020']] },
+    note: { lines: ['one line', 'two lines'] },
   };
   for (const kind of VISUAL_KINDS) {
     const spec = normaliseSpec({ kind, label: 'Panel', ...samples[kind] });

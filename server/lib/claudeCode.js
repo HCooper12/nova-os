@@ -19,7 +19,8 @@ import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
 import { foldReply, spokenBudget } from '../../src/turnFold.js';
 import { TURN_TAKING, talkPrefsBlock } from './talk.js';
-import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
+import { attachVisuals, publishLookup, lookupPanels, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
+import { lookupBlock } from './lookupSprint.js';
 import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
 import { registerJobMap, recordJobReceipt } from './jobRegistry.js';
@@ -1127,7 +1128,7 @@ function consultedResumeText(consulted, question, { canPropose = false } = {}) {
 // `dryRun` (server/scripts/benchLocalAsk.mjs only): the reply comes back
 // as the model wrote it, with no consult run and nothing settled, so a bench
 // over his real vault can never file, act or write.
-export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false, projectId = null, vaultPages = '' }) {
+export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false, projectId = null, vaultPages = '', lookup = null }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
   const claim = consulted?.claim || null;
@@ -1144,7 +1145,13 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   // (the no-op onPartial keeps the final text's VIS strip at the turn's end,
   // which keys on a job that streams visuals: a stray VIS is never spoken)
   if (noGlass) { job.noGlass = true; job.onPartial = () => {}; }
+  // THE LOOKUP (lib/lookupSprint.js): the pages code read before this turn
+  // ride on the job for the claim gate, and go on the glass as their own
+  // cards; the model reads them after his words (lookupBlock)
+  if (lookup && !noGlass) publishLookup(job, lookup);
+  else if (lookup) job.lookup = lookup;
   if (!consulted && !noGlass) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  if (lookup && !noGlass) job.visuals = { ...job.visuals, ...lookupPanels(lookup) };   // attachVisuals reset the map; the lookup's cards stay
 
   const args = askArgs(effectiveSessionId, isNewSession, { effort });
   const kind = consulted ? 'consult-nova' : 'voice';
@@ -1154,7 +1161,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   const pb = consulted ? { block: '', titles: [] } : playbookTurn({ text: question, agent: 'nova', vaultPath: cwd, turnId: jobId });
   labelPlaybooks(job, pb.titles);
   // the pages that fit this question ride this turn, never the cached context
-  const promptQuestion = turnWords(question, pb.block, consulted ? '' : vaultPages);
+  const promptQuestion = turnWords(question, pb.block, consulted ? '' : [vaultPages, lookup ? lookupBlock(lookup) : ''].filter(Boolean).join('\n\n'));
 
   // NOVA DIRECTS (lib/consult.js): a reply that asks the org is not the
   // answer. Code runs the asks, says who was asked, and hands the answers

@@ -242,6 +242,15 @@ export const FRAMES = {
     { id: 'consult.ask', t: 'Asking {agent} about {topic}.' },
     { id: 'consult.check', t: 'Checking {topic} with {agent}.' },
   ],
+  // A LOOKUP (7 Nov 2026, lib/lookupSprint.js): his own noun, said back
+  // with the verb of the work, Rose's "checking right boss"
+  lookup: [
+    { id: 'lookup.check', t: 'Checking {topic}.' },
+    { id: 'lookup.read', t: 'Reading up on {topic}.' },
+    { id: 'lookup.look', t: 'Looking {topic} up.' },
+    { id: 'lookup.second', t: '{Topic}. Give me a second.' },
+    { id: 'lookup.sir', t: 'Looking into {topic}, sir.' },
+  ],
 };
 export const BARE_FRAMES = {
   ask: [
@@ -263,6 +272,11 @@ export const BARE_FRAMES = {
   consult: [
     { id: 'consult.bare.ask', t: 'Asking {agent}.' },
   ],
+  lookup: [
+    { id: 'lookup.bare.look', t: 'Looking that up.' },
+    { id: 'lookup.bare.check', t: 'Checking.' },
+    { id: 'lookup.bare.read', t: 'One second, reading.' },
+  ],
 };
 
 // the frame that echoes his own verb, per lane
@@ -278,7 +292,7 @@ function verbHint(question, group) {
   return null;
 }
 
-const laneOf = (lane) => (lane === 'coach' || lane === 'leader' ? lane : 'ask');
+const laneOf = (lane) => (lane === 'coach' || lane === 'leader' || lane === 'lookup' ? lane : 'ask');
 
 const fill = (template, topic, agent) => {
   const t = template
@@ -330,14 +344,16 @@ function pick(frames, { topic, agent, used, texts, now, hint = null }) {
 //   consult: an agent id from consult.AGENTS when the ask is known to go to one
 //   used:    frame ids already spoken today (the ledger's)
 //   texts:   sentences already spoken today (the ledger's)
-export function composeAck({ question, lane = 'ask', consult = null, now = Date.now(), used = [], texts = [], vocab = {} } = {}) {
+export function composeAck({ question, lane = 'ask', consult = null, now = Date.now(), used = [], texts = [], vocab = {}, topic: given = null } = {}) {
   if (lane === 'reflex' || lane === 'verb') return null;
   const q = String(question || '').replace(/\[[^\]]*\]/g, ' ').trim();
   if (q.length < MIN_QUESTION) return null;
   if (SMALL_TALK.test(q) || isSmallTalk(q)) return null;
   const agentLabel = consult && AGENTS[consult]?.label && !AGENTS[consult]?.code ? AGENTS[consult].label : null;
   const group = agentLabel ? 'consult' : laneOf(lane);
-  const topic = knownTopic(q, group === 'consult' ? 'ask' : group, vocab);
+  // a lookup's topic is the thing being looked up (code's query), never a
+  // vault noun; a long one is said as "that"
+  const topic = group === 'lookup' ? (given && String(given).split(/\s+/).length <= 5 ? String(given).trim() : null) : knownTopic(q, group === 'consult' ? 'ask' : group, vocab);
   const ctx = { topic, agent: agentLabel, used: Array.isArray(used) ? used : [], texts: Array.isArray(texts) ? texts : [], now, hint: verbHint(q, group) };
   let out = topic ? pick(FRAMES[group], ctx) : null;
   // no topic, or every topic sentence already said today: the bare frames
@@ -429,7 +445,7 @@ export function recordAck(ack, now = Date.now()) {
 }
 
 // The route's one call: compose against today's ledger and record it.
-export async function nextAck({ question, lane, consult = null, now = Date.now() } = {}) {
+export async function nextAck({ question, lane, consult = null, now = Date.now(), topic = null } = {}) {
   await writing;
   const led = readAckLedger(now);
   // NEVER WAIT ON THE VAULT HERE (18 Oct 2026 benchmark): the vault is on
@@ -438,7 +454,7 @@ export async function nextAck({ question, lane, consult = null, now = Date.now()
   // one on a cold start) and refreshes it in the background.
   const vocab = cachedAckVocabulary();
   ackVocabulary().catch(() => {});
-  const ack = composeAck({ question, lane, consult, now, used: led.used, texts: led.texts, vocab });
+  const ack = composeAck({ question, lane, consult, now, used: led.used, texts: led.texts, vocab, topic });
   if (!ack) return null;
   await recordAck(ack, now).catch(() => {});
   return { id: ack.id, text: ack.text, topic: ack.topic };

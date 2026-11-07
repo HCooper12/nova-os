@@ -4,6 +4,7 @@ import { isValidModel } from '../lib/modelPrefs.js';
 import { listWorkspaces } from '../lib/codeWorkspaces.js';
 import { watchCodeJobs, loadCodeJob } from '../lib/codeJobStore.js';
 import { stageLineOf } from '../lib/handsFree.js';
+import { lookupSummary } from '../lib/lookupSprint.js';
 import { noteAnswerPoll } from '../lib/alerts.js';
 
 // Exactly the values the model board recognises (aliases + pinned ids,
@@ -75,7 +76,7 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
       const result = job.result ? { ...job.result, text: typeof job.result.text === 'string' ? parseVisualStream(job.result.text).text : job.result.text, panel: null, card: null } : job.result;
       return res.json({ status: job.status, result, error: job.error, partial: partial || null, stage: job.stage || null, visuals: null, consult: job.consult?.length ? job.consult : null, stageLine: slow?.line || null, stageAgent: slow?.agent || null, glass: false });
     }
-    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, stage: job.stage || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null, stageLine: slow?.line || null, stageAgent: slow?.agent || null });
+    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, stage: job.stage || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null, stageLine: slow?.line || job.sprintLine || null, stageAgent: slow?.agent || (job.sprintLine ? 'nova' : null), lookup: job.lookup ? lookupSummary(job.lookup) : null });
   });
 
   // Sparring loop: spawn a read-only Breaker over the workspace. Polled via

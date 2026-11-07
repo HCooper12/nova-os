@@ -52,7 +52,7 @@ export function attachVisuals(job, { vaultPath = null, concurrency = 3, allowCap
       const b = queue.shift();
       inFlight++;
       // the cover lands first, the timecode fills into the same card after
-      Promise.resolve(resolveVisual(b.spec, { vaultPath, allowCaptions, consult: () => job.consult }, (partial) => { job.visuals[b.key] = partial; }))
+      Promise.resolve(resolveVisual(b.spec, { vaultPath, allowCaptions, consult: () => job.consult, lookup: () => job.lookup, log }, (partial) => { job.visuals[b.key] = partial; }))
         .then((v) => { job.visuals[b.key] = v; if (DATA_KINDS.has(b.spec.kind)) checkMarks(); })
         .catch(() => { /* resolveVisual swallows its own, but never trust that */ })
         .finally(() => { inFlight--; pump(); });
@@ -74,6 +74,38 @@ export function attachVisuals(job, { vaultPath = null, concurrency = 3, allowCap
     checkMarks();
   };
   return job;
+}
+
+// THE LOOKUP'S OWN PANELS (7 Nov 2026, lib/lookupSprint.js). The pages the
+// sprint found and the clips it matched go on the glass the moment they
+// exist, as `page` and `video` cards built by code from the search's own
+// strings, keyed `lk:p1`, `lk:v1`… so the client can tell them from the
+// model's beats and raise them while Nova is still thinking. Called again
+// as a page's text, picture or a clip's poster lands: the same key, a fuller
+// card. `job.lookup` is the sprint itself, read by the claim gate.
+export function lookupPanels(lookup) {
+  const out = {};
+  for (const s of lookup?.sources || []) {
+    out[`lk:p${s.n}`] = {
+      kind: 'page', lookup: true, n: s.n, state: 'ready',
+      label: String(s.host || 'PAGE').toUpperCase().slice(0, 42),
+      title: s.title, url: s.url, host: s.host, image: s.image || null, lines: s.lines || [],
+      read: !!s.read, pending: !s.read && !lookup.done, caption: s.snippet || null,
+    };
+  }
+  (lookup?.clips || []).forEach((c, i) => {
+    out[`lk:v${i + 1}`] = {
+      kind: 'video', lookup: true, clip: i + 1, state: 'ready',
+      label: String(c.channel || 'VIDEO').toUpperCase().slice(0, 42),
+      title: c.title, channel: c.channel || null, videoId: c.id, url: c.url, poster: c.poster || null, portrait: !!c.portrait, durationS: c.durationS || null,
+    };
+  });
+  return out;
+}
+export function publishLookup(job, lookup) {
+  if (!job) return;
+  job.lookup = lookup;
+  job.visuals = { ...(job.visuals || {}), ...lookupPanels(lookup) };
 }
 
 // WHAT THE AGENTS ARE TOLD. One contract, used by Ask Nova, the Coach and the
@@ -106,6 +138,16 @@ KINDS
 
 - session {"panel":"session","date":"2026-09-28","by":"coach"} — ONE workout he logged, drawn by code from his session record: every lift, every set with its kg, reps and RPE, and the program's target for each lift. Name it by its date ("date":"YYYY-MM-DD") or as the last of a routine ("routine":"Push"). "by" says whose finding it is: "coach", "researcher", "librarian", "leader", or "nova" for your own; the lit part wears that agent's colour.
 - mark {"mark":{"lift":"Bench press","set":3}} — lights ONE part of the data panel already up, for the one sentence right after it. On a session: {"lift":"<exact lift name from his log>"} lights the lift; add "set":3 for one set; "field":"kg" for its weight; "target":true for its weight against the program's target reps. The light goes out when that sentence ends.
+- note   {"label":"CONSUMER PRODUCT OR DEV KIT?","lines":["It is a finished retail product.","Returns and a one-year warranty.","FCC and CE filings."]} — a titled card of up to three short lines in your own words, for a movement that needs more than one line. Only what you are saying.
+
+THE WALL OF REFERENCES (7 Nov 2026). When his words carry a LOOKED UP block, Nova's browser has already read numbered pages and found numbered clips, and each is ALREADY a card on his glass. Use them:
+- page   {"kind":"page","source":2} — lights page 2's card while you say what it says. Write it before the sentence that leans on that page.
+- video  {"kind":"video","clip":1} — lights clip 1's card (its cover, its title) while you mention it.
+- figure {"kind":"figure","label":"ENDPOINTS","value":"81","unit":"endpoints","source":2,"caption":"documented in the OpenAPI reference"} — ONE number from ONE page. Code looks for that number in page 2's text and draws the card only if it is there; a figure with no source is dropped. Prices are figures: value "199", unit "USD".
+- quote  {"kind":"quote","label":"THE VERGE","text":"the exact words, as the page prints them","who":"The Verge","source":1} — a sentence from a page, in its own words. Code looks for those words in page 1; a paraphrase is dropped.
+- entity {"kind":"entity","name":"Flipper Devices","source":3,"facts":[["Founded","2020"],["Known for","Flipper Zero"],["Based","Lisbon"]],"caption":"the company behind it"} — who or what a thing is, in up to five fact pairs that page 3 states. Code checks each pair; a pair the page does not carry is dropped, and the card with it if none remain.
+A reply that answers from the pages carries a page line per page it uses, and figures, quotes and entities where the answer has them: that is the wall he asked for. Never a number, a quote or a fact that the page does not hold: code will drop it and he will see a gap where you promised something.
+
 - sources {"panel":"sources","by":"nova"} — after you consulted, ONE panel composed from the agents who answered, each part built from that agent's own record (the Coach's lift trend from his log, the Librarian's passage from his note, the Researcher's claim and its source count). Light a part with {"mark":{"section":"coach"}} (or "researcher", "librarian"); {"mark":{"section":"librarian","quote":true}} lights the exact words the Librarian quoted, when code finds them in his note.
 
 WHEN A DATA PANEL APPEARS (his rule, word for word in spirit): only when there is something to point at: a number he should see, two things compared, or a place in his own record. A plain sentence gets no panel. Write the panel line, then the mark for your first sentence, each on its own line, before that sentence; then one mark line before each further sentence that points at a part of it. One thing lit at a time, only while you say it, and say in words what is lit ("your third set", "the Librarian's passage"). Every number on it comes from his records: name only sessions, lifts and sets you have actually read in his log, and never state a number the panel does not hold. Code checks every address and drops one that is not there. If the record cannot be read, raise no panel and say so plainly.
