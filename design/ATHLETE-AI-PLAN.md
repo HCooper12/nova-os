@@ -333,3 +333,9 @@ test: possible later, needs 240 fps filming.
 - Losing too fast: about 1 kg a week, and not an alarm by itself. Speak only if a
   sign of harm comes with it (lifts dropping, recovery signal, eating far under).
 - Evening nudge for no food logged: no.
+
+## Phase 1 built, 7 Nov 2026
+
+On main, live server reloaded; client part (App.jsx) reaches his phone only after a push and deploy. Beyond the plan: USDA free-text matching ranked by data type alone and silently returned wrong foods (salmon as fish oil, egg as egg white). Now code narrows candidates, the `food-pick` lane (haiku) picks one or none, code checks the id, the numbers are USDA's, and each name is cached. Branded rows are barcode-only. GET search gives a random 400, so POST with a retry. Restaurant dishes (butter chicken, samosa) usually miss and stay labelled estimated. Voice-captured food still has the model state macros: not changed. A photo's macros are only as good as its estimated grams.
+
+Standing condition on earned calories (his, 7 Nov): if the weekly review shows weight not dropping, it says so and proposes switching the buffer off.
