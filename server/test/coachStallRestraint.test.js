@@ -46,6 +46,70 @@ test('four flat weeks on an established lift: the same lift with a new tempo, fi
   assert.match(f.line, /Before swapping it out, change the stimulus on the same lift/);
 });
 
+// ---- a flat run on a cut is expected (round two, 7 Nov 2026) ---------------
+//
+// HIS RECORDED CASE (25 Sep): ten stall cards in ten days, six declined, among
+// them a Lying T-Bar Row and a Pull-Up, flat for weeks. On a cut those lifts
+// holding still is the plan working, so none of that raises a card.
+const HIS_EX = [
+  { id: 'tbar', name: 'Lying T-Bar Row', muscleGroup: 'Back' },
+  { id: 'pullup', name: 'Pull-Up', muscleGroup: 'Back' },
+  { id: 'row', name: 'Seated Cable Row', muscleGroup: 'Back' },
+  { id: 'pulldown', name: 'Lat Pulldown', muscleGroup: 'Back' },
+];
+const flatLift = (id, name, rpe) => Array.from({ length: 7 }, (_, i) => {
+  const d = new Date('2026-08-02T12:00:00');
+  d.setDate(d.getDate() + i * 7);
+  return { date: d.toISOString().slice(0, 10), exercises: [{ exerciseId: id, name, sets: [{ weight: 50, reps: 8, rpe: rpe(i) }] }] };
+});
+const HIS_FLAT = [...flatLift('tbar', 'Lying T-Bar Row', () => 8), ...flatLift('pullup', 'Pull-Up', () => 8)];
+
+test('on a cut, a flat Lying T-Bar Row and Pull-Up raise no card; off a cut they do', () => {
+  assert.equal(R.cuttingHoldsStill('lose', HIS_FLAT), true);
+  assert.deepEqual(R.findStaleLifts(HIS_FLAT, HIS_EX, { now: NOW, cutting: true }), []);
+  assert.equal(R.findStaleLifts(HIS_FLAT, HIS_EX, { now: NOW, cutting: R.cuttingHoldsStill('maintain', HIS_FLAT) }).length, 2);
+  assert.equal(R.cuttingHoldsStill('gain', HIS_FLAT), false);
+  assert.equal(R.cuttingHoldsStill(null, HIS_FLAT), false, 'no intake, no cut assumed');
+});
+
+test('on a cut, months on one lift that has slowed raises no card either', () => {
+  const fortnightly = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date('2026-04-01T12:00:00');
+    d.setDate(d.getDate() + i * 14);
+    return { date: d.toISOString().slice(0, 10), exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }] };
+  });
+  const now = new Date('2026-09-15T12:00:00');
+  assert.equal(R.findLongTenure(fortnightly, EX, { now }).length, 1);
+  assert.deepEqual(R.findLongTenure(fortnightly, EX, { now, cutting: true }), []);
+});
+
+test('the safety valve: effort climbing at the same load on a cut puts the detectors back', () => {
+  const climbing = [...flatLift('tbar', 'Lying T-Bar Row', (i) => 7 + i * 0.4), ...flatLift('pullup', 'Pull-Up', (i) => 7 + i * 0.4)];
+  assert.equal(R.cuttingHoldsStill('lose', climbing), false);
+  assert.equal(R.findStaleLifts(climbing, HIS_EX, { now: NOW, cutting: R.cuttingHoldsStill('lose', climbing) }).length, 2);
+});
+
+test('reviewProgram reads his intake goal: lose silences the stall cards, and the other findings still run', async () => {
+  const deps = (goal) => ({
+    loadSessions: async () => HIS_FLAT,
+    loadExercises: async () => HIS_EX,
+    goals: async () => null,
+    focusOf: async () => [],
+    volume: async () => [],
+    loadRoutinesFor: async () => [{ id: 'r', name: 'Pull', exercises: [{ exerciseId: 'tbar' }, { exerciseId: 'pullup' }] }],
+    loadPlaybook: async () => '',
+    listRecords: async () => [],
+    loadTunes: async () => [],
+    loadProgressions: async () => ({}),
+    intakeGoal: async () => goal,
+    now: NOW,
+  });
+  const onCut = await R.reviewProgram(vault, deps('lose'));
+  assert.equal(onCut.findings.filter((f) => f.kind === 'stale' || f.kind === 'tenure').length, 0);
+  const maintaining = await R.reviewProgram(vault, deps('maintain'));
+  assert.equal(maintaining.findings.filter((f) => f.kind === 'stale').length, 2);
+});
+
 test("the variation is his research's tempo or pause one when there is one", () => {
   const withResearch = EX.map((e) => (e.id === 'fly' ? { ...e, research: { variations: [
     { name: 'Single-arm', how: 'one side at a time, brace the other hand', why: 'x' },
