@@ -151,3 +151,12 @@ After a few days of real use: `node scripts/talk-shape.mjs --since 2026-10-22`.
 Expect the reply p90 well under 145, questions back above 10 in 63, the Coach
 under ~150 words a turn unless he asked for depth, and greetings at one or
 two a day plus real returns.
+
+## 8 Nov 2026 — three lines from the Rose study (design/ROSE-STUDY.md)
+
+TURN_TAKING (server/lib/talk.js) gained: say back what you see or heard in
+five words, then ask; when he thinks aloud, add one thought or one question,
+never advice; a lookup answers first and names its page in one clause. And
+one rule moved into code: `src/turnSense.js thinkingAloud` extends the mic's
+hold once more for a story that leans forward with nothing asked, so Nova no
+longer answers half a thought.

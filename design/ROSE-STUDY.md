@@ -201,3 +201,44 @@ embeddable player without their SDKs), a 3D model lookup.
 - The lens stays under its cap (lens.test.js); the new rules live in
   TURN_TAKING.
 - The camera is not in this build and the plan says so.
+
+## 7 · What shipped (8 Nov 2026, commits a7003ae4 → d5f3b64a on main)
+
+Phases 1 to 4 are built, deployed and proved on a scratch copy of his
+data with the real Claude CLI and a real Kokoro voice (scripts/scratch-
+server.mjs --real-claude --tts), never against 4173:
+
+- **The sprint** ran "Why don't you look it up? It's called the Busy Bar, by
+  Flipper Devices." end to end: Bing in Nova's Chrome 2.7–3.3 s, three pages
+  read (busy.app, techcrunch.com, thetechmarketer.com) inside the 6 s
+  budget, two YouTube clips after it; the ack "Checking the Busy Bar.", the
+  code line "Reading 3 pages on the Busy Bar." when the sprint ran past 4 s.
+- **The answer** came from the pages, in Rose's shape: "Found it, sir. The
+  Busy Bar is a desk display from Flipper Devices, the London makers of the
+  Flipper Zero. TechCrunch describes it as a status sign with Pomodoro
+  timers… Busy's own page says it has an open HTTP API… Are you thinking of
+  it as a focus sign for your desk, or as a display Nova writes to?" The
+  model lit page 1 and page 2 (`VIS {"kind":"page","source":n}`) as it
+  spoke of them. When the reads timed out on one run it said so: "The search
+  came back empty, sir… From memory, and marked as such".
+- **The Mac wall** (1440×900, Chrome headless, recorded through the turn):
+  the core at the presenter spot, speaking in jade, the lit card straight
+  and glowing, the others at their seeded tilt, covers and the poster from
+  the pages themselves. Frames in the session's proof folder; the final
+  frame matches mockup 110's layout numbers (wallFacts.js).
+- **The phone** (WebKit 402×874, iPhone UA): "Reading 3 pages on the Busy
+  Bar." in the island, the rail of page cards under his words while Nova
+  thinks, the lit card first in the rail while Nova speaks of it.
+- **Not proved here:** his iPhone and his Mac themselves (the deploy is on
+  main, the served bundle carries the wall, the server was reloaded; the
+  first real turn is his); a figure/quote/entity card drawn live (the gate
+  has 10 tests; on these turns the model chose page lights, which is the
+  right call for a product lookup); the thinking-aloud hold on a real
+  microphone; "go to sleep" on the stage (standby only; the wall does not yet
+  dim with it); TikTok/Instagram clips (YouTube only via yt-dlp).
+- **Measured on the way:** a name alone ("the Busy Bar") found a dictionary;
+  Bing's result page varies between loads and once parsed to ten off-topic
+  rows, which used to rest the engine for twenty minutes; `/api/briefing/
+  media/<key>.jpg` failed the route's KEY_RE, so every running-glass poster
+  had been a 404 since September; an `<img src="/api/…">` cannot load from
+  the PWA's origin without the token (src/MediaImg.jsx now fetches blobs).
