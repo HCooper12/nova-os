@@ -16,7 +16,7 @@ import { RECIPE_FILE } from './fixtures.js';
 await mkdir(path.join(vault, 'Wiki/Health'), { recursive: true });
 await writeFile(path.join(vault, 'Wiki/Health/Meal Prep Recipe Collection.md'), RECIPE_FILE);
 
-const { parseCommand, matchName, runVerb, tryCommand, parseActDirective, describeForModel, VERB_IDS } = await import('../lib/verbs.js');
+const { parseCommand, matchName, runVerb, tryCommand, parseActDirective, describeForModel, VERB_IDS, verbFor } = await import('../lib/verbs.js');
 const { addTodo, listTodos } = await import('../lib/todos.js');
 const { addItemsDirect, loadShoppingList } = await import('../lib/shoppingList.js');
 const { addRecipe, loadRecipes } = await import('../lib/recipes.js');
@@ -172,7 +172,9 @@ test('the ACT line: parsed off the reply; prose and bad JSON are named, not swal
 
 test('the catalogue the model reads is generated from the registry', () => {
   const text = describeForModel();
-  for (const id of VERB_IDS) assert.ok(text.includes(`"verb":"${id}"`), id);
+  // a verb marked modelHidden (his own tap, e.g. belief.drop) is left out on purpose
+  for (const id of VERB_IDS.filter((x) => !verbFor(x).modelHidden)) assert.ok(text.includes(`"verb":"${id}"`), id);
+  assert.ok(!text.includes('belief.drop'));
   assert.match(text, /shopping\.clear.*lands pending/);
   assert.rejects(() => runVerb(vault, 'q', { verb: 'wire.money', args: {} }), /don't have a verb/);
   assert.rejects(() => runVerb(vault, 'q', { verb: 'todo.done', args: {} }), /needs text/);

@@ -9,12 +9,13 @@
 // the moments (a record, a review due, a capture that landed) still stack
 // above everything, because they are news.
 export const PINNED_CARDS = [
-  ['highlight', 'Right now'], ['body', 'Body'], ['today', 'Today'], ['plan', 'The plan'], ['waiting', 'Waiting'],
+  ['highlight', 'Right now'],
+  // About weekly, only when something Nova believes is worth checking (server/lib/beliefs.js); leads, like 'Right now'
+  ['beliefs', 'What Nova believes'],
+  ['body', 'Body'], ['today', 'Today'], ['plan', 'The plan'], ['waiting', 'Waiting'],
   ['training', 'Training'], ['practice', 'Practice'], ['trends', 'Trends'], ['day', 'Your day'],
   // Projects phase 1 (29 Oct 2026): shown only when a project waits on him
   ['projects', 'Projects'],
-  // About weekly, only when something Nova believes is worth checking (server/lib/beliefs.js)
-  ['beliefs', 'What Nova believes'],
 ];
 // Cards that arrive OFF: "Your day, drawn" is a morning card by default
 // (mockup 86) and stays all day only when he pins it here.
