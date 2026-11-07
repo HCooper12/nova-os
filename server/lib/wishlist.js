@@ -852,7 +852,9 @@ async function runReadAll() {
     });
     const out = { items, lastSync: deps.now().toISOString(), error: null, errorCode: null, images };
     await writeJson(itemsFile(), out);
-    fillImages(items).catch(() => {});
+    // photos first, then the shareable page (lib/wishlistShare.js) rebuilds
+    // from the same cache; it never throws and only pushes when content moved
+    fillImages(items).catch(() => {}).then(() => import('./wishlistShare.js')).then((m) => m.publishShare()).catch(() => {});
     return { ok: true, count: items.length };
   } catch (e) {
     await writeJson(itemsFile(), { ...cur, error: e.message, errorCode: e.code || null, lastTriedAt: deps.now().toISOString() });
