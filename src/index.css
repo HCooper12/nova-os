@@ -2011,6 +2011,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 /* the target, a tick at the bar's end */
 .nv-fs-kbar > i.earn { right: 0; width: auto; left: auto; background: var(--nv-cy); opacity: .55; box-shadow: none; border-radius: 0 4px 4px 0; transition: left 480ms var(--nv-spring-smooth); }
 .nv-fs-kbar > i.base { top: -2px; bottom: -2px; width: 2px; background: var(--nv-ink60); box-shadow: none; border-radius: 1px; }
+.nv-fs-kh > span { white-space: nowrap; }
 .nv-fs-earn { font-style: normal; font-weight: 600; color: var(--nv-cy); }
 .nv-fs-earn > i { font-style: normal; }
 @media (max-width: 389px) { .nv-fs-earn > i { display: none; } }
