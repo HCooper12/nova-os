@@ -96,8 +96,8 @@ test('at most one pending card; a no is respected for a week; not cutting propos
 test('the Fuel label says what the room is', async () => {
   const { earnedWords, earnedOn } = await import('../../src/fuelSummaryFacts.js');
   assert.equal(earnedWords({ date: '2026-11-10', earnedKcal: 150, pausedKcal: 0 }, '2026-11-10'), 'earned');
-  assert.equal(earnedWords({ date: '2026-11-10', earnedKcal: 0, pausedKcal: 500 }, '2026-11-10'), 'deficit paused');
-  assert.equal(earnedWords({ date: '2026-11-10', earnedKcal: 100, pausedKcal: 300 }, '2026-11-10'), 'earned and paused');
+  assert.equal(earnedWords({ date: '2026-11-10', earnedKcal: 0, pausedKcal: 500 }, '2026-11-10'), 'paused');
+  assert.equal(earnedWords({ date: '2026-11-10', earnedKcal: 100, pausedKcal: 300 }, '2026-11-10'), 'extra');
   assert.equal(earnedOn({ date: '2026-11-10', kcal: 500 }, '2026-11-11'), 0, 'yesterday\'s room is not today\'s');
 });
 

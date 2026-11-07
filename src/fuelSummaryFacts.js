@@ -26,7 +26,7 @@ export const earnedOn = (earned, date) => (earned?.date === date && Number(earne
 export const earnedWords = (earned, date) => {
   if (earned?.date !== date) return 'earned';
   const e = Number(earned.earnedKcal) || 0, p = Number(earned.pausedKcal) || 0;
-  return p > 0 && e > 0 ? 'earned and paused' : p > 0 ? 'deficit paused' : 'earned';
+  return p > 0 && e > 0 ? 'extra' : p > 0 ? 'paused' : 'earned'; // one short word: the line has no room for more
 };
 
 export function plateInstrument({ proteinCurrent, proteinTarget, kcalCurrent, targetKcal, earnedKcal = 0, earnedLabel = 'earned', c, f } = {}) {

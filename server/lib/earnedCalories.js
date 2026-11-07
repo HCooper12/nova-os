@@ -49,8 +49,10 @@ export function earnedFor({ active, past = [], on = true } = {}) {
 }
 
 /** Pure. Two weeks in, is his weight dropping? 'unknown' never proposes anything. */
-export function earnedCheck({ on, since, weighIns = [], today } = {}) {
+export function earnedCheck({ on, since, weighIns = [], today, paused = false } = {}) {
   if (!on) return { verdict: 'off', line: null };
+  // eating at maintenance on purpose is expected to hold weight: not a verdict on earned calories
+  if (paused) return { verdict: 'paused', line: 'Earned calories not judged this week: the deficit is paused for recovery.' };
   const dayNum = (iso) => Math.round(new Date(`${iso}T12:00:00Z`).getTime() / 86400000);
   if (dayNum(today) - dayNum(since) < STALL_DAYS) {
     return { verdict: 'early', line: `Earned calories started ${since}; two weeks are needed to judge them.` };

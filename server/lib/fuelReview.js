@@ -229,7 +229,9 @@ export async function runFuelReview(vaultPath, { now = new Date(), force = false
   try {
     const { earnedCheck, readEarnedState } = await import('./earnedCalories.js');
     const state2 = await readEarnedState();
-    const check = earnedCheck({ ...state2, weighIns: weighInsOf(days), today });
+    const { pausedToday } = await import('./pausedDeficit.js');
+    const pause = await pausedToday({ today, days });
+    const check = earnedCheck({ ...state2, weighIns: weighInsOf(days), today, paused: !!pause.active });
     if (check.line) last.lines = [...(last.lines || []), check.line];
     if (check.verdict === 'stalled') {
       const { listRecords, createRecord } = await import('./inboxStore.js');
