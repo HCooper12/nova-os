@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { backupFile } from './backup.js';
+import { doublingSchedule, pickDue } from './spacing.js';
 
 // THE DAILY REVIEW, ON A FORGETTING CURVE (mockup 96, audit
 // design/audits/redesign-2026-09/27-daily-review.md). His intent: concepts
@@ -332,27 +333,88 @@ function lastAnsweredId(cards) {
   return best?.id || null;
 }
 
-// The day's new pick: the best-ranked candidate not from the source of the
-// concept he answered last, or simply the best when every candidate is.
-export function pickNew(pages, cards, backlinkCounts, lane = 'mind') {
+// BRING BACK WHAT NEVER CAME UP (audit #3: 129 of 289 Concepts were never in a
+// prompt, a read or a reply). The new pick had no memory of what it showed: the
+// top candidate stayed the top candidate until he graded it, and in 23 days he
+// graded one, so one card sat there. Now a shown concept steps back on the
+// Leader's own widening gap (lib/spacing.js pickDue, 3 days doubling to 35) and
+// the next one gets its turn. The shared rank above still decides who is next:
+// mind only, cross-source first. Passing one by with Next costs it two extra
+// steps of gap: that is the only dismissal the card has, and his call
+// (11 Oct) stands that Next counts as read, so the page is not punished twice.
+export const SURFACE_SCHEDULE = doublingSchedule(3, 35);
+export const DISMISS_STEPS = 2;
+
+// The day's new pick: the best-ranked candidate due its turn, not from the
+// source of the concept he answered last, or simply the best when every
+// candidate is. Without a surfacing record, it is the ranked list as before.
+export function pickNew(pages, cards, backlinkCounts, lane = 'mind', { spacing = {}, nowMs = Date.now() } = {}) {
   const ranked = newCandidates(pages, cards, backlinkCounts, lane);
+  const byId = new Map(ranked.map((c) => [c.id, c]));
+  const due = pickDue(ranked.map((c) => c.id), spacing, nowMs, ranked.length, SURFACE_SCHEDULE).map((id) => byId.get(id));
+  const pool = due.length ? due : ranked;
   const lastId = lastAnsweredId(cards);
   const last = lastId ? pages.find((p) => p.id === lastId) : null;
   const avoid = sourceTitles(last);
-  if (!avoid.size) return ranked[0] || null;
-  return ranked.find((c) => ![...sourceTitles(c.page)].some((t) => avoid.has(t))) || ranked[0] || null;
+  if (!avoid.size) return pool[0] || null;
+  return pool.find((c) => ![...sourceTitles(c.page)].some((t) => avoid.has(t))) || pool[0] || null;
+}
+
+// A card he passed by stays out of the queue until its widened gap has run.
+const passedOver = (id, spacing, nowMs) => !!spacing[id]?.dismissed && !pickDue([id], spacing, nowMs, 1, SURFACE_SCHEDULE).length;
+
+/* --------------------------- what has been surfaced ------------------------ */
+
+const SURFACED_PATH = () => path.join(dataRoot(), 'concept-surfaced.json');
+
+async function readSurfaced() {
+  try { return JSON.parse(await readFile(SURFACED_PATH(), 'utf8')) || {}; } catch { return {}; }
+}
+async function writeSurfaced(state) {
+  await mkdir(path.dirname(SURFACED_PATH()), { recursive: true }).catch(() => {});
+  await writeFile(SURFACED_PATH(), JSON.stringify(state, null, 2), 'utf8');
+}
+
+/** Pure. One showing a day, however many times Home is drawn. */
+export function noteSurfaced(state, id, day, nowMs) {
+  const s = state[id];
+  if (s?.lastDay === day) return state;
+  return { ...state, [id]: { ...s, count: (s?.count || 0) + 1, lastAt: nowMs, lastDay: day } };
+}
+
+/** Pure. He passed it by: the gap widens by two steps. */
+export function noteDismissed(state, id, nowMs) {
+  const s = state[id];
+  return { ...state, [id]: { ...s, count: (s?.count || 1) + DISMISS_STEPS, lastAt: s?.lastAt || nowMs, dismissed: (s?.dismissed || 0) + 1 } };
+}
+
+/** What has already had its turn: this card's own record, plus the concepts the
+ *  Leader has already worked into his ideas, keyed by page. */
+export function surfacedSpacing(own, leaderSpacing, pages) {
+  const out = {};
+  for (const p of pages) {
+    const seen = leaderSpacing?.[`concept:${p.title}`];
+    if (seen) out[p.id] = seen;
+  }
+  return { ...out, ...own };
+}
+
+async function spacingFor(pages) {
+  let leader = {};
+  try { leader = (await (await import('./leader.js')).readLeaderState()).spacing || {}; } catch { /* the card's own record stands alone */ }
+  return surfacedSpacing(await readSurfaced(), leader, pages);
 }
 
 // The whole day's queue: up to DAILY ids, due cards first (most overdue),
 // one new concept slotted in when fewer than NEW_WHEN_BELOW are due.
-export function buildQueue({ pages, cards, backlinkCounts, today, daily = DAILY, newWhenBelow = NEW_WHEN_BELOW }) {
+export function buildQueue({ pages, cards, backlinkCounts, today, daily = DAILY, newWhenBelow = NEW_WHEN_BELOW, spacing = {}, nowMs = Date.now() }) {
   const pagesById = new Map(pages.map((p) => [p.id, p]));
-  const due = dueCards(cards, pagesById, today);
+  const due = dueCards(cards, pagesById, today).filter((d) => !passedOver(d.id, spacing, nowMs));
   const queue = due.slice(0, daily).map((d) => ({ id: d.id, page: d.page, step: d.step, kind: 'due' }));
   if (due.length < newWhenBelow && queue.length < daily) {
     // Sunday's new concept is the body's; an empty body pool falls back
-    const pick = (weekday(today) === BODY_DAY && pickNew(pages, cards, backlinkCounts, 'body'))
-      || pickNew(pages, cards, backlinkCounts, 'mind');
+    const pick = (weekday(today) === BODY_DAY && pickNew(pages, cards, backlinkCounts, 'body', { spacing, nowMs }))
+      || pickNew(pages, cards, backlinkCounts, 'mind', { spacing, nowMs });
     if (pick) queue.push({ id: pick.id, page: pick.page, step: 0, kind: 'new' });
   }
   return { queue: queue.slice(0, daily), dueCount: due.length };
@@ -486,8 +548,17 @@ export async function reviewToday(vaultPath, vault, now = new Date()) {
   const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
 
   if (!todayPick || todayPick.date !== today) {
-    const { queue } = buildQueue({ pages, cards, backlinkCounts, today });
+    const spacing = await spacingFor(pages);
+    const { queue } = buildQueue({ pages, cards, backlinkCounts, today, spacing, nowMs: now.getTime() });
     todayPick = { date: today, items: queue.map((q) => ({ id: q.id, kind: q.kind })) };
+    // a shown concept steps back, tomorrow the next one gets its turn. A failed
+    // write costs a repeat of today's card, never today's card.
+    const fresh = queue.filter((q) => q.kind === 'new');
+    if (fresh.length) {
+      let state = await readSurfaced();
+      for (const q of fresh) state = noteSurfaced(state, q.id, today, now.getTime());
+      await writeSurfaced(state).catch(() => {});
+    }
   }
 
   const pagesById = new Map(pages.map((p) => [p.id, p]));
@@ -546,6 +617,9 @@ export async function submitAnswer(vaultPath, vault, { pageId, grade }, now = ne
   if (!GRADES.includes(grade)) throw new Error(`grade must be one of: ${GRADES.join(', ')}`);
 
   const written = await appendAnswer(vaultPath, { date: today, title: page.title, grade });
+  // Next without a grade: he moved past it, so it steps further back
+  const surfaced = grade === 'read' ? await readSurfaced() : null;
+  if (surfaced) await writeSurfaced(noteDismissed(surfaced, pageId, now.getTime())).catch(() => {});
 
   const pages = await vault.listPages();
   const titleToId = titleToIdMap(pages);
@@ -560,7 +634,7 @@ export async function submitAnswer(vaultPath, vault, { pageId, grade }, now = ne
     text: `Daily review: ${page.title} — ${GRADE_LABEL[grade]}.`,
     source: 'review', mode: 'auto', status: 'filed', auto: true,
     createdAt: at, filedAt: at, destination: written.relPath,
-    undoData: { route: 'concept-recall', ...written },
+    undoData: { route: 'concept-recall', ...written, ...(surfaced ? { surfaced: { pageId, before: surfaced[pageId] ?? null } } : {}) },
   });
 
   return { record, pageId, grade, step: card?.step ?? 0, due: card?.due ?? null };
@@ -568,5 +642,11 @@ export async function submitAnswer(vaultPath, vault, { pageId, grade }, now = ne
 
 export async function undoConceptAnswer(vaultPath, undo) {
   const removed = await undoAnswer(vaultPath, undo);
+  if (undo.surfaced?.pageId) {
+    const state = { ...(await readSurfaced()) };
+    if (undo.surfaced.before) state[undo.surfaced.pageId] = undo.surfaced.before;
+    else delete state[undo.surfaced.pageId];
+    await writeSurfaced(state).catch(() => {});
+  }
   return removed ? 'took that review answer back off the Review Log' : 'that review answer was already gone from the Review Log';
 }

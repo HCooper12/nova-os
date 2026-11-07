@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir, rename, readdir } from 'node:fs/promises';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
-import { doublingSchedule, nextDueAt } from './spacing.js';
+import { doublingSchedule, pickDue } from './spacing.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -209,15 +209,7 @@ const BASE_GAP_DAYS = 3;
 const MAX_GAP_DAYS = 35;
 export const SCHEDULE = doublingSchedule(BASE_GAP_DAYS, MAX_GAP_DAYS); // pinned beside the Library's in twins.test.js
 
-export function pickSpaced(keys, spacing, nowMs, count = 4) {
-  const scored = keys.map((k) => {
-    const s = spacing[k];
-    if (!s) return { k, due: true, order: -1 }; // never seen — front of the queue
-    const dueAt = nextDueAt(s.lastAt, (s.count || 1) - 1, SCHEDULE);
-    return { k, due: nowMs >= dueAt, order: dueAt };
-  });
-  return scored.filter((x) => x.due).sort((a, b) => a.order - b.order).slice(0, count).map((x) => x.k);
-}
+export const pickSpaced = (keys, spacing, nowMs, count = 4) => pickDue(keys, spacing, nowMs, count, SCHEDULE);
 
 function markSurfaced(spacing, keys, nowMs) {
   for (const k of keys) {

@@ -19,3 +19,17 @@ export const doublingSchedule = (baseDays, capDays) => (n) => Math.min(baseDays 
 export function nextDueAt(lastAt, timesSeen, schedule) {
   return (lastAt || 0) + schedule(Math.max(0, timesSeen)) * DAY;
 }
+
+// THE SPACED PICK, shared by the Leader's concepts and the Daily Review's new
+// concept. Never-surfaced material comes first, in the order it was handed in;
+// a surfaced key returns only once its gap has passed. Deterministic: the
+// caller ranks, this only says what is due.
+export function pickDue(keys, spacing, nowMs, count, schedule) {
+  const scored = keys.map((k) => {
+    const s = spacing[k];
+    if (!s) return { k, due: true, order: -1 }; // never seen — front of the queue
+    const dueAt = nextDueAt(s.lastAt, (s.count || 1) - 1, schedule);
+    return { k, due: nowMs >= dueAt, order: dueAt };
+  });
+  return scored.filter((x) => x.due).sort((a, b) => a.order - b.order).slice(0, count).map((x) => x.k);
+}
