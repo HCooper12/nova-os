@@ -4,7 +4,6 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { NOVA_LENS } from './lens.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, assertLaneOn, effortArgs } from './modelPrefs.js';
 import { parseEnvelope } from './modelSpend.js';
@@ -144,9 +143,7 @@ const METHOD_RULES = `Pull out the METHOD, not the content. Keep decisions, step
 - Write for an agent doing the task, short and in the imperative. Plain words, no em dashes. Hayden is the user; refer to him as "he" if you must.`;
 
 export function buildExtractPrompt({ purpose, sources, existingTitles = [], part = null }) {
-  return `${NOVA_LENS}
-
-You are the PLAYBOOK LEARNER inside Nova. Hayden dropped ${sources.length === 1 ? 'a video or podcast' : `${sources.length} videos or podcasts`} and wants the method kept as a playbook his agents will apply to a task. This is not a summary: the output must change how an agent does the work.
+  return `You are the PLAYBOOK LEARNER inside Nova. Hayden dropped ${sources.length === 1 ? 'a video or podcast' : `${sources.length} videos or podcasts`} and wants the method kept as a playbook his agents will apply to a task. This is not a summary: the output must change how an agent does the work.
 
 WHAT IT IS FOR: ${purpose ? `"${String(purpose).slice(0, 600)}"` : 'he did not say. Name the task the method most plainly improves, and say it in "topic".'}
 ${existingTitles.length ? `\nPLAYBOOKS HE HAS ALREADY (if this is the same topic, use that exact title as "topic" so the page is extended, never doubled):\n${existingTitles.map((t) => `- ${t}`).join('\n')}\n` : ''}
@@ -160,9 +157,7 @@ ${SCHEMA}`;
 }
 
 export function buildSynthesisPrompt({ purpose, sources, extractionsFile, existingTitles = [] }) {
-  return `${NOVA_LENS}
-
-You are the PLAYBOOK LEARNER inside Nova, merging what several reads of ${sources.length === 1 ? 'one long source' : `${sources.length} sources`} found into ONE playbook. The reads are in ${extractionsFile} (JSON, one per source or part). The transcripts are in:
+  return `You are the PLAYBOOK LEARNER inside Nova, merging what several reads of ${sources.length === 1 ? 'one long source' : `${sources.length} sources`} found into ONE playbook. The reads are in ${extractionsFile} (JSON, one per source or part). The transcripts are in:
 ${sources.map((s) => `- source ${s.n}: ${s.file} (${s.title}${s.speaker ? `, ${s.speaker}` : ''})`).join('\n')}
 
 WHAT IT IS FOR: ${purpose ? `"${String(purpose).slice(0, 600)}"` : 'he did not say. Use the task the reads share.'}

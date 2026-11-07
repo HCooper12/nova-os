@@ -33,6 +33,7 @@ import { TAB_META } from '../../src/tabOrder.js';
 // a circular import, safe: matchName is a hoisted function declaration and
 // nothing here calls it while the modules are still loading
 import { matchName } from './verbs.js';
+import { parseLearnAsk } from './playbookAsk.js';
 
 // The lanes, reached lazily (each drags its own model plumbing in) and
 // swappable in tests, which must never start a real job.
@@ -514,12 +515,6 @@ const LEAVE_RE = /^(?:remind me|set (?:a |me a )?reminder|to-?do:|todo:|add\b.+\
 // sentence OPENS with it — "watch and analyse this" stays the Watcher's
 // triage (his 4 Sep case, pinned in chatFrontDoor.test.js).
 const ANALYSE_RE = /^(?:(?:can|could|would) you\s+|please\s+|go\s+(?:and\s+)?)?(?:analy[sz]e|deep[- ]?dive(?: into)?|break down|weave)\b/i;
-// "learn this <link>", "learn from these", "turn this into a playbook": the
-// method kept as a playbook his agents apply (lib/playbookLearn.js). Only when
-// the sentence OPENS with it, and not for "learn this technique", which is the
-// Repertoire's (a technique taught one a day).
-const LEARN_LEAD_RE = /^(?:(?:can|could|would) you\s+|please\s+|go\s+(?:and\s+)?)?(?:learn(?:\s+(?:from|what\s+(?:this|these|that|it|they)\s+teach(?:es)?|this|these|that|it|them))|(?:turn|make)\s+(?:this|these|that|it|them)\s+(?:into\s+)?an?\s+(?:playbook|skill)|(?:make|build|write)\s+(?:me\s+)?an?\s+(?:playbook|skill)\s+(?:from|out of|off)|playbook\s+(?:from|of)|watch\s+(?:this|these|that|it|them)\s+(?:and|then)\s+(?:learn|turn|make))/i;
-const TECHNIQUE_RE = /\b(?:techniques?|tricks?|tactics?|moves?)\b/i;
 const OPEN_LEAD_RE = /^(?:open|go to|browse|play|show|pull up|bring up|put on|navigate|log ?in)\b/i;
 // he wants it KEPT, and has not said more
 const KEEP_RE = /^(?:(?:can you\s+|please\s+)?(?:save|keep|file|stash|bookmark|capture|store|hold on to)\b(?:\s+(?:this|that|it|the link|this link|for later))*|for later|later)$/i;
@@ -548,10 +543,8 @@ export function parseJobCommand(text, ctx = {}) {
   const p = prose.toLowerCase().replace(/[.!]+$/, '').trim();
 
   // LEARN A PLAYBOOK: one link or several, his words after the lead are the purpose
-  if (urls.length && LEARN_LEAD_RE.test(p) && !(TECHNIQUE_RE.test(p) && !/playbook|skill/i.test(p))) {
-    const purpose = prose.replace(LEARN_LEAD_RE, '').replace(/^\s*(?:this|these|that|it|them|(?:the\s+)?(?:videos?|podcasts?|episodes?|clips?|reels?))\b[\s:,—–-]*/i, '').replace(/^(?:\s*(?:and|to|so that|so)\b)?[\s:,—–-]+/i, '').replace(/^(?:into|as)\s+an?\s+(?:playbook|skill)\b[\s:,—–-]*/i, '').trim();
-    return { verb: 'playbook.learn', args: { links: urls.join(' '), ...(purpose ? { purpose } : {}) } };
-  }
+  const learn = parseLearnAsk(raw);
+  if (learn) return { verb: 'playbook.learn', args: { links: learn.urls.join(' '), ...(learn.purpose ? { purpose: learn.purpose } : {}) } };
   if (urls.length > 1) return null; // several links: a study or a plan — not one verb
   // "open https://…", "play https://…": the Mac's hand or the browser's, not a job
   if (urls.length && OPEN_LEAD_RE.test(p)) return null;

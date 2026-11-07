@@ -1964,13 +1964,12 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
     // "learn this <link>" / "turn these into a playbook" keeps the METHOD as a
     // playbook (lib/playbookLearn.js); a bare link is untouched and watches
     // itself as before
-    const { parseJobCommand } = await import('./verbJobs.js');
-    const learn = parseJobCommand(text);
-    if (learn?.verb === 'playbook.learn') {
-      const urls = String(learn.args.links).split(/\s+/).filter(Boolean);
-      if (deps.startLearn) return deps.startLearn(vaultPath, { urls, purpose: learn.args.purpose || '' });
+    const { parseLearnAsk } = await import('./playbookAsk.js');
+    const learn = parseLearnAsk(text);
+    if (learn) {
+      if (deps.startLearn) return deps.startLearn(vaultPath, learn);
       const { startLearn } = await import('./playbookLearn.js');
-      return startLearn(vaultPath, { urls, purpose: learn.args.purpose || '' });
+      return startLearn(vaultPath, learn);
     }
     const routed = await mediaLaneFor(vaultPath, text, deps);
     if (routed) return routed;

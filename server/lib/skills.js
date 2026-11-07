@@ -56,7 +56,7 @@ keep it truthful; Nova would rather say "not yet" than pretend.
 - Summarise and outline notes \`(propose)\`
 - File captures to the right vault surface \`(act-on-approval)\`
 - Read a clip for the technique in it and teach it back one a day \`(propose)\`
-- Learn a method from videos and podcasts into a playbook that Ask Nova, Coach and Studio then apply \`(propose)\`
+- Learn a method from talks and podcasts into a playbook that Ask Nova, Coach and Studio then apply \`(propose)\`
 
 ## Logistics
 - Draft calendar changes, always confirm-first \`(propose)\`
