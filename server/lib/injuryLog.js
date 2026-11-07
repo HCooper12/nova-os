@@ -12,7 +12,6 @@ import { localDateISO } from './localDate.js';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
-import { readFile } from 'node:fs/promises';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { closedAreas, recordContradictions, contradictionBlock } from './concernClose.js';
