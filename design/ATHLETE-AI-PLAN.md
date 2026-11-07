@@ -320,3 +320,16 @@ test: possible later, needs 240 fps filming.
 - A free USDA key at fdc.nal.usda.gov/api-key-signup, added to server/.env himself.
 - analyze_squat.py from the Squat Form Guide lesson, signed in (attachments
   are not public; a direct fetch was refused and not retried). Phase 6 only.
+
+## His calls, 7 Nov 2026
+
+- Phase 1: yes, once his key is in `server/.env`.
+- Calorie cycling by planned session: NOT agreed. His version instead: the goal
+  sets the target, and a day he moves more than usual earns a buffer. Proposed:
+  buffer = (today's active energy minus his usual) × a share, never negative, so
+  the base target holds on a quiet day. Measured from "usual" because the weekly
+  calibration already prices in his normal activity. Median 837 kcal over 25 days.
+  Share and mockup pending his yes.
+- Losing too fast: about 1 kg a week, and not an alarm by itself. Speak only if a
+  sign of harm comes with it (lifts dropping, recovery signal, eating far under).
+- Evening nudge for no food logged: no.
