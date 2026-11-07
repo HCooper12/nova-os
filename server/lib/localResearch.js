@@ -213,7 +213,11 @@ export async function webSearch(query, { max = 6, timeoutMs = SEARCH_TIMEOUT_MS(
   const results = relevantResults(listed, q).slice(0, max);
   if (!results.length) {
     console.log(`research search ${host}: ${listed.length} result(s), none about "${q.slice(0, 80)}" (${listed.slice(0, 3).map((r) => hostOf(r.url)).join(', ')})`);
-    throw rest(`${host} showed ${listed.length} results, none of them about the question`);
+    // REAL RESULTS THAT MISS THE QUESTION ARE NOT A REFUSAL (8 Nov 2026):
+    // this used to rest the search twenty minutes, so one odd query took the
+    // web away from every lookup after it. The engine answered; the words
+    // were wrong. The caller may try other words; a human check still rests.
+    throw new Error(`${host} showed ${listed.length} results, none of them about the question`);
   }
   return { results, ms, host, offTopic: listed.length - results.length };
 }

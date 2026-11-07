@@ -297,12 +297,12 @@ function startLookupAsk(cwd, opts, want) {
   registerAskJob(carrier);
   console.log(`ask: looking up "${want.query}" first (${want.why})`);
   // a sprint longer than a breath says so, once, in code's words
-  const slow = setTimeout(() => { if (!carrier.inner) carrier.sprintLine = sprintLine(carrier.lookup || { query: want.query }); }, 2500);
+  const slow = setTimeout(() => { if (!carrier.inner) carrier.sprintLine = sprintLine(carrier.lookup); }, 4000);
   slow.unref?.();
   const publish = (lk) => {
     if (carrier.inner) { carrier.inner.lookup = lk; carrier.inner.visuals = { ...(carrier.inner.visuals || {}), ...lookupPanels(lk) }; } else publishLookup(carrier, lk);
   };
-  runLookupSprint(want.query, { onSearched: publish, onPage: publish, onClips: publish })
+  runLookupSprint(want.query, { name: want.name, onSearched: publish, onPage: publish, onClips: publish })
     .then((lookup) => {
       clearTimeout(slow);
       console.log(`ask: lookup "${lookup.query}": ${readSources(lookup).length}/${lookup.sources.length} page(s) read, ${lookup.clips.length} clip(s), ${lookup.timings.total}ms, hosts ${lookup.hostsRead.join(', ') || 'none'}${lookup.searchError ? `, search failed: ${lookup.searchError}` : ''}`);

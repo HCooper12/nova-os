@@ -58,7 +58,11 @@ export function lookupQuery(raw, previous = '') {
   const called = q.match(CALLED);
   if (called) {
     const name = clean(called[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 80);
-    if (contentWords(name).length) return name;
+    // the qualifier after the name rides along ("the Busy Bar, by Flipper
+    // Devices"): a name alone found a dictionary (measured 8 Nov 2026)
+    const after = q.slice(called.index + called[0].length).match(/^[,;:]?\s*(?:by|from|made by|built by|of)\s+([^.,;!?]+)/i);
+    const qual = after ? clean(after[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 60) : '';
+    if (contentWords(name).length) return qual ? `${name} ${qual}` : name;
   }
   let s = searchQuery(q).replace(LEAD, '').replace(TAIL, '').replace(/^(?:it'?s |this is |that'?s |they'?re )/i, '').trim();
   s = s.replace(/[.?!]+$/, '').trim();
@@ -82,7 +86,22 @@ export function lookupWanted(raw, { previous = '' } = {}) {
   if (!explicit && !webLookup(q)) return null;
   const query = lookupQuery(q, previous);
   if (!query) return null;
-  return { query, why: explicit ? 'he asked for a lookup' : 'a question about the outside world' };
+  // the thing itself, for the ack ("Checking the Busy Bar."): the name before
+  // any qualifier, or the first few words
+  const name = lookupName(q, query);
+  return { query, name, why: explicit ? 'he asked for a lookup' : 'a question about the outside world' };
+}
+
+/** The short name of what is being looked up, for the ack. Pure. */
+export function lookupName(raw, query) {
+  const q = String(raw || '').replace(/\[[^\]]*\]/g, ' ');
+  const called = q.match(CALLED);
+  if (called) {
+    const name = clean(called[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 60);
+    if (contentWords(name).length) return name;
+  }
+  const w = String(query || '').split(/\s+/).filter(Boolean);
+  return w.length <= 4 ? w.join(' ') : null;
 }
 
 /** Can a sprint run right now? Chrome or a Brave key, and the engine is
@@ -96,7 +115,9 @@ const withDeadline = (p, ms, fallback) => Promise.race([p, new Promise((r) => se
 // the first lines of a page, as the card prints them
 export function firstLines(text, n = 3) {
   const sents = String(text || '').replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+/g) || [];
-  return sents.map((s) => s.trim()).filter((s) => s.length > 24 && s.length < 220).slice(0, n);
+  // a page's boilerplate is not its first line ("Your browser doesn't support HTML5 audio")
+  const junk = /your browser|cookies?|javascript|sign (?:in|up)|subscribe|all rights reserved|skip to/i;
+  return sents.map((s) => s.trim()).filter((s) => s.length > 24 && s.length < 220 && !junk.test(s)).slice(0, n);
 }
 
 /** Up to two clips worth a card: 45 s to 40 min, the most of the query's
@@ -140,7 +161,8 @@ async function cachedPicture(url) {
   try {
     const { cacheImage } = await import('./briefingMedia.js');
     const got = await cacheImage(url);
-    return got?.key ? `/api/briefing/media/${got.key}${got.ext || ''}` : null;
+    // the route is /api/briefing/media/:key and finds the file's own extension
+    return got?.key ? `/api/briefing/media/${got.key}` : null;
   } catch { return null; }
 }
 
@@ -153,9 +175,9 @@ async function cachedPicture(url) {
  *   onClips(lookup)     the clips are in (poster later via onClips again)
  * Resolves with the lookup as it stands at the deadline. Never throws.
  */
-export async function runLookupSprint(query, { budgetMs = BUDGET_MS, pages = PAGES, onSearched = null, onPage = null, onClips = null, deps = {}, now = Date.now } = {}) {
+export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS, pages = PAGES, onSearched = null, onPage = null, onClips = null, deps = {}, now = Date.now } = {}) {
   const started = now();
-  const lookup = { query: String(query || '').trim(), sources: [], clips: [], misses: [], hostsRead: [], timings: {}, searchError: null, done: false, startedAt: started };
+  const lookup = { query: String(query || '').trim(), name: name || null, sources: [], clips: [], misses: [], hostsRead: [], timings: {}, searchError: null, done: false, startedAt: started };
   const safe = (fn, ...a) => { try { fn?.(...a); } catch { /* a listener never costs the sprint */ } };
   const left = () => Math.max(0, budgetMs - (now() - started));
   const search = deps.search || ((q) => webSearch(q, { max: 6 }));
@@ -180,9 +202,23 @@ export async function runLookupSprint(query, { budgetMs = BUDGET_MS, pages = PAG
     try {
       found = await search(lookup.query);
     } catch (e) {
-      lookup.searchError = String(e?.message || e);
-      lookup.timings.search = now() - t0;
-      return;
+      // the full query missed ("the Busy Bar Flipper Devices" found nothing
+      // about the question, measured 8 Nov): the name alone gets one more go
+      const shorter = shorterQuery(lookup.query);
+      if (shorter && /none of them about/.test(String(e?.message || e))) {
+        try {
+          found = await search(shorter);
+          lookup.searchedAs = shorter;
+        } catch (e2) {
+          lookup.searchError = String(e2?.message || e2);
+          lookup.timings.search = now() - t0;
+          return;
+        }
+      } else {
+        lookup.searchError = String(e?.message || e);
+        lookup.timings.search = now() - t0;
+        return;
+      }
     }
     lookup.timings.search = now() - t0;
     if (found?.host) lookup.hostsRead.push(found.host);
@@ -219,6 +255,15 @@ export async function runLookupSprint(query, { budgetMs = BUDGET_MS, pages = PAG
   return lookup;
 }
 
+/** The first few content words of a query, for a second search when the
+ *  whole phrase found nothing: "the Busy Bar Flipper Devices" → "Busy Bar".
+ *  Null when the query is already that short. Pure. */
+export function shorterQuery(query) {
+  const w = String(query || '').replace(/^the\s+/i, '').split(/\s+/).filter(Boolean);
+  if (w.length <= 2) return null;
+  return w.slice(0, 2).join(' ');
+}
+
 /** The pages the model may answer from: only those read in time. Pure. */
 export function readSources(lookup) {
   return (lookup?.sources || []).filter((s) => s.read && s.text);
@@ -246,9 +291,11 @@ export function lookupSummary(lookup) {
   };
 }
 
-/** One spoken line while the sprint runs longer than a breath. Pure. */
+/** One spoken line while the sprint runs longer than a breath: only once
+ *  the pages are known (the ack already said what is being looked up), so
+ *  it is never the ack said twice. Null before that. Pure. */
 export function sprintLine(lookup) {
   const n = (lookup?.sources || []).length;
-  if (!n) return `Looking up ${lookup?.query || 'that'}.`;
-  return `Reading ${n === 1 ? 'one page' : `${n} pages`} on ${lookup.query}.`;
+  if (!n) return null;
+  return `Reading ${n === 1 ? 'one page' : `${n} pages`} on ${lookup.name || lookup.query}.`;
 }

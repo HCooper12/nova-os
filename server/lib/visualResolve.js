@@ -27,7 +27,9 @@ import { resolveImage, resolveClip } from './briefingMedia.js';
 import { searchVault } from './recall.js';
 import { momentInNote, pickMoment, captionsFor } from './visualMoment.js';
 
-export const mediaUrl = (key, ext) => (key ? `/api/briefing/media/${key}${ext || ''}` : null);
+// the route is /api/briefing/media/:key and finds the file's own extension;
+// a key with ".jpg" on it failed its KEY_RE and every poster 404'd (8 Nov)
+export const mediaUrl = (key) => (key ? `/api/briefing/media/${key}` : null);
 
 // injectable so the tests never touch the network or shell out to yt-dlp
 // the data panels' builders are imported lazily (panels.js pulls the whole

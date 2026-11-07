@@ -33,7 +33,7 @@ test('an image comes back on Nova\'s own origin, with its credit', async () => {
   const undo = stub({ image: { key: 'abc', ext: '.jpg', credit: 'Wikimedia', sourceUrl: 'https://x/y' } });
   const v = await resolveVisual(spec({ kind: 'image', query: 'circadian curve' }));
   undo();
-  assert.equal(v.src, '/api/briefing/media/abc.jpg');
+  assert.equal(v.src, '/api/briefing/media/abc');
   assert.equal(v.credit, 'Wikimedia');
 });
 
@@ -65,7 +65,7 @@ test('his own vault supplies the stamp, and the link opens at it', async () => {
   assert.equal(v.stamp, '14:32');
   assert.equal(v.stampSource, 'vault');
   assert.equal(v.watchUrl, 'https://www.youtube.com/watch?v=abc123xyz&t=872s');
-  assert.equal(v.src, '/api/briefing/media/deadbeef.jpg');
+  assert.equal(v.src, '/api/briefing/media/deadbeef');
 });
 
 test('not in the vault — it goes and finds it in the captions', async () => {
@@ -132,7 +132,7 @@ test('MEASURED LIVE (17.4s cold): the cover is published before the timecode is 
   );
   undo();
   assert.equal(phases.length, 1, 'exactly one early publish — the cover');
-  assert.equal(phases[0].src, '/api/briefing/media/deadbeef.jpg', 'which already carries the picture');
+  assert.equal(phases[0].src, '/api/briefing/media/deadbeef', 'which already carries the picture');
   assert.equal(phases[0].stamp, null, 'and honestly has no stamp yet');
   assert.ok(!phases[0].watchUrl.includes('&t='), 'nor a moment in its link');
   assert.equal(final.stamp, '14:32', 'the stamp follows into the same card');

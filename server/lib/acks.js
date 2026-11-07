@@ -247,7 +247,6 @@ export const FRAMES = {
   lookup: [
     { id: 'lookup.check', t: 'Checking {topic}.' },
     { id: 'lookup.read', t: 'Reading up on {topic}.' },
-    { id: 'lookup.look', t: 'Looking {topic} up.' },
     { id: 'lookup.second', t: '{Topic}. Give me a second.' },
     { id: 'lookup.sir', t: 'Looking into {topic}, sir.' },
   ],

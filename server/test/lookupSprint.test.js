@@ -15,6 +15,10 @@ test('his own words for a lookup, including the reel\'s "why don\'t you look it 
   assert.ok(w);
   assert.equal(w.query, 'the Busy Bar');
   assert.equal(w.why, 'he asked for a lookup');
+  // the qualifier rides along: a name alone found a dictionary (8 Nov)
+  const w2 = lookupWanted("Why don't you look it up? It's called the Busy Bar, by Flipper Devices.");
+  assert.equal(w2.query, 'the Busy Bar Flipper Devices');
+  assert.equal(w2.name, 'the Busy Bar', 'the ack says the thing, not the whole search');
 });
 
 test('"look it up" with the thing named the turn before takes that name', () => {
@@ -128,8 +132,8 @@ test('the lookup\'s own panels: a page card per source and a video card per clip
 });
 
 test('sprintLine, firstLines and pickClips are plain', () => {
-  assert.equal(sprintLine({ query: 'the Busy Bar', sources: [] }), 'Looking up the Busy Bar.');
-  assert.equal(sprintLine({ query: 'the Busy Bar', sources: [1, 2, 3] }), 'Reading 3 pages on the Busy Bar.');
+  assert.equal(sprintLine({ query: 'the Busy Bar', sources: [] }), null, 'the ack already said what is being looked up');
+  assert.equal(sprintLine({ query: 'the Busy Bar Flipper Devices', name: 'the Busy Bar', sources: [1, 2, 3] }), 'Reading 3 pages on the Busy Bar.');
   assert.deepEqual(firstLines('Short. This sentence is long enough to be a first line of a page card. And so is this one, which is also long enough.'), ['This sentence is long enough to be a first line of a page card.', 'And so is this one, which is also long enough.']);
   const rows = [{ id: 'a', channel: 'c', durationS: 20, title: 'Busy Bar short' }, { id: 'b', channel: 'c', durationS: 300, title: 'Busy Bar review' }, { id: 'c', channel: 'c', durationS: 500, title: 'unrelated' }];
   assert.deepEqual(pickClips(rows, 'busy bar').map((c) => c.id), ['b', 'c']);
@@ -210,4 +214,19 @@ test('a note is Nova\'s own words, up to three lines, and needs nothing fetched'
   assert.equal(n.caption, 'It is a finished product.');
   assert.equal(needsFetch(n), false);
   assert.ok(VISUAL_KINDS.includes('note'));
+});
+
+test('a full query that misses is searched again by its first two words, and the miss never rests the engine', async () => {
+  const { shorterQuery } = await import('../lib/lookupSprint.js');
+  assert.equal(shorterQuery('the Busy Bar Flipper Devices'), 'Busy Bar');
+  assert.equal(shorterQuery('Busy Bar'), null);
+  const asked = [];
+  const lk = await runLookupSprint('the Busy Bar Flipper Devices', { deps: deps({
+    search: async (q) => { asked.push(q); if (asked.length === 1) throw new Error('www.bing.com showed 10 results, none of them about the question'); return { host: 'www.bing.com', results: [{ title: 'Busy Bar', url: 'https://busy.app/', snippet: '' }] }; },
+    read: async () => ({ ok: true, host: 'busy.app', title: 'Busy Bar', text: 'A focus timer with an open HTTP API and many endpoints documented.' }),
+    clips: async () => [],
+  }) });
+  assert.deepEqual(asked, ['the Busy Bar Flipper Devices', 'Busy Bar']);
+  assert.equal(lk.searchedAs, 'Busy Bar');
+  assert.equal(readSources(lk).length, 1);
 });

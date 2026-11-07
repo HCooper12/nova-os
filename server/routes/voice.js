@@ -480,7 +480,7 @@ export function voiceRouter(vaultPath) {
       const looking = want && lookupCanRun() ? want : null;
       const jobId = startAsk(vaultPath, { question, raw, previous, context, sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where, vaultPages, ...(docTurn ? { lookup: null } : {}), ...(pid && pid.length === 8 ? { projectId: pid } : {}) });
       watchAnswerFor(jobId, 'nova');
-      const ack = await ackForTurn({ question: raw, lane: looking ? 'lookup' : 'ask', voiceId: req.body?.voiceId, topic: looking ? looking.query : null });
+      const ack = await ackForTurn({ question: raw, lane: looking ? 'lookup' : 'ask', voiceId: req.body?.voiceId, topic: looking ? (looking.name || looking.query) : null });
       res.json({ jobId, ...(ack ? { ack } : {}), ...(looking ? { lookup: { query: looking.query } } : {}) });
     } catch (e) {
       res.status(500).json({ error: e.message });
