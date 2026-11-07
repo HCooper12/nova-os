@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hayden's Wishlist</title>
+<title>Wishlist</title>
 <meta name="description" content="Things Hayden wants, kept up to date. Tap anything to see it in the shop.">
 <meta name="theme-color" content="#efe8dc" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
@@ -98,9 +98,9 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
 <body>
 <div class="wrap">
   <header>
-    <p class="eyebrow">Hayden Cooper</p>
-    <h1>Things I'd <em>love</em> to have</h1>
-    <p class="lede">Kept up to date on its own. Tap anything to see it in the shop. The ones marked with stars are the ones I want most.</p>
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1 id="title"></h1>
+    <p class="lede" id="lede"></p>
   </header>
 </div>
 <nav class="rail" aria-label="Filter the list"><div class="rail-in" id="rail"></div></nav>
@@ -138,6 +138,18 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
     return `<${tag} class="card rise" style="--i:${Math.min(i, 14)}"${href}><div class="pic">${pic}${stars}</div><h3 class="name">${esc(it.name)}</h3>${meta ? `<p class="meta">${meta}</p>` : ''}${big && it.notes ? `<p class="note">${esc(it.notes)}</p>` : ''}</${tag}>`;
   }
 
+  function words() {
+    const c = data.copy || {};
+    $('eyebrow').textContent = c.eyebrow || '';
+    $('eyebrow').hidden = !c.eyebrow;
+    $('title').innerHTML = esc(c.title || '').replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    $('lede').textContent = c.lede || '';
+    $('lede').hidden = !c.lede;
+    if (c.title) document.title = c.title.replace(/\*/g, '');
+  }
+
+  const foot = () => { $('foot').textContent = `Updated ${ago(data.updatedAt)}. ${(data.copy && data.copy.footer) || ''}`.trim(); };
+
   function counts(items) {
     const m = new Map();
     for (const it of items) for (const c of it.categories || []) m.set(c, (m.get(c) || 0) + 1);
@@ -155,7 +167,8 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
   }
 
   function render() {
-    const items = data.items;
+    const items = data.items, c = data.copy || {};
+    words();
     rail(items);
     let list = items;
     if (filter === 'top') list = items.filter((i) => i.stars);
@@ -166,18 +179,18 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
     const byNew = (a, b) => new Date(b.addedOn || 0) - new Date(a.addedOn || 0);
     let html = '';
     if (data.sizes && filter === 'all') {
-      html += `<details class="sizes"><summary>Sizes, for anyone buying clothes</summary><dl>${Object.entries(data.sizes).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc([].concat(v).join(' · '))}</dd>`).join('')}</dl></details>`;
+      html += `<details class="sizes"><summary>${esc(c.sizesTitle || 'Sizes')}</summary><dl>${Object.entries(data.sizes).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc([].concat(v).join(' · '))}</dd>`).join('')}</dl></details>`;
     }
     if (filter === 'all') {
       const top = list.filter((i) => i.stars).sort(byStars), rest = list.filter((i) => !i.stars).sort(byNew);
-      if (top.length) html += `<section class="sec"><div class="sec-h"><h2>Most wanted</h2><span>${top.length}</span></div><p class="sec-note">Three stars is the top of the list.</p><div class="grid big">${top.map((it, i) => card(it, i, true)).join('')}</div></section>`;
-      if (rest.length) html += `<section class="sec"><div class="sec-h"><h2>Everything else</h2><span>${rest.length}</span></div><div class="grid">${rest.map((it, i) => card(it, i)).join('')}</div></section>`;
+      if (top.length) html += `<section class="sec"><div class="sec-h"><h2>${esc(c.topTitle || 'Most wanted')}</h2><span>${top.length}</span></div>${c.topNote ? `<p class="sec-note">${esc(c.topNote)}</p>` : ''}<div class="grid big">${top.map((it, i) => card(it, i, true)).join('')}</div></section>`;
+      if (rest.length) html += `<section class="sec"><div class="sec-h"><h2>${esc(c.restTitle || 'Everything else')}</h2><span>${rest.length}</span></div><div class="grid">${rest.map((it, i) => card(it, i)).join('')}</div></section>`;
     } else {
-      const title = filter === 'top' ? 'Most wanted' : filter.slice(2);
+      const title = filter === 'top' ? (c.topTitle || 'Most wanted') : filter.slice(2);
       html += `<section class="sec"><div class="sec-h"><h2>${esc(title)}</h2><span>${list.length}</span></div><div class="grid big">${list.sort(byStars).map((it, i) => card(it, i, true)).join('')}</div></section>`;
     }
     $('main').innerHTML = html;
-    $('foot').textContent = `Updated ${ago(data.updatedAt)}. This page refreshes itself.`;
+    foot();
   }
 
   async function load(first) {
@@ -187,7 +200,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
       const next = await r.json();
       const changed = !data || next.updatedAt !== data.updatedAt;
       data = next;
-      if (changed || first) render(); else $('foot').textContent = `Updated ${ago(data.updatedAt)}. This page refreshes itself.`;
+      if (changed || first) render(); else foot();
     } catch {
       if (!data) { $('rail').innerHTML = ''; $('main').innerHTML = '<div class="state"><strong>The list will not load.</strong>Check your connection and reload the page.</div>'; }
     }

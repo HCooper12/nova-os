@@ -58,3 +58,16 @@ test('publishing is off without a repo, and pushes only a changed list', async (
   assert.equal((await S.publishShare()).published, false);
   assert.deepEqual(calls, []);
 });
+
+test('his words: defaults, edits, reset, and unknown lines refused; the page carries them', async () => {
+  const dir = path.join(data, 'wishlist'); writeFileSync(path.join(dir, 'share.json'), '{}');
+  assert.equal((await S.readCopy()).title, S.COPY_DEFAULTS.title);
+  const c = await S.setCopy({ title: 'Gift ideas for *me*', lede: '' });
+  assert.equal(c.title, 'Gift ideas for *me*');
+  assert.equal(c.lede, S.COPY_DEFAULTS.lede);
+  await assert.rejects(() => S.setCopy({ nope: 'x' }), /no such line/);
+  const out = path.join(data, 'out4');
+  await S.buildShare({ outDir: out });
+  assert.equal(JSON.parse(readFileSync(path.join(out, 'data.json'), 'utf8')).copy.title, 'Gift ideas for *me*');
+  assert.equal((await S.setCopy({ title: '' })).title, S.COPY_DEFAULTS.title);
+});

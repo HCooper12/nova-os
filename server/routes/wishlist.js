@@ -67,6 +67,23 @@ export function wishlistRouter(vaultPath) {
     } catch (err) { fail(res, err); }
   });
 
+  // the shareable page's own words (lib/wishlistShare.js): GET the lines and
+  // their defaults, POST { field: text } to change them, "" for the default
+  router.get('/wishlist/share', async (_req, res) => {
+    try {
+      const S = await import('../lib/wishlistShare.js');
+      res.json({ copy: await S.readCopy(), defaults: S.COPY_DEFAULTS });
+    } catch (err) { fail(res, err, 500); }
+  });
+  router.post('/wishlist/share', async (req, res) => {
+    try {
+      const S = await import('../lib/wishlistShare.js');
+      const copy = await S.setCopy(req.body?.copy || req.body || {});
+      S.publishShare().catch(() => {});
+      res.json({ copy });
+    } catch (err) { fail(res, err); }
+  });
+
   // the photos, kept on this Mac (Notion's own links expire in an hour)
   router.get('/wishlist/image/:file', async (req, res) => {
     try {

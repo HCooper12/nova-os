@@ -60,6 +60,40 @@ export function publicItem(it, image) {
   };
 }
 
+// THE PAGE'S WORDS, his to edit (8 Nov): every line the visitor reads. A
+// field he leaves out falls back to these. In `title`, *asterisks* make the
+// accent word. Plain strings only; the page escapes them.
+export const COPY_DEFAULTS = {
+  eyebrow: 'Hayden Cooper',
+  title: "Hayden's *wishlist*",
+  lede: 'Kept up to date on its own. Tap anything to see it in the shop. The ones marked with stars are the ones I want most.',
+  topTitle: 'Most wanted',
+  topNote: 'Three stars is the top of the list.',
+  restTitle: 'Everything else',
+  sizesTitle: 'Sizes, for anyone buying clothes',
+  footer: 'This page refreshes itself.',
+};
+export const COPY_KEYS = Object.keys(COPY_DEFAULTS);
+const clip = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 240);
+
+export async function readCopy() {
+  const cfg = await readConfig();
+  const out = {};
+  for (const k of COPY_KEYS) out[k] = clip(cfg.copy?.[k]) || COPY_DEFAULTS[k];
+  return out;
+}
+// { field: text }; an empty text puts the default back. Unknown fields refused.
+export async function setCopy(patch = {}) {
+  const bad = Object.keys(patch).filter((k) => !COPY_KEYS.includes(k));
+  if (bad.length) throw Object.assign(new Error(`no such line: ${bad.join(', ')}`), { status: 400 });
+  const cfg = await readConfig();
+  const copy = { ...(cfg.copy || {}) };
+  for (const [k, v] of Object.entries(patch)) { if (clip(v)) copy[k] = clip(v); else delete copy[k]; }
+  await mkdir(path.dirname(configFile()), { recursive: true });
+  await writeFile(configFile(), JSON.stringify({ ...cfg, copy }, null, 2));
+  return readCopy();
+}
+
 async function readConfig() {
   try { return JSON.parse(await readFile(configFile(), 'utf8')); } catch { return {}; }
 }
@@ -90,7 +124,7 @@ export async function buildShare({ outDir = shareDir(), includeSizes } = {}) {
   for (const f of await readdir(path.join(outDir, 'img'))) if (!keep.has(f)) await rm(path.join(outDir, 'img', f), { force: true });
 
   const sizes = sizesOn ? (await readState()).sizes || null : null;
-  const body = { items: out, sizes };
+  const body = { items: out, sizes, copy: await readCopy() };
   const hash = createHash('sha1').update(JSON.stringify(body)).digest('hex');
   let prev = null;
   try { prev = JSON.parse(await readFile(path.join(outDir, 'data.json'), 'utf8')); } catch { /* first build */ }
