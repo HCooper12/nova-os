@@ -256,7 +256,7 @@ function PlatePanel({ dock, live, onOpen }) {
         </span>
         <span ref={boxRef} className="nv-fx-card" data-fit={fit?.mode || 'whole'} style={fit && fit.mode !== 'whole' ? { height: `${fit.height}px` } : undefined}>
           <span ref={innerRef} className="nv-fx-cardin" style={fit?.mode === 'scale' ? { transform: `scale(${fit.scale.toFixed(4)})` } : undefined}>
-            <SafeVisual what="nova-stage-panel" resetKey={dock.key}><StageCard card={hero} face="summary" size={hero.kind === 'body' ? 'mini' : 'full'} /></SafeVisual>
+            <SafeVisual what="nova-stage-panel" resetKey={dock.key}><StageCard card={{ ...hero, compact: true }} face="summary" size={hero.kind === 'body' ? 'mini' : 'full'} /></SafeVisual>
           </span>
         </span>
       </button>
@@ -533,7 +533,11 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     const seen = new Set();
     const out = [];
     const add = (key, card, lit = false) => { if (!key || !card || seen.has(key)) return; seen.add(key); out.push({ key, card, lit }); };
-    for (const l of lookupCards) add(l.key, l.card, heroLight === l.key);
+    // a lookup card the model is pointing at stays IN the rail, lit, first:
+    // Rose lights the card where it sits, and a page card squeezed into the
+    // plate's hero slot was a sliver (measured in WebKit, 8 Nov)
+    for (const l of lookupCards) if (heroLight === l.key) add(l.key, l.card, true);
+    for (const l of lookupCards) if (heroLight !== l.key) add(l.key, l.card);
     for (const c of dock?.rail || []) { if (lightOf(c)) continue; add(c.key || `${c.kind}:${c.label || c.title || ''}`, c); }
     return out;
   })();
@@ -669,7 +673,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
                   {/* mockup 106's order: "You" and his question on one line, then
                       what is showing, then Nova's words */}
                   {asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
-                  {dock && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
+                  {dock && !heroLight && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
                   {dock && railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
                   {T.doc && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
                 </>
