@@ -885,6 +885,18 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  // A PLAYBOOK, learned from videos and podcasts (lib/playbookLearn.js): his
+  // yes writes Wiki/Playbooks/<Topic>.md (or extends the page that is there,
+  // keeping its sources and his edits). Undo restores or removes it.
+  if (route === 'playbook') {
+    const { writePlaybookPage } = await import('./playbooks.js');
+    const written = await writePlaybookPage(vaultPath, payload.playbook);
+    return {
+      destination: written.relPath,
+      undo: { route, relPath: written.relPath, hash: written.hash, ...(written.created ? {} : { prior: written.prior }) },
+    };
+  }
+
   if (route === 'earned-off') {
     const { readEarnedState, writeEarnedState } = await import('./earnedCalories.js');
     const prior = await readEarnedState();
@@ -1528,6 +1540,10 @@ export async function undoFiling(vaultPath, undo) {
     const { restoreProfileText } = await import('./profile.js');
     await restoreProfileText(vaultPath, undo.priorText ?? null);
     return 'restored your profile page as it was';
+  }
+  if (undo.route === 'playbook') {
+    const { undoPlaybook } = await import('./playbooks.js');
+    return undoPlaybook(vaultPath, undo);
   }
   if (undo.route === 'earned-off') {
     const { writeEarnedState } = await import('./earnedCalories.js');

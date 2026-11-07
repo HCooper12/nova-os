@@ -17,6 +17,8 @@ export const KIND_AGENT = {
   'weekly-debrief': 'Weekly Debrief', 'week-plan': 'Week Plan',
   'training-check': 'Training Check', coach: 'Coach',
   'food-suggestion': 'Food Scout', 'meal-prep': 'Meal Prep', intake: 'Numbers Review', 'earned-off': 'Numbers Review',
+  // a method learned from videos and podcasts, drafted for his yes (lib/playbookLearn.js)
+  playbook: 'Watcher',
   money: 'Money', cfo: 'CFO', research: 'Researcher', studio: 'Studio',
   // his own change on the Money screen, filed with Undo (lib/moneyRails.js)
   'money-write': 'Money',

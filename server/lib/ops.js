@@ -117,7 +117,7 @@ const CONVERSATIONAL = [
   { id: 'voice', label: 'Nova', role: 'the conversation', match: (r) => r.source === 'voice' },
   { id: 'coach', label: 'Coach', role: 'training brain', match: (r) => r.source === 'coach' },
   { id: 'researcher', label: 'Researcher', role: 'cited web briefs', match: (r) => r.kind === 'research' },
-  { id: 'watcher', label: 'Watcher', role: 'videos watched & weighed', match: (r) => r.kind === 'video' },
+  { id: 'watcher', label: 'Watcher', role: 'videos watched & weighed, methods learned into playbooks', match: (r) => r.kind === 'video' || r.kind === 'playbook' },
   { id: 'forge', label: 'Forge', role: 'builds what he asks for', match: (r) => r.kind === 'forge-job' },
   // Three lanes that left receipts but had no match-line, so the Ops screen
   // showed them as recordless and Nova could not name their last act.

@@ -501,6 +501,11 @@ export const LANES = [
     off: 'Long videos are refused rather than judged from a partial read.',
   },
   {
+    id: 'playbook-learn', label: 'Playbooks · learning a method', group: 'research', def: 'sonnet', defEffort: 'medium',
+    hint: 'reads the videos and podcasts you drop and drafts the playbook; code checks every rule against the transcript',
+    off: 'Learn-this requests are refused with a plain message; the playbooks you have keep being applied.',
+  },
+  {
     id: 'watcher-verdict', label: 'Watcher · verdict pass', group: 'research', def: 'sonnet', defEffort: 'high',
     hint: 'the judgment that becomes the Coach’s evidence check or a distilled note',
     off: 'Video watching is refused; nothing is written about a video Nova has not read.',
