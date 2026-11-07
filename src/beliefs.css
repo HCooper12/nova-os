@@ -21,7 +21,7 @@
 }
 .nv-bl-row.first { margin-top: 0; }
 .nv-bl-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.nv-bl-t { font: 400 var(--t15)/1.3 var(--nv-font-ui); color: var(--nv-ink); overflow-wrap: anywhere; text-wrap: pretty; }
+.nv-bl-t { font: 400 var(--t15)/1.3 var(--nv-font-ui); color: var(--nv-ink); overflow-wrap: anywhere; text-wrap: pretty; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .nv-bl-link { margin: 2px 0 0 -8px; }
 .nv-bl-err { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
 .nv-bl-all { margin: 2px 4px 0; }

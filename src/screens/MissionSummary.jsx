@@ -759,8 +759,8 @@ function BeliefsCard({ card, cls, style }) {
     <section className={cls} style={{ ...style, padding: '14px 16px' }} aria-label={`What Nova believes: ${card.line}`}>
       <CardHead icon="waiting" label="What Nova believes" tile={[CARD_HUE.beliefs, 'var(--nv-cy)']} />
       <p style={{ margin: '8px 0 0', font: '400 var(--nv-sum-hl-size)/1.35 var(--nv-sum-hl-font)', color: 'var(--nv-ink)', textWrap: 'pretty' }}>{card.line}</p>
-      <div style={{ marginTop: '8px', paddingLeft: '10px', borderLeft: '2px solid var(--nv-gold)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-        <b style={{ font: `500 15px/1.3 ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere' }}>{card.lead.text}</b>
+      <div style={{ marginTop: '8px', paddingLeft: '10px', borderLeft: '2px solid var(--nv-gold)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, textAlign: 'left' }}>
+        <b style={{ font: `500 15px/1.3 ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' }}>{card.lead.text}</b>
         <span style={{ font: `400 13px ${UI}`, color: 'var(--nv-ink60)' }}>{card.lead.from}</span>
       </div>
       <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>

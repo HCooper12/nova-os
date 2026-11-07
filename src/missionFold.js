@@ -22,7 +22,8 @@ export const FOLD_KEY = 'novaos.mcFold';
 // day's most important open act must not be a tap away from itself.
 // 'stuck' is a question waiting for his answer (StuckCard.jsx); folded, it
 // read as the bare word "stuck" and asked nothing
-export const NEVER_FOLD = ['working', 'plan', 'stuck'];
+// 'beliefs' is the same: a question about what Nova believes, which a folded header would hide
+export const NEVER_FOLD = ['working', 'plan', 'stuck', 'beliefs'];
 
 // The first `keep` present sections (not counting the never-folded) stay open
 // by default; the rest fold. Returns { key: 'open' | 'fold' } for every key.

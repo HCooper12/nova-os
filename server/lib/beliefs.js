@@ -291,7 +291,7 @@ function homeFor(checks, state, now) {
   const lead = checks[0];
   return {
     show: true, count: checks.length,
-    line: checks.length === 1 ? 'One thing Nova believes may be out of date.' : `${checks.length} things Nova believes may be out of date.`,
+    line: checks.length === 1 ? 'One thing may be out of date.' : `${checks.length} things may be out of date.`,
     lead: { text: lead.text, from: lead.from, reason: lead.reason },
     more: checks.slice(1, 3).map((c) => c.text),
   };
