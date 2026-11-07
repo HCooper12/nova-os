@@ -80,3 +80,59 @@ test('the running total carries the hard-day line, only when it is true and only
   const label = await withRunningTotal(vault, date, 'Food log', { ...base, label: true, fuelDeps });
   assert.doesNotMatch(label, /Hard day/, 'a record label stays a label');
 });
+
+// ---- losing too fast -------------------------------------------------------
+
+const iso = (daysAgo) => { const d = at(12); d.setDate(d.getDate() - daysAgo); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const weigh = (kgPerWeek, n = 6, spanDays = 17) => Array.from({ length: n }, (_, i) => {
+  const ago = spanDays - Math.round((i * spanDays) / (n - 1));
+  return { on: iso(ago), kg: Math.round((90 - (kgPerWeek / 7) * (spanDays - ago)) * 10) / 10 };
+});
+const lift = (id, name, daysAgo, kg) => ({ date: iso(daysAgo), exercises: [{ exerciseId: id, name, sets: [{ weight: kg, reps: 5 }] }] });
+const BACKWARDS = [
+  lift('bench', 'Bench Press', 35, 80), lift('bench', 'Bench Press', 28, 80), lift('bench', 'Bench Press', 14, 74), lift('bench', 'Bench Press', 7, 74),
+  lift('squat', 'Squat', 35, 110), lift('squat', 'Squat', 28, 110), lift('squat', 'Squat', 14, 100), lift('squat', 'Squat', 7, 100),
+];
+const FINE = [
+  lift('bench', 'Bench Press', 35, 80), lift('bench', 'Bench Press', 28, 80), lift('bench', 'Bench Press', 14, 80), lift('bench', 'Bench Press', 7, 82),
+];
+const eatingFull = Array.from({ length: 10 }, (_, i) => ({ date: iso(i + 1), kcal: 2200, targetKcal: 2200 }));
+const eatingFar = Array.from({ length: 10 }, (_, i) => ({ date: iso(i + 1), kcal: 1650, targetKcal: 2200 }));
+const fast = (extra) => F.fuelChecks({ now: at(10), weighIns: weigh(1.3), sessionsAll: FINE, foodDays: eatingFull, deload: { advise: false }, ...extra });
+
+test('about 1 kg a week with nothing wrong is not worth a word', () => {
+  assert.deepEqual(fast({}), []);
+});
+
+test('at or past the line AND lifts going backwards: it speaks', () => {
+  const [f] = fast({ sessionsAll: BACKWARDS });
+  assert.equal(f.key, 'losing-too-fast');
+  assert.equal(f.rank, 2);
+  assert.match(f.line, /1\.3 kg a week/);
+  assert.match(f.line, /Squat down 9%, Bench Press down 7%/);
+});
+
+test('one lift down is a bad week, not a sign (two lifts needed)', () => {
+  assert.deepEqual(fast({ sessionsAll: BACKWARDS.slice(0, 4) }), []);
+});
+
+test('the recovery signal alone is a sign; so is eating far under on most days', () => {
+  assert.equal(fast({ deload: { advise: true, reason: 'x' } })[0].key, 'losing-too-fast');
+  assert.equal(fast({ foodDays: eatingFar })[0].key, 'losing-too-fast');
+  assert.match(fast({ foodDays: eatingFar })[0].line, /10 of 10 fully logged days/);
+});
+
+test('under the line, a sign of harm alone says nothing here', () => {
+  assert.deepEqual(fast({ weighIns: weigh(0.7), sessionsAll: BACKWARDS, deload: { advise: true } }), []);
+});
+
+test('too few weigh-ins, or too short a span, or too few logged days: silent, never a guess', () => {
+  assert.deepEqual(fast({ weighIns: weigh(1.6, 3), sessionsAll: BACKWARDS }), []);
+  assert.deepEqual(fast({ weighIns: weigh(2, 5, 9), sessionsAll: BACKWARDS }), []);
+  assert.deepEqual(fast({ foodDays: eatingFar.slice(0, 5) }), []);
+});
+
+test('a hard-day finding outranks it', () => {
+  const out = F.fuelChecks({ now: at(17), weighIns: weigh(1.3), sessionsAll: BACKWARDS, foodDays: eatingFull, workouts: LONG, food: food(500), targets });
+  assert.deepEqual(out.map((f) => f.key), ['hard-day-underfuelled', 'losing-too-fast']);
+});

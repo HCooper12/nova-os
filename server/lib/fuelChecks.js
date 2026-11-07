@@ -49,6 +49,9 @@ export const FUEL_CHECK_DEFAULTS = Object.freeze({
   pauseMaxDays: 7,
 });
 
+import { weightSlope, MIN_WEIGHINS, MIN_SPAN_DAYS } from './fuelReview.js';
+import { bestE1rm } from './trainingAnalytics.js';
+
 const NUM_KEYS = new Set(Object.keys(FUEL_CHECK_DEFAULTS));
 
 /** The defaults with his own numbers laid over them. Only known, positive numbers are taken. */
@@ -123,6 +126,79 @@ function hardDayFinding({ now, planned, workouts, sessions, food, targets }, t) 
   };
 }
 
+// ------------------------------------------------- 10. losing too fast --
+
+const dayNum = (iso) => Math.round(new Date(`${iso}T12:00:00Z`).getTime() / 86400000);
+const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Pure. Lifts whose best estimated 1RM over the last three weeks is down on the
+ * three weeks before it, from the same e1RM the Coach's analytics use. Two
+ * outings in each window, so a single off day is not a trend.
+ */
+export function liftsDropping(sessions = [], { now = new Date(), dropShare = FUEL_CHECK_DEFAULTS.fastLiftDropShare } = {}) {
+  const today = dayNum(isoOf(now));
+  const byLift = new Map();
+  for (const s of sessions) {
+    const age = today - dayNum(s.date);
+    if (!(age >= 0 && age < 42)) continue;
+    for (const ex of s.exercises || []) {
+      if (ex.anomaly) continue; // "off day, don't learn from this"
+      const best = bestE1rm((ex.sets || []).filter((x) => Number(x.weight) > 0));
+      if (!best) continue;
+      const rec = byLift.get(ex.exerciseId) || { name: ex.name, recent: [], prior: [] };
+      (age < 21 ? rec.recent : rec.prior).push(best);
+      byLift.set(ex.exerciseId, rec);
+    }
+  }
+  const out = [];
+  for (const rec of byLift.values()) {
+    if (rec.recent.length < 2 || rec.prior.length < 2) continue;
+    const drop = 1 - Math.max(...rec.recent) / Math.max(...rec.prior);
+    if (drop >= dropShare) out.push({ name: rec.name, dropPct: Math.round(drop * 100) });
+  }
+  return out.sort((a, b) => b.dropPct - a.dropPct);
+}
+
+/**
+ * Pure. His call, 7 Nov: about 1 kg a week is the line, and it is not an alarm
+ * by itself. Speaks only when the trend is at or past it AND a sign of harm
+ * comes with it. Thin weigh-ins or no sign of harm: silent.
+ */
+function losingFastFinding({ now, weighIns, sessionsAll, deload, foodDays }, t) {
+  const today = dayNum(isoOf(now));
+  const recent = (weighIns || []).filter((w) => today - dayNum(w.on) <= t.fastWindowDays && today >= dayNum(w.on));
+  const span = recent.length >= 2 ? dayNum(recent[recent.length - 1].on) - dayNum(recent[0].on) : 0;
+  // the weekly review's own guards: enough weigh-ins, across enough days
+  if (recent.length < Math.max(MIN_WEIGHINS, t.fastMinWeighIns) || span < Math.max(MIN_SPAN_DAYS, t.fastMinSpanDays)) return null;
+  const perWeek = weightSlope(recent) * 7;
+  if (!Number.isFinite(perWeek) || perWeek > -t.fastKgPerWeek) return null;
+
+  const signs = [];
+  const dropping = liftsDropping(sessionsAll, { now, dropShare: t.fastLiftDropShare });
+  if (dropping.length >= t.fastLiftDropLifts) {
+    signs.push(`lifts are going backwards (${dropping.slice(0, 3).map((d) => `${d.name} down ${d.dropPct}%`).join(', ')})`);
+  }
+  if (deload?.advise) signs.push('his recovery signal says go lighter');
+  const complete = (foodDays || []).filter((d) => Number.isFinite(d.kcal) && d.targetKcal > 0 && d.kcal >= Math.max(1000, 0.5 * d.targetKcal));
+  if (complete.length >= t.fastMinLoggedDays) {
+    const under = complete.filter((d) => d.kcal < t.fastUnderShare * d.targetKcal);
+    if (under.length / complete.length >= t.fastUnderDayShare) {
+      signs.push(`he has eaten well under target on ${under.length} of ${complete.length} fully logged days`);
+    }
+  }
+  if (!signs.length) return null; // fast, but nothing says it is costing him: not worth a word
+
+  const rate = Math.abs(perWeek).toFixed(1);
+  return {
+    key: 'losing-too-fast',
+    rank: 2,
+    severity: 'medium',
+    data: { kind: 'losing-fast', perWeek: Math.round(perWeek * 100) / 100, weighIns: recent.length, spanDays: span, signs },
+    line: `Weight is falling about ${rate} kg a week across ${recent.length} weigh-ins in ${span} days, at or past the ${t.fastKgPerWeek} kg line, and ${signs.join('; and ')}. Eating a little more would slow the loss and protect the muscle.`,
+  };
+}
+
 // ------------------------------------------------------------ the engine --
 
 /**
@@ -134,6 +210,9 @@ function hardDayFinding({ now, planned, workouts, sessions, food, targets }, t) 
  *   sessions    Nova sessions finished today [{ routineName, workingSets }]
  *   food        { totals:{kcal,p}, entryCount } today's log
  *   targets     { kcal, protein } today's, earned and paused room already in kcal
+ *   weighIns    [{ on, kg }] oldest first; sessionsAll: every finished session (lift trends)
+ *   deload      computeDeloadSignal over days with his unconfirmed sleep held back
+ *   foodDays    [{ date, kcal, targetKcal }] finished days only, today excluded
  * @returns {Array<{key, rank, line, ...}>} ranked, rank 1 first
  */
 export function fuelChecks(input = {}) {
@@ -141,7 +220,7 @@ export function fuelChecks(input = {}) {
   const now = input.now instanceof Date ? input.now : new Date();
   const ctx = { ...input, now };
   const findings = [];
-  for (const f of [hardDayFinding(ctx, t)]) if (f) findings.push(f);
+  for (const f of [hardDayFinding(ctx, t), losingFastFinding(ctx, t)]) if (f) findings.push(f);
   return findings.sort((a, b) => a.rank - b.rank);
 }
 
@@ -163,7 +242,7 @@ export async function loadFuelChecks(vaultPath, { now = new Date(), deps = {} } 
     return profile?.intake?.fuelChecks;
   }, null));
 
-  const [sessionsAll, watch, day, targets, planned] = await Promise.all([
+  const [sessionsAll, watch, day, targets, planned, health, foodDays] = await Promise.all([
     swallow(deps.sessions || (async () => (await import('./workoutSessions.js')).loadSessions(vaultPath, { limit: 60 })), []),
     swallow(deps.workouts || (async () => {
       const { workoutsForDay, cardioKind } = await import('./healthWorkouts.js');
@@ -180,6 +259,9 @@ export async function loadFuelChecks(vaultPath, { now = new Date(), deps = {} } 
       if (!routine) return null;
       return { name: routine.name, sets: routine.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0), minutes: null };
     }), null),
+    // sleep is read through the loader's gate: a night he has not confirmed is held back
+    swallow(deps.health || (async () => (await import('./healthData.js')).loadRecentDays(28)), []),
+    swallow(deps.foodDays || (async () => (await import('./nutritionLog.js')).loadCalendarDays(28)), []),
   ]);
 
   const { isWorkingSet } = await import('./trainingAnalytics.js');
@@ -189,8 +271,14 @@ export async function loadFuelChecks(vaultPath, { now = new Date(), deps = {} } 
   }));
   const { totalsOf } = await import('./foodLog.js');
   const entries = day?.entries || [];
+  const { weighInsOf } = await import('./healthData.js');
+  const { computeDeloadSignal } = await import('./coach.js');
   const findings = fuelChecks({
     now, thresholds, planned, workouts: watch || [], sessions,
+    weighIns: weighInsOf(health || []),
+    sessionsAll: sessionsAll || [],
+    deload: (health || []).length ? computeDeloadSignal(health.slice(-14), { now }) : null,
+    foodDays: (foodDays || []).filter((d) => d.date < date).map((d) => ({ date: d.date, kcal: d.kcal, targetKcal: d.targetKcal })),
     food: { totals: totalsOf(entries), entryCount: entries.length },
     targets,
   });

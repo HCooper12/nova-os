@@ -25,7 +25,8 @@ const STATE = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, 
 
 export const KCAL_PER_KG = 7700; // the energy in a kilogram of body mass, the textbook figure
 export const WINDOW_DAYS = 28;
-const MIN_WEIGHINS = 4, MIN_SPAN_DAYS = 14, MIN_LOGGED_DAYS = 10;
+export const MIN_WEIGHINS = 4, MIN_SPAN_DAYS = 14;
+const MIN_LOGGED_DAYS = 10;
 const STEP_KCAL = 150; // the most one week's review moves the calibration
 const DEAD_BAND_KCAL = 100; // closer than this to the current calibration is noise
 // sessions a week each activity level describes (the labels in intake.js)
@@ -244,6 +245,13 @@ export async function runFuelReview(vaultPath, { now = new Date(), force = false
         });
       }
     }
+  } catch { /* the weekly review stands without this line */ }
+  // LOSING TOO FAST (lib/fuelChecks.js, his call 7 Nov): about 1 kg a week is
+  // the line, and it speaks only with a sign of harm beside it. A line, never a card.
+  try {
+    const { loadFuelChecks } = await import('./fuelChecks.js');
+    const fast = (await loadFuelChecks(vaultPath, { now })).findings.find((f) => f.key === 'losing-too-fast');
+    if (fast) last.lines = [...(last.lines || []), fast.line];
   } catch { /* the weekly review stands without this line */ }
   await writeReviewState({ week, last });
   return { ...last, fresh: true };
