@@ -89,7 +89,7 @@ export const KIND_BEING = {
   // the tenth being, his pick of 26 Sep (the two masks), in Mind with the Leader
   'practice-skill': 'practice', 'practice-session': 'practice', 'practice-status': 'practice',
   // Nova's own work and his own words: the core, not a department
-  plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', briefing: 'core',
+  plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', 'earned-off': 'core', briefing: 'core',
   // a tier-later alert (lib/alerts.js): Nova saying something first, filed to the Inbox
   alert: 'core',
   // a fact he told Nova about himself (profileTalk.js): his own words, on his profile page
