@@ -262,3 +262,13 @@ test('the same ask while it runs rides the first run; an empty ask is refused', 
   await a.done;
   await assert.rejects(startLearn(vault, { urls: [] }, deps), /at least one link/);
 });
+
+test('validate: numbered method steps lose their own numbers; a pipe in a speaker name cannot break the source line', async () => {
+  const src = { ...srcOf(1, TRANSCRIPT_A), speaker: 'Champ | AI & Claude' };
+  const { playbook } = validateLearn({ ...GOOD, method: ['1. Name the agreed thing.', 'Step 2: Ask one dated question.', '3) Send it.'] }, [src]);
+  assert.deepEqual(playbook.method, ['Name the agreed thing.', 'Ask one dated question.', 'Send it.']);
+  const { formatPlaybook, parsePlaybook: parse } = await import('../lib/playbooks.js');
+  const raw = formatPlaybook(playbook);
+  assert.equal(parse(raw).sources.length, 1);
+  assert.equal(formatPlaybook(parse(raw)), raw);
+});

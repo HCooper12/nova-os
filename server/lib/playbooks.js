@@ -152,6 +152,8 @@ export function parsePlaybook(raw) {
   return pb;
 }
 
+// a pipe in a title or a speaker would break the source line's fields
+const pipeFree = (s) => one(s).replace(/\s*\|\s*/g, ' / ');
 const list = (a) => a.map((x) => `- ${one(x)}`).join('\n');
 
 export function formatRule(r) {
@@ -165,7 +167,7 @@ export function formatPlaybook(pb) {
     '---', 'type: playbook',
     'triggers:', ...pb.triggers.map((t) => `  - ${q(one(t))}`),
     'agents:', ...(pb.agents.length ? pb.agents : ['all']).map((a) => `  - ${one(a)}`),
-    'sources:', ...pb.sources.map((s) => `  - ${q(`S${s.n} | ${one(s.title)} | ${one(s.speaker)} | ${one(s.url)}`)}`),
+    'sources:', ...pb.sources.map((s) => `  - ${q(`S${s.n} | ${pipeFree(s.title)} | ${pipeFree(s.speaker)} | ${one(s.url)}`)}`),
     `created: ${q(pb.created || '')}`, `updated: ${q(pb.updated || '')}`, '---',
   ];
   const out = [fm.join('\n'), `# ${one(pb.title)}`, '', one(pb.summary), ''];

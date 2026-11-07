@@ -281,9 +281,9 @@ export function validateLearn(raw, sources) {
     summary: str(raw?.summary, 300),
     triggers: triggers.length ? triggers : [norm(topic)],
     agents: agents.includes('all') || !agents.length ? ['all'] : [...new Set(agents)],
-    sources: sources.map((s) => ({ n: s.n, title: s.title, speaker: s.speaker || 'unknown', url: s.url })),
+    sources: sources.map((s) => ({ n: s.n, title: str(s.title, 160), speaker: str(s.speaker, 100) || 'unknown', url: s.url })),
     when: clean(raw?.when, 8),
-    method: clean(raw?.method, 20),
+    method: clean((Array.isArray(raw?.method) ? raw.method : []).map((m) => String(m ?? '').replace(/^\s*(?:step\s+)?\d+[.):]\s*/i, '')), 20),
     rules,
     phrases,
     mistakes: clean(raw?.mistakes, 12),
@@ -308,7 +308,7 @@ export function draftBody({ page, links, dropped, notes, extended }) {
   for (const l of failed) head.push(`- Could not read: ${l.url}. ${l.error}`);
   if (dropped.length) head.push(`- Dropped: ${dropped.slice(0, 4).map((d) => `"${d.text}" (${d.why})`).join('; ')}${dropped.length > 4 ? `; and ${dropped.length - 4} more` : ''}.`);
   for (const n of notes) head.push(`- Note: ${n}.`);
-  return `${head.join('\n')}\n\n---\n\n${formatPlaybook(page)}`;
+  return `${head.join('\n')}\n\n**The page as it would be saved:**\n\n${formatPlaybook(page)}`;
 }
 
 /* ----------------------------------- the job ------------------------------ */
