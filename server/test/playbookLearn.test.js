@@ -2,7 +2,7 @@
 // job from links to a pending record to a page and back (undo). The model and
 // the transcript fetch are stubs: nothing here spawns the CLI or touches the
 // network. Temp data dir + temp vault BEFORE imports.
-import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

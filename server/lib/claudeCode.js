@@ -67,6 +67,7 @@ const jobs = registerJobMap('claudeCode', new Map());
 // from any lane module without pulling in this file); re-exported here.
 export { effortFlag, _setEffortSupportedForTest } from './spawnBoundary.js';
 import { effortFlag } from './spawnBoundary.js';
+import { playbookTurn, labelPlaybooks } from './playbooks.js';
 // the effort a spawn's args carry (null when none): the receipt's figure,
 // and part of what a warm process must match to serve a turn
 function argValue(args, flag) {
@@ -1146,6 +1147,12 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
 
   const args = askArgs(effectiveSessionId, isNewSession, { effort });
   const kind = consulted ? 'consult-nova' : 'voice';
+  // PLAYBOOKS he approved (lib/playbooks.js): matched by code on the words of
+  // this turn, put after the question, logged, and named on the reply. A turn
+  // another agent consults is not his task, so it carries none.
+  const pb = consulted ? { block: '', titles: [] } : playbookTurn({ text: question, agent: 'nova', vaultPath: cwd, turnId: jobId });
+  labelPlaybooks(job, pb.titles);
+  const promptQuestion = pb.block ? `${question}\n\n${pb.block}` : question;
 
   // NOVA DIRECTS (lib/consult.js): a reply that asks the org is not the
   // answer. Code runs the asks, says who was asked, and hands the answers
@@ -1173,8 +1180,8 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     // `spoken` rides on turn ONE only. A resumed turn sends just the question
     // by design (spokenSession.test.js guards that minimalism), and turn one's
     // contract is still in the resumed process's own context.
-    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted, place, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
-      : consulted ? consultedResumeText(consulted, question) : buildResumedAsk({ question, liveLine, direct, place }),
+    text: isNewSession ? buildAskPrompt({ question: promptQuestion, context, direct, spoken, consulted, place, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
+      : consulted ? consultedResumeText(consulted, question) : buildResumedAsk({ question: promptQuestion, liveLine, direct, place }),
     job,
     finishTurn,
   });
@@ -1566,6 +1573,11 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
   jobs.set(jobId, job);
   if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
   const kind = consulted ? 'consult-coach' : 'coach';
+  // PLAYBOOKS he approved, on the words he asked (not the preamble code adds).
+  // Coach's own rules and evidence standard still come first (lib/playbooks.js).
+  const pb = consulted ? { block: '', titles: [] } : playbookTurn({ text: asked || question, agent: 'coach', vaultPath: cwd, turnId: jobId });
+  labelPlaybooks(job, pb.titles);
+  const promptQuestion = pb.block ? `${question}\n\n${pb.block}` : question;
 
   const args = [
     // conversational input mode — the warm pool keeps this process alive
@@ -1738,8 +1750,8 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     // spawn, resumed ones included, so an old conversation still gets the
     // current rules), and a resumed turn sends only the live changes and his
     // question (lib/coachTurn.js liveDelta).
-    text: isNewSession ? buildCoachPrompt({ question, context, consulted, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
-      : consulted ? consultedResumeText(consulted, question, { canPropose: true }) : question,
+    text: isNewSession ? buildCoachPrompt({ question: promptQuestion, context, consulted, talkPrefs: consulted ? '' : talkPrefsBlock(cwd) })
+      : consulted ? consultedResumeText(consulted, question, { canPropose: true }) : promptQuestion,
     job,
     finishTurn,
   });

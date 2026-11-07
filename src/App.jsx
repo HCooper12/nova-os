@@ -8787,7 +8787,7 @@ export default class App extends Component {
             const briefIds = (Array.isArray(job.result.consult) ? job.result.consult : []).filter((a) => a?.agent === 'researcher' && a.recordId).map((a) => a.recordId);
             // a line he cut into while it streamed keeps where his voice came in
             const cutAt = idx !== -1 ? chat[idx].interrupted : null;
-            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...(projectId ? { projectId } : {}), ...(cutAt ? { interrupted: cutAt } : {}), ...via, ...(meta || {}) };
+            const line = { at: Date.now(), who, text, more, panel, proposal, acted, research, evidence, glass, ...(briefIds.length ? { briefIds } : {}), ...(from ? { from } : {}), ...(job.result.receipt ? { receipt: String(job.result.receipt) } : {}), ...(Array.isArray(job.result.usedPlaybooks) && job.result.usedPlaybooks.length ? { usedPlaybooks: job.result.usedPlaybooks.map(String) } : {}), ...(projectId ? { projectId } : {}), ...(cutAt ? { interrupted: cutAt } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };

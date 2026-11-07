@@ -317,8 +317,11 @@ export function doorOf(m, nameOf = (k) => k) {
 // authorship to record rows; this is the seam it plugs into. With neither
 // field on the line it is null and the byline slot renders nothing.
 export function bylineOf(m) {
-  if (!m || (!m.by && !m.from)) return null;
-  return { by: m.by ? String(m.by) : null, from: m.from ? String(m.from) : null };
+  // "using: Sales follow-ups": the playbooks the server put in front of the
+  // agent for this reply (server/lib/playbooks.js); absent when none matched
+  const using = Array.isArray(m?.usedPlaybooks) && m.usedPlaybooks.length ? `using: ${m.usedPlaybooks.join(', ')}` : null;
+  if (!m || (!m.by && !m.from && !using)) return null;
+  return { by: m.by ? String(m.by) : null, from: m.from ? String(m.from) : null, ...(using ? { using } : {}) };
 }
 
 // WHAT FOLDS (12 Oct, his rule). His questions and Nova's answers to them

@@ -109,8 +109,13 @@ export async function startOutline(vaultPath, id) {
     const { profileContext } = await import('./profile.js');
     him = await profileContext(vaultPath);
   } catch (e) { him = `ABOUT HAYDEN: (his profile page could not be read: ${e.message})`; }
+  // PLAYBOOKS he approved (lib/playbooks.js), matched on the idea's own words
+  // by code; logged against this record, and named on it
+  const { playbookTurn } = await import('./playbooks.js');
+  const pb = playbookTurn({ text: `${page.title || ''} ${String(page.raw || '').slice(0, 1500)}`, agent: 'studio', vaultPath, turnId: record.id });
+  if (pb.titles.length) await updateRecord(record.id, { usedPlaybooks: pb.titles, playbookLine: `using: ${pb.titles.join(', ')}` }).catch(() => {});
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildOutlinePrompt(page, formatOf(page.raw), [him, taste, org].filter(Boolean).join('\n\n')),
+    '-p', buildOutlinePrompt(page, formatOf(page.raw), [him, taste, org, pb.block].filter(Boolean).join('\n\n')),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', OUTLINE_DISALLOWED,

@@ -418,10 +418,15 @@ export function playbookBlockFor(pb, budget) {
   return out.join('\n');
 }
 
-export function playbookBlock(matched) {
+// Coach answers to his program, his logged history and the evidence standard
+// first. A playbook learned from a video never outranks them.
+const COACH_FOOT = 'You are the Coach: his program, his logged history, the injuries on record and the evidence standard in your instructions come first. If a rule here conflicts with any of them, follow them and say that you did. A method from a video is one person\'s practice until the evidence says otherwise.';
+
+export function playbookBlock(matched, { agent = null } = {}) {
   if (!matched.length) return '';
   const each = Math.floor(BLOCK_CHARS / matched.length);
-  return `[PLAYBOOKS TO APPLY THIS TURN. Hayden approved these methods for this kind of task. Apply them to what he asked.\n\n${matched.map((m) => playbookBlockFor(m, each)).join('\n\n')}\n\n${FOOT}]`;
+  const foot = agent === 'coach' ? `${FOOT} ${COACH_FOOT}` : FOOT;
+  return `[PLAYBOOKS TO APPLY THIS TURN. Hayden approved these methods for this kind of task. Apply them to what he asked.\n\n${matched.map((m) => playbookBlockFor(m, each)).join('\n\n')}\n\n${foot}]`;
 }
 
 /* --------------------------------- the log -------------------------------- */
@@ -440,7 +445,7 @@ export function playbookTurn({ text, agent, vaultPath, turnId = null }) {
   const matched = playbooksFor({ text, agent, vaultPath });
   if (!matched.length) return { block: '', titles: [], matched };
   logApplied(matched, { agent, turnId });
-  return { block: playbookBlock(matched), titles: matched.map((m) => m.title), matched };
+  return { block: playbookBlock(matched, { agent }), titles: matched.map((m) => m.title), matched };
 }
 
 // The authorship line: "using: Sales follow-ups". Set on the job so the

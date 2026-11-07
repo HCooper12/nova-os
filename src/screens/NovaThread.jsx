@@ -450,7 +450,7 @@ export function Line({ i, m, fresh, onHold, onOpen, onReplay, settledAs = null }
       <div className={`nv-nt-nova${fresh ? ' in' : ''}`} data-line={i} {...lp}>
         {m.agent && <span className="nv-nt-agent">{m.agent}</span>}
         {/* PROVENANCE SEAM (not built here): renders only when a row carries by/from */}
-        {m.byline && <span className="nv-nt-by" data-seam="byline">{[m.byline.by, m.byline.from].filter(Boolean).join(' · ')}</span>}
+        {m.byline && <span className="nv-nt-by" data-seam="byline">{[m.byline.by, m.byline.from, m.byline.using].filter(Boolean).join(' · ')}</span>}
         <div className="nv-nt-say"><TypeText text={m.text} active={m.typing} /></div>
       </div>
       {meta && !m.streaming && <span className="nv-nt-meta">{meta}</span>}
