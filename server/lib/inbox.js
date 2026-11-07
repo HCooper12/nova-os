@@ -1961,6 +1961,17 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
   // is switched off, or a transcript that cannot be fetched, falls through
   // to the ordinary classifier rather than losing what he sent.
   try {
+    // "learn this <link>" / "turn these into a playbook" keeps the METHOD as a
+    // playbook (lib/playbookLearn.js); a bare link is untouched and watches
+    // itself as before
+    const { parseJobCommand } = await import('./verbJobs.js');
+    const learn = parseJobCommand(text);
+    if (learn?.verb === 'playbook.learn') {
+      const urls = String(learn.args.links).split(/\s+/).filter(Boolean);
+      if (deps.startLearn) return deps.startLearn(vaultPath, { urls, purpose: learn.args.purpose || '' });
+      const { startLearn } = await import('./playbookLearn.js');
+      return startLearn(vaultPath, { urls, purpose: learn.args.purpose || '' });
+    }
     const routed = await mediaLaneFor(vaultPath, text, deps);
     if (routed) return routed;
   } catch (e) {

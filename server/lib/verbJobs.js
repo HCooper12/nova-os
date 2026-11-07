@@ -53,6 +53,7 @@ const REAL = {
   startRepertoire: async (vaultPath, opts) => (await import('./repertoireLane.js')).startRepertoire(vaultPath, opts),
   resolvePracticeAsk: async (vaultPath, text) => (await import('./practiceLane.js')).resolvePracticeAsk(vaultPath, text),
   startPrepare: async (vaultPath, opts) => (await import('./practiceLane.js')).startPrepare(vaultPath, opts),
+  startLearn: async (vaultPath, opts) => (await import('./playbookLearn.js')).startLearn(vaultPath, opts),
   startBrowse: async (vaultPath, task) => (await import('./browse.js')).startBrowse(vaultPath, task),
 };
 let lanes = { ...REAL };
@@ -212,6 +213,25 @@ export const JOB_VERBS = [
         said: 'The Watcher has it — the transcript first, then its read lands in your Inbox in a few minutes.',
         undo: { recordId: record.id, what: 'the Watcher\'s read' },
         extra: { watch: { recordId: record.id, url: link.url } },
+      };
+    },
+    undo: undoJob,
+  },
+  {
+    id: 'playbook.learn', tier: 'act',
+    describe: 'learn a METHOD from one to ten videos or podcast episodes he sends and keep it as a playbook his agents then apply to a task ("learn this", "learn from these", "turn this into a playbook", "watch this and make it a skill"). A draft playbook lands pending in his Inbox with every rule traced to a timestamp; his yes saves it. Spotify episodes cannot be read; say so. A bare link he gave no instruction for is link.file, and a quick "watch this" is video.watch',
+    args: { links: 'every link he gave, exactly as given, separated by spaces', purpose: 'optional: what the playbook should help with, in his words' },
+    async run(vaultPath, args) {
+      const raw = Array.isArray(args.links) ? args.links.join(' ') : String(args.links || args.url || '');
+      const urls = urlsIn(raw).map((u) => u.replace(/[.,;:!?)\]]+$/, ''));
+      if (!urls.length) throw new Error('there is no link to learn from in that');
+      const record = await lanes.startLearn(vaultPath, { urls, purpose: say(args.purpose) });
+      const n = urls.length;
+      return {
+        destination: `Playbook — learning from ${n} link${n === 1 ? '' : 's'}`,
+        said: `Learning from ${n === 1 ? 'that one' : `those ${n}`}. The draft playbook lands in your Inbox for your yes, and nothing is applied until you give it.`,
+        undo: { recordId: record.id, what: 'the playbook' },
+        extra: { record: { id: record.id, kind: 'playbook' } },
       };
     },
     undo: undoJob,
@@ -494,6 +514,12 @@ const LEAVE_RE = /^(?:remind me|set (?:a |me a )?reminder|to-?do:|todo:|add\b.+\
 // sentence OPENS with it — "watch and analyse this" stays the Watcher's
 // triage (his 4 Sep case, pinned in chatFrontDoor.test.js).
 const ANALYSE_RE = /^(?:(?:can|could|would) you\s+|please\s+|go\s+(?:and\s+)?)?(?:analy[sz]e|deep[- ]?dive(?: into)?|break down|weave)\b/i;
+// "learn this <link>", "learn from these", "turn this into a playbook": the
+// method kept as a playbook his agents apply (lib/playbookLearn.js). Only when
+// the sentence OPENS with it, and not for "learn this technique", which is the
+// Repertoire's (a technique taught one a day).
+const LEARN_LEAD_RE = /^(?:(?:can|could|would) you\s+|please\s+|go\s+(?:and\s+)?)?(?:learn(?:\s+(?:from|what\s+(?:this|these|that|it|they)\s+teach(?:es)?|this|these|that|it|them))|(?:turn|make)\s+(?:this|these|that|it|them)\s+(?:into\s+)?an?\s+(?:playbook|skill)|(?:make|build|write)\s+(?:me\s+)?an?\s+(?:playbook|skill)\s+(?:from|out of|off)|playbook\s+(?:from|of)|watch\s+(?:this|these|that|it|them)\s+(?:and|then)\s+(?:learn|turn|make))/i;
+const TECHNIQUE_RE = /\b(?:techniques?|tricks?|tactics?|moves?)\b/i;
 const OPEN_LEAD_RE = /^(?:open|go to|browse|play|show|pull up|bring up|put on|navigate|log ?in)\b/i;
 // he wants it KEPT, and has not said more
 const KEEP_RE = /^(?:(?:can you\s+|please\s+)?(?:save|keep|file|stash|bookmark|capture|store|hold on to)\b(?:\s+(?:this|that|it|the link|this link|for later))*|for later|later)$/i;
@@ -521,6 +547,11 @@ export function parseJobCommand(text, ctx = {}) {
   const prose = raw.replace(URL_RE, ' ').replace(/\s+/g, ' ').replace(/^[\s:,—–-]+|[\s:,—–-]+$/g, '').trim();
   const p = prose.toLowerCase().replace(/[.!]+$/, '').trim();
 
+  // LEARN A PLAYBOOK: one link or several, his words after the lead are the purpose
+  if (urls.length && LEARN_LEAD_RE.test(p) && !(TECHNIQUE_RE.test(p) && !/playbook|skill/i.test(p))) {
+    const purpose = prose.replace(LEARN_LEAD_RE, '').replace(/^\s*(?:this|these|that|it|them|(?:the\s+)?(?:videos?|podcasts?|episodes?|clips?|reels?))\b[\s:,—–-]*/i, '').replace(/^(?:\s*(?:and|to|so that|so)\b)?[\s:,—–-]+/i, '').replace(/^(?:into|as)\s+an?\s+(?:playbook|skill)\b[\s:,—–-]*/i, '').trim();
+    return { verb: 'playbook.learn', args: { links: urls.join(' '), ...(purpose ? { purpose } : {}) } };
+  }
   if (urls.length > 1) return null; // several links: a study or a plan — not one verb
   // "open https://…", "play https://…": the Mac's hand or the browser's, not a job
   if (urls.length && OPEN_LEAD_RE.test(p)) return null;
