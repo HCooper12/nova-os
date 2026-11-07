@@ -37,6 +37,12 @@ export async function fuelContext(vaultPath) {
     const { earnedToday } = await import('./earnedCalories.js');
     const earned = await earnedToday();
     if (earned.kcal > 0) lines.push(`- Earned today: +${earned.kcal} kcal, making today's target ${(profile.targetKcal || 0) + earned.kcal}. He moved more than usual (${earned.active} active kcal against his usual ${earned.usual}); half counts, capped, so the fat-loss goal stays first.`);
+    // today's checks, ranked by code (lib/fuelChecks.js): the top three, never recited
+    try {
+      const { loadFuelChecks } = await import('./fuelChecks.js');
+      const { findings } = await loadFuelChecks(vaultPath);
+      for (const f of findings.slice(0, 3)) lines.push(`- Fuel check ${f.rank}: ${f.line}`);
+    } catch { /* no checks, no lines */ }
   } else {
     lines.push('- Targets: NONE SET — his About You profile is empty, so any calorie or protein number you use is your own assumption. Say so if it matters.');
   }

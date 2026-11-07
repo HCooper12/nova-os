@@ -66,5 +66,23 @@ export async function withRunningTotal(vaultPath, date, text, { label = false, .
   const r = await runningTotal(vaultPath, date, deps);
   if (!r) return text;
   const base = text.replace(/\s+$/, '');
-  return label ? `${base}. Today: ${r.line}` : `${base} Today so far, ${r.line}.`;
+  const tally = label ? `${base}. Today: ${r.line}` : `${base} Today so far, ${r.line}.`;
+  // a hard day with the food far behind is the one check said right here, where
+  // he is already looking at the numbers (lib/fuelChecks.js); no other check is.
+  // Spoken sentences only: a record's label stays a label.
+  const warn = label ? null : await hardDayWarning(vaultPath, r, deps);
+  return warn ? `${tally} ${warn}` : tally;
+}
+
+// finding 9 only, and only for today: a past day's log is not the moment to warn
+async function hardDayWarning(vaultPath, r, { fuelChecks: use = true, now = new Date(), entries, fuelDeps = {} } = {}) {
+  if (use === false) return null;
+  try {
+    const { localDateISO } = await import('./localDate.js');
+    if (r.date !== localDateISO(now)) return null;
+    const { loadFuelChecks } = await import('./fuelChecks.js');
+    const deps = { targets: async () => r.targets, ...(entries ? { day: async () => ({ entries }) } : {}), ...fuelDeps };
+    const { findings } = await loadFuelChecks(vaultPath, { now, deps });
+    return findings.find((f) => f.key === 'hard-day-underfuelled')?.line || null;
+  } catch { return null; }
 }
