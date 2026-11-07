@@ -396,6 +396,22 @@ model.
   prep. Still missing: a calorie target semantically tied to the goal
   (cut/maintain/gain); food preferences and restrictions so suggestions are
   things he'll actually eat.
+- **Playbooks — BUILT 7 Nov 2026, unseen on a real link.** What he watches
+  can change how an agent works. "Learn this <link>" (chat, voice, Quick
+  Capture, Telegram, or `POST /api/learn`) reads one to ten videos or
+  podcasts and drafts a method page, `Wiki/Playbooks/<Topic>.md`, as one
+  pending Inbox record (`playbookLearn.js`, `playbooks.js`).
+  Code drops any rule it cannot trace to a real timestamp and quote in the
+  transcript, keeps health, money and legal rules marked stated unless the
+  speaker gave evidence, and files nothing without his yes. Once approved,
+  `playbooksFor` matches the words of a turn to the page's triggers (code, a
+  cached index, two at most) and Ask Nova, Coach and Studio get the method
+  in their prompt, with the reply marked "using: <Topic>". A playbook never
+  outranks Coach's rules or his evidence standard. Every application is
+  logged to `server/data/playbooks/applied.jsonl` (date, playbook, agent,
+  turn id): that log, not the page, is the proof a playbook is used. Not
+  covered: the local models (Ask Nova and Coach on the Mac) do not get the
+  block, and Spotify episodes cannot be read.
 - **The full audit.** `design/PLATFORM-SWEEP-2026-07.md` is the July 2026
   whole-platform sweep (41 findings, A–E). All five fix passes shipped
   2026-07-22; its "recommended sequence" section is the record of what was
