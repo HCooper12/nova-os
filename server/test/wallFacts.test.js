@@ -1,7 +1,7 @@
 // THE WALL AND THE WORDS THAT MOVE IT (7 Nov 2026, design/ROSE-STUDY.md).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WALL, WALL_MAX, wallColumns, wallColWidth, wallLayout, wallWanted, wallOpenRect, eyebrowOf, railCardWidth } from '../../src/wallFacts.js';
+import { WALL, WALL_CORE, WALL_MAX, wallCore, wallColumns, wallColWidth, wallLayout, wallWanted, wallOpenRect, eyebrowOf, railCardWidth } from '../../src/wallFacts.js';
 import { glassCommand, matchPanel, glassReceipt } from '../../src/glassVoice.js';
 import { MAX_DOCKED } from '../../src/novaMacFacts.js';
 
@@ -18,13 +18,15 @@ test('the grid: three columns at 1440, two on a small window, four on a wide one
   assert.ok(wallColWidth(1440) >= WALL.minCol && wallColWidth(1440) <= WALL.maxCol);
 });
 
-test('panels fill the grid in arrival order, the core\'s column left clear for two rows, each with a seeded tilt', () => {
+test('panels fill a masonry in arrival order, the core\'s column starting under the core, each with a seeded tilt', () => {
   const keys = Array.from({ length: 13 }, (_, i) => `p${i}`);
   const lay = wallLayout(keys, { width: 1440 });
   assert.equal(lay.length, 13);
   assert.deepEqual(lay.slice(0, 2).map((l) => l.col), [1, 2]);
   assert.deepEqual(lay.slice(2, 4).map((l) => l.col), [1, 2]);
-  assert.equal(lay[4].col, 0, 'the third row takes the core\'s column');
+  assert.equal(lay[4].col, 0, 'the first column is taken once the others are taller');
+  assert.ok(lay.filter((l) => l.col === 0).every((l) => l.y >= WALL_CORE.coreRoom), 'nothing under the core and its words');
+  assert.equal(wallCore(1440).cx, WALL.left + Math.round(wallColWidth(1440) / 2));
   assert.ok(lay.every((l) => Math.abs(l.tilt) <= WALL.tilt && Math.abs(l.dx) <= WALL.drift));
   assert.ok(lay.some((l) => l.tilt !== 0), 'the scatter is real');
   const again = wallLayout(keys, { width: 1440 });
@@ -33,7 +35,8 @@ test('panels fill the grid in arrival order, the core\'s column left clear for t
   assert.ok(tidy.every((l) => l.tilt === 0 && l.dx === 0 && l.dy === 0));
   // heights stack a column
   const stacked = wallLayout(['a', 'b', 'c', 'd'], { width: 1440, heights: { a: 300 } });
-  assert.equal(stacked[2].y, WALL.top + 300 + WALL.gap, 'the third panel sits under the first in its column');
+  assert.equal(stacked[2].col, 2, 'the third panel takes the shorter stack');
+  assert.equal(stacked[3].y, WALL.top + 300 + WALL.gap, 'the fourth sits under the tall first, once that is the shortest');
   assert.equal(wallLayout(Array.from({ length: 30 }, (_, i) => `k${i}`), {}).length, WALL_MAX);
 });
 

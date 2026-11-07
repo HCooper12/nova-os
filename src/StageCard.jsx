@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo, Fragment } from 'react';
+import { MediaImg } from './MediaImg.jsx';
 import { css } from './css.js';
 import { sentenceCase } from './novaThreadFacts.js';
 import { SessionPanel, SourcesPanel } from './DataPanels.jsx';
@@ -145,7 +146,7 @@ export function StageCard({ card, size = 'full', face }) {
 
       {card.kind === 'shot' && (
         <div style={{ marginTop: mini ? '6px' : '10px', borderRadius: mini ? '6px' : '10px', overflow: 'hidden', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', background: 'black' }}>
-          <img src={card.src} alt={card.caption || 'the browser window'} style={{ display: 'block', width: '100%', maxHeight: mini ? '84px' : '52vh', objectFit: 'cover', objectPosition: 'top' }} />
+          <MediaImg src={card.src} alt={card.caption || 'the browser window'} style={{ display: 'block', width: '100%', maxHeight: mini ? '84px' : '52vh', objectFit: 'cover', objectPosition: 'top' }} />
         </div>
       )}
       {card.kind === 'shot' && card.url && card.onOpen && !mini && (
@@ -179,7 +180,7 @@ export function StageCard({ card, size = 'full', face }) {
 
       {card.kind === 'image' && card.src && (
         <div style={{ marginTop: mini ? '6px' : '10px', borderRadius: mini ? '6px' : '10px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 18%, transparent)`, background: 'black' }}>
-          <img src={card.src} alt={card.caption || card.label} style={{ display: 'block', width: '100%', maxHeight: mini ? '84px' : '38vh', objectFit: 'cover' }} />
+          <MediaImg src={card.src} alt={card.caption || card.label} style={{ display: 'block', width: '100%', maxHeight: mini ? '84px' : '38vh', objectFit: 'cover' }} />
         </div>
       )}
       {card.kind === 'image' && card.src && card.caption && !mini && (
@@ -196,7 +197,7 @@ export function StageCard({ card, size = 'full', face }) {
         <div style={{ marginTop: mini ? '6px' : '10px', display: 'flex', gap: mini ? '8px' : '12px', alignItems: 'flex-start' }}>
           {card.src && (
             <div style={{ flex: 'none', width: mini ? '52px' : '132px', borderRadius: mini ? '5px' : '8px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black' }}>
-              <img src={card.src} alt={card.title || card.label} style={{ display: 'block', width: '100%', aspectRatio: '16/9', objectFit: 'cover' }} />
+              <MediaImg src={card.src} alt={card.title || card.label} style={{ display: 'block', width: '100%', aspectRatio: '16/9', objectFit: 'cover' }} />
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -316,19 +317,19 @@ export function StageCard({ card, size = 'full', face }) {
       {card.kind === 'page' && (
         <div style={{ marginTop: mini ? '6px' : '10px', display: 'flex', gap: mini ? '8px' : '12px', alignItems: 'flex-start' }}>
           {card.image && (
-            <div style={{ flex: 'none', width: mini ? '52px' : '104px', borderRadius: mini ? '5px' : '8px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black' }}>
-              <img src={card.image} alt="" style={{ display: 'block', width: '100%', aspectRatio: '4/3', objectFit: 'cover' }} />
+            <div style={{ flex: 'none', width: mini ? '52px' : card.compact ? '72px' : '104px', borderRadius: mini ? '5px' : '8px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black' }}>
+              <MediaImg src={card.image} alt="" style={{ display: 'block', width: '100%', aspectRatio: '4/3', objectFit: 'cover' }} />
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ font: `500 ${fz(mini ? 10.5 : 15)}px/1.3 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 2, WebkitBoxOrient: 'vertical', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.title || card.host}</div>
-            {!mini && (card.lines || []).slice(0, 2).map((l, i) => (
+            {!mini && (card.lines || []).slice(0, card.compact ? 1 : 2).map((l, i) => (
               <div key={i} style={{ marginTop: i ? '3px' : '7px', font: `400 ${fz(12.5)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 68%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{l}</div>
             ))}
             {!mini && !(card.lines || []).length && card.caption && (
               <div style={{ marginTop: '7px', font: `400 ${fz(12.5)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 68%, transparent)' }}>{card.caption}</div>
             )}
-            {!mini && card.url && (
+            {!mini && card.url && !card.compact && (
               <a href={card.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
                 style={{ marginTop: '9px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', font: `600 ${fz(8.5)}px ${MF}`, letterSpacing: trk('.16em'), color: accent }}>
                 {String(card.host || 'OPEN').toUpperCase()} ↗
@@ -341,15 +342,25 @@ export function StageCard({ card, size = 'full', face }) {
         </div>
       )}
 
-      {card.kind === 'video' && (
-        <div style={{ marginTop: mini ? '6px' : '10px' }}>
-          <div style={{ position: 'relative', borderRadius: mini ? '6px' : '10px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black', aspectRatio: card.portrait ? '9/16' : '16/9', maxHeight: card.portrait ? (mini ? '84px' : '46vh') : undefined, width: card.portrait ? (mini ? '48px' : '54%') : '100%' }}>
+      {/* a small video card is a row: the thumb beside the title (the rail) */}
+      {card.kind === 'video' && mini && (
+        <div style={{ marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ flex: 'none', width: card.portrait ? '30px' : '64px', height: card.portrait ? '52px' : '36px', borderRadius: '5px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black', position: 'relative' }}>
+            {card.poster && <MediaImg src={card.poster} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+            <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', color: accent, font: '600 11px var(--nv-font-ui)' }}>▶</span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0, font: `500 ${fz(10.5)}px/1.3 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{card.title}</div>
+        </div>
+      )}
+      {card.kind === 'video' && !mini && (
+        <div style={{ marginTop: '10px' }}>
+          <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 20%, transparent)`, background: 'black', aspectRatio: card.portrait ? '9/16' : '16/9', maxHeight: card.portrait ? '46vh' : undefined, width: card.portrait ? '54%' : '100%' }}>
             {card.playing && card.videoId && !mini ? (
               <iframe title={card.title} src={`https://www.youtube-nocookie.com/embed/${card.videoId}?autoplay=1&rel=0&modestbranding=1`} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
             ) : (
               <>
-                {card.poster && <img src={card.poster} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: .92 }} />}
+                {card.poster && <MediaImg src={card.poster} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: .92 }} />}
                 {!mini && (
                   <button type="button" aria-label={`Play ${card.title}`} onClick={(e) => { e.stopPropagation(); card.onPlay ? card.onPlay(card) : window.open(card.url, '_blank', 'noopener'); }}
                     style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 44, height: 44, borderRadius: '50%', border: `1px solid color-mix(in srgb, ${accent} 60%, transparent)`, background: 'color-mix(in srgb, var(--nv-void) 70%, transparent)', color: accent, font: '600 16px var(--nv-font-ui)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>▶</button>

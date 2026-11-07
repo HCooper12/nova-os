@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { WALL_CORE, WALL_MAX, wallWanted, wallLayout, wallColWidth, wallOpenRect, eyebrowOf } from './wallFacts.js';
+import { WALL_CORE, WALL_MAX, wallCore, wallWanted, wallLayout, wallColWidth, wallOpenRect, eyebrowOf } from './wallFacts.js';
 import { CoreFace } from './NovaThreadParts.jsx';
 import { StageCard } from './StageCard.jsx';
 import { SafeVisual } from './SafeVisual.jsx';
@@ -403,7 +403,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const frame0 = frameFor({ state: dataState === 'panels' ? 'idle' : mstate, docked: hasDock, hist, focus, width: view.w });
   // the wall: the core at the presenter spot (the phone's rule), its words
   // the width of one column under it
-  const frame = wallOn ? { cx: WALL_CORE.cx, cy: WALL_CORE.cy, s: WALL_CORE.s, uw: colW, mx: view.w / 2, off: 150 } : frame0;
+  const frame = wallOn ? { ...wallCore(view.w), uw: colW, mx: view.w / 2, off: 150 } : frame0;
   const coreK = macCoreScale(S.key === 'listening' ? 'listening' : S.key === 'thinking' ? 'thinking' : speaking ? 'speaking' : 'rest', frame.s);
   const cur = useRef(null);
   const anim = useRef({ id: 0, raf: 0 });
@@ -704,6 +704,9 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
           <b key={word}>{word}</b>
           {line ? <span className="line">· {line}</span> : null}
         </p>
+        {wallOn && T.lookup?.query && (
+          <span className={`nv-mac-lkline${T.lookup.done ? ' done' : ''}`}><i />{T.lookup.done ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read on ${T.lookup.query}` : `Reading on ${T.lookup.query}`}</span>
+        )}
         <div className="nv-mac-layer nv-mac-exch" aria-hidden={dataState !== 'idle'}>
           {ex.you && <button type="button" className="q" onClick={() => goLine(ex.you.i)} tabIndex={dataState === 'idle' ? 0 : -1}><span>You</span><span className="t">{ex.you.text}</span></button>}
           {ex.nova && <button type="button" className="a" onClick={() => goLine(ex.nova.i)} tabIndex={dataState === 'idle' ? 0 : -1}><span>{ex.nova.who}</span><span className="t">{ex.nova.text}</span></button>}
@@ -720,6 +723,11 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
               <Captions said={said} on={captions} speaker={plateSpeaker} look={WORD_LOOK.stage}
                 lead={ex.you?.text ? <p className="pq"><b>You</b>{ex.you.text}</p> : null}
                 offNote="Subtitles are off. Turn them on in Nova’s status and settings." />
+              {/* NO AUDIO, STILL AN ANSWER (8 Nov 2026): with speech off, or no
+                  voice on this machine, nothing is ever "said", so the plate
+                  showed his question and no reply. The answer's own words
+                  stand in, plainly, once it is over. */}
+              {!speaking && answerHeld && !said.length && ex.nova?.text && <p className="nv-mac-answer">{ex.nova.text}</p>}
             </>
           )}
         </section>
@@ -769,7 +777,6 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
       {wallOn && (
         <div className="nv-mac-wallkeys" aria-hidden="true">
           <span><Kbd>T</Kbd> <b>{tidy ? 'scatter' : 'tidy'}</b></span><span><Kbd>Esc</Kbd> <b>clear</b></span><span><Kbd>↵</Kbd> <b>open</b></span>
-          {T.lookup?.query && <span className={`nv-mac-lkline${T.lookup.done ? ' done' : ''}`}><i />{T.lookup.done ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read` : `Reading on ${T.lookup.query}`}</span>}
         </div>
       )}
 
@@ -894,7 +901,7 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
           )}
         </div>
       )}
-      {wall && !open && <span className="pfoot">{d.card.lookup ? (d.card.read === false ? 'not read' : 'read') : d.card.host || d.card.channel || 'nova'}</span>}
+      {wall && !open && <span className="pfoot">{d.card.kind === 'video' ? [d.card.channel, d.card.durationS ? `${Math.round(d.card.durationS / 60)} min` : null].filter(Boolean).join(' · ') || 'video' : d.card.lookup ? (d.card.read === false ? 'not read' : 'read') : d.card.host || d.card.channel || 'nova'}</span>}
       {open && <button type="button" className="pclose" onClick={onClose}><Kbd>Esc</Kbd> Close</button>}
     </section>
   );

@@ -343,7 +343,7 @@
 .nv-mac-pnl .pfoot { position: absolute; right: 14px; bottom: 8px; font: 500 9px var(--nv-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nv-ink40); pointer-events: none; }
 .nv-mac-pnl.open .pfoot { display: none; }
 /* the wall's own line under the core while the pages are read */
-.nv-mac-lkline { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-lkline { display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 10px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink50); }
 .nv-mac-lkline i { width: 7px; height: 7px; border-radius: 50%; background: var(--nv-cy); animation: nvMacBreathe 1.4s ease-in-out infinite; }
 .nv-mac-lkline.done i { animation: none; background: var(--nv-good); }
 /* the wall's keys, bottom left, mockup 110 */
@@ -351,3 +351,4 @@
 .nv-mac-wallkeys b { font-weight: 500; color: var(--nv-ink60); }
 .nv-mac[data-wall] .nv-mac-histbtn { opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .nv-mac-slot { transition: none; } }
+.nv-mac-answer { margin: 10px 0 0; font: 400 21px/1.3 var(--nv-font-serif); color: var(--nv-ink); }

@@ -88,11 +88,11 @@ export function NovaThread({ v }) {
   // and never reach a model; anything else is sent on as before
   const glassRef = useRef(null);
   const moveGlass = (t) => {
-    const api = glassRef.current;
-    if (!api) return false;
+    const glass = glassRef.current;
+    if (!glass) return false;
     let cmd = null;
-    try { cmd = glassCommand(t, api.state()); } catch { cmd = null; }
-    if (!cmd || !api.run(cmd)) return false;
+    try { cmd = glassCommand(t, glass.state()); } catch { cmd = null; }
+    if (!cmd || !glass.run(cmd)) return false;
     const line = glassReceipt(cmd);
     notify({ id: 'glass-move', title: 'GLASS', message: line, tone: 'nova', duration: 1800 });
     T.sayLine?.(line);

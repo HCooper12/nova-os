@@ -19,7 +19,7 @@ import { MAX_DOCKED } from './novaMacFacts.js';
 export const WALL = {
   left: 84 + 24,        // the rail's room plus a gutter
   right: 36,
-  top: 36,
+  top: 72,              // under the History button (16 + 36 + a gap)
   foot: 22 + 64 + 22,   // the composer's room (novaMacFacts COMPOSER)
   gap: 18,
   columns: 3,           // at 1440; recomputed from the width (wallColumns)
@@ -29,8 +29,12 @@ export const WALL = {
   drift: 10,            // px, the scatter's most
 };
 // the presenter spot the core keeps while a wall is up (the phone's rule,
-// mockup 106: top left, a fifth of its size)
-export const WALL_CORE = { cx: 84 + 24 + 150, cy: 36 + 150 - 28, s: 0.5 };
+// mockup 106: top left, half its size), centred on the first column; its
+// words sit under it, so the first column's cards start below `coreRoom`
+export const WALL_CORE = { cy: 130, s: 0.5, coreRoom: 430 };
+export function wallCore(width) {
+  return { cx: WALL.left + Math.round(wallColWidth(width) / 2), cy: WALL_CORE.cy, s: WALL_CORE.s };
+}
 export const WALL_MAX = 16;   // more than Rose's thirteen; the rest wait in history
 
 /** How many columns a window this wide holds. Pure. */
@@ -61,23 +65,23 @@ export function wallWanted({ panels = 0, lookup = 0 } = {}) {
 }
 
 /**
- * Where each panel sits: column, row, x, y, tilt and drift. The first
- * column is skipped for the first two rows (the core and its words live
- * there); the grid fills left to right, top to bottom, in arrival order.
- * `heights` are the panels' measured heights (px), used to stack a column;
- * unknown heights are taken as `assume`. Pure.
+ * Where each panel sits: column, x, y, tilt and drift. A masonry: each
+ * panel takes the column whose stack is shortest (ties go left), so the
+ * wall stays level however tall the cards are; the first column starts
+ * below the core and its words (WALL_CORE.coreRoom), so the first cards
+ * go up on the right, as Rose's do. Arrival order; a panel never moves
+ * once placed, except for tidy, maximise and put away. `heights` are the
+ * panels' measured heights (px); unknown heights are taken as `assume`.
+ * Pure.
  */
 export function wallLayout(keys, { width = 1440, heights = {}, assume = 180, tidy = false } = {}) {
   const cols = wallColumns(width);
   const colW = wallColWidth(width);
-  const tops = Array.from({ length: cols }, () => WALL.top);
+  const tops = Array.from({ length: cols }, (_, c) => (c === 0 ? WALL_CORE.coreRoom : WALL.top));
   const out = [];
-  let i = 0;
   for (const key of keys.slice(0, WALL_MAX)) {
-    // the core's column is left clear until the others have two rows
-    let c = i % cols;
-    const row = Math.floor(i / cols);
-    if (c === 0 && row < 2 && cols > 2) { i++; c = i % cols; }
+    let c = 0;
+    for (let k = 1; k < cols; k++) if (tops[k] < tops[c]) c = k;
     const x = WALL.left + c * (colW + WALL.gap);
     const y = tops[c];
     const h = heights[key] || assume;
@@ -85,12 +89,11 @@ export function wallLayout(keys, { width = 1440, heights = {}, assume = 180, tid
     const u = seeded(out.length);
     const v = seeded(out.length + 97);
     out.push({
-      key, col: c, row, x, y, w: colW,
+      key, col: c, x, y, w: colW,
       tilt: tidy ? 0 : Number((u * WALL.tilt).toFixed(2)),
       dx: tidy ? 0 : Math.round(v * WALL.drift),
       dy: tidy ? 0 : Math.round(u * WALL.drift * 0.6),
     });
-    i++;
   }
   return out;
 }

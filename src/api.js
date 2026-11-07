@@ -548,6 +548,17 @@ export const api = {
     if (!res.ok) return null;
     return URL.createObjectURL(await res.blob());
   },
+  // A PICTURE FROM NOVA'S OWN ORIGIN (8 Nov 2026): the glass's page covers,
+  // video posters and images are served under /api, which needs the token,
+  // and the PWA's origin is not the Mac's, so an <img src="/api/…"> can
+  // never load. The bytes are fetched with the token and kept as a blob URL,
+  // once per path (src/MediaImg.jsx).
+  mediaBlobUrl: async (conn, apiPath) => {
+    if (!conn || !/^\/api\//.test(String(apiPath || ''))) return null;
+    const res = await fetch(baseOf(conn) + apiPath, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  },
   briefingMediaBlobUrl: async (conn, key) => {
     const res = await fetch(baseOf(conn) + `/api/briefing/media/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
     if (!res.ok) return null;
