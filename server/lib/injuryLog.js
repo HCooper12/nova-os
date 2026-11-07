@@ -13,6 +13,8 @@ import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { closedAreas, recordContradictions, contradictionBlock } from './concernClose.js';
 
 const REL_PATH = 'Wiki/Health/Injury Log.md';
@@ -128,6 +130,28 @@ export function closedLine(closed = []) {
 // The context block: active entries loud, recent resolutions one line.
 // `compare: false` for a lane that should not put the disagreement to him:
 // Coach owns that question, and one asker is the point of this whole fix.
+const ASKED_FILE = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'concern-asks.json');
+export const ASK_AGAIN_DAYS = 30;
+
+/** The lines not put to him recently, and those are now marked as put. Never throws. */
+export async function unaskedOnce(lines = [], { now = new Date() } = {}) {
+  if (!lines.length) return lines;
+  try {
+    let asked = {};
+    try { asked = JSON.parse(await readFile(ASKED_FILE(), 'utf8')); } catch { /* first time */ }
+    const fresh = lines.filter((l) => {
+      const at = asked[l];
+      return !at || now.getTime() - new Date(at).getTime() > ASK_AGAIN_DAYS * 86400000;
+    });
+    if (fresh.length) {
+      for (const l of fresh) asked[l] = now.toISOString();
+      await mkdir(path.dirname(ASKED_FILE()), { recursive: true });
+      await writeFile(ASKED_FILE(), JSON.stringify(asked, null, 2), 'utf8');
+    }
+    return fresh;
+  } catch { return []; } // quiet is the safe failure: never nag because a file broke
+}
+
 export async function injuriesContext(vaultPath, { compare = true } = {}) {
   const injuries = await listInjuries(vaultPath).catch(() => []);
   const active = injuries.filter((i) => !i.resolvedAt);
@@ -139,7 +163,10 @@ export async function injuriesContext(vaultPath, { compare = true } = {}) {
   }
   const closed = closedLine(closedAreas(injuries));
   if (closed) parts.push(closed);
-  const disagree = compare ? contradictionBlock(await disagreements(vaultPath, injuries)) : null;
+  // ONCE MEANS ONCE (his words, 7 Nov: "it keeps bringing it up, which isn't good
+  // enough"). A disagreement reaches Coach one time, then stays quiet for 30 days
+  // whether or not he answers: code remembers, because a new session cannot.
+  const disagree = compare ? contradictionBlock(await unaskedOnce(await disagreements(vaultPath, injuries))) : null;
   if (disagree) parts.push(disagree);
   return parts.length ? parts.join('\n\n') : null;
 }
