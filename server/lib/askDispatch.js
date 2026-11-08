@@ -33,6 +33,7 @@ import { providerFor, laneCanRunLocal, fallbackEnabled, localBoard, laneEnabled 
 import { localModelConfigured, memoryHeadroom } from './localModel.js';
 import { needsClaude } from './askRoute.js';
 import { playbooksFor } from './playbooks.js';
+import { recordLookup } from './wallRecall.js';
 
 /** Can the model on this Mac stand in right now? A cheap, synchronous
  *  reading: configured, and either already running or with memory to load. */
@@ -307,6 +308,8 @@ function startLookupAsk(cwd, opts, want) {
     .then((lookup) => {
       clearTimeout(slow);
       console.log(`ask: lookup "${lookup.query}": ${readSources(lookup).length}/${lookup.sources.length} page(s) read, ${lookup.clips.length} clip(s), ${lookup.timings.total}ms, hosts ${lookup.hostsRead.join(', ') || 'none'}${lookup.searchError ? `, search failed: ${lookup.searchError}` : ''}`);
+      // the cards go into the durable record, so he can bring them back by name another day (lib/wallRecall.js)
+      try { recordLookup(lookup); } catch (e) { console.log(`ask: the lookup could not be recorded for recall: ${e.message}`); }
       const innerId = startAskNow(cwd, { ...opts, lookup });
       const inner = getMessageJob(innerId);
       if (!inner) { failCarrier(carrier, 'The turn could not be started after the lookup.'); return; }

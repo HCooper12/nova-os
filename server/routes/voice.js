@@ -608,6 +608,20 @@ export function voiceRouter(vaultPath) {
   // in the rail still showed the old times, because a card is a snapshot of
   // the moment it was spoken. Anything that CHANGES the calendar re-pulls
   // this, so the glass can never contradict the vault.
+  // BRING BACK WHAT I SHOWED YOU (lib/wallRecall.js, 8 Nov 2026): the cards
+  // of a past lookup, by his words for it and the day he names
+  router.get('/glass/recall', async (req, res) => {
+    try {
+      const { recallWanted, recall, readHistory, recallLine, nothingLine } = await import('../lib/wallRecall.js');
+      const q = String(req.query?.q || '').slice(0, 300);
+      const want = recallWanted(q) || { what: q, when: null };
+      const entry = recall(readHistory(), want);
+      res.json(entry ? { entry, line: recallLine(entry) } : { entry: null, line: nothingLine(want.what) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.get('/glass/today', async (req, res) => {
     try {
       const { fetchEventsForDay } = await import('../lib/calendar.js');
