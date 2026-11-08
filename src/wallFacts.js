@@ -110,6 +110,8 @@ export function wallOpenRect(width, height) {
 // source it stands on (a host, a channel, "Nova's own", or the finder).
 const KIND_WORDS = { map: 'Map', page: 'Page', video: 'Video', figure: 'Figure', quote: 'Quote', entity: 'Who', note: 'Note', key: 'Key', steps: 'Steps', list: 'List', metric: 'Figure', bars: 'Chart', image: 'Image', media: 'Listen', body: 'Body', program: 'Program', session: 'Session', sources: 'Sources', shot: 'Browser', instrument: 'Instrument' };
 export function eyebrowOf(card) {
+  // a Researcher brief brought back by name (lib/wallRecall.js) says so
+  if (card?.brief) return { kind: 'Brief', source: 'Researcher' };
   const kind = KIND_WORDS[card?.kind] || 'Panel';
   const src = card?.host || card?.channel || (card?.lookup ? 'looked up' : card?.finder || 'Nova’s own');
   return { kind, source: String(src).replace(/^www\./, '') };

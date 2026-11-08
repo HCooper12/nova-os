@@ -427,7 +427,8 @@ export function StageCard({ card, size = 'full', face }) {
 
       {card.kind === 'note' && (
         <div style={css(`margin-top:${mini ? 5 : 11}px;display:flex;flex-direction:column;gap:${mini ? 3 : 7}px`)}>
-          {(mini ? (card.lines || []).slice(0, 1) : (card.lines || [])).map((l, i) => (
+          {/* a brief, mini, is named by its title, never its first sentence (lib/wallRecall.js) */}
+          {(mini ? (card.brief && card.title ? [card.title] : (card.lines || []).slice(0, 1)) : (card.lines || [])).map((l, i) => (
             <div key={i} style={{ font: `${i === 0 ? 500 : 400} ${fz(mini ? 11 : i === 0 ? 15 : 13)}px/1.4 var(--nv-font-ui)`, color: `color-mix(in srgb, var(--nv-ink) ${i === 0 ? 94 : 70}%, transparent)`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{l}</div>
           ))}
         </div>

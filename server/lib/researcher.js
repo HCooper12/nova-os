@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
+import { recordBrief } from './wallRecall.js';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
@@ -416,6 +417,9 @@ async function runResearchJob(vaultPath, recordId, q, model, context = '', consu
         payload: { title, body },
       },
     });
+    // the brief joins the recall record, so "bring up that report from
+    // Tuesday" puts it back on his screen by name (lib/wallRecall.js)
+    try { recordBrief({ recordId, title, body, question: q }); } catch (e) { console.log(`research: the brief could not be recorded for recall: ${e.message}`); }
     await notifyParentPlan(vaultPath, recordId);
   } catch (e) {
     await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});

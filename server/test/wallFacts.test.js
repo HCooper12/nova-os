@@ -140,3 +140,9 @@ test('a past lookup by name is a recall; a card that is up is still the wall\'s 
   assert.deepEqual(glassCommand('bring up the busy bar focus timer page', { panels: PANELS }).cmd, 'bring');
   assert.equal(glassReceipt({ cmd: 'recall' }), '');
 });
+
+test('a recalled brief wears its own eyebrow, never "looked up"', async () => {
+  const { eyebrowOf } = await import('../../src/wallFacts.js');
+  assert.deepEqual(eyebrowOf({ kind: 'note', lookup: true, brief: true }), { kind: 'Brief', source: 'Researcher' });
+  assert.deepEqual(eyebrowOf({ kind: 'note', lookup: true }), { kind: 'Note', source: 'looked up' });
+});

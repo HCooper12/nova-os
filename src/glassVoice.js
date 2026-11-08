@@ -52,7 +52,7 @@ const firstGroup = (m) => m.slice(1).find((g) => g != null);
 // (lib/wallRecall.js); the wall's own "bring up the chart" is not this.
 const RECALL_VERB = /^(?:bring (?:up|back)|pull (?:up|back)|put (?:back )?up|show (?:me )?again|get (?:me )?back|recall|reopen|open (?:up|back)|show me)\s+(.+)$/;
 const RECALL_TIME = /\b(?:from |on |of )?(?:yesterday|earlier(?: today)?|before|this morning|this afternoon|last night|last week|the other day|a few days ago|(?:on )?(?:mon|tues|wednes|thurs|fri|satur|sun)day)$/;
-const RECALL_NOUN = /\b(?:lookup|search|report|references?|pages|cards|results|wall|stuff)\b/;
+const RECALL_NOUN = /\b(?:lookup|search|report|brief(?:ing)?|research|document|doc|references?|pages|cards|results|wall|stuff)\b/;
 export function recallCommand(words) {
   const q = norm(words);
   const m = q.match(RECALL_VERB);

@@ -79,3 +79,55 @@ test('the line names the thing, the day and the count; days are his, in Melbourn
   assert.equal(localDay(Date.parse('2026-11-07T14:30:00Z'), TZ), '2026-11-08', '01:30 Melbourne on the 8th');
   assert.equal(nothingLine('the Busy Bar'), 'I have nothing on the Busy Bar from before, sir.');
 });
+
+// THE RESEARCHER'S BRIEFS (8 Nov 2026, his yes): "bring up that report from
+// Tuesday" brings a brief's card back the same way a lookup comes back.
+test('a finished brief is an entry with one note card and code\'s counts; it comes back by its title', async () => {
+  const { entryForBrief, recordBrief } = await import('../lib/wallRecall.js');
+  const BODY = '# VR headsets\n\n## Market\nHeadset shipments fell in 2025 [1].\n\n## Sources\n- [1] https://www.idc.com/vr\n- [2] https://www.counterpointresearch.com/vr\n';
+  const e = entryForBrief({ recordId: 'r1', title: 'VR headset market', body: BODY, question: 'how is the VR headset market doing' }, { now: YESTERDAY });
+  assert.equal(e.kind, 'brief');
+  assert.deepEqual(e.counts, { sections: 3, sources: 2 });
+  assert.equal(e.cards['lk:b1'].kind, 'note');
+  assert.equal(e.cards['lk:b1'].title, 'VR headset market');
+  assert.deepEqual(e.cards['lk:b1'].lines, ['Headset shipments fell in 2025.']);
+  assert.equal(e.cards['lk:b1'].foot, '3 sections · 2 sources');
+  assert.equal(e.cards['lk:b1'].caption, 'VR headset market');
+  assert.equal(recallLine(e, { now: NOW, tz: TZ }), 'Back up, sir: the VR headset market brief from yesterday, 3 sections, 2 sources.');
+  assert.equal(entryForBrief({ title: 'Empty', body: '# Only a heading' }), null);
+  // his words for it, and the match against a lookup of the same day
+  assert.deepEqual(recallWanted('Nova, bring up that VR report you gave me earlier'), { what: 'VR', when: 'earlier' });
+  assert.deepEqual(recallWanted('pull up the headset research from yesterday'), { what: 'headset', when: 'yesterday' });
+  const lk = entryFor(lookup('the Busy Bar', { pages: 3 }), { now: YESTERDAY });
+  assert.equal(recall([lk, e], { what: 'VR', when: 'yesterday', now: NOW, tz: TZ }).kind, 'brief');
+  // the same Inbox record twice is one entry
+  const file = join(mkdtempSync(join(tmpdir(), 'wall-recall-brief-')), 'wall-history.json');
+  recordBrief({ recordId: 'r1', title: 'VR headset market', body: BODY }, { now: NOW - 1000, file });
+  recordBrief({ recordId: 'r1', title: 'VR headset market', body: BODY }, { now: NOW, file });
+  assert.equal(readHistory(file).length, 1);
+});
+
+test('briefs already in the Inbox come back too, read-only; a discarded or unfinished one never does', async () => {
+  const { briefEntriesFrom } = await import('../lib/wallRecall.js');
+  const BODY = '# Creatine\n\nCreatine raises strength gains in trained men [1].\n\n- [1] https://pubmed.ncbi.nlm.nih.gov/1\n';
+  const recs = [
+    { id: 'a', kind: 'research', status: 'pending', text: 'Research: does creatine work', createdAt: '2026-11-03T01:00:00Z', decision: { payload: { title: 'Creatine evidence', body: BODY } } },
+    { id: 'b', kind: 'research', status: 'discarded', createdAt: '2026-11-03T01:00:00Z', decision: { payload: { title: 'Old', body: BODY } } },
+    { id: 'c', kind: 'research', status: 'classifying', createdAt: '2026-11-03T01:00:00Z' },
+    { id: 'd', kind: 'note', status: 'pending', decision: { payload: { title: 'x', body: BODY } } },
+  ];
+  const got = briefEntriesFrom(recs);
+  assert.deepEqual(got.map((e) => e.recordId), ['a']);
+  assert.equal(got[0].at, '2026-11-03T01:00:00.000Z');
+  assert.equal(recall(got, { what: 'creatine', when: null, now: NOW, tz: TZ }).name, 'Creatine evidence');
+});
+
+test('a title that already ends in "Brief" is not said twice', async () => {
+  const { entryForBrief } = await import('../lib/wallRecall.js');
+  const e = entryForBrief({ recordId: 'x', title: 'Best Exercises for Side Delt Growth Evidence Brief', body: '# T\n\nLateral raises grow the side delts.\n' }, { now: YESTERDAY });
+  assert.equal(recallLine(e, { now: NOW, tz: TZ }), 'Back up, sir: the Best Exercises for Side Delt Growth evidence brief from yesterday, 1 section.');
+});
+
+test('an old entry is "from 18 October", never "from on 18 October"', () => {
+  assert.equal(agoLine('2026-10-18T02:00:00Z', { now: NOW, tz: TZ }), '18 October');
+});

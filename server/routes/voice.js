@@ -615,7 +615,16 @@ export function voiceRouter(vaultPath) {
       const { recallWanted, recall, readHistory, recallLine, nothingLine } = await import('../lib/wallRecall.js');
       const q = String(req.query?.q || '').slice(0, 300);
       const want = recallWanted(q) || { what: q, when: null };
-      const entry = recall(readHistory(), want);
+      const history = readHistory();
+      let entry = recall(history, want);
+      // a brief from before the record began lives only in the Inbox: looked
+      // up there, read-only, when the record has nothing for his words
+      if (!entry) {
+        const { listRecords } = await import('../lib/inboxStore.js');
+        const { briefEntriesFrom } = await import('../lib/wallRecall.js');
+        const known = new Set(history.map((e) => e.recordId).filter(Boolean));
+        entry = recall(briefEntriesFrom(await listRecords()).filter((e) => !known.has(e.recordId)), want);
+      }
       res.json(entry ? { entry, line: recallLine(entry) } : { entry: null, line: nothingLine(want.what) });
     } catch (e) {
       res.status(500).json({ error: e.message });

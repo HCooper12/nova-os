@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lookupPanels } from './visualStream.js';
+import { briefCounts, briefCard } from '../../src/briefCounts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -20,7 +21,7 @@ export const KEEP = 200;
 const SAME_WITHIN_MS = 15 * 60_000;
 const TZ = process.env.NOVA_TZ || 'Australia/Melbourne';
 
-const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'to', 'in', 'on', 'is', 'are', 'was', 'what', 'who', 'how', 'why', 'this', 'that', 'it', 'its', 'with', 'about', 'thing', 'one', 'me', 'you', 'we', 'they', 'from', 'by', 'up', 'back', 'lookup', 'search', 'report', 'references', 'pages', 'cards', 'results', 'stuff', 'yesterday', 'earlier', 'today', 'before']);
+const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'to', 'in', 'on', 'is', 'are', 'was', 'what', 'who', 'how', 'why', 'this', 'that', 'it', 'its', 'with', 'about', 'thing', 'one', 'me', 'you', 'we', 'they', 'from', 'by', 'up', 'back', 'lookup', 'search', 'report', 'references', 'pages', 'cards', 'results', 'stuff', 'brief', 'briefing', 'research', 'document', 'doc', 'yesterday', 'earlier', 'today', 'before']);
 const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9' -]/g, ' ').split(/\s+/).filter((w) => w.length >= 2 && !STOP.has(w));
 
 /** The local calendar day (YYYY-MM-DD) of a moment, in his time zone. */
@@ -60,6 +61,37 @@ export function entryFor(lookup, { now = Date.now() } = {}) {
   };
 }
 
+/** The entry a finished Researcher brief becomes (8 Nov 2026, his yes:
+ *  "bring up that report from Tuesday"): one note card with the brief's
+ *  title and first prose lines, code's counts, the Inbox record it lives in.
+ *  Null when the brief has nothing to show. Pure. */
+export function entryForBrief({ recordId = null, title = '', body = '', question = '' } = {}, { now = Date.now() } = {}) {
+  const card = briefCard(title, body);
+  if (!card) return null;
+  const counts = briefCounts(body);
+  return {
+    id: `${new Date(now).toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${Math.random().toString(36).slice(2, 6)}`,
+    at: new Date(now).toISOString(),
+    kind: 'brief',
+    query: String(question || title || '').trim(),
+    name: String(title || '').trim() || null,
+    recordId,
+    counts,
+    // the caption is the brief's title: the phone's mini card shows the caption,
+    // and a brief is named by its title, never by its first sentence
+    cards: { 'lk:b1': { ...card, kind: 'note', lookup: true, brief: true, recordId, caption: card.title, foot: [counts.sections ? `${counts.sections} section${counts.sections === 1 ? '' : 's'}` : null, counts.sources ? `${counts.sources} source${counts.sources === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') || null } },
+  };
+}
+
+/** Write a finished brief into the record; the same Inbox record replaces its earlier self. */
+export function recordBrief(brief, { now = Date.now(), file = historyFile() } = {}) {
+  const entry = entryForBrief(brief, { now });
+  if (!entry) return null;
+  const kept = readHistory(file).filter((e) => !(entry.recordId && e.recordId === entry.recordId));
+  writeHistory([...kept, entry].slice(-KEEP), file);
+  return entry;
+}
+
 /** Write a finished lookup into the record; the same query inside fifteen
  *  minutes replaces its earlier self; the record keeps the last KEEP. */
 export function recordLookup(lookup, { now = Date.now(), file = historyFile() } = {}) {
@@ -79,7 +111,7 @@ const LEAD = /^(?:(?:hey|hi|ok|okay)\s+)?nova[, ]*/i;
 const POLITE = /^(?:(?:can|could|would|will) you\s+|please\s+|just\s+)+/i;
 const VERB = /^(?:bring (?:me )?(?:up|back)|pull (?:up|back)|put (?:back )?up|show (?:me )?again|get (?:me )?back|recall|reopen|open (?:up|back)|show me|show)\s+/i;
 const TIME = /\b(?:from |on |of )?(yesterday|earlier(?: today)?|before|this morning|this afternoon|last night|last week|the other day|today|a few days ago|(?:on )?(?:mon|tues|wednes|thurs|fri|satur|sun)day)\b\s*[.?!]*$/i;
-const NOUN = /\b(?:lookup|search|report|references?|pages|cards|results|wall|stuff)\b/i;
+const NOUN = /\b(?:lookup|search|report|brief(?:ing)?|research|document|doc|references?|pages|cards|results|wall|stuff)\b/i;
 const YOU = /\s*(?:that |which )?(?:you|we) (?:did|found|looked up|gave me|showed me|pulled up|had|put up|did for me)(?: for me)?\s*/i;
 export function recallWanted(raw) {
   let q = String(raw || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim().replace(LEAD, '').replace(POLITE, '').trim();
@@ -132,16 +164,37 @@ export function agoLine(at, { now = Date.now(), tz = TZ } = {}) {
   if (d === 1) return 'yesterday';
   if (d < 7) return `${d} days ago`;
   if (d < 14) return 'last week';
-  return `on ${new Intl.DateTimeFormat('en-AU', { timeZone: tz, day: 'numeric', month: 'long' }).format(new Date(at))}`;
+  return `${new Intl.DateTimeFormat('en-AU', { timeZone: tz, day: 'numeric', month: 'long' }).format(new Date(at))}`;
 }
 
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 /** What code says as the cards go back up. Pure. */
 export function recallLine(entry, { now = Date.now(), tz = TZ } = {}) {
+  if (entry.kind === 'brief') {
+    const c = entry.counts || {};
+    const bits = [c.sections ? plural(c.sections, 'section') : null, c.sources ? plural(c.sources, 'source') : null].filter(Boolean);
+    const name = String(entry.name || 'research').replace(/^(?:the|a|an)\s+/i, '').replace(/\s+(?:evidence\s+)?(?:brief|briefing|report)$/i, (m) => (/evidence/i.test(m) ? ' evidence' : ''));
+    return `Back up, sir: the ${name} brief from ${agoLine(entry.at, { now, tz })}${bits.length ? `, ${bits.join(', ')}` : ''}.`;
+  }
   const n = Object.keys(entry.cards || {}).length;
   const what = (entry.name || entry.query || 'that').replace(/"/g, '').replace(/^(?:the|a|an)\s+/i, '');
   return `Back up, sir: the ${what} lookup from ${agoLine(entry.at, { now, tz })}, ${plural(n, 'reference')}.`;
 }
 export function nothingLine(what) {
   return what ? `I have nothing on ${what} from before, sir.` : 'I have nothing from before to bring back, sir.';
+}
+
+/** The briefs already in the Inbox as recall entries (read-only; nothing is
+ *  written). A brief filed before the record existed, or one whose entry
+ *  rolled off, still comes back by its title. Pure over the Inbox's records. */
+export function briefEntriesFrom(records) {
+  const out = [];
+  for (const r of records || []) {
+    if (r?.kind !== 'research' || !['pending', 'approved', 'filed', 'done'].includes(r.status)) continue;
+    const p = r.decision?.payload;
+    if (!p?.body) continue;
+    const e = entryForBrief({ recordId: r.id, title: p.title || r.decision?.title || '', body: p.body, question: String(r.text || '').replace(/^Research:\s*/, '') }, { now: Date.parse(r.updatedAt || r.createdAt) || Date.now() });
+    if (e) out.push(e);
+  }
+  return out;
 }
