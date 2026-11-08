@@ -834,7 +834,8 @@ export function readAll() {
 async function runReadAll() {
   const cur = await readItems();
   try {
-    const st = await discover();
+    // sizes and categories are his too and change by hand: read them every time
+    const st = await discover({ force: true });
     const catNames = Object.fromEntries(st.categories.map((c) => [c.id.replace(/-/g, ''), c.name]).concat(st.categories.map((c) => [c.id, c.name])));
     const c = await api();
     const pages = [];
