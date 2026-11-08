@@ -304,7 +304,7 @@ function startLookupAsk(cwd, opts, want) {
   const publish = (lk) => {
     if (carrier.inner) { carrier.inner.lookup = lk; carrier.inner.visuals = { ...(carrier.inner.visuals || {}), ...lookupPanels(lk) }; } else publishLookup(carrier, lk);
   };
-  runLookupSprint(want.query, { name: want.name, pages: want.pages, clips: want.clips, budgetMs: want.budgetMs, depth: want.depth, onSearched: publish, onPage: publish, onClips: publish })
+  runLookupSprint(want.query, { name: want.name, pages: want.pages, clips: want.clips, budgetMs: want.budgetMs, enough: want.enough, depth: want.depth, onSearched: publish, onPage: publish, onClips: publish })
     .then((lookup) => {
       clearTimeout(slow);
       console.log(`ask: lookup "${lookup.query}": ${readSources(lookup).length}/${lookup.sources.length} page(s) read, ${lookup.clips.length} clip(s), ${lookup.timings.total}ms, hosts ${lookup.hostsRead.join(', ') || 'none'}${lookup.searchError ? `, search failed: ${lookup.searchError}` : ''}`);

@@ -41,7 +41,8 @@ import { toolFor } from './browserResearch.js';
 export const PAGES = 6;
 export const CLIPS = 3;
 export const BUDGET_MS = 6000;
-export const DEEP = { pages: 10, clips: 4, budgetMs: 12000 };
+export const DEEP = { pages: 10, clips: 4, budgetMs: 12000, enough: 8 };
+export const ENOUGH = 4;   // a quick lookup answers once four pages are read
 export const PAGE_CHARS = 2400;
 export const READ_MS = 3500;
 export const PICTURE_MS = 1200;
@@ -54,7 +55,7 @@ const DEEP_RE = /\b(?:properly|thoroughly|in depth|in detail|deep dive|dig (?:in
 /** How wide a lookup his words ask for: the quick kind, or DEEP. Pure. */
 export function lookupScale(raw) {
   const q = String(raw || '').replace(/\[[^\]]*\]/g, ' ');
-  return DEEP_RE.test(q) ? { depth: 'deep', ...DEEP } : { depth: 'quick', pages: PAGES, clips: CLIPS, budgetMs: BUDGET_MS };
+  return DEEP_RE.test(q) ? { depth: 'deep', ...DEEP } : { depth: 'quick', pages: PAGES, clips: CLIPS, budgetMs: BUDGET_MS, enough: ENOUGH };
 }
 
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'source'; } };
@@ -218,7 +219,7 @@ async function cachedPicture(url) {
  *   onClips(lookup)     the clips are in (poster later via onClips again)
  * Resolves with the lookup as it stands at the deadline. Never throws.
  */
-export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS, pages = PAGES, clips: clipCount = CLIPS, depth = 'quick', onSearched = null, onPage = null, onClips = null, deps = {}, now = Date.now } = {}) {
+export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS, pages = PAGES, clips: clipCount = CLIPS, enough = null, depth = 'quick', onSearched = null, onPage = null, onClips = null, deps = {}, now = Date.now } = {}) {
   const started = now();
   const lookup = { query: String(query || '').trim(), name: name || null, depth, sources: [], clips: [], misses: [], hostsRead: [], timings: {}, searchError: null, done: false, startedAt: started };
   const safe = (fn, ...a) => { try { fn?.(...a); } catch { /* a listener never costs the sprint */ } };
@@ -270,7 +271,16 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
     lookup.sources = picks.map((r, i) => ({ n: i + 1, title: clean(r.title, 120) || hostOf(r.url), url: r.url, host: hostOf(r.url), snippet: clean(r.snippet, 200) || null, text: '', lines: [], image: null, read: false }));
     safe(onSearched, lookup);
     const t1 = now();
-    await Promise.all(lookup.sources.map(async (s) => {
+    // ENOUGH IS ENOUGH (8 Nov 2026, measured): five of six pages read in 2 s
+    // and the sprint still sat its whole six seconds on the sixth. The turn
+    // goes to the model once `enough` pages are read (or every read has
+    // settled); a straggler still lands on its card when it comes, through
+    // the same publish, only not in the prompt.
+    let readNow = 0;
+    let enoughDone;
+    const enoughP = new Promise((r) => { enoughDone = r; });
+    const need = Math.min(enough ?? lookup.sources.length, lookup.sources.length);
+    const reads = Promise.all(lookup.sources.map(async (s) => {
       // a read gets the budget left, never more than READ_MS: a login wall
       // held a deep sprint 6.4 s past its last useful page (8 Nov); a slow
       // page still lands on the wall when it comes, only not in the prompt
@@ -284,12 +294,14 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
         s.lines = firstLines(p.text);
         s.read = true;
         safe(onPage, lookup, s.n);
+        if (++readNow >= need) enoughDone();
         if (p.image) await soon(picture(p.image), (pic) => { if (pic) { s.image = pic; safe(onPage, lookup, s.n); } });
       } else {
         lookup.misses.push({ url: s.url, reason: p?.reason || 'nothing readable' });
         safe(onPage, lookup, s.n);
       }
     }));
+    await Promise.race([reads, enoughP]);
     lookup.timings.reads = now() - t1;
   })();
 

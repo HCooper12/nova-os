@@ -267,7 +267,7 @@ test('a plain lookup is six pages and three clips; his words for depth widen it'
   const { lookupScale, PAGES, CLIPS, DEEP, BUDGET_MS } = await import('../lib/lookupSprint.js');
   assert.equal(PAGES, 6);
   assert.equal(CLIPS, 3);
-  assert.deepEqual(lookupScale('look up the Busy Bar'), { depth: 'quick', pages: PAGES, clips: CLIPS, budgetMs: BUDGET_MS });
+  assert.deepEqual(lookupScale('look up the Busy Bar'), { depth: 'quick', pages: PAGES, clips: CLIPS, budgetMs: BUDGET_MS, enough: 4 });
   for (const q of ['look it up properly', 'find everything you can find on the Busy Bar', 'dig into the Flipper Zero for me', 'look up the Meta Quest 3S in depth']) {
     assert.equal(lookupScale(q).depth, 'deep', q);
   }
@@ -343,4 +343,23 @@ test('a question clause after the thing is for the model, not the search', () =>
   assert.equal(lookupQuery('Look up the Flipper Zero for me, what is it exactly?'), 'the Flipper Zero');
   assert.equal(lookupQuery('look up the Busy Bar, who makes it'), 'the Busy Bar');
   assert.equal(lookupQuery('What is the price of the Meta Quest 3S right now?'), lookupQuery('What is the price of the Meta Quest 3S right now?'));
+});
+
+
+test('enough pages read and the turn goes on; the straggler still lands on its card', async () => {
+  const many = Array.from({ length: 6 }, (_, i) => ({ url: `https://site${i}.com/a`, title: `Page ${i}`, snippet: '' }));
+  let release;
+  const slow = new Promise((r) => { release = r; });
+  const t0 = Date.now();
+  const lk = await runLookupSprint('x', { pages: 6, enough: 4, budgetMs: 5000, deps: deps({
+    search: async () => ({ results: many, host: 'h' }),
+    read: async (url) => (url.includes('site5') ? slow.then(() => ({ ok: true, host: 'site5.com', title: 'late', text: 'a late page with enough words in it to be read.' })) : { ok: true, host: new URL(url).hostname, title: 'T', text: 'a page with enough words in it to count as read.' }),
+    clips: async () => [],
+  }) });
+  assert.ok(Date.now() - t0 < 1000, `answered without waiting on the straggler (${Date.now() - t0} ms)`);
+  assert.equal(readSources(lk).length, 5);
+  assert.equal(lk.sources[5].read, false);
+  release();
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(lk.sources[5].read, true, 'the straggler still filled its card');
 });
