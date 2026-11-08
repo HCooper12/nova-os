@@ -700,6 +700,8 @@ export const api = {
   // At the 20s default it aborted mid-compose and the morning brief silently
   // never arrived — observed in the harness, ERR_ABORTED on /api/show.
   glassToday: (conn) => call(conn, '/api/glass/today'),
+  // a past lookup's cards by his words for it (lib/wallRecall.js)
+  glassRecall: (conn, q) => call(conn, `/api/glass/recall?q=${encodeURIComponent(q)}`),
   show: (conn, variant) => post(conn, '/api/show', { variant }, { timeoutMs: 60_000 }),
   greet: (conn, gap, since = null) => post(conn, '/api/greet', since ? { gap, since } : { gap }),
   askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),

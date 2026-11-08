@@ -255,6 +255,7 @@ export function valsNovaThread(app, ctx, v) {
       attachSnapshot: (dataUrl) => app.setState((s) => ({ pendingAttach: [...(s.pendingAttach || []), { name: 'camera.jpg', kind: 'image', dataUrl, thumb: dataUrl }].slice(0, 6) })),
       ask: (t) => v.sendOrb(t),
       see: (body) => app.seeFrame(body),
+      recallGlass: (cmd) => app.recallGlass(cmd),
       // his phone as the camera (lib/cameraRelay.js)
       cameraState: () => app.cameraState(),
       cameraFrame: () => app.cameraFrameBlob(),

@@ -620,6 +620,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         case 'nowords': setWordsOpen(false); return true;
         case 'camera-beam': case 'camera-on': setBeam(true); return true;
         case 'camera-off': setBeam(false); return true;
+        case 'recall': return T.recallGlass ? T.recallGlass(cmd) : false;
         default: return false;
       }
     },

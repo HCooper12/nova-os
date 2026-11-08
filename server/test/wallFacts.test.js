@@ -125,3 +125,18 @@ test('the scatter (8 Nov, his call): sizes by kind, no two cards touching, the c
   assert.equal(f.cy, 900 - CORNER.coreCyFromBottom);
   assert.ok(f.barX > f.cx);
 });
+
+// BRING BACK WHAT I SHOWED YOU (8 Nov 2026): a past lookup by name goes to
+// the server's record; the wall's own bring, for a card that is up or in this
+// session's history, is untouched.
+test('a past lookup by name is a recall; a card that is up is still the wall\'s own bring', async () => {
+  const { recallCommand } = await import('../../src/glassVoice.js');
+  assert.deepEqual(recallCommand('bring back the Busy Bar lookup from yesterday'), { cmd: 'recall', raw: 'bring back the Busy Bar lookup from yesterday' });
+  assert.deepEqual(recallCommand('Nova, pull up the Flipper Zero references'), { cmd: 'recall', raw: 'Nova, pull up the Flipper Zero references' });
+  assert.equal(recallCommand('bring up the chart'), null);
+  assert.equal(recallCommand('what is the Busy Bar'), null);
+  assert.deepEqual(glassCommand('bring back the pumpkin lookup from yesterday', { panels: PANELS }), { cmd: 'recall', raw: 'bring back the pumpkin lookup from yesterday' });
+  // the Busy Bar page IS up: the wall's bring, not the record
+  assert.deepEqual(glassCommand('bring up the busy bar focus timer page', { panels: PANELS }).cmd, 'bring');
+  assert.equal(glassReceipt({ cmd: 'recall' }), '');
+});

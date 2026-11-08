@@ -46,6 +46,22 @@ const OBJECT_VERBS = [
 
 const firstGroup = (m) => m.slice(1).find((g) => g != null);
 
+// BRING BACK WHAT I SHOWED YOU (8 Nov 2026): a past lookup by name, with a
+// time ("from yesterday", "earlier") or the noun for what was shown ("that
+// Busy Bar lookup", "the Flipper references"). The server's record answers
+// (lib/wallRecall.js); the wall's own "bring up the chart" is not this.
+const RECALL_VERB = /^(?:bring (?:up|back)|pull (?:up|back)|put (?:back )?up|show (?:me )?again|get (?:me )?back|recall|reopen|open (?:up|back)|show me)\s+(.+)$/;
+const RECALL_TIME = /\b(?:from |on |of )?(?:yesterday|earlier(?: today)?|before|this morning|this afternoon|last night|last week|the other day|a few days ago|(?:on )?(?:mon|tues|wednes|thurs|fri|satur|sun)day)$/;
+const RECALL_NOUN = /\b(?:lookup|search|report|references?|pages|cards|results|wall|stuff)\b/;
+export function recallCommand(words) {
+  const q = norm(words);
+  const m = q.match(RECALL_VERB);
+  if (!m) return null;
+  const rest = m[1].trim();
+  if (!RECALL_TIME.test(rest) && !RECALL_NOUN.test(rest)) return null;
+  return { cmd: 'recall', raw: String(words || '').trim() };
+}
+
 /** The panel whose name his words name, by the most of his words in its
  *  title or label; null when nothing fits two words in three. Pure. */
 export function matchPanel(words, panels) {
@@ -87,6 +103,10 @@ export function glassCommand(words, { panels = [], hero = null, history = [] } =
   const q = norm(words);
   if (!q || q.length > 80) return null;
   for (const v of VERBS) if (v.re.test(q)) return { cmd: v.cmd };
+  // a past lookup by name comes before the wall's own bring: "bring back the
+  // Busy Bar lookup from yesterday" names nothing that is up
+  const past = recallCommand(words);
+  if (past && !matchPanel(past.raw.replace(/\b(?:from|on|of)\s+\S+$/, ''), [...panels, ...history])) return past;
   for (const v of OBJECT_VERBS) {
     const m = q.match(v.re);
     if (!m) continue;
@@ -132,6 +152,7 @@ export function glassReceipt(cmd) {
     case 'away': return `${cmd.title || 'That'} is away.`;
     case 'bring': return `${cmd.title || 'That'} is back.`;
     case 'clear-except': return `Just ${cmd.title || 'that'} now.`;
+    case 'recall': return '';   // the server's line, once it has looked (lib/wallRecall.js)
     default: return '';
   }
 }

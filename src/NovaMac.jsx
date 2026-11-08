@@ -721,6 +721,8 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
           return true;
         }
         case 'clear-except': { const keys = up.filter((d) => d.key !== cmd.key && !d.pinned).map((d) => d.key); if (keys.length) putAway(keys); return true; }
+        // a past lookup's cards, from the server's record; the line is its own
+        case 'recall': return T.recallGlass ? T.recallGlass(cmd) : false;
         default: return false;
       }
     },

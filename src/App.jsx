@@ -10790,6 +10790,26 @@ export default class App extends Component {
       return { glassBeats: beats };
     });
   }
+  // BRING BACK WHAT I SHOWED YOU (8 Nov 2026): the server's record of a past
+  // lookup (lib/wallRecall.js) puts its cards back on the wall or the rail
+  // under their own lk: keys, as a new lookup would; the line is code's.
+  async recallGlass(cmd) {
+    const q = String(cmd?.raw || '').trim();
+    if (!q) return '';
+    try {
+      const conn = getConnection();
+      if (!conn) return 'The Mac is not connected, sir.';
+      const r = await api.glassRecall(conn, q);
+      if (r?.entry?.cards && Object.keys(r.entry.cards).length) {
+        const entry = r.entry;
+        this.setState((s) => ({ askLookup: { query: entry.query, name: entry.name, recalled: entry.id, done: true }, glassVisuals: { ...dropLookupVisuals(s.glassVisuals), ...entry.cards } }));
+      }
+      return r?.line || '';
+    } catch (e) {
+      return `I couldn't reach the record, sir: ${e.message}.`;
+    }
+  }
+
   absorbVisuals(v) {
     const keys = Object.keys(v || {});
     if (!keys.length) return;
