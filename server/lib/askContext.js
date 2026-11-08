@@ -315,7 +315,10 @@ async function buildBaseAskContext(vaultPath, { fast = false } = {}) {
   // next session to guess which of nineteen to blame.
   const slowest = [...timings].sort((a, b) => b.ms - a.ms).slice(0, 6)
     .map((t) => `${t.label} ${t.ms}ms${t.ok ? '' : ' FAILED'}`).join(', ');
-  console.log(`ask context: ${Date.now() - startedAt}ms for ${timings.length} sections — slowest: ${slowest}`);
+  // and the largest: what a first turn costs the model to read, by section
+  const largest = [...timings].sort((a, b) => b.chars - a.chars).slice(0, 6)
+    .map((t) => `${t.label} ${Math.round(t.chars / 100) / 10}k`).join(', ');
+  console.log(`ask context: ${Date.now() - startedAt}ms for ${timings.length} sections — slowest: ${slowest}; ${Math.round(text.length / 1000)}k chars, largest: ${largest}`);
   // never cache a failed assembly — an empty block would be served as though
   // it were his context for the next 90 seconds, and a transient timeout
   // would stay named for that long instead of being retried

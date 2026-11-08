@@ -63,7 +63,7 @@ export async function gatherContext(sections, { parallel = false, ms = null, not
   const failed = [];
   const timings = [];
   results.forEach((r, i) => {
-    timings.push({ label: sections[i].label, ms: r.ms, ok: r.ok });
+    timings.push({ label: sections[i].label, ms: r.ms, ok: r.ok, chars: r.ok && typeof r.value === 'string' ? r.value.length : 0 });
     if (r.ok) {
       if (typeof r.value === 'string' && r.value.trim()) parts.push(r.value);
     } else {
