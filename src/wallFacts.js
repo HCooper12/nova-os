@@ -122,3 +122,72 @@ export function railCardWidth(viewport, { side = 28, peek = RAIL_PEEK } = {}) {
   // one card and a third of the next fit in the viewport less the gutters
   return Math.round((viewport - side * 2 - 12) / (1 + peek));
 }
+
+// ------------------------------------------------------------ the scatter
+// ROSE'S WALL, NOT A GRID (8 Nov 2026, his call after the first frames: "it
+// looks like everything is organised in 3 columns rather than being
+// unrestricted and dynamic like Rose"). Cards take sizes by what they are
+// (a video wide, a figure small, a page in between) and land on the stage
+// one by one at the first free spot of a seeded walk, each with its own
+// tilt and drift. The core keeps the bottom-left corner with the bar beside
+// it (CORNER), and nothing else sits on the stage. T squares the same cards
+// into the masonry (wallLayout) for reading; Esc clears. Pure, tested.
+
+// card widths by kind, at 1440; scaled with the stage width
+export const SCATTER_W = { video: 520, image: 440, map: 440, bars: 420, page: 400, entity: 380, quote: 380, note: 380, list: 380, steps: 380, key: 340, figure: 260, metric: 260, body: 300, program: 420, session: 460, sources: 460, shot: 480, instrument: 420 };
+export const SCATTER = { top: 72, right: 36, left: 36, gap: 16, tilt: 2.4, drift: 8 };
+// the core's corner: bottom left, the bar to its right, kept clear of cards
+export const CORNER = { w: 560, h: 170, coreCx: 36 + 70, coreCyFromBottom: 96, s: 0.4, barX: 36 + 150, barW: 380 };
+
+export function scatterWidth(kind, width = 1440) {
+  const base = SCATTER_W[kind] || 380;
+  return Math.round(base * Math.max(0.72, Math.min(1.15, width / 1440)));
+}
+
+// a 2D low-discrepancy walk (Halton 2,3), the same every time
+function halton(i, b) { let f = 1; let r = 0; let n = i; while (n > 0) { f /= b; r += f * (n % b); n = Math.floor(n / b); } return r; }
+
+const hits = (a, b, gap) => !(a.x + a.w + gap <= b.x || b.x + b.w + gap <= a.x || a.y + a.h + gap <= b.y || b.y + b.h + gap <= a.y);
+
+/**
+ * Where each card lands on the open stage. `cards` are [{ key, kind }];
+ * `heights` are measured heights (px), unknown ones `assume`. Each card
+ * tries the seeded walk from its own offset for a spot that touches no
+ * placed card and stays off the corner; failing that, the spot with the
+ * least overlap. Pure.
+ */
+export function scatterLayout(cards, { width = 1440, height = 900, heights = {}, assume = 190, tidy = false } = {}) {
+  if (tidy) return wallLayout(cards.map((c) => c.key), { width, heights, assume, tidy: true });
+  const placed = [];
+  const out = [];
+  const corner = { x: 0, y: height - CORNER.h, w: CORNER.w, h: CORNER.h };
+  const minX = SCATTER.left; const maxX = width - SCATTER.right; const minY = SCATTER.top; const maxY = height - 24;
+  cards.slice(0, WALL_MAX).forEach((c, i) => {
+    const w = scatterWidth(c.kind, width);
+    const h = heights[c.key] || assume;
+    let best = null;
+    for (let k = 0; k < 64; k++) {
+      const u = halton(i * 7 + k + 1, 2); const v = halton(i * 7 + k + 1, 3);
+      // the walk favours the right and the top, where Rose's cards gather first
+      const x = Math.round(minX + u * Math.max(0, maxX - minX - w));
+      const y = Math.round(minY + v * Math.max(0, maxY - minY - h));
+      const r = { x, y, w, h };
+      if (hits(r, corner, SCATTER.gap)) continue;
+      let overlap = 0;
+      // inside another card's gap counts as a collision even with no shared area
+      for (const p of placed) if (hits(r, p, SCATTER.gap)) overlap += Math.max(1, Math.max(0, Math.min(r.x + r.w, p.x + p.w) - Math.max(r.x, p.x)) * Math.max(0, Math.min(r.y + r.h, p.y + p.h) - Math.max(r.y, p.y)));
+      if (!best || overlap < best.overlap) best = { ...r, overlap };
+      if (overlap === 0) break;
+    }
+    if (!best) best = { x: minX, y: minY, w, h, overlap: 0 };
+    placed.push(best);
+    const t = seeded(i); const d = seeded(i + 53);
+    out.push({ key: c.key, x: best.x, y: best.y, w, tilt: Number((t * SCATTER.tilt).toFixed(2)), dx: Math.round(d * SCATTER.drift), dy: Math.round(t * SCATTER.drift * 0.6), overlap: best.overlap });
+  });
+  return out;
+}
+
+/** The core and the bar in the corner, for this stage. Pure. */
+export function cornerFrame(width, height) {
+  return { cx: CORNER.coreCx, cy: height - CORNER.coreCyFromBottom, s: CORNER.s, barX: CORNER.barX, barW: CORNER.barW };
+}

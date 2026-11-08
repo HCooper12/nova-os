@@ -258,6 +258,8 @@ export function valsNovaThread(app, ctx, v) {
       cameraState: () => app.cameraState(),
       cameraFrame: () => app.cameraFrameBlob(),
       beamFrame: (image) => app.beamFrame(image),
+      signal: (body) => app.cameraSignal(body),
+      signalRead: (role, since) => app.cameraSignalRead(role, since),
       consultLane: 'ask',
       // what the Mac's code-built panels read (src/novaMacFacts.js codePanels):
       // his week, the Inbox records, his calendar; and the proposal's Undo

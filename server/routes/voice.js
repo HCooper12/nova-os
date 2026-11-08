@@ -202,6 +202,19 @@ export function voiceRouter(vaultPath) {
     res.set({ 'Content-Type': f.type, 'Cache-Control': 'no-store', 'X-Frame-Seq': String(f.seq), 'X-Frame-At': new Date(f.at).toISOString() });
     res.end(f.buf);
   });
+  // the post box the phone and the Mac find each other through (WebRTC)
+  router.post('/camera/signal', async (req, res) => {
+    const { leave } = await import('../lib/cameraSignal.js');
+    const r = leave({ role: req.body?.role, type: req.body?.type, sdp: req.body?.sdp || null, candidate: req.body?.candidate || null });
+    if (r.error) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+  router.get('/camera/signal', async (req, res) => {
+    const { read } = await import('../lib/cameraSignal.js');
+    const r = read({ role: String(req.query.role || ''), since: Number(req.query.since || 0) });
+    if (r.error) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
   router.get('/camera/state', async (req, res) => {
     const { relayState } = await import('../lib/cameraRelay.js');
     res.json(relayState());

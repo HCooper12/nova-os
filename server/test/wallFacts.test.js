@@ -105,3 +105,23 @@ test('a plain sentence is never a glass command: nothing throws, nothing runs (8
   assert.equal(glassCommand("Why don't you look it up? It's called the Busy Bar, by Flipper Devices.", { panels: PANELS, hero: PANELS[0] }), null);
   assert.equal(glassCommand('what did TechCrunch say about it', { panels: PANELS }), null);
 });
+
+test('the scatter (8 Nov, his call): sizes by kind, no two cards touching, the corner kept clear, seeded', async () => {
+  const { scatterLayout, scatterWidth, CORNER, SCATTER, cornerFrame } = await import('../../src/wallFacts.js');
+  assert.ok(scatterWidth('video') > scatterWidth('page') && scatterWidth('page') > scatterWidth('figure'));
+  const cards = [['lk:p1', 'page'], ['lk:p2', 'page'], ['lk:v1', 'video'], ['v3', 'figure'], ['v4', 'quote'], ['v5', 'entity'], ['lk:p3', 'page'], ['v6', 'note'], ['v7', 'bars'], ['v8', 'figure']].map(([key, kind]) => ({ key, kind }));
+  const lay = scatterLayout(cards, { width: 1440, height: 900 });
+  assert.equal(lay.length, 10);
+  const touch = (a, b) => !(a.x + a.w + SCATTER.gap <= b.x || b.x + b.w + SCATTER.gap <= a.x || a.y + 190 + SCATTER.gap <= b.y || b.y + 190 + SCATTER.gap <= a.y);
+  for (let i = 0; i < lay.length; i++) for (let j = i + 1; j < lay.length; j++) assert.equal(lay[i].overlap === 0 && lay[j].overlap === 0 ? touch(lay[i], lay[j]) : false, false, `${lay[i].key} and ${lay[j].key} touch`);
+  const corner = { x: 0, y: 900 - CORNER.h, w: CORNER.w, h: CORNER.h };
+  for (const l of lay) assert.ok(l.x >= corner.w + SCATTER.gap || l.y + 190 + SCATTER.gap <= corner.y, `${l.key} sits on the core's corner`);
+  assert.ok(lay.every((l) => l.x >= 36 && l.x + l.w <= 1440 - 36 && l.y >= 72));
+  assert.deepEqual(scatterLayout(cards, { width: 1440, height: 900 }), lay, 'seeded: the same every time');
+  assert.ok(lay.some((l) => l.tilt !== 0));
+  const tidy = scatterLayout(cards, { width: 1440, height: 900, tidy: true });
+  assert.ok(tidy.every((l) => l.tilt === 0), 'T squares them');
+  const f = cornerFrame(1440, 900);
+  assert.equal(f.cy, 900 - CORNER.coreCyFromBottom);
+  assert.ok(f.barX > f.cx);
+});

@@ -660,6 +660,8 @@ export const api = {
   // his phone as the camera (lib/cameraRelay.js): frames up, the latest down
   cameraFrame: (conn, image) => post(conn, '/api/camera/frame', { image, from: 'phone' }, { timeoutMs: 4000 }),
   cameraState: (conn) => call(conn, '/api/camera/state'),
+  cameraSignal: (conn, body) => post(conn, '/api/camera/signal', body, { timeoutMs: 6000 }),
+  cameraSignalRead: (conn, role, since) => call(conn, `/api/camera/signal?role=${role}&since=${since || 0}`),
   cameraFrameBlob: async (conn) => {
     const res = await fetch(baseOf(conn) + `/api/camera/frame?t=${Date.now()}`, { headers: { Authorization: `Bearer ${conn.token}` }, cache: 'no-store' });
     if (!res.ok) return null;

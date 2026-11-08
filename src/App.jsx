@@ -4031,6 +4031,8 @@ export default class App extends Component {
   cameraState() { const conn = getConnection(); return conn ? api.cameraState(conn) : Promise.resolve({ live: false }); }
   cameraFrameBlob() { const conn = getConnection(); return conn ? api.cameraFrameBlob(conn) : Promise.resolve(null); }
   beamFrame(image) { const conn = getConnection(); return conn ? api.cameraFrame(conn, image) : Promise.reject(new Error('the Mac is not reachable')); }
+  cameraSignal(body) { const conn = getConnection(); return conn ? api.cameraSignal(conn, body) : Promise.reject(new Error('the Mac is not reachable')); }
+  cameraSignalRead(role, since) { const conn = getConnection(); return conn ? api.cameraSignalRead(conn, role, since) : Promise.resolve({ seq: since, candidates: [] }); }
   async flushAttachments(conn) {
     const pending = this.state.pendingAttach;
     if (!pending.length) return null;

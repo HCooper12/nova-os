@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { WALL_CORE, WALL_MAX, wallCore, wallWanted, wallLayout, wallColWidth, wallOpenRect, eyebrowOf } from './wallFacts.js';
+import { WALL_MAX, wallWanted, scatterLayout, cornerFrame, CORNER, wallOpenRect, eyebrowOf } from './wallFacts.js';
+import { createPeer } from './cameraPeer.js';
 import { CoreFace } from './NovaThreadParts.jsx';
 import { StageCard } from './StageCard.jsx';
 import { SafeVisual } from './SafeVisual.jsx';
@@ -281,8 +282,6 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   // THE WORDS ARE FOLDED BY DEFAULT on the wall (his call, 8 Nov 2026: the
   // content is the point, as on Rose's HUD); an arrow, W, or "show the
   // transcript" opens them, and the choice is remembered on this Mac
-  const [words, setWords] = useState(() => { try { return localStorage.getItem('novaos.wallWords') === '1'; } catch { return false; } });
-  const setWordsKept = (on) => { setWords(on); try { localStorage.setItem('novaos.wallWords', on ? '1' : '0'); } catch { /* this visit only */ } };
   const asleep = !!T.standby;
   // NOVA'S EYES (8 Nov 2026, Rose's pumpkin reel): the Mac's camera as the
   // wall's ground, labelled boxes the model on this Mac drew over it
@@ -293,6 +292,18 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const [camSource, setCamSource] = useState('mac');
   const [phoneFrame, setPhoneFrame] = useState(null);
   const [phoneLive, setPhoneLive] = useState(false);
+  // the phone's live track over WebRTC (src/cameraPeer.js); until it
+  // arrives the relayed frames show
+  const [peerStream, setPeerStream] = useState(null);
+  const peerRef = useRef(null);
+  const peerVideo = useRef(null);
+  useEffect(() => {
+    if (!camera || camSource !== 'phone') { peerRef.current?.stop(); peerRef.current = null; setPeerStream(null); return undefined; }
+    peerRef.current?.stop();
+    peerRef.current = createPeer({ role: 'mac', signal: (b) => T.signal?.(b), read: (r, s) => T.signalRead?.(r, s), onTrack: (ms) => setPeerStream(ms), onState: (st) => { if (st === 'failed' || st === 'disconnected' || st === 'hungup' || st === 'closed') setPeerStream(null); } });
+    return () => { peerRef.current?.stop(); peerRef.current = null; };
+  }, [camera, camSource]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const v = peerVideo.current; if (v && peerStream) { v.srcObject = peerStream; v.play().catch(() => {}); } }, [peerStream]);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   // is a phone beaming? asked every 3 s while this page is open; a phone that
@@ -332,6 +343,15 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   }, [camera, camSource]);
   // one frame, 448 px wide (the model's measured sweet spot); waits up to
   // 1.5 s for the first frame if the camera has only just opened
+  const snapshotOf = async (v) => {
+    if (!v) return null;
+    for (let i = 0; i < 15 && !v.videoWidth; i++) await new Promise((r) => setTimeout(r, 100));
+    if (!v.videoWidth) return null;
+    const w = 448; const h = Math.round((v.videoHeight / v.videoWidth) * w);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(v, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.82);
+  };
   const snapshot = async () => {
     const v = videoRef.current;
     if (!v) return null;
@@ -413,9 +433,10 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const wallOn = !hist && wallWanted({ panels: wallAll.filter((w) => !w.card.lookup).length, lookup: lookupCards.length });
   const heroCard = replay ? replay.panels[replay.idx]?.card : T.stage?.hero;
   const litShown = wallOn ? (speaking && !cut && lightOf(heroCard)) || litKey : litKey;
-  const colW = wallColWidth(view.w);
-  const wallKeys = wallAll.map((w) => w.key).join('|');
-  const lay = useMemo(() => wallLayout(wallAll.map((w) => w.key), { width: view.w, heights, tidy }), [wallKeys, view.w, heights, tidy]); // eslint-disable-line react-hooks/exhaustive-deps
+  const wallKeys = wallAll.map((w) => `${w.key}:${w.card.kind}`).join('|');
+  // ROSE'S SCATTER (8 Nov, his call): sizes by kind, a seeded free layout;
+  // T squares them into the masonry for reading
+  const lay = useMemo(() => scatterLayout(wallAll.map((w) => ({ key: w.key, kind: w.card.kind })), { width: view.w, height: view.h, heights, tidy }), [wallKeys, view.w, view.h, heights, tidy]); // eslint-disable-line react-hooks/exhaustive-deps
   const layAt = new Map(lay.map((l) => [l.key, l]));
   useEffect(() => {
     if (!wallOn || typeof ResizeObserver === 'undefined') return undefined;
@@ -456,7 +477,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
 
   // ---- the state, in the mockup's words
   const mstate = macState(S.key);
-  const plateOn = speaking || answerHeld;
+  const plateOn = (speaking || answerHeld) && !wallOn;
   const dataState = speaking ? 'speak' : answerHeld ? 'panels' : mstate;
   const hueRef = useRef(EMBER_HUE.idle);
   hueRef.current = EMBER_HUE[speaking ? 'speak' : mstate] ?? EMBER_HUE.idle;
@@ -487,9 +508,14 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const frame0 = frameFor({ state: dataState === 'panels' ? 'idle' : mstate, docked: hasDock, hist, focus, width: view.w });
   // the wall: the core at the presenter spot (the phone's rule), its words
   // the width of one column under it
-  const frame = wallOn ? { ...wallCore(view.w), uw: colW, mx: view.w / 2, off: 150 } : frame0;
+  // the wall: the core small in the bottom-left corner, the bar beside it,
+  // its state word under it; the stage is the cards' (CORNER)
+  const corner = cornerFrame(view.w, view.h);
+  const frame = wallOn ? { cx: corner.cx, cy: corner.cy, s: corner.s, uw: 220, mx: corner.barX + corner.barW / 2, off: 130 } : frame0;
   const coreK = macCoreScale(S.key === 'listening' ? 'listening' : S.key === 'thinking' ? 'thinking' : speaking ? 'speaking' : 'rest', frame.s);
   const cur = useRef(null);
+  const wallOnRef = useRef(wallOn);
+  wallOnRef.current = wallOn;
   const anim = useRef({ id: 0, raf: 0 });
   const apply = () => {
     const c = cur.current;
@@ -512,7 +538,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   useLayoutEffect(() => {
     const to = { ...target };
     if (underRef.current) underRef.current.style.width = `${to.uw}px`;
-    if (composerRef.current) composerRef.current.style.transform = `translate3d(${(frame.mx - COMPOSER.w / 2).toFixed(1)}px, 0, 0)`;
+    if (composerRef.current) composerRef.current.style.transform = `translate3d(${(frame.mx - (wallOnRef.current ? CORNER.barW : COMPOSER.w) / 2).toFixed(1)}px, 0, 0)`;
     if (!cur.current || reducedMotion()) {
       if (cur.current && reducedMotion() && coreRef.current?.animate) coreRef.current.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
       cur.current = to; applyRef.current(); return undefined;
@@ -543,6 +569,13 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   useEffect(() => {
     document.documentElement.style.setProperty('--mac-island-dx', `${Math.round(frame.cx - view.w / 2)}px`);
   }, [frame.cx, view.w]);
+  // NOTHING ON THE WALL BUT THE CARDS (8 Nov, his call): the island's notices
+  // stay off this page while a wall is up; what matters is spoken
+  useEffect(() => {
+    const r = document.documentElement;
+    if (wallOn) r.setAttribute('data-nova-wall', '1'); else r.removeAttribute('data-nova-wall');
+    return () => r.removeAttribute('data-nova-wall');
+  }, [wallOn]);
 
   // ---- THE THREADS: core to each satellite and each docked panel ---------
   const threadState = useRef({});
@@ -643,7 +676,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
         case 'clear': { const keys = up.filter((d) => !d.pinned).map((d) => d.key); if (keys.length) putAway(keys); setOpenKey(null); return true; }
         case 'restore': setOpenKey(null); return true;
         case 'history': setHist(true); return true;
-        case 'words': setWordsKept(true); return true;
+        case 'words': setHist(true); return true;
         case 'camera-on': setCamera(true); T.see?.({ warm: true }).catch(() => {}); return true;
         case 'camera-off': setCamera(false); return true;
         case 'unbox': setBoxes([]); return true;
@@ -652,14 +685,17 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
         case 'highlight': {
           if (!camera) return false;   // nothing to look through: the words go to Nova
           const look = (body) => T.see?.(body).then((r) => { if (r?.boxes) setBoxes(r.boxes.map((b) => ({ ...b, at: Date.now() }))); return r?.said || ''; });
-          if (camSource === 'phone') return look({ source: 'phone', want: cmd.what }).catch((e) => `I couldn't look: ${e.message}.`);
+          if (camSource === 'phone') {
+            if (peerStream && peerVideo.current?.videoWidth) return snapshotOf(peerVideo.current).then((img) => (img ? look({ image: img, want: cmd.what }) : look({ source: 'phone', want: cmd.what }))).catch((e) => `I couldn't look: ${e.message}.`);
+            return look({ source: 'phone', want: cmd.what }).catch((e) => `I couldn't look: ${e.message}.`);
+          }
           return snapshot().then((img) => (img ? look({ image: img, want: cmd.what }) : 'The camera has no picture yet.')).catch((e) => `I couldn't look: ${e.message}.`);
         }
         case 'see-held': {
           if (!camera) return false;
           // the frame rides the question to Nova itself (lib/attachments.js),
           // so the answer is Nova's, with its vault: "That's the Busy Bar, is it?"
-          const frame = camSource === 'phone' ? Promise.resolve(phoneFrame ? phoneFrameDataUrl(phoneFrame) : null) : snapshot();
+          const frame = camSource === 'phone' ? (peerStream && peerVideo.current?.videoWidth ? snapshotOf(peerVideo.current) : Promise.resolve(phoneFrame ? phoneFrameDataUrl(phoneFrame) : null)) : snapshot();
           return frame.then((img) => {
             if (!img) return 'The camera has no picture yet.';
             T.attachSnapshot?.(img);
@@ -667,7 +703,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
             return '';
           });
         }
-        case 'nowords': setWordsKept(false); return true;
+        case 'nowords': setHist(false); return true;
         case 'maximise': setOpenKey(cmd.key); return true;
         case 'away': putAway([cmd.key]); return true;
         case 'bring': {
@@ -713,7 +749,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
       }
       if ((e.key === 'w' || e.key === 'W') && !e.metaKey && !e.ctrlKey && !e.altKey && keys.current.wallOn && !/^(?:INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) {
         e.preventDefault();
-        setWords((w) => { try { localStorage.setItem('novaos.wallWords', w ? '0' : '1'); } catch { /* this visit only */ } return !w; });
+        setHist((h) => !h);
         return;
       }
       if (e.key === 'Escape') {
@@ -779,13 +815,15 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const edgeOn = focus;
   return (
     <div ref={rootRef} className="nv-mac" data-fixed="" data-state={dataState} data-focus={focus ? '1' : undefined} data-peek={peek ? '1' : undefined}
-      data-hist={hist ? '1' : undefined} data-open={openKey ? '1' : undefined} data-wall={wallOn ? '1' : undefined} data-words={wallOn && !words ? 'folded' : undefined} data-sleep={asleep ? '1' : undefined} data-camera={camera ? '1' : undefined} onWheel={onWheel}
+      data-hist={hist ? '1' : undefined} data-open={openKey ? '1' : undefined} data-wall={wallOn ? '1' : undefined} data-sleep={asleep ? '1' : undefined} data-camera={camera ? '1' : undefined} onWheel={onWheel}
       style={{ '--fx-hue': sayHue }}>
       <canvas ref={emberRef} className="nv-mac-embers" aria-hidden="true" />
       {/* THE CAMERA as the wall's ground (Rose), with the boxes code drew */}
       {camera && (
         <div className="nv-mac-cam" data-source={camSource} aria-label={camSource === 'phone' ? 'Your phone\'s camera' : 'Camera'}>
-          {camSource === 'mac' ? <video ref={videoRef} muted playsInline autoPlay /> : (phoneFrame ? <img className="feed" src={phoneFrame} alt="" /> : <div className="waiting">{phoneLive ? 'Picture coming from your phone' : 'Waiting for your phone. On it, say “be my camera”.'}</div>)}
+          {camSource === 'mac' ? <video ref={videoRef} muted playsInline autoPlay />
+            : peerStream ? <video ref={peerVideo} className="feed" muted playsInline autoPlay />
+              : (phoneFrame ? <img className="feed" src={phoneFrame} alt="" /> : <div className="waiting">{phoneLive ? 'Picture coming from your phone' : 'Waiting for your phone. On it, say “be my camera”.'}</div>)}
           <div className="grid" aria-hidden="true" />
           {boxes.map((b, i) => (
             <div key={`${b.label}-${i}`} className="box" style={{ left: `${b.box[0] * 100}%`, top: `${b.box[1] * 100}%`, width: `${(b.box[2] - b.box[0]) * 100}%`, height: `${(b.box[3] - b.box[1]) * 100}%` }}>
@@ -811,6 +849,11 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
       <button type="button" className="nv-mac-histbtn" onClick={() => setHist(true)} aria-label="History" tabIndex={hist || focus ? -1 : 0}>
         <Gl n="clock" />History <Kbd>⌘</Kbd><Kbd>\</Kbd>
       </button>
+      {/* THE WORDS, OUT OF THE WAY (8 Nov, his call): one small arrow opens the
+          transcript (the history drawer, live); W or "show the transcript" too */}
+      {wallOn && !hist && (
+        <button type="button" className="nv-mac-wordsbtn" onClick={() => setHist(true)} aria-label="Show the words (W)" title="Show the words (W)">‹</button>
+      )}
 
       <svg ref={tetherRef} className="nv-mac-tethers" aria-hidden="true" />
 
@@ -838,9 +881,6 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
           <b key={word}>{word}</b>
           {line ? <span className="line">· {line}</span> : null}
         </p>
-        {wallOn && T.lookup?.query && (
-          <span className={`nv-mac-lkline${T.lookup.done ? ' done' : ''}`}><i />{T.lookup.done ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read on ${T.lookup.query}` : `Reading on ${T.lookup.query}`}</span>
-        )}
         <div className="nv-mac-layer nv-mac-exch" aria-hidden={dataState !== 'idle'}>
           {ex.you && <button type="button" className="q" onClick={() => goLine(ex.you.i)} tabIndex={dataState === 'idle' ? 0 : -1}><span>You</span><span className="t">{ex.you.text}</span></button>}
           {ex.nova && <button type="button" className="a" onClick={() => goLine(ex.nova.i)} tabIndex={dataState === 'idle' ? 0 : -1}><span>{ex.nova.who}</span><span className="t">{ex.nova.text}</span></button>}
@@ -849,16 +889,9 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
           <small>{S.key === 'thinking' ? 'You asked' : 'Hearing you'}</small>
           <span>{String(heard || '').replace(/[?]\s*$/, '')}</span>
         </div>
-        <section className={`nv-mac-layer nv-mac-plate${hasDock ? ' docked' : ''}${wallOn && !words ? ' folded' : ''}`} aria-hidden={!plateOn} aria-label={`${speaker.name}, speaking`}
+        <section className={`nv-mac-layer nv-mac-plate${hasDock ? ' docked' : ''}`} aria-hidden={!plateOn} aria-label={`${speaker.name}, speaking`}
           style={{ '--mac-pmax': `${Math.max(120, view.h - COMPOSER.foot - COMPOSER.h - 24 - (frame.cy + frame.off * frame.s + 46) - 80)}px` }}>
-          {plateOn && wallOn && (
-            <button type="button" className="nv-mac-pwords" aria-expanded={words} onClick={() => setWordsKept(!words)} title={words ? 'Fold the words (W)' : 'Show the words (W)'}>
-              {!words && <span className="who"><i style={{ background: sayHue }} />{speaker.name}</span>}
-              {!words && ex.you?.text && <span className="q">{ex.you.text}</span>}
-              <span className="arrow" aria-hidden="true">{words ? '▾' : '▸'}</span><span className="lbl">{words ? 'hide the words' : 'words'}</span>
-            </button>
-          )}
-          {plateOn && (!wallOn || words) && (
+          {plateOn && (
             <>
               <span className="esc" style={{ opacity: speaking ? 1 : 0 }}><Kbd>Esc</Kbd> to stop</span>
               <Captions said={said} on={captions} speaker={plateSpeaker} look={WORD_LOOK.stage}
@@ -917,12 +950,12 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
       )}
       {wallOn && (
         <div className="nv-mac-wallkeys" aria-hidden="true">
-          <span><Kbd>T</Kbd> <b>{tidy ? 'scatter' : 'tidy'}</b></span><span><Kbd>W</Kbd> <b>{words ? 'fold words' : 'words'}</b></span><span><Kbd>C</Kbd> <b>{camera ? 'camera off' : 'camera'}</b></span><span><Kbd>Esc</Kbd> <b>clear</b></span><span><Kbd>↵</Kbd> <b>open</b></span>
+          <span><Kbd>T</Kbd> <b>{tidy ? 'scatter' : 'tidy'}</b></span><span><Kbd>W</Kbd> <b>words</b></span><span><Kbd>C</Kbd> <b>{camera ? 'camera off' : 'camera'}</b></span><span><Kbd>Esc</Kbd> <b>clear</b></span>
         </div>
       )}
 
       {/* THE COMPOSER */}
-      <MacComposer refEl={composerRef} T={T} dict={dict} fieldRef={fieldRef} onSend={onSend} onTalk={onTalk} />
+      <MacComposer refEl={composerRef} T={T} dict={dict} fieldRef={fieldRef} onSend={onSend} onTalk={onTalk} width={wallOn ? corner.barW : COMPOSER.w} />
 
       {/* THE HISTORY DRAWER: the stage stays live beside it */}
       <aside className="nv-mac-drawer" aria-label="History" aria-hidden={!hist} data-edge-page={hist ? '' : undefined}>
@@ -1043,7 +1076,8 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
         </div>
       )}
       {wall && lit && <span className="pscan" aria-hidden="true" key={`scan-${d.key}`} />}
-      {wall && !open && <span className="pfoot">{d.card.kind === 'video' ? [d.card.channel, d.card.durationS ? `${Math.round(d.card.durationS / 60)} min` : null].filter(Boolean).join(' · ') || 'video' : d.card.lookup ? (d.card.read === false ? 'not read' : 'read') : d.card.host || d.card.channel || 'nova'}</span>}
+      {/* a video card already prints its channel and length in its own foot; a second copy read as a glitch (the 8 Nov recording) */}
+      {wall && !open && d.card.kind !== 'video' && <span className="pfoot">{d.card.lookup ? (d.card.read === false ? 'not read' : 'read') : d.card.host || d.card.channel || 'nova'}</span>}
       {open && <button type="button" className="pclose" onClick={onClose}><Kbd>Esc</Kbd> Close</button>}
     </section>
   );
@@ -1143,10 +1177,10 @@ function CodeBody({ c, open, proposal, onRecord, onUndo }) {
 // THE COMPOSER (mockup 108 .composer): "Type to Nova", "or hold ⌥ Space" and
 // the round mic; while he talks, "× Esc", his voice as 34 violet bars, and
 // "Send · release ⌥Space". Enter sends what he typed.
-function MacComposer({ refEl, T, dict, fieldRef, onSend, onTalk }) {
+function MacComposer({ refEl, T, dict, fieldRef, onSend, onTalk, width = COMPOSER.w }) {
   const C = T.composer;
   return (
-    <div ref={refEl} className={`nv-mac-composer${dict.on ? ' listening' : ''}`} style={{ width: COMPOSER.w, height: COMPOSER.h, bottom: COMPOSER.foot }}>
+    <div ref={refEl} className={`nv-mac-composer${dict.on ? ' listening' : ''}`} style={{ width, height: COMPOSER.h, bottom: COMPOSER.foot }}>
       {dict.on ? (
         <div className="cl listen">
           <button type="button" className="xtype" aria-label="Stop listening" onClick={() => dict.abandon()}><Gl n="x" />Esc</button>

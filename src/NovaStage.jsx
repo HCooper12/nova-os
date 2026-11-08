@@ -9,6 +9,7 @@ import { Captions } from './NovaFocus.jsx';
 import { speakerOf, focusAsks, focusPours, lastYours, WORD_LOOK } from './novaFocusFacts.js';
 import { lastExchange, canvasProgress, stageState, stageScale, panelFit, cleanCuts, TRAVEL_PX, STAGE, PRESENTER, PRESENTER_RATIO, ONE_NOVA_CHROME, STAGE_SPEAK, STAGE_SPEAK_VAR } from './novaStageFacts.js';
 import { eyebrowOf, railCardWidth } from './wallFacts.js';
+import { createPeer } from './cameraPeer.js';
 
 // ONE NOVA, ONE CANVAS (29 Oct 2026) — design/mockups/106-one-nova.html,
 // option A, his approval: "Option A looks excellent. Just make sure that nova
@@ -557,6 +558,8 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
   const beamVideo = useRef(null);
   const beamStream = useRef(null);
   const [beamSent, setBeamSent] = useState(0);
+  const [peerState, setPeerState] = useState('');
+  const peerRef = useRef(null);
   useEffect(() => {
     if (!beam) { beamStream.current?.getTracks().forEach((t) => t.stop()); beamStream.current = null; return undefined; }
     let live = true;
@@ -567,6 +570,10 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         beamStream.current = stream;
         const v = beamVideo.current;
         if (v) { v.srcObject = stream; v.play().catch(() => {}); }
+        // the live picture, peer to peer (src/cameraPeer.js); the relay below
+        // keeps a slower copy for the model and for a Mac that cannot connect
+        peerRef.current?.stop();
+        peerRef.current = createPeer({ role: 'phone', stream, signal: (b) => T.signal?.(b), read: (r, s) => T.signalRead?.(r, s), onState: (st) => { if (live) setPeerState(st); } });
         const c = document.createElement('canvas');
         let busy = false;
         timer = setInterval(async () => {
@@ -580,10 +587,10 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
             if (live) setBeamSent((n) => n + 1);
           } catch { /* the next frame */ }
           busy = false;
-        }, 250);
+        }, peerState === 'connected' ? 1000 : 250);
       })
       .catch(() => { if (live) setBeam(false); });
-    return () => { live = false; clearInterval(timer); beamStream.current?.getTracks().forEach((t) => t.stop()); beamStream.current = null; };
+    return () => { live = false; clearInterval(timer); peerRef.current?.bye(); peerRef.current?.stop(); peerRef.current = null; beamStream.current?.getTracks().forEach((t) => t.stop()); beamStream.current = null; };
   }, [beam]); // eslint-disable-line react-hooks/exhaustive-deps
   const glassApi = useRef(null);
   glassApi.current = {
@@ -694,7 +701,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         {beam && (
           <div className="nv-nt-beam" role="status">
             <video ref={beamVideo} muted playsInline autoPlay />
-            <span><i />Camera to the Mac{beamSent ? ` · ${beamSent} frames` : ''}</span>
+            <span><i />Camera to the Mac{peerState === 'connected' ? ' · live' : beamSent ? ` · ${beamSent} frames` : ''}</span>
             <button type="button" onClick={() => setBeam(false)}>Stop</button>
           </div>
         )}
