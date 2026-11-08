@@ -289,3 +289,37 @@ test('the mic opening prewarms the Coach when it spoke last and its window is op
   cc._dropAllWarm();
   assert.equal(cc.prewarmAsk(stubDir, null, { now: Date.now() + 5 * 60_000 }), false, 'outside the two-minute window: not the sticky lane any more');
 });
+
+// A NEW CONVERSATION'S FIRST TURN, WARM (8 Nov 2026, measured: 3.4 s to the
+// first word on a conversation's first turn, 1.6 s on a later one). The
+// prewarm with no live conversation starts a fresh session's process; the
+// next new-conversation turn claims it; a stale stored id counts as none.
+test('the prewarm starts a fresh session for a new conversation, and its first turn takes it', async () => {
+  cc._setEffortSupportedForTest(true);
+  cc._dropAllWarm();
+  assert.equal(cc.prewarmAsk(stubDir, null, { fresh: true }), true, 'a fresh session started');
+  const f = cc.freshSessionState();
+  assert.ok(f && f.id);
+  assert.ok(cc._warmStats().some((w) => w.key === `voice:${f.id}`), 'its process is up');
+  assert.equal(cc.prewarmAsk(stubDir, null, { fresh: true }), false, 'already one: nothing new');
+  const j = await ready(cc.startAskNova(stubDir, { question: 'What is the Busy Bar?', context: 'ctx' }));
+  assert.equal(j.result.sessionId, f.id, 'the first turn took the warm session');
+  assert.equal(cc.freshSessionState(), null, 'claimed once');
+  // a second new conversation finds none to claim and starts its own
+  const j2 = await ready(cc.startAskNova(stubDir, { question: 'And the Flipper Zero?', context: 'ctx' }));
+  assert.notEqual(j2.result.sessionId, f.id);
+  // an unclaimed one goes stale
+  cc.prewarmAsk(stubDir, null, { fresh: true });
+  assert.equal(cc.claimFreshSession(Date.now() + cc.FRESH_MS + 1000), null);
+  cc._dropAllWarm();
+});
+
+test('a stored session the ask would refuse is no conversation to the prewarm', async () => {
+  const { peekAskSession } = await import('../lib/askSession.js');
+  const now = Date.parse('2026-11-08T03:00:00Z');
+  guardAskSession('sess-peek-1', now);
+  assert.equal(peekAskSession('sess-peek-1', now + 60_000), null, 'same day: live');
+  assert.equal(peekAskSession('sess-peek-1', now + 26 * 3_600_000) !== null, true, 'next day: refused');
+  assert.equal(peekAskSession(null), 'no session');
+  assert.equal(guardAskSession('sess-peek-1', now + 60_000).sessionId, 'sess-peek-1', 'peeking never consumed a turn');
+});

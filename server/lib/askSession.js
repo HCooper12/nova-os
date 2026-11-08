@@ -35,6 +35,20 @@ const dayOf = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.get
 
 // Returns { sessionId, reason }: the id to resume, or null (with the reason)
 // to start fresh. Pure over its own map; `now` is injectable for the test.
+/** Would guardAskSession refuse this id right now? The reason, or null.
+ *  Never changes anything (the prewarm asks before the turn exists). */
+export function peekAskSession(sessionId, now = Date.now(), { owner } = {}) {
+  if (!sessionId) return 'no session';
+  const lane = sessionOwnerGuard(sessionId, 'voice', owner ? { owner } : {});
+  if (lane.reason) return lane.reason;
+  const s = sessions.get(sessionId);
+  if (!s) return null;
+  if (s.day !== dayOf(now)) return 'new day';
+  if (now - s.startedAt > MAX_AGE_MS) return 'older than a day';
+  if (s.turns >= ASK_MAX_TURNS) return `${ASK_MAX_TURNS} turns deep`;
+  return null;
+}
+
 export function guardAskSession(sessionId, now = Date.now(), { owner } = {}) {
   if (!sessionId) return { sessionId: null, reason: null };
   // another lane's conversation is never Nova's to resume

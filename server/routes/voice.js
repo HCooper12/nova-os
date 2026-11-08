@@ -571,7 +571,7 @@ export function voiceRouter(vaultPath) {
   // Boots the conversation's process (and, on a cold session, warms the
   // context cache) so the answer starts the moment he stops talking.
   // Deliberately cheap and fire-and-forget: it never blocks the ask.
-  router.post('/ask/prewarm', (req, res) => {
+  router.post('/ask/prewarm', async (req, res) => {
     const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
     let warmed = false;
     // the page index, so the search on this turn never pays the cold read
@@ -582,7 +582,11 @@ export function voiceRouter(vaultPath) {
     // Only warm a process for a session that actually exists. Warming a
     // random id would park a useless child in a 4-slot pool and evict the
     // one that matters.
-    if (sessionId) { try { warmed = prewarmAsk(vaultPath, sessionId, { resume: true }); } catch { /* best-effort */ } }
+    // a stored id the ask would refuse (another day, too old, too deep) is no
+    // conversation: the turn will start fresh, so the prewarm does too
+    let live = sessionId;
+    if (live) { try { const { peekAskSession } = await import('../lib/askSession.js'); if (peekAskSession(live)) live = null; } catch { /* keep it */ } }
+    if (live) { try { warmed = prewarmAsk(vaultPath, live, { resume: true }); } catch { /* best-effort */ } }
     // A NEW conversation pays ~2.4s of context assembly before the model
     // sees a word. Build it now, while he is still speaking; the ask picks
     // it up from the cache (see buildAskContext).
@@ -590,7 +594,8 @@ export function voiceRouter(vaultPath) {
       buildAskContext(vaultPath, null).catch(() => {});
       // no Nova session yet, but the Coach or the Leader may be the sticky
       // lane: prewarmAsk boots only that (claudeCode.js prewarmSticky)
-      try { warmed = prewarmAsk(vaultPath, null); } catch { /* best-effort */ }
+      // …and a FRESH session's process starts now, for the first turn to claim
+      try { warmed = prewarmAsk(vaultPath, null, { fresh: true }); } catch { /* best-effort */ }
     }
     // Warm the VOICE too, not just the thinking. A cold Kokoro sidecar spends
     // ~8s loading its model, and that was paid AFTER the answer came back —

@@ -743,8 +743,40 @@ function askArgs(sessionId, isNewSession, { effort } = {}) {
 // word. So when the lane he spoke to last is the Coach or the Leader and its
 // window is still open, its process is booted here as well (same args it
 // last ran with, resumed). Returns true when anything was booted.
-export function prewarmAsk(cwd, sessionId, { resume = false, now = Date.now() } = {}) {
+// A NEW CONVERSATION'S FIRST TURN, WARM (8 Nov 2026, measured: the first
+// turn of a conversation took 3.4 s to its first word, a later one 1.6 s).
+// With no live conversation, the prewarm starts a FRESH session's process
+// while he is still speaking and keeps its id here; the next turn that
+// arrives with no session claims it instead of minting one, so it skips the
+// process start. One at a time; unclaimed after FRESH_MS it is let go.
+export const FRESH_MS = 2 * 60_000;
+let freshSession = null;   // { id, at }
+export function claimFreshSession(now = Date.now()) {
+  const f = freshSession;
+  freshSession = null;
+  if (!f || now - f.at > FRESH_MS) return null;
+  const w = warm.get(`voice:${f.id}`);
+  if (!w || w.child.exitCode !== null || w.currentJob) return null;
+  console.log(`ask: a new conversation takes the session warmed ${Math.round((now - f.at) / 100) / 10}s ago`);
+  return f.id;
+}
+export function freshSessionState() { return freshSession ? { ...freshSession } : null; }
+
+export function prewarmAsk(cwd, sessionId, { resume = false, now = Date.now(), fresh = false } = {}) {
   let booted = false;
+  try {
+    if (fresh && !sessionId && laneEnabled('ask-nova')) {
+      const f = freshSession;
+      const live = f && now - f.at <= FRESH_MS && warm.get(`voice:${f.id}`)?.child.exitCode === null;
+      if (!live) {
+        if (f) dropWarm(`voice:${f.id}`);
+        const id = randomUUID();
+        spawnWarm(`voice:${id}`, { cwd, args: askArgs(id, true) });
+        freshSession = { id, at: now };
+        booted = true;
+      }
+    }
+  } catch { /* best-effort */ }
   try {
     // Booting a process for a lane that will refuse the turn is pure waste.
     if (sessionId && laneEnabled('ask-nova')) {
@@ -1133,7 +1165,9 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   const jobId = randomUUID().slice(0, 8);
   const claim = consulted?.claim || null;
   const isNewSession = consulted ? !claim?.resume : (resume === undefined ? !sessionId : !resume);
-  const effectiveSessionId = (consulted ? claim?.sessionId : sessionId) || randomUUID();
+  // a new conversation takes the session the prewarm already started, when
+  // there is one (claimFreshSession): its process is up before he finishes
+  const effectiveSessionId = (consulted ? claim?.sessionId : sessionId) || (!consulted && !dryRun && isNewSession ? claimFreshSession() : null) || randomUUID();
   const effort = consulted ? CONSULT_EFFORT : effortFor('ask-nova');
   const job = { id: jobId, status: 'running', result: null, error: null, effort };
   jobs.set(jobId, job);
