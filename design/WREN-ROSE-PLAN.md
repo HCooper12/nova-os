@@ -87,3 +87,9 @@ the free tier asks for a card), so headless Bing stays the search. 8 Nov,
 f289bca: Nova parity carried over: a lookup reads six pages and three clips
 (ten and four when he asks for depth), and Wren says references, pages,
 videos, links, never "the wall".
+8 Nov, b97b4fd + 4241b7d: the speed round and the recall carried over: one warm
+search Chrome over Chrome's own protocol (lib/searchBrowser.mjs, seeded from
+Wren's profile, warmed on /api/voice/transcribe, dumpDom cold as the fallback),
+reads capped, login walls skipped; and lib/wallRecall.mjs with GET
+/api/wall/recall ("bring back the VCAA lookup from yesterday"). Both proved on
+scratch profiles and unit tests, not in a live Wren turn.

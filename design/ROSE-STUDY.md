@@ -368,3 +368,30 @@ URL itself, the markup read only once it holds a result); warms on
 `/api/voice/transcribe`; dumpDom answers cold when it cannot start.
 Measured 0.7–1.1 s per search after the first on a scratch profile. Not
 seen in a live Wren turn (never tested against the live service).
+
+### 8 Nov, round eight: a past lookup by name, across days (Nova 96d00f05, ff454ad9; Wren 4241b7d)
+
+His yes to item 2 after speed. Rose: "bring up that VR report you gave me
+earlier." Nova's wall history was this session's forty cards, in memory.
+Now every finished lookup writes its cards, as the wall drew them, to
+`server/data/voice/wall-history.json` (`lib/wallRecall.js`; the same query
+inside fifteen minutes replaces itself, the last 200 kept). His words for
+one ("bring back the Busy Bar lookup from yesterday", "pull up the Flipper
+references you found", "show me the Busy Bar pages again") are a thing
+plus a time or the noun for what was shown; "bring up the chart" stays the
+wall's own bring. The match is content words and the day he names, in
+Melbourne; the newest wins a tie. The cards go back up under their own
+lk: keys on the Mac wall and the phone rail, and code says "Back up, sir:
+the Busy Bar lookup from yesterday, 9 references." or "I have nothing on
+pumpkin from before, sir." Proved on the scratch rig: a real lookup, then a
+fresh page with nothing up, the words through the glass grammar, nine cards
+back on the Mac (recall-mac.png) and on the phone rail with the line in the
+island (recall-phone.png); the record stayed on the scratch copy. Wren has
+the same (`lib/wallRecall.mjs`, `GET /api/wall/recall`, the wall's recall
+action); its live route answers (nothing recorded yet, so "I have nothing
+on VCAA from before").
+
+Not done: the Researcher's finished briefs are not in this record (they
+live in the Inbox as documents; "bring up that VR report" would need their
+titles here too), and the Mac's scattered cards still overlap at 1440×900
+when nine are up (the seeded layout, not this round).
