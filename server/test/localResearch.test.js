@@ -17,8 +17,16 @@ import assert from 'node:assert/strict';
 
 const {
   parseSearchResults, resultTarget, webSearch, readPage, researchLocally, gatherWeb,
-  checkSummary, withSources, searchQuery, summaryPrompt, webCanRun, searchResting,
+  checkSummary, withSources, searchQuery, summaryPrompt, webCanRun, searchResting, searchUrl,
 } = await import('../lib/localResearch.js');
+
+test('the search URL carries form=QBLH and his market: the bare URL got a degraded page (8 Nov 2026)', () => {
+  const u = new URL(searchUrl('  Busy Bar Flipper Devices '));
+  assert.equal(u.host, 'www.bing.com');
+  assert.equal(u.searchParams.get('q'), 'Busy Bar Flipper Devices');
+  assert.equal(u.searchParams.get('form'), 'QBLH');
+  assert.equal(u.searchParams.get('cc'), 'AU');
+});
 
 const b64 = (u) => `a1${Buffer.from(u).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
 const ck = (u) => `https://www.bing.com/ck/a?!&amp;&amp;p=abc&amp;ptn=3&amp;ver=2&amp;u=${b64(u)}&amp;ntb=1`;

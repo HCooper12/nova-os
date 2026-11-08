@@ -13,11 +13,11 @@ import { normaliseSpec, VISUAL_KINDS } from '../../src/visualBeats.js';
 test('his own words for a lookup, including the reel\'s "why don\'t you look it up? It\'s called the Busy Bar"', () => {
   const w = lookupWanted("Well, why don't you look it up? It's called the Busy Bar.");
   assert.ok(w);
-  assert.equal(w.query, 'the Busy Bar');
+  assert.equal(w.query, '"Busy Bar"');
   assert.equal(w.why, 'he asked for a lookup');
   // the qualifier rides along: a name alone found a dictionary (8 Nov)
   const w2 = lookupWanted("Why don't you look it up? It's called the Busy Bar, by Flipper Devices.");
-  assert.equal(w2.query, 'the Busy Bar Flipper Devices');
+  assert.equal(w2.query, '"Busy Bar" Flipper Devices');
   assert.equal(w2.name, 'the Busy Bar', 'the ack says the thing, not the whole search');
 });
 
@@ -26,7 +26,7 @@ test('"look it up" with the thing named the turn before takes that name', () => 
   assert.ok(w);
   assert.match(w.query, /pomodoro|timer|developers/);
   const named = lookupWanted('look it up', { previous: "This is the Busy Bar, it's called the Busy Bar" });
-  assert.equal(named.query, 'the Busy Bar');
+  assert.equal(named.query, '"Busy Bar"');
 });
 
 test('a question about the outside world is a lookup without the words "look up"', () => {
@@ -219,6 +219,7 @@ test('a note is Nova\'s own words, up to three lines, and needs nothing fetched'
 test('a full query that misses is searched again by its first two words, and the miss never rests the engine', async () => {
   const { shorterQuery } = await import('../lib/lookupSprint.js');
   assert.equal(shorterQuery('the Busy Bar Flipper Devices'), 'Busy Bar');
+  assert.equal(shorterQuery('"Busy Bar" Flipper Devices'), '"Busy Bar"');
   assert.equal(shorterQuery('Busy Bar'), null);
   const asked = [];
   const lk = await runLookupSprint('the Busy Bar Flipper Devices', { deps: deps({

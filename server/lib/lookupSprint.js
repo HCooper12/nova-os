@@ -62,14 +62,16 @@ export function lookupQuery(raw, previous = '') {
     // Devices"): a name alone found a dictionary (measured 8 Nov 2026)
     const after = q.slice(called.index + called[0].length).match(/^[,;:]?\s*(?:by|from|made by|built by|of)\s+([^.,;!?]+)/i);
     const qual = after ? clean(after[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 60) : '';
-    if (contentWords(name).length) return qual ? `${name} ${qual}` : name;
+    // the name in quotes: Bing honours them, and "the Busy Bar" unquoted
+    // found a dictionary twice (8 Nov); the article is dropped inside them
+    if (contentWords(name).length) { const bare = name.replace(/^(?:the|a|an)\s+/i, ''); return qual ? `"${bare}" ${qual}` : `"${bare}"`; }
   }
   let s = searchQuery(q).replace(LEAD, '').replace(TAIL, '').replace(/^(?:it'?s |this is |that'?s |they'?re )/i, '').trim();
   s = s.replace(/[.?!]+$/, '').trim();
   if (!s || PRON.test(s) || !contentWords(s).length) {
     const p = String(previous || '').replace(/\[[^\]]*\]/g, ' ').trim();
     const pc = p.match(CALLED);
-    if (pc && contentWords(pc[1]).length) return clean(pc[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 80);
+    if (pc && contentWords(pc[1]).length) return `"${clean(pc[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 80).replace(/^(?:the|a|an)\s+/i, '')}"`;
     const pw = contentWords(p);
     return pw.length ? pw.slice(0, 8).join(' ') : null;
   }
@@ -146,7 +148,11 @@ async function findClips(query, { timeoutMs = BUDGET_MS, ytdlp = process.env.YTD
     let out = '';
     let child;
     try {
-      child = spawn(ytdlp, [`ytsearch4:${q}`, '--skip-download', '--no-warnings', '--print', '%(id)s|%(channel)s|%(duration)s|%(title)s'], { stdio: ['ignore', 'pipe', 'ignore'] });
+      // --flat-playlist: the search page's own rows (id, channel, duration,
+      // title all present), 1.5 s measured 8 Nov 2026; without it yt-dlp
+      // opens every video for its full metadata, 10 s, past the sprint's
+      // whole budget, and the wall had no clip
+      child = spawn(ytdlp, [`ytsearch4:${q}`, '--flat-playlist', '--skip-download', '--no-warnings', '--print', '%(id)s|%(channel)s|%(duration)s|%(title)s'], { stdio: ['ignore', 'pipe', 'ignore'] });
     } catch { return resolve([]); }
     const timer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } resolve(pickClips(parseRows(out), q)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; });
@@ -259,7 +265,11 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
  *  whole phrase found nothing: "the Busy Bar Flipper Devices" → "Busy Bar".
  *  Null when the query is already that short. Pure. */
 export function shorterQuery(query) {
-  const w = String(query || '').replace(/^the\s+/i, '').split(/\s+/).filter(Boolean);
+  const q = String(query || '');
+  // a quoted name with a qualifier after it: the quoted name alone
+  const m = q.match(/^"([^"]+)"\s+\S/);
+  if (m) return `"${m[1]}"`;
+  const w = q.replace(/^the\s+/i, '').split(/\s+/).filter(Boolean);
   if (w.length <= 2) return null;
   return w.slice(0, 2).join(' ');
 }

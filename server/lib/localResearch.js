@@ -86,7 +86,15 @@ const BRAVE_HOST = 'api.search.brave.com';
 const braveKey = () => String(process.env.BRAVE_SEARCH_KEY || '').trim();
 const BRAVE_RATE_REST_MS = 60_000;
 
-export const searchUrl = (query) => `https://www.bing.com/search?q=${encodeURIComponent(String(query || '').trim())}`;
+// THE BARE URL GETS A DEGRADED PAGE (measured 8 Nov 2026, from Nova's
+// headless Chrome): "Busy Bar Flipper Devices" came back as ten dictionary
+// pages for "busy", "Flipper Zero price Australia" as LinkedIn profiles, and
+// Bing redirected each with rdr=1. The same words with form=QBLH (a query
+// from Bing's own search box) and his market (cc=AU) returned the real
+// results every time, 8–10 of 10 about the question. NOVA_SEARCH_CC moves
+// the market.
+const SEARCH_CC = () => String(process.env.NOVA_SEARCH_CC || 'AU').trim().toUpperCase();
+export const searchUrl = (query) => `https://www.bing.com/search?q=${encodeURIComponent(String(query || '').trim())}&form=QBLH&cc=${encodeURIComponent(SEARCH_CC())}`;
 
 const hostOf = (u) => { try { return new URL(u).hostname; } catch { return ''; } };
 const unescapeAttr = (s) => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
