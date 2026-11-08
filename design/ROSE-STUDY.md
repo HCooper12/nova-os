@@ -242,3 +242,41 @@ server.mjs --real-claude --tts), never against 4173:
   media/<key>.jpg` failed the route's KEY_RE, so every running-glass poster
   had been a 404 since September; an `<img src="/api/…">` cannot load from
   the PWA's origin without the token (src/MediaImg.jsx now fetches blobs).
+
+### 8 Nov, rounds three to five (commits 5b7f8ff0 → 3fa554bb on main)
+
+His screenshots said the first wall was "three columns, not unrestricted
+and dynamic like Rose", with the core in the middle, the island's notices
+over it and the words showing. Now: `scatterLayout` (seeded Halton, widths
+by kind, the corner kept clear), the core bottom-left at .4 with the bar
+beside it, the island hidden while a wall is up, one ‹ arrow (or W, or "show
+the transcript") for the words, no plate; the phone folds its words behind
+the same arrow and its rail stays after the turn (his call). The phone's
+camera reaches the Mac over WebRTC (cameraSignal.js is only the post box).
+Two search faults found by the proof: Bing's bare URL hands headless Chrome
+a degraded page (results for the first word; `form=QBLH&cc=AU` fixes it) and
+yt-dlp's full search ran 10 s (`--flat-playlist`, 1.5 s).
+
+**The reel test (§2 run through Nova, one Mac session, real Claude + the
+local model).** Before: "What's on the screen right now?" searched the web
+and described ScreenAwake; "I think we should build something with it" went
+to the Code screen; "clear them, all but the Wired page" cleared nothing and
+left no receipt, so the next turn tried to answer it; the Sources block was
+read aloud and broke Kokoro; "go to sleep" only closed the mic. After (run
+5): the lookup → five cards; "Five cards on the glass, sir, all about the
+Busy Bar. Two are video clips… Three are pages…"; "Just Wired.com now." with
+one card left; "Worth doing, sir, if it can hold something real from your
+day. What do you want it showing: your focus timer, your protein gap, or
+your steps?"; "Going dark, sir. Say my name when you want me." with the wall
+dark; "I'm here, sir." The fixes: lookupSprint GLASS (never a lookup about
+the glass), askDispatch routes thinking-aloud and glass questions to Claude,
+BUILD_ORDER (an order, not a thought), the wall's lk: cards survive a new
+turn and a put-away card stays away, glass receipts are chat lines,
+speakableText drops Sources and [n], standby's sleep/wake lines. §2.5 is
+built too: a finished brief is said with code's counts ("… is done, sir:
+4 sections, 2 sources. Want it on screen?") and a plain yes puts a note
+card up (src/briefCounts.js).
+
+**Not proved:** his own devices; the brief-done line in a live run (unit
+tests only); the phone's idle rail frame; the first lookup answer that run
+came from the local model with [1][2] in the record (speech strips them).

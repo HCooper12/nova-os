@@ -70,3 +70,17 @@ phase ships on its own and is proved before the next.
   of him; Nova's glass is not to be copied, by his own Lab brief.)
 - Search engine for Wren: a Brave key shared with Nova, or the Claude CLI
   as the searcher (slower, costs a turn)?
+
+## Status, 8 Nov 2026 (later)
+Mockup 112 approved by him ("Looking good for wren"). Phases 1, 2, 5, 6, 3
+and 4 built by a delegated session in Wren's repo on branch `wren-wall-rose`
+(9 commits, 9606ba1 → 0806705; 859/861 tests, the one failure pre-existing in
+ideas.test.mjs), fast-forwarded into `main`. Proof on a scratch Wren
+(`tools/wall-scratch.mjs`, port 4197, its own Chrome profile and Kokoro), never
+the live service: frames in the Nova session's scratchpad proof5/. Known:
+headless Bing still degrades many queries even with the Bing parameters (the
+relevance filter says so plainly); the phone proof was Chrome emulating an
+iPhone, not WebKit; phase 7 (camera, map) not started. The search key is
+`BRAVE_SEARCH_KEY` in the environment or `~/.atlas/.env`. The decision on the
+sidebar squares (icons, not the mockup's blanks) stands as built unless he says
+otherwise.
