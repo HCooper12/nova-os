@@ -12385,6 +12385,19 @@ export default class App extends Component {
       const current = ws.exercises.find((e) => !e.skipped && (e.sets || []).some((x) => !x.done));
       bits.push(`A live workout is in progress: ${ws.routineName}, ${done}/${ws.exercises.length} exercises done${current ? `, currently on ${current.name}` : ''}`);
     }
+    // THE WALL, COUNTED (the Rose study §2.7, 8 Nov 2026): Rose knows
+    // "Report's up, 13 blocks on the HUD" and "nothing's in front of you".
+    // The lookup's cards and the panels the glass is holding are named here
+    // so "what's on the screen", "the Wired one", "clear the rest" resolve.
+    const lk = s.askLookup?.cards || [];
+    const vis = Object.values(s.glassVisuals || {}).filter((v) => v && v.kind !== 'page' && v.kind !== 'video');
+    if (lk.length || vis.length) {
+      const name = (c) => `${c.kind === 'video' ? 'a clip' : c.kind === 'page' ? 'a page' : `a ${c.kind}`}${c.host ? ` from ${c.host}` : c.channel ? ` by ${c.channel}` : ''}${c.title ? ` "${String(c.title).slice(0, 60)}"` : ''}`;
+      const all = [...lk.map((l) => l.card || l), ...vis];
+      bits.push(`On the glass now: ${all.length} card${all.length === 1 ? '' : 's'} (${all.slice(0, 8).map(name).join('; ')}${all.length > 8 ? '; …' : ''})`);
+    } else if (s.screen === 'voice' && !card?.label) {
+      bits.push('Nothing is on the glass');
+    }
     if (s.screen && s.screen !== 'voice') bits.push(`He is on the ${s.screen} screen`);
     if (!bits.length) return null;
     return `[On his screen right now — resolve "this/that/it/the first one" against it and answer from it; never read this block back: ${bits.join('. ')}.]`;

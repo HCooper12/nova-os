@@ -73,6 +73,8 @@ const seeded = (seed) => { let x = seed; return () => (x = (x * 16807) % 2147483
 // the embers' hue follows the core's (the mockup: its hue less 0.4 of its
 // depth spread): blue at rest, violet listening, cyan thinking, gold speaking
 const EMBER_HUE = { turn: 209.6, listening: 257.6, thinking: 192, speaking: STAGE_SPEAK === 'gold' ? 398 : 156 };
+// the phone remembers whether he opened the words (a per-device convenience)
+const STAGE_WORDS_KEY = 'novaos.stageWords';
 
 // FINE EMBERS DRIFTING UP THE SKY (mockup 106 makeEmbers, its numbers): 80
 // motes from one seed, rising and drifting, twinkling, quicker with the
@@ -548,6 +550,12 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
   // opens the card; clear and away put the rail's cards out of sight
   const [railGone, setRailGone] = useState(() => new Set());
   const railShown = railCards.filter((c) => !railGone.has(c.key));
+  // THE WORDS ARE FOLDED BY DEFAULT ON THE PHONE TOO (his call, 8 Nov: "the
+  // same ideas go to the phone version, ability to hide the conversation
+  // text"): the stage shows the core and the cards; one small arrow, or
+  // "show the transcript", opens his line and Nova's. Remembered per device.
+  const [wordsOpen, setWordsOpen] = useState(() => { try { return localStorage.getItem(STAGE_WORDS_KEY) === '1'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem(STAGE_WORDS_KEY, wordsOpen ? '1' : '0'); } catch { /* private mode */ } }, [wordsOpen]);
   useEffect(() => { if (S.key === 'listening') setRailGone(new Set()); }, [S.key]);
   // asleep: the rail clears too (his yes, 8 Nov)
   useEffect(() => { if (T.standby) setRailGone(new Set(railCards.map((c) => c.key))); }, [T.standby]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -608,6 +616,8 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
         case 'clear': setRailGone(new Set(up.map((c) => c.key))); return true;
         case 'clear-except': setRailGone(new Set(up.filter((c) => c.key !== cmd.key).map((c) => c.key))); return true;
         case 'tidy': case 'restore': return true;
+        case 'words': case 'history': setWordsOpen(true); return true;
+        case 'nowords': setWordsOpen(false); return true;
         case 'camera-beam': case 'camera-on': setBeam(true); return true;
         case 'camera-off': setBeam(false); return true;
         default: return false;
@@ -680,13 +690,18 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
           <b key={st.word}>{st.word}</b>
           {hint ? <span>· {hint}</span> : null}
         </p>
+        {/* the one small arrow that opens the words (W on the Mac; "show the transcript" by voice) */}
+        <button type="button" className="nv-nt-wordsbtn" data-open={wordsOpen ? '' : undefined} onClick={() => setWordsOpen((v) => !v)}
+          aria-pressed={wordsOpen} aria-label={wordsOpen ? 'Hide the words' : 'Show the words'}>‹</button>
 
-        {/* Ready: the last exchange (or the brief's question waiting on him) */}
+        {/* Ready: the last exchange (or the brief's question waiting on him); the
+            cards STAY after the turn (his call, 8 Nov) until cleared or sleep */}
         <div className="nv-nt-stexch" aria-hidden={!rest}>
           {close || (
             <>
-              {ex.you && <button type="button" className="q" onClick={() => goLine(ex.you.i)} tabIndex={rest ? 0 : -1}><span>You</span><span className="t">{ex.you.text}</span></button>}
-              {ex.nova && <button type="button" className="a" onClick={() => goLine(ex.nova.i)} tabIndex={rest ? 0 : -1}><span>{ex.nova.who}</span><span className="t">{ex.nova.text}</span></button>}
+              {wordsOpen && ex.you && <button type="button" className="q" onClick={() => goLine(ex.you.i)} tabIndex={rest ? 0 : -1}><span>You</span><span className="t">{ex.you.text}</span></button>}
+              {wordsOpen && ex.nova && <button type="button" className="a" onClick={() => goLine(ex.nova.i)} tabIndex={rest ? 0 : -1}><span>{ex.nova.who}</span><span className="t">{ex.nova.text}</span></button>}
+              {rest && railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
               {T.doc && rest && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
             </>
           )}
@@ -719,21 +734,24 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
 
         {/* Speaking: the glass plate and the subtitles */}
         <section className="nv-nt-stplate" data-panel={dock ? "" : undefined} aria-live="polite" aria-hidden={!speaking} aria-label={`${speaker.name}, speaking`}>
-          {plateOn && (
-            <Captions said={said} on={captions} speaker={stageSpeaker} pour={pours ? pour : null} look={WORD_LOOK.stage}
-              markHue={stage?.mark?.hue || null}
-              lead={(
-                <>
-                  {/* mockup 106's order: "You" and his question on one line, then
-                      what is showing, then Nova's words */}
-                  {asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
-                  {dock && !heroLight && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
-                  {dock && railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
-                  {T.doc && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
-                </>
-              )}
-              offNote="Subtitles are off. Turn them on in Nova’s status and settings." />
-          )}
+          {plateOn && (() => {
+            // mockup 106's order: "You" and his question on one line, then
+            // what is showing, then Nova's words; folded, only what is showing
+            const lead = (
+              <>
+                {wordsOpen && asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
+                {dock && !heroLight && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
+                {railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
+                {T.doc && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
+              </>
+            );
+            if (!wordsOpen) return <div className="nv-nt-stfold">{lead}</div>;
+            return (
+              <Captions said={said} on={captions} speaker={stageSpeaker} pour={pours ? pour : null} look={WORD_LOOK.stage}
+                markHue={stage?.mark?.hue || null} lead={lead}
+                offNote="Subtitles are off. Turn them on in Nova’s status and settings." />
+            );
+          })()}
         </section>
 
         {T.lines.length > 0 && <p className="nv-nt-sthint" aria-hidden="true"><Ico name="upc" />Scroll up for history</p>}

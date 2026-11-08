@@ -5100,6 +5100,13 @@ button.nv-ts-cd[disabled] { cursor: default; }
    past the edge (the closure law); the lit one wears the speaking hue */
 .nv-fx-rail { display: block; margin: 10px -20px 0; }
 .nv-nt-stheard .nv-fx-rail { margin: 14px -28px 0; text-align: left; font: 400 13px var(--nv-font-ui); }
+/* THE WORDS FOLDED ON THE PHONE (8 Nov 2026, his call): one small arrow at the
+   stage's edge opens his line and Nova's; folded, the stage is the core and
+   the cards. The arrow turns when open. Mirrors .nv-mac-wordsbtn. */
+.nv-nt-wordsbtn { position: absolute; right: 16px; top: 8px; z-index: 6; width: 34px; height: 34px; border-radius: 17px; font: 500 21px/1 var(--nv-font-ui); color: var(--nv-ink40); background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .12); transition: color var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease), transform var(--nv-dur) var(--nv-spring-snappy); }
+.nv-nt-wordsbtn[data-open] { color: var(--nv-ink); transform: rotate(-90deg); }
+.nv-nt-stexch .nv-fx-rail { margin: 4px -28px 0; justify-self: stretch; text-align: left; font: 400 13px var(--nv-font-ui); }
+.nv-nt-stfold { display: grid; gap: 10px; }
 .nv-fx-raillbl { display: block; margin: 0 28px 6px; font: 600 12px var(--nv-font-ui); color: var(--nv-ink40); }
 .nv-fx-railrow { display: flex; align-items: flex-start; gap: 10px; padding: 2px 20px 6px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .nv-nt-stheard .nv-fx-railrow { padding-left: 28px; padding-right: 28px; }
