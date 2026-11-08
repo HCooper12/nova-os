@@ -73,7 +73,12 @@ const contentWords = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9' -]/
 /** What to search for, from his sentence; `previous` is the turn before
  *  (for "look it up" after "this is the Busy Bar"). Pure. */
 export function lookupQuery(raw, previous = '') {
-  const q = String(raw || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+  // his words for depth set the scale (lookupScale), they are not the subject:
+  // "look up the Busy Bar properly, everything you can find on it" searched
+  // for exactly that (measured 8 Nov 2026)
+  const q = String(raw || '').replace(/\[[^\]]*\]/g, ' ')
+    .replace(new RegExp(`[,;:]?\\s*${DEEP_RE.source}(?:\\s+(?:on|about)\\s+(?:it|that|this|them))?`, 'gi'), ' ')
+    .replace(/\s+/g, ' ').replace(/\s+([,.;:!?])/g, '$1').trim();
   const called = q.match(CALLED);
   if (called) {
     const name = clean(called[1].replace(/\b(?:and|but|so|which)\b[\s\S]*$/i, ''), 80);

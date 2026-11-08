@@ -357,6 +357,9 @@ function startAskNow(cwd, opts = {}) {
     ? needsClaude(opts.question)
       || (thinkingAloud(said) ? 'he is thinking aloud' : null)
       || (glassQuestion(said) ? 'it is about what is on his screen' : null)
+      // ten pages read for one answer is a synthesis; the small model answered
+      // one with a bare "[1] [4] [5]" line and a Sources list (measured 8 Nov)
+      || (opts.lookup?.depth === 'deep' ? 'a deep lookup is a synthesis across many pages' : null)
       || (playbooksFor({ text: opts.question, agent: 'nova', vaultPath: cwd }).length ? 'a playbook fits this' : null)
     : null;
   if (routed) console.log(`ask: ${routed}; Claude answers (the model on this Mac is not asked)`);

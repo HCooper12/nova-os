@@ -313,3 +313,12 @@ test('a question about the references, the links or the videos up is answered fr
   }
   assert.ok(lookupWanted('look up the Busy Bar videos on YouTube'), 'a lookup that names videos is still a lookup');
 });
+
+test('his words for depth set the scale and never reach the search', () => {
+  assert.equal(lookupQuery('Look up the Busy Bar properly, everything you can find on it.'), 'the Busy Bar');
+  assert.equal(lookupQuery('dig into the Flipper Zero for me'), 'the Flipper Zero');
+  assert.equal(lookupQuery('look up the Meta Quest 3S in depth'), 'the Meta Quest 3S');
+  const w = lookupWanted('Look up the Busy Bar properly, everything you can find on it.');
+  assert.equal(w.query, 'the Busy Bar');
+  assert.equal(w.depth, 'deep');
+});
