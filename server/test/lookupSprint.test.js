@@ -258,3 +258,58 @@ test('a question about the glass is never a web lookup (the reel test, 8 Nov): t
     assert.equal(lookupWanted(q), null, q);
   assert.ok(lookupWanted('what is the busy bar by flipper devices'));
 });
+
+// ------------------------------------------------- how much is read (8 Nov)
+// His call: "it shouldn't only be restricted to 5 cards/sources". A plain
+// lookup reads every relevant result a search page gives; "properly" /
+// "everything you can find" reads deeper, with twice the budget.
+test('a plain lookup is six pages and three clips; his words for depth widen it', async () => {
+  const { lookupScale, PAGES, CLIPS, DEEP, BUDGET_MS } = await import('../lib/lookupSprint.js');
+  assert.equal(PAGES, 6);
+  assert.equal(CLIPS, 3);
+  assert.deepEqual(lookupScale('look up the Busy Bar'), { depth: 'quick', pages: PAGES, clips: CLIPS, budgetMs: BUDGET_MS });
+  for (const q of ['look it up properly', 'find everything you can find on the Busy Bar', 'dig into the Flipper Zero for me', 'look up the Meta Quest 3S in depth']) {
+    assert.equal(lookupScale(q).depth, 'deep', q);
+  }
+  assert.deepEqual(lookupScale('look it up properly'), { depth: 'deep', ...DEEP });
+  const w = lookupWanted('Why don\'t you look it up properly? It\'s called the Busy Bar.');
+  assert.equal(w.depth, 'deep');
+  assert.equal(w.pages, DEEP.pages);
+  assert.equal(w.budgetMs, DEEP.budgetMs);
+  assert.equal(lookupWanted('look up the Busy Bar').pages, PAGES);
+});
+
+test('the sprint reads as many pages as the search gives, up to the scale, and asks for that many clips', async () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({ url: `https://site${i}.com/a`, title: `Page ${i}`, snippet: '' }));
+  let clipsAsked = 0;
+  const lk = await runLookupSprint('x', { pages: 8, clips: 4, deps: deps({
+    search: async () => ({ results: many, host: 'api.search.brave.com' }),
+    read: async (url) => ({ ok: true, host: new URL(url).hostname, title: 'T', text: 'A page with enough words in it to count as read for the test.' }),
+    clips: async () => { clipsAsked = 4; return Array.from({ length: 6 }, (_, i) => ({ id: `v${i}`, title: `clip ${i}`, channel: 'c', durationS: 300, url: `https://www.youtube.com/watch?v=v${i}`, poster: null, portrait: false })); },
+  }) });
+  assert.equal(lk.sources.length, 8);
+  assert.equal(readSources(lk).length, 8);
+  assert.equal(lk.clips.length, 4, 'the clip count follows the scale');
+  assert.equal(clipsAsked, 4);
+  const b = lookupBlock(lk);
+  assert.match(b, /\[8\] T/);
+  assert.match(b, /\(4\) clip 3/);
+  // the default scale, when none is passed
+  const d = await runLookupSprint('x', { deps: deps({ search: async () => ({ results: many, host: 'h' }), read: async (url) => ({ ok: true, host: new URL(url).hostname, title: 'T', text: 'enough words here to count as a page that was read.' }), clips: async () => [] }) });
+  assert.equal(d.sources.length, 6);
+});
+
+test('the model is told the words he wants: references, pages, videos, links; never the glass', async () => {
+  const lk = await runLookupSprint('the Busy Bar', { deps: deps() });
+  const b = lookupBlock(lk);
+  assert.match(b, /ALREADY on his screen/);
+  assert.match(b, /never "the glass"/);
+  assert.doesNotMatch(b.replace(/never "the glass"/, ''), /glass/i);
+});
+
+test('a question about the references, the links or the videos up is answered from them, not searched', () => {
+  for (const q of ['what do these references say about the price', 'open those links', 'which of these videos is the review', 'the references you found, are they recent']) {
+    assert.equal(lookupWanted(q), null, q);
+  }
+  assert.ok(lookupWanted('look up the Busy Bar videos on YouTube'), 'a lookup that names videos is still a lookup');
+});

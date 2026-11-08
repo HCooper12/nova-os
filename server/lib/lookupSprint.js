@@ -32,10 +32,25 @@ import { webLookup, needsClaude } from './askRoute.js';
 import { webSearch, readPage, searchQuery, webCanRun, searchResting, sourcesBlock } from './localResearch.js';
 import { toolFor } from './browserResearch.js';
 
-export const PAGES = 3;
-export const CLIPS = 2;
+// HOW MUCH IS READ (his call, 8 Nov 2026: "it shouldn't only be restricted
+// to 5 cards/sources"). A plain lookup reads every relevant result one
+// search page gives (up to PAGES) and the best clips, all in parallel inside
+// one breath; "look it up properly", "everything you can find", "dig into
+// it" is a DEEP lookup: more pages, more clips, twice the budget. Rose's
+// Busy Bar wall held thirteen; the Mac wall holds sixteen (wallFacts.js).
+export const PAGES = 6;
+export const CLIPS = 3;
 export const BUDGET_MS = 6000;
+export const DEEP = { pages: 10, clips: 4, budgetMs: 12000 };
 export const PAGE_CHARS = 2400;
+// his words for depth; "look it up" alone is the quick kind
+const DEEP_RE = /\b(?:properly|thoroughly|in depth|in detail|deep dive|dig (?:in|into|deeper)|everything (?:you can|there is)(?: find)?|all you can find|as much as you can|every source|all the sources|the full picture|comprehensive|exhaustive|leave nothing out)\b/i;
+
+/** How wide a lookup his words ask for: the quick kind, or DEEP. Pure. */
+export function lookupScale(raw) {
+  const q = String(raw || '').replace(/\[[^\]]*\]/g, ' ');
+  return DEEP_RE.test(q) ? { depth: 'deep', ...DEEP } : { depth: 'quick', pages: PAGES, clips: CLIPS, budgetMs: BUDGET_MS };
+}
 
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'source'; } };
 const clean = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -47,7 +62,7 @@ const OWN = /\b(?:my|our|mine|ours|myself)\b/i;
 // nor is what is in front of him: the glass, the wall, the cards on it (the
 // reel test, 8 Nov 2026: "What's on the screen right now?" searched the web
 // and the answer described a website called ScreenAwake)
-const GLASS = /\b(?:on|the|this|that|his|your) (?:screen|glass|wall|hud|display)\b|\b(?:these|those|the|that|this) (?:cards?|panels?|boxes|tiles?)\b|\bin front of me\b|\bwhat am i looking at\b|\bup there\b|\bon show\b/i;
+const GLASS = /\b(?:on|the|this|that|his|your) (?:screen|glass|wall|hud|display)\b|\b(?:these|those|the|that|this) (?:cards?|panels?|boxes|tiles?)\b|\b(?:these|those) (?:references?|links?|videos?|clips?|pages?|sources?|results?)\b|\bthe references\b|\bin front of me\b|\bwhat am i looking at\b|\bup there\b|\bon show\b/i;
 const CALLED = /\b(?:it'?s |this is |that'?s |they'?re )?(?:called|named|known as)\s+([^.,;!?]+)/i;
 const LEAD = /^(?:(?:so|and|ok|okay|right|well|hey|now)[, ]+)?(?:nova[,:]?\s*)?(?:(?:why don'?t|can|could|would|will) you |please |just )*(?:go (?:and |on and )?)?(?:look (?:it|that|this|them) up|look up|search (?:for|the web for|online for|the internet for)?|google|find out (?:about|what|who)?|read up on|check (?:out|on)?|research)\s*/i;
 const TAIL = /\s*(?:for me|please|online|on the web|on the internet|would you|will you|right now|quickly)\s*[.?!]*\s*$/i;
@@ -96,7 +111,8 @@ export function lookupWanted(raw, { previous = '' } = {}) {
   // the thing itself, for the ack ("Checking the Busy Bar."): the name before
   // any qualifier, or the first few words
   const name = lookupName(q, query);
-  return { query, name, why: explicit ? 'he asked for a lookup' : 'a question about the outside world' };
+  const scale = lookupScale(q);
+  return { query, name, why: explicit ? 'he asked for a lookup' : 'a question about the outside world', ...scale };
 }
 
 /** Is this about what is on the glass? (lib/askDispatch routes it to Claude, which holds the screen block.) Pure. */
@@ -149,7 +165,7 @@ export function parseRows(out) {
   });
 }
 
-async function findClips(query, { timeoutMs = BUDGET_MS, ytdlp = process.env.YTDLP_PATH || 'yt-dlp' } = {}) {
+async function findClips(query, { timeoutMs = BUDGET_MS, n = CLIPS, ytdlp = process.env.YTDLP_PATH || 'yt-dlp' } = {}) {
   const q = String(query || '').trim();
   if (!q) return [];
   return new Promise((resolve) => {
@@ -159,12 +175,13 @@ async function findClips(query, { timeoutMs = BUDGET_MS, ytdlp = process.env.YTD
       // --flat-playlist: the search page's own rows (id, channel, duration,
       // title all present), 1.5 s measured 8 Nov 2026; without it yt-dlp
       // opens every video for its full metadata, 10 s, past the sprint's
-      // whole budget, and the wall had no clip
-      child = spawn(ytdlp, [`ytsearch4:${q}`, '--flat-playlist', '--skip-download', '--no-warnings', '--print', '%(id)s|%(channel)s|%(duration)s|%(title)s'], { stdio: ['ignore', 'pipe', 'ignore'] });
+      // whole budget, and the wall had no clip. Twice the wanted count is
+      // listed so the duration filter still leaves enough.
+      child = spawn(ytdlp, [`ytsearch${n * 2}:${q}`, '--flat-playlist', '--skip-download', '--no-warnings', '--print', '%(id)s|%(channel)s|%(duration)s|%(title)s'], { stdio: ['ignore', 'pipe', 'ignore'] });
     } catch { return resolve([]); }
-    const timer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } resolve(pickClips(parseRows(out), q)); }, timeoutMs);
+    const timer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } resolve(pickClips(parseRows(out), q, n)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; });
-    child.on('close', () => { clearTimeout(timer); resolve(pickClips(parseRows(out), q)); });
+    child.on('close', () => { clearTimeout(timer); resolve(pickClips(parseRows(out), q, n)); });
     child.on('error', () => { clearTimeout(timer); resolve([]); });
   });
 }
@@ -189,20 +206,20 @@ async function cachedPicture(url) {
  *   onClips(lookup)     the clips are in (poster later via onClips again)
  * Resolves with the lookup as it stands at the deadline. Never throws.
  */
-export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS, pages = PAGES, onSearched = null, onPage = null, onClips = null, deps = {}, now = Date.now } = {}) {
+export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS, pages = PAGES, clips: clipCount = CLIPS, depth = 'quick', onSearched = null, onPage = null, onClips = null, deps = {}, now = Date.now } = {}) {
   const started = now();
-  const lookup = { query: String(query || '').trim(), name: name || null, sources: [], clips: [], misses: [], hostsRead: [], timings: {}, searchError: null, done: false, startedAt: started };
+  const lookup = { query: String(query || '').trim(), name: name || null, depth, sources: [], clips: [], misses: [], hostsRead: [], timings: {}, searchError: null, done: false, startedAt: started };
   const safe = (fn, ...a) => { try { fn?.(...a); } catch { /* a listener never costs the sprint */ } };
   const left = () => Math.max(0, budgetMs - (now() - started));
-  const search = deps.search || ((q) => webSearch(q, { max: 6 }));
+  const search = deps.search || ((q) => webSearch(q, { max: pages + 2 }));
   const read = deps.read || ((u, ms) => readPage(u, { maxChars: PAGE_CHARS, timeoutMs: ms }));
-  const clips = deps.clips || ((q, ms) => findClips(q, { timeoutMs: ms }));
+  const clips = deps.clips || ((q, ms) => findClips(q, { timeoutMs: ms, n: clipCount }));
   const picture = deps.picture || cachedPicture;
 
   // clips start at once and land whenever they land (never in the prompt
-  // after the deadline, always on the glass)
+  // after the deadline, always on screen)
   const clipRun = Promise.resolve().then(() => clips(lookup.query, budgetMs)).then(async (found) => {
-    lookup.clips = (found || []).slice(0, CLIPS);
+    lookup.clips = (found || []).slice(0, clipCount);
     safe(onClips, lookup);
     await Promise.all(lookup.clips.map(async (c) => {
       const p = await picture(`https://i.ytimg.com/vi/${c.id}/hqdefault.jpg`);
@@ -292,8 +309,8 @@ export function lookupBlock(lookup) {
   if (!lookup) return '';
   const read = readSources(lookup);
   const clips = lookup.clips || [];
-  const head = `[LOOKED UP JUST NOW by Nova's browser, for "${lookup.query}". The pages and clips below are ALREADY on his glass as page and video cards; a page is lit when you write VIS {"kind":"page","source":n} before the sentence that uses it, a clip with VIS {"kind":"video","clip":n}. Answer from these pages where they answer; a figure, quote or entity you raise must name its "source" number and code checks it against that page before it is drawn. Never a number, name or quote these pages do not hold; if they do not answer, say so in one line and answer from what you know, marked as such.]`;
-  const pages = read.length ? sourcesBlock(read.map((s) => ({ n: s.n, title: s.title, url: s.url, text: s.text })), { budget: PAGES * PAGE_CHARS }) : `(the search ${lookup.searchError ? `failed: ${lookup.searchError}` : 'found no page that could be read in time'})`;
+  const head = `[LOOKED UP JUST NOW by Nova's browser, for "${lookup.query}". The pages and clips below are ALREADY on his screen as page and video cards (call them references, pages, videos or links in your words, never "the glass"); a page is lit when you write VIS {"kind":"page","source":n} before the sentence that uses it, a clip with VIS {"kind":"video","clip":n}. Answer from these pages where they answer; a figure, quote or entity you raise must name its "source" number and code checks it against that page before it is drawn. Never a number, name or quote these pages do not hold; if they do not answer, say so in one line and answer from what you know, marked as such.]`;
+  const pages = read.length ? sourcesBlock(read.map((s) => ({ n: s.n, title: s.title, url: s.url, text: s.text })), { budget: read.length * PAGE_CHARS }) : `(the search ${lookup.searchError ? `failed: ${lookup.searchError}` : 'found no page that could be read in time'})`;
   const clipLine = clips.length ? `\nCLIPS: ${clips.map((c, i) => `(${i + 1}) ${c.title}${c.channel ? ` — ${c.channel}` : ''}`).join('; ')}` : '';
   return `${head}\n\n${pages}${clipLine}`;
 }

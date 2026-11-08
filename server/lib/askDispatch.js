@@ -296,14 +296,14 @@ function holdForStandIn(job, cwd, opts, { newSession, routed = null }) {
 function startLookupAsk(cwd, opts, want) {
   const carrier = { id: randomUUID().slice(0, 8), status: 'running', result: null, error: null, partial: '', visuals: {}, lookup: null, sprintLine: null, inner: null };
   registerAskJob(carrier);
-  console.log(`ask: looking up "${want.query}" first (${want.why})`);
+  console.log(`ask: looking up "${want.query}" first (${want.why}${want.depth === 'deep' ? ', deep' : ''})`);
   // a sprint longer than a breath says so, once, in code's words
   const slow = setTimeout(() => { if (!carrier.inner) carrier.sprintLine = sprintLine(carrier.lookup); }, 4000);
   slow.unref?.();
   const publish = (lk) => {
     if (carrier.inner) { carrier.inner.lookup = lk; carrier.inner.visuals = { ...(carrier.inner.visuals || {}), ...lookupPanels(lk) }; } else publishLookup(carrier, lk);
   };
-  runLookupSprint(want.query, { name: want.name, onSearched: publish, onPage: publish, onClips: publish })
+  runLookupSprint(want.query, { name: want.name, pages: want.pages, clips: want.clips, budgetMs: want.budgetMs, depth: want.depth, onSearched: publish, onPage: publish, onClips: publish })
     .then((lookup) => {
       clearTimeout(slow);
       console.log(`ask: lookup "${lookup.query}": ${readSources(lookup).length}/${lookup.sources.length} page(s) read, ${lookup.clips.length} clip(s), ${lookup.timings.total}ms, hosts ${lookup.hostsRead.join(', ') || 'none'}${lookup.searchError ? `, search failed: ${lookup.searchError}` : ''}`);
@@ -356,7 +356,7 @@ function startAskNow(cwd, opts = {}) {
   const routed = local
     ? needsClaude(opts.question)
       || (thinkingAloud(said) ? 'he is thinking aloud' : null)
-      || (glassQuestion(said) ? 'it is about what is on the glass' : null)
+      || (glassQuestion(said) ? 'it is about what is on his screen' : null)
       || (playbooksFor({ text: opts.question, agent: 'nova', vaultPath: cwd }).length ? 'a playbook fits this' : null)
     : null;
   if (routed) console.log(`ask: ${routed}; Claude answers (the model on this Mac is not asked)`);
