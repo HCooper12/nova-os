@@ -993,7 +993,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
                         title={x.card ? undefined : 'Its data is no longer here to rebuild it'}><i /><b>{x.t.title}</b><span>{x.t.source}</span></button>
                     ))}
                   </div>
-                  {all.length > 0 && <button type="button" className="nv-mac-replay" onClick={() => startReplay(all, m?.proposal || null)}><Gl n="replay" />Replay with the glass</button>}
+                  {all.length > 0 && <button type="button" className="nv-mac-replay" onClick={() => startReplay(all, m?.proposal || null)}><Gl n="replay" />Replay with the panels</button>}
                 </>
               );
             },

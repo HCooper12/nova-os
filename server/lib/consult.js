@@ -249,7 +249,7 @@ export function jointPanelNote(results, { by = 'nova' } = {}) {
   const ids = [...new Set(ok.map((r) => r.agent))];
   if (ids.length < 2) return '';
   const quote = ok.some((r) => r.agent === 'librarian' && (r.citations || []).some((c) => c && c.exists));
-  return `THE JOINT PANEL: if their answers give him something to point at (a number, two things compared, a place in his own record), put them on the glass as one panel: VIS {"panel":"sources","by":"${by}"} on its own line, and before each sentence that leans on one of them VIS {"mark":{"section":"<${ids.join('|')}>"}}${quote ? ' (with "quote":true on the Librarian\'s section when you say the words it quoted)' : ''}. One part lit at a time, only while you say it; a plain sentence gets no panel.`;
+  return `THE JOINT PANEL: if their answers give him something to point at (a number, two things compared, a place in his own record), put them on screen as one panel: VIS {"panel":"sources","by":"${by}"} on its own line, and before each sentence that leans on one of them VIS {"mark":{"section":"<${ids.join('|')}>"}}${quote ? ' (with "quote":true on the Librarian\'s section when you say the words it quoted)' : ''}. One part lit at a time, only while you say it; a plain sentence gets no panel.`;
 }
 
 export function consultReplyText(results, question, { from = 'coach', answeringTo = null } = {}) {

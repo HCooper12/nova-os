@@ -9998,7 +9998,7 @@ export default class App extends Component {
     // Mac's browser directly; a sentence carrying a URL keeps its own lane.
     if (!urls.length && !/^\s*(?:play|put on)\b/i.test(raw)
       && /\b(?:open(?: up)?|show me|find(?: me)?|search(?: for)?|look up|bring up)\b[\s\S]{0,80}?\b(?:youtube|channel|videos?|episodes?|podcasts?|clips?|website|site|page)\b/i.test(raw)) {
-      return L('browse', 'BROWSER', 'something to be shown — Nova opens its own browser and you watch it work on the glass');
+      return L('browse', 'BROWSER', 'something to be shown — Nova opens its own browser and you watch it work on your screen');
     }
     // mirrors server/lib/intentRouter.js BROWSE_RE — an explicit instruction
     // to USE a browser, checked before the url→research fallback
@@ -11629,7 +11629,7 @@ export default class App extends Component {
     // sentence asks for them by name so the report is SHOWN as it is read —
     // the muscle on the figure, his program with the drop, the changes he
     // can tick — rather than left to the model's discretion on a long turn.
-    return 'Walk me through what the plan found, the way Jarvis would: the two or three things that matter, then the concrete changes you would make to my program and why. As you go, put each muscle you judge on the glass with a body panel, then the routine it comes from as a program panel with the exercise you would drop and the one the evidence protects, and finish with the numbered changes as steps I can tick.';
+    return 'Walk me through what the plan found, the way Jarvis would: the two or three things that matter, then the concrete changes you would make to my program and why. As you go, put each muscle you judge on screen with a body panel, then the routine it comes from as a program panel with the exercise you would drop and the one the evidence protects, and finish with the numbered changes as steps I can tick.';
   }
   walkThroughPlan() {
     this.navigate('voice');
@@ -12410,7 +12410,7 @@ export default class App extends Component {
       if (card.kind === 'metric') detail = ` showing ${card.value ?? ''}${card.unit || ''}${card.caption ? ` (${card.caption})` : ''}`;
       else if (card.kind === 'list' && card.items?.length) detail = `: ${card.items.slice(0, 7).map((it) => it.name + (it.note ? ` [${it.note}]` : '')).join('; ')}`;
       else if (card.kind === 'bars' && card.bars?.length) detail = `, a chart of ${card.bars.slice(0, 8).map((b) => b.name).filter(Boolean).join(', ')}`;
-      bits.push(`A card titled "${card.label}" is on the glass${detail}${card.foot ? ` — footnote: ${card.foot}` : ''}`);
+      bits.push(`A card titled "${card.label}" is on his screen${detail}${card.foot ? ` — footnote: ${card.foot}` : ''}`);
     }
     if (!skipProposal && s.voicePendingProposal?.title) {
       bits.push(`An undecided draft is open: "${s.voicePendingProposal.title}" — his yes/no/later files it`);
@@ -12423,17 +12423,20 @@ export default class App extends Component {
     }
     // THE WALL, COUNTED (the Rose study §2.7, 8 Nov 2026): Rose knows
     // "Report's up, 13 blocks on the HUD" and "nothing's in front of you".
-    // The lookup's cards and the panels the glass is holding are named here
-    // so "what's on the screen", "the Wired one", "clear the rest" resolve.
+    // The lookup's cards and the panels on screen are named here so "what's
+    // on the screen", "the Wired one", "clear the rest" resolve. The words
+    // are his (8 Nov): never "the glass"; references, pages, videos, links.
+    // The model echoes this block's nouns, so they are the nouns he wants.
     const entries = Object.entries(s.glassVisuals || {}).filter(([, v]) => v && v.kind);
     const lk = entries.filter(([k]) => k.startsWith('lk:')).map(([, v]) => v);
     const vis = entries.filter(([k]) => !k.startsWith('lk:')).map(([, v]) => v);
     if (lk.length || vis.length) {
-      const name = (c) => `${c.kind === 'video' ? 'a clip' : c.kind === 'page' ? 'a page' : `a ${c.kind}`}${c.host ? ` from ${c.host}` : c.channel ? ` by ${c.channel}` : ''}${c.title ? ` "${String(c.title).slice(0, 60)}"` : c.label ? ` "${String(c.label).slice(0, 60)}"` : ''}`;
+      const name = (c) => `${c.kind === 'video' ? 'a video' : c.kind === 'page' ? 'a page' : `a ${c.kind}`}${c.host ? ` from ${c.host}` : c.channel ? ` by ${c.channel}` : ''}${c.title ? ` "${String(c.title).slice(0, 60)}"` : c.label ? ` "${String(c.label).slice(0, 60)}"` : ''}`;
       const all = [...lk, ...vis];
-      bits.push(`On the glass now: ${all.length} card${all.length === 1 ? '' : 's'} (${all.slice(0, 8).map(name).join('; ')}${all.length > 8 ? '; …' : ''})`);
+      const what = lk.length && !vis.length ? 'reference' : 'panel';
+      bits.push(`On his screen now: ${all.length} ${what}${all.length === 1 ? '' : 's'} (${all.slice(0, 12).map(name).join('; ')}${all.length > 12 ? '; …' : ''}). Call them references, pages, videos or links, never "the glass"`);
     } else if (s.screen === 'voice' && !card?.label) {
-      bits.push('Nothing is on the glass');
+      bits.push('Nothing is on his screen');
     }
     if (s.screen && s.screen !== 'voice') bits.push(`He is on the ${s.screen} screen`);
     if (!bits.length) return null;

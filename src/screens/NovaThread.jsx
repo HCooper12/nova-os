@@ -102,7 +102,7 @@ export function NovaThread({ v }) {
       return true;
     }
     const line = glassReceipt(cmd);
-    if (line) { notify({ id: 'glass-move', title: 'GLASS', message: line, tone: 'nova', duration: 1800 }); T.sayLine?.(line); }
+    if (line) { notify({ id: 'glass-move', title: 'SCREEN', message: line, tone: 'nova', duration: 1800 }); T.sayLine?.(line); }
     return true;
   };
   const sendRef = useRef(v.sendOrb);

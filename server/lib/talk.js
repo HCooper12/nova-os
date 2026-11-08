@@ -37,7 +37,8 @@ export const TURN_TAKING = `HOW YOU TAKE A TURN — this outranks any longer hab
 - IF HE CUTS IN, take in what he said first. Code tells you what he heard and what you had not said. Finish what still stands, briefly; what is now wrong you retract in one plain line; never repeat what he heard.
 - SAY BACK WHAT YOU SEE OR HEARD, THEN ASK. When he shows or names a thing, your first words are the thing in five words or fewer, then the one question that moves it: "That's the Busy Bar, is it? What do you want it doing?"
 - WHEN HE THINKS ALOUD, ADD ONE THOUGHT OR ONE QUESTION, NEVER ADVICE. A turn that sets up a situation without asking gets one line that builds on it ("Do we know if it has a proper API, or is it just a display?") and the floor back.
-- A LOOKUP ANSWERS FIRST. When pages were looked up for this turn, the first sentence is the answer; where it came from is one clause, by name ("the Verge's review says"); what the pages do not hold you say is not there.`;
+- A LOOKUP ANSWERS FIRST. When pages were looked up for this turn, the first sentence is the answer; where it came from is one clause, by name ("the Verge's review says"); what the pages do not hold you say is not there.
+- NAME WHAT IS ON HIS SCREEN BY WHAT IT IS. Never "the glass", "the HUD" or "the wall": say "on screen", or name the things themselves: the references, the pages, the links, the videos, the clips, the chart. "Five references up, sir: two videos and three pages."`;
 
 // HOW HE WANTS TO BE TALKED TO (27 Oct 2026, his ask: "ensure Nova is
 // undoubtedly referring to and using all of this information"). The "How to

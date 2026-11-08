@@ -217,7 +217,7 @@ function routeIntentLane(text) {
   const bookMeta = parseBookIntent(raw);
   if (bookMeta) return { lane: 'book', urls: [], prose: raw, book: bookMeta, why: `a book — the Librarian researches "${bookMeta.title}" and weaves it into your vault` };
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
-  if (BROWSE_MEDIA_RE.test(raw) && !/^\s*(?:play|put on)\b/i.test(raw)) return { lane: 'browse', urls: [], prose: raw, why: 'something to be shown — Nova opens its own browser and you watch it work on the glass' };
+  if (BROWSE_MEDIA_RE.test(raw) && !/^\s*(?:play|put on)\b/i.test(raw)) return { lane: 'browse', urls: [], prose: raw, why: 'something to be shown — Nova opens its own browser and you watch it work on your screen' };
   if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
   // BUILD comes before CODE deliberately: "build me a landing page" is a new
   // project in his projects folder, while CODE_RE's world is changing Nova

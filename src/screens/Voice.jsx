@@ -662,7 +662,7 @@ function VoiceClassic({ v }) {
           {/* THE GLASS, spent — the figures Nova has already spoken past, stacked
               as history exactly like the reference's side rail */}
           {v.stageHistory?.length > 0 && (
-            <Panel label="ON THE GLASS">
+            <Panel label="SHOWN SO FAR">
               <div style={css('display:flex;flex-direction:column;gap:8px')}>
                 {v.stageHistory.map((c, i) => (
                   <Interactive key={`${c.label}:${i}`} onClick={() => v.focusCard(c)} aria-label={`Bring “${c.label}” back to the middle`}

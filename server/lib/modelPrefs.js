@@ -161,7 +161,7 @@ export const LANES = [
     // (lib/localAsk.js), and stands in when Claude fails (lib/askDispatch.js)
     id: 'ask-nova', label: 'Ask Nova', group: 'conversation', local: true, def: 'haiku', defEffort: 'low',
     hint: 'the voice screen’s brain — read-only over the vault, streams as it speaks',
-    off: 'The voice screen and the Siri shortcut stop answering and say so; everything deterministic (the glass, the brief’s numbers) still works.',
+    off: 'The voice screen and the Siri shortcut stop answering and say so; everything deterministic (the panels on screen, the brief’s numbers) still works.',
   },
   {
     // PROJECTS (29 Oct 2026, PROJECTS-PLAN §1): the short questions in turns

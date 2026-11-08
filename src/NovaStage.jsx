@@ -195,7 +195,7 @@ function StageRail({ cards, onOpen, width, label = null }) {
   if (!cards?.length) return null;
   const w = railCardWidth(width || 402);
   return (
-    <div className="nv-fx-rail" role="list" aria-label={label || 'More on the glass'}>
+    <div className="nv-fx-rail" role="list" aria-label={label || 'More references'}>
       {label && <span className="nv-fx-raillbl">{label}</span>}
       <div className="nv-fx-railrow">
         {cards.map((c) => {

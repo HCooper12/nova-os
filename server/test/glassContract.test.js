@@ -36,8 +36,13 @@ test('its own example parses — the shape it teaches is the shape we read', () 
 
 test('THE COLLISION: it does not share a heading with the CARD directive', () => {
   const ask = buildAskPrompt({ question: 'q', context: 'c' });
-  assert.ok(ask.includes('THE GLASS:'), 'the older single-card directive is still there');
+  // 8 Nov 2026, his call: Nova never says "the glass" to him, so the
+  // single-card directive is headed ON SCREEN now; the contract keeps its
+  // internal name, and the two are still named apart
+  assert.ok(ask.includes('- ON SCREEN: put your answer on his screen as a card'), 'the older single-card directive is still there');
+  assert.ok(!ask.includes('THE GLASS:'), 'and no longer teaches the word');
   assert.ok(ask.includes('THE RUNNING GLASS'), 'and the new one is named apart from it');
+  assert.match(GLASS_CONTRACT, /Never "the glass", "the HUD" or "the wall"/);
   // and it says which wins, or the model picks the one it saw first
   assert.match(GLASS_CONTRACT, /never both/i);
 });
