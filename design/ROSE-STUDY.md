@@ -430,3 +430,15 @@ on at four pages (eight deep), the straggler still filling its card.
 Not done: cutting the 31k-token first prompt itself (it would change what
 Nova knows on turn one; worth a measured trial of a lookup-turn prompt
 without the agents' rooms and the weekly debrief, his call).
+
+### 9 Nov, round ten: a lighter first turn for lookups, measured and NOT shipped (Nova a1f7d56b, the receipt only)
+
+His yes was conditional: "as long as it doesn't impact functionality and effectiveness". Built, measured, reverted.
+
+- **What was built.** A lookup that opens a conversation sent six of the 26 context sections (profile, preferences, standing rules, injuries, today, his conversation with Nova): 54k chars became 22k. The other 18 were held word for word and sent ahead of his next message. A question naming his money, program, day or an agent kept the whole context. Live on scratch, the held money section reached turn two and the answer quoted it exactly.
+- **Direct timing, ten pairs, uncached context, real pages:** first words median 2.9 s lean against 4.5 s whole, but lean won only 5, lost 4 and tied 1, mean 0.65 s. The API's own swing is about ±1.5 s, so the gain sits inside the noise.
+- **Real flow (scratch, prewarmed, search time subtracted):** model share 2.7–4.2 s lean against 2.4–4.4 s whole. No gain.
+- **And it moves the cost rather than removing it:** the held 33k lands uncached on turn two.
+- **Instructions in the system prompt (`--append-system-prompt`)** do get read from cache between conversations: 30.0k tokens against 14.7k. First words still came no sooner (4.3–5.1 s against 4.0–5.9 s). Splitting the user message into two blocks gets no cache hit at all, because the CLI places the cache marks.
+- **Conclusion: prompt size is not what makes turn one slower than turn two.** Do not trim the turn-one context for speed again without a new reason. The model-side lever already used is the prewarmed fresh session (38ff25af).
+- Kept: the `ask context:` log line now names the six largest sections next to the six slowest (profile 8.2k, his conversation with Nova 7.6k, skills 5.4k, weekly debrief 3.1k, fleet roster 3.1k, shelf 3k).
