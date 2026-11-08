@@ -216,17 +216,27 @@ export async function webSearch(query, { max = 6, timeoutMs = SEARCH_TIMEOUT_MS(
     // context was destroyed"): absorb one navigation, then read; a read that
     // still lands mid-navigation is tried once more.
     if (p.waitForSelector) {
-      await p.waitForSelector('li.b_algo, #b_results, .b_no', { timeout: 1500 }).catch(() => {});
+      await p.waitForSelector('li.b_algo, .b_no, .b_ans', { timeout: 1500 }).catch(() => {});
       await p.waitForNavigation?.({ waitUntil: 'domcontentloaded', timeout: 300 }).catch(() => {});
-      await p.waitForSelector('li.b_algo, #b_results, .b_no', { timeout: 1500 }).catch(() => {});
+      await p.waitForSelector('li.b_algo, .b_no, .b_ans', { timeout: 1500 }).catch(() => {});
     }
     await new Promise((r) => setTimeout(r, p.waitForSelector ? 250 : 1200));
     const read = async () => ({ html: await p.content(), text: await p.evaluate(() => (document.body ? document.body.innerText : '')).catch(() => '') });
-    try { return await read(); } catch (e) {
-      if (!/Execution context was destroyed|navigation/i.test(String(e.message))) throw e;
-      await p.waitForSelector?.('li.b_algo, #b_results, .b_no', { timeout: 2500 }).catch(() => {});
-      return read();
+    // BING ANSWERS TWICE (traced 8 Nov): results, then a redirect to the same
+    // search with rdr=1 (a 40 KB shell for ~300 ms), then results again. A
+    // read that lands on the shell is read again once a result is there.
+    const holds = (got) => !p.waitForSelector || /class="b_algo"|class="b_no"|class="b_ans"/.test(got.html || '');
+    for (let i = 0; i < 3; i++) {
+      try {
+        const got = await read();
+        if (holds(got) || i === 2) return got;
+      } catch (e) {
+        if (!/Execution context was destroyed|navigation/i.test(String(e.message)) || i === 2) throw e;
+      }
+      await p.waitForSelector?.('li.b_algo, .b_no, .b_ans', { timeout: 2500 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 200));
     }
+    return read();
   });
   let got;
   try {
