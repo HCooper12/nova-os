@@ -320,3 +320,51 @@ code gate, never run as a reel exchange. A quick lookup may still land on
 the local model, which writes "[1] [2]" into the chat text (speech strips
 them). Figures, quotes and entities drawn by Claude live: unit-tested, not
 seen in a run. The camera opens on command, never watches. His own devices.
+
+### 8 Nov, round seven: speed (Nova 10e15076 → dfa4b53b; Wren b97b4fd)
+
+His yes to "make speed the next round", Wren after Nova. Measured first,
+on the scratch rig with the real model: a lookup turn ran 20–39 s. Where it
+went: Chrome LAUNCHED for every search (about 3 s of a 4.4 s search); a
+fixed 1.2 s settle on the results page; a deep sprint held 6.4 s past its
+last useful page by a Facebook login wall; posters and covers awaited
+inside the sprint; and on the quick turn the LOCAL model took 27 s over the
+pages and gave up, handing to Claude anyway.
+
+What changed. One warm headless Chrome for searches on its own profile
+(`~/.nova-browser-search`; `browserResearch.js withSearchPage`), launched on
+the first search or when he starts speaking (the prewarm route) and closed
+after ten idle minutes; his signed-in profile is never held open, so the
+browser hand keeps it. Bing hands a brand-new profile dictionary results
+for the query his profile gets right, and no URL parameter changes that
+(measured: cc, mkt, setmkt, ensearch, US), so the first launch copies his
+profile once without its caches (392 → 89 MB). A lock left by a dead Chrome
+is cleared; a live one means the cold launch as before. The settle is a
+wait for a RESULT (never the list's empty frame): Bing serves results,
+redirects the same search to itself with rdr=1 through a 40 KB shell for
+~300 ms, and serves again; a read on the shell is read again. Reads are
+capped at 3.5 s, login-wall hosts are never picked, pictures are waited for
+1.2 s at most and land when they come, a quoted search that misses is
+retried unquoted before the name alone, a question clause after the thing
+stays out of the search, and every lookup turn is Claude's.
+
+Measured after, prewarmed as the client does (scratchpad turn.mjs, run 12):
+
+| Turn | search | sprint | first card | first words | done |
+|---|---|---|---|---|---|
+| "look it up… the Busy Bar, by Flipper Devices" | 1.3 s | 3.8 s, 6/6 pages | 1.7 s | 6.5 s | 8.3 s |
+| "the Meta Quest 3S price" | 2.1 s | 6.0 s, 4/6 | 2.1 s | 10.5 s | 11.5 s |
+| "the Busy Bar properly, everything you can find" (deep) | 1.2 s | 2.4 s, 7/8 | 1.4 s | 8.3 s | 10.8 s |
+| "the Flipper Zero… what is it exactly" | 1.6 s | 3.6 s, 6/6 | 1.6 s | 6.7 s | 9.0 s |
+
+The model is now the largest piece (4–6 s from the sprint's end to the
+first spoken words, Claude haiku at low effort, prewarmed). Rose is still
+ahead by a few seconds; the first card is now up before she would have
+finished her ack.
+
+Wren: no browser library, so `lib/searchBrowser.mjs` speaks Chrome's own
+protocol over the WebSocket Node ships (a target per search opened on the
+URL itself, the markup read only once it holds a result); warms on
+`/api/voice/transcribe`; dumpDom answers cold when it cannot start.
+Measured 0.7–1.1 s per search after the first on a scratch profile. Not
+seen in a live Wren turn (never tested against the live service).
