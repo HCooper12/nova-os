@@ -25,7 +25,8 @@
 // object. A poll can never see the error first.
 import { startAskNova, getMessageJob, registerAskJob } from './claudeCode.js';
 import { randomUUID } from 'node:crypto';
-import { lookupWanted, lookupCanRun, runLookupSprint, sprintLine, readSources } from './lookupSprint.js';
+import { lookupWanted, lookupCanRun, runLookupSprint, sprintLine, readSources, glassQuestion } from './lookupSprint.js';
+import { thinkingAloud } from '../../src/turnSense.js';
 import { publishLookup, lookupPanels } from './visualStream.js';
 import { startAskLocal, isLocalOnlySession, localTurnsSinceClaude, transcriptOf, sessionTurns, recordAskTurn } from './localAsk.js';
 import { providerFor, laneCanRunLocal, fallbackEnabled, localBoard, laneEnabled } from './modelPrefs.js';
@@ -345,8 +346,18 @@ function startAskNow(cwd, opts = {}) {
   const local = providerFor('ask-nova') === 'local' && !opts.consulted;
   // a question a playbook he approved fits goes to Claude: the small model
   // never gets playbooks, and it must not quietly answer without one (his call, 7 Nov)
+  // THE CONVERSATION IS CLAUDE'S (the reel test, 8 Nov 2026): a turn where he
+  // thinks aloud wants one thought back, not a vault answer, and a question
+  // about what is on the glass answers from the screen block Claude holds.
+  // The small model answered both badly ("I searched for screen wake…").
+  // his words alone: the bracketed screen block rides in `raw` and would make
+  // every turn look like a long story
+  const said = String(opts.raw || opts.question || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
   const routed = local
-    ? needsClaude(opts.question) || (playbooksFor({ text: opts.question, agent: 'nova', vaultPath: cwd }).length ? 'a playbook fits this' : null)
+    ? needsClaude(opts.question)
+      || (thinkingAloud(said) ? 'he is thinking aloud' : null)
+      || (glassQuestion(said) ? 'it is about what is on the glass' : null)
+      || (playbooksFor({ text: opts.question, agent: 'nova', vaultPath: cwd }).length ? 'a playbook fits this' : null)
     : null;
   if (routed) console.log(`ask: ${routed}; Claude answers (the model on this Mac is not asked)`);
   if (local && !routed) {

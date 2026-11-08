@@ -109,7 +109,12 @@ export function NovaThread({ v }) {
   sendRef.current = (t) => { if (!moveGlass(t)) v.sendOrb(t); };
   // dev-only: the instruments send words the way his voice does (through
   // the glass first), never a production path
-  if (import.meta.env.DEV && typeof window !== 'undefined') window.__novaSay = (t) => sendRef.current(t);
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    window.__novaSay = (t) => sendRef.current(t);
+    // what the glass grammar sees, and what it would do with a sentence
+    window.__novaGlass = (t) => { const g = glassRef.current; const st = g ? g.state() : null; return { state: st, cmd: st && t ? glassCommand(t, st) : null }; };
+    window.__novaMove = (t) => { try { return moveGlass(t); } catch (e) { return `threw: ${e.message}`; } };
+  }
   // a tap on a mic that has heard nothing keeps listening and says so
   const [nudged, nudge] = useNudge();
   // KEEP GOING (27 Oct 2026): the mic stays open after a spoken send for

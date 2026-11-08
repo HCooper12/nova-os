@@ -38,6 +38,7 @@ export const DEFAULT_MINUTES = 30;
 export const SHORT_MINUTES = 5;
 export const MAX_MINUTES = 12 * 60; // "quiet until 3" said at 3:10 pm is not a 24-hour standby
 export const QUEUE_MAX = 50;
+export const SLEEP_LINE = 'Going dark, sir. Say my name when you want me.';
 
 /* --------------------------------------------------------------- parsing -- */
 
@@ -86,7 +87,7 @@ export function parseStandby(text, now = new Date()) {
   // again", "that's all for tonight", "night". The glass goes dark to the
   // core and Nova waits for a wake; the default standby, not a timer he set.
   if (/^(?:(?:you can )?(?:go (?:back )?to sleep|sleep)(?: now| again)?|go to sleep|that's (?:all|it|everything)(?: for (?:now|tonight|today|the night))?|that'll (?:do|be all)(?: for (?:now|tonight|today))?|(?:good ?)?night|sign(?:ing)? off|screen off|lights out)$/.test(q)) {
-    return ON(MAX_MINUTES);
+    return { ...ON(MAX_MINUTES), sleep: true };
   }
 
   // TAKE N. Bare "take five" is the idiom for "stand by" (his default, 30);
@@ -332,9 +333,14 @@ export async function answerStandby(raw, now = new Date()) {
   if (!p) return null;
   if (p.on) {
     const { state, text } = await setStandby(p.minutes, now, { until: p.until || null });
-    return { text, standby: { on: true, until: state.until, remainingMin: state.remainingMin } };
+    // the sign-off is not a timer he set: no clock time, the glass goes dark
+    // and his name wakes it (Rose: "You can go to sleep again" → the HUD dims)
+    return { text: p.sleep ? SLEEP_LINE : text, standby: { on: true, until: state.until, remainingMin: state.remainingMin, sleep: !!p.sleep } };
   }
   if (!standbyPending(now)) return null;
-  const { text, landed } = await clearStandby(now);
+  const { text: back, landed } = await clearStandby(now);
+  // "are you there?" is answered as a person would (Rose: "I'm here, boss.")
+  const asked = /\b(?:are you there|you (?:up|awake)|are you awake)\b/i.test(String(raw || ''));
+  const text = asked ? back.replace(/^Back\./, "I'm here, sir.") : back;
   return { text, standby: { on: false, until: null, landed: landed.map((x) => ({ kind: x.kind, text: x.text, at: x.at })) } };
 }

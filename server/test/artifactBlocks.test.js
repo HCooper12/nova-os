@@ -78,3 +78,8 @@ test('a doc body splits into markdown and glass panels; a broken panel stays as 
   assert.equal(segs[1].spec.kind, 'metric');
   assert.match(segs[3].text, /\{not json/);
 });
+
+test('speech drops a Sources block and [n] citation markers (the local lane, 8 Nov 2026)', () => {
+  const raw = 'The Busy Bar is a $199 display [1][2]. It has buttons [3].\n\nSources:\n[1] https://busy.app/\n[2] https://www.wired.com/review\n[3] https://techcrunch.com/x';
+  assert.equal(speakableText(raw, { final: true }), 'The Busy Bar is a $199 display. It has buttons.');
+});

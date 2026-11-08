@@ -389,9 +389,13 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   useEffect(() => {
     const k = S.key;
     if ((k === 'listening' || k === 'thinking') && wasTurn.current !== 'listening' && wasTurn.current !== 'thinking') {
-      setAnswer({ panels: [], from: null }); setGone(new Set()); setOpenKey((o) => (o && pinned.has(o) ? o : null)); setCut(false); setReplay(null); setFreshAt(null); mountedAt.current = lastNova?.at ?? null; setPlaying(null); setTidy(false);
+      // WHAT HE PUT AWAY STAYS AWAY (the reel test, 8 Nov 2026): `gone` is
+      // not reset here or when speaking starts; the receipt of "clear them,
+      // all but the Wired page" is itself spoken, and that reset brought
+      // every card straight back. A new lookup clears its own keys below.
+      setAnswer({ panels: [], from: null }); setOpenKey((o) => (o && pinned.has(o) ? o : null)); setCut(false); setReplay(null); setFreshAt(null); mountedAt.current = lastNova?.at ?? null; setPlaying(null); setTidy(false);
     }
-    if (k === 'speaking' && wasTurn.current !== 'speaking') { setCut(false); setGone(new Set()); }
+    if (k === 'speaking' && wasTurn.current !== 'speaking') setCut(false);
     wasTurn.current = k;
   }, [S.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -642,6 +646,10 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
     return () => { cancelAnimationFrame(raf); svg.innerHTML = ''; };
   }, [needThreads]);
   useEffect(() => { if (S.key !== 'thinking') satSeen.current.clear(); }, [S.key]);
+  // a NEW lookup's cards reuse the lk: keys: what he put away from the last
+  // one must not hide them
+  const lookupQuery = T.lookup?.query || null;
+  useEffect(() => { setGone((g) => { const n = new Set([...g].filter((k) => !String(k).startsWith('lk:'))); return n.size === g.size ? g : n; }); }, [lookupQuery]);
 
   // ---- touching the glass ------------------------------------------------
   const putAwayRef = useRef(null);

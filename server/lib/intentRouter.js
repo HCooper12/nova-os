@@ -67,7 +67,11 @@ const REPERTOIRE_RE = /\b(?:teach me|learn(?: how)?|practi[sc]e|master|pick up|g
 // "implement" on its own is not code (1 Nov 2026: "just make the changes and
 // implement them ready for tomorrow" went to the Code screen): it needs a
 // code-shaped object or Nova's own repo in the sentence
-const CODE_RE = /\b(build|implement (?:a |an |the )?(?:feature|fix|change (?:in|to) nova|it in nova)|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
+const CODE_RE = /\b(implement (?:a |an |the )?(?:feature|fix|change (?:in|to) nova|it in nova)|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
+// "build" only as an ORDER (the reel test, 8 Nov 2026: "I think we should
+// build something with it", said thinking aloud, went to the Code screen):
+// the sentence starts with it, after at most "Nova, can you / please"
+const BUILD_ORDER = /^(?:(?:hey |ok |okay |so |right )?nova[,:]?\s*)?(?:can you |could you |would you |please |go and |just )?build\b/i;
 // SOMETHING TO MAKE, versus something to change IN NOVA. CODE_RE already owns
 // the word "build", and it has to keep owning it for "build this into Nova" —
 // so the Builder only takes a request that names an ARTEFACT to produce, and
@@ -219,7 +223,7 @@ function routeIntentLane(text) {
   // project in his projects folder, while CODE_RE's world is changing Nova
   // itself. Asking for something to be MADE is the commoner request of the two.
   if (BUILD_RE.test(raw)) return { lane: 'build', urls: [], prose: raw, why: 'something to make — the Builder writes it as real files in its own project folder' };
-  if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
+  if (CODE_RE.test(raw) || BUILD_ORDER.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
   // A briefing is research PLUS a deliverable, so it is tested BEFORE the
   // Researcher — otherwise the more specific intent never fires.
   if (BRIEF_RE.test(raw)) return { lane: 'brief', urls: [], prose: raw, why: 'a report to research and bring back — agents fan out, then Nova writes it and can read it to you' };

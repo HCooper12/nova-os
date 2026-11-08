@@ -151,3 +151,18 @@ test('answer: an expired standby ends silently; "back" afterwards still just say
   const off = await S.answerStandby('back', new Date(d.getTime() + 10 * 60_000));
   assert.equal(off.text, 'Back.');
 });
+
+test('the sign-off and the wake, as Rose has them (8 Nov 2026): no clock time going dark, "I\'m here, sir" to "are you there?"', async () => {
+  const now = new Date('2026-11-08T02:00:00Z');
+  const on = await S.answerStandby('Go to sleep.', now);
+  assert.equal(on.text, S.SLEEP_LINE);
+  assert.equal(on.standby.on, true);
+  assert.equal(on.standby.sleep, true);
+  const off = await S.answerStandby('Nova, are you there?', new Date(now.getTime() + 60_000));
+  assert.equal(off.standby.on, false);
+  assert.match(off.text, /^I'm here, sir\./);
+  const again = await S.answerStandby('go to sleep', new Date(now.getTime() + 120_000));
+  const back = await S.answerStandby("I'm back", new Date(now.getTime() + 180_000));
+  assert.ok(again.standby.on);
+  assert.match(back.text, /^Back\./);
+});

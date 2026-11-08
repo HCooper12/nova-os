@@ -121,6 +121,7 @@ import { markListen, lastListenEnd, noteNovaSpeaking, novaSpeakingNow } from './
 import { isContinuation, continueWindowClosed, isCorrection, stripEcho, FIX_MS } from './turnSense.js';
 import { echoScore, contentWords } from './bargeIn.js';
 import { captureInterrupt, interruptNote, interruptFresh, replyInAir, lineSpeaks, capUnsaid, airWithBrowser } from './interruptTurn.js';
+import { briefCounts, briefDoneLine, briefCard } from './briefCounts.js';
 import { countsAsEmpty, afterEmpty } from './listenRules.js';
 import { runMicCheck } from './micCheck.js';
 import { measureGlass, glassSummary } from './glassMeter.js';
@@ -486,6 +487,12 @@ function wrapStageCard(w) {
 }
 
 const INTAKE_LABEL = { sex: 'Sex', age: 'Age', heightCm: 'Height (cm)', weightKg: 'Weight (kg)', bodyFatPct: 'Body fat (%)', activity: 'Activity', goal: 'Goal', pace: 'Pace', eating: 'Eating style' };
+
+// THE WALL STAYS BETWEEN TURNS (8 Nov 2026): the lookup's cards (keys lk:…)
+// are his references until a new lookup replaces them, "clear the screen"
+// or sleep; the model's own panels start fresh each turn.
+const keepLookupVisuals = (vis) => Object.fromEntries(Object.entries(vis || {}).filter(([k]) => k.startsWith('lk:')));
+const dropLookupVisuals = (vis) => Object.fromEntries(Object.entries(vis || {}).filter(([k]) => !k.startsWith('lk:')));
 
 export default class App extends Component {
   constructor(props) {
@@ -8748,7 +8755,12 @@ export default class App extends Component {
       intervalMs: 150,
       onProgress: (job) => {
         if (job.visuals) this.absorbVisuals(job.visuals);
-        if (job.lookup) this.setState((s) => (JSON.stringify(s.askLookup) === JSON.stringify(job.lookup) ? null : { askLookup: job.lookup }));
+        if (job.lookup) this.setState((s) => {
+          if (JSON.stringify(s.askLookup) === JSON.stringify(job.lookup)) return null;
+          // a NEW lookup replaces the last one's cards on the wall; the same lookup growing keeps them
+          const fresh = s.askLookup && s.askLookup.query && job.lookup.query && s.askLookup.query !== job.lookup.query;
+          return { askLookup: job.lookup, ...(fresh ? { glassVisuals: dropLookupVisuals(s.glassVisuals) } : {}) };
+        });
         // A SLOW AGENT STARTED (the Researcher): the server's code-written
         // line, said once per line per reply, and shown in the island under
         // that agent's name. State-driven: no slow ask, nothing said.
@@ -10035,7 +10047,11 @@ export default class App extends Component {
       if (title && author) return { ...L('book', 'LIBRARIAN', `the Librarian researches "${title}" and weaves it into your vault`), book: { title, author } };
     }
     if (study) return L('study', 'STUDY', 'a creator/catalogue analysis');
-    if (/\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|codebase|in nova|to nova|the repo)\b/i.test(raw)) return L('code', 'CLAUDE CODE', 'a build request — runs as a Claude Code session inside Nova');
+    // AN ORDER, NOT A THOUGHT (the reel test, 8 Nov 2026): "I think we should
+    // build something with it" went to the Code screen. A build request is
+    // imperative (optionally "Nova, can you …"), or names the codebase.
+    if (/^(?:(?:hey |ok |okay |so |right )?nova[,:]?\s*)?(?:can you |could you |would you |please |go and |just )?(?:build|implement|refactor|fix the bug|write a (?:script|test|function)|add a (?:feature|test)|deploy|commit)\b/i.test(raw)
+      || /\b(codebase|in nova|to nova|the repo)\b/i.test(raw)) return L('code', 'CLAUDE CODE', 'a build request — runs as a Claude Code session inside Nova');
     if (/\b(research|look up|find out|dig into|sources? on)\b/i.test(raw)) return L('research', 'RESEARCH', 'research with citations');
     if (/\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein)|should i (train|deload|lift|eat)|reps?|sets?|rpe|deload)\b/i.test(raw)) return L('coach', 'COACH', 'a training question — the Coach has your full history');
     if (/^(remind me|remember|note:|todo:|add|buy|log)\b/i.test(raw)) return L('capture', 'INBOX', 'a thing to file');
@@ -10759,7 +10775,13 @@ export default class App extends Component {
   // updater when nothing actually changed, because they run on a 150ms poll
   // and a whole-app re-render per tick is the thing P7 fixed.
   resetGlass() {
-    this.setState({ glassBeats: [], glassVisuals: {}, glassSpokenTo: 0, askLookup: null });
+    // THE WALL STAYS BETWEEN TURNS (the reel test, 8 Nov 2026): the lookup's
+    // cards are his references until a new lookup replaces them, "clear the
+    // screen", or sleep. Clearing them here emptied the wall at the start of
+    // "what's on the screen", so Nova said nothing was up and "clear them,
+    // all but the Wired page" had nothing to match. The beats and the model's
+    // own panels are the turn's; those still start fresh.
+    this.setState((s) => ({ glassBeats: [], glassVisuals: keepLookupVisuals(s.glassVisuals), glassSpokenTo: 0 }));
   }
   setGlassBeats(beats) {
     this.setState((s) => {
@@ -10894,7 +10916,18 @@ export default class App extends Component {
           research: { ...m.research, status: 'done', title: record.decision.title, body: record.decision.payload.body },
           proposal: { recordId, title: `File "${record.decision.title}" into the vault`, status: 'pending' },
         }));
-        this.announceAway({ here: this.state.screen === 'voice', title: 'Research brief ready', text: record.decision.title, tone: 'nova', go: () => this.navigate('voice') });
+        // FINISHED WORK COMES BACK BY ITSELF (the Rose study §2.5, 8 Nov 2026):
+        // while he is on Nova's page with the voice on, the brief is SAID with
+        // its counts and one offer; a plain "yes" puts it on the glass. The
+        // island (hidden while a wall is up) is for when he is elsewhere.
+        const title = record.decision.title;
+        const body = record.decision.payload?.body || '';
+        if (this.state.screen === 'voice' && this.state.voiceSpeak && !document.hidden) {
+          this.sayLine(briefDoneLine(title, briefCounts(body)));
+          this.setState({ voicePendingOffer: { kind: 'brief-show', recordId, title, body } });
+        } else {
+          this.announceAway({ here: this.state.screen === 'voice', title: 'Research brief ready', text: title, tone: 'nova', go: () => this.navigate('voice') });
+        }
       },
       onError: (msg) => patch((m) => ({ ...m, research: { ...m.research, status: 'error', error: msg } })),
     });
@@ -11820,6 +11853,7 @@ export default class App extends Component {
         if (yes && offer.kind === 'gym-finish') this.finishWorkoutSession();
         else if (yes && offer.kind === 'browse-press') this.pressFromGlass(offer.recordId, offer.title);
         else if (yes && offer.kind === 'browse-open') this.openBrowserUrl(offer.url);
+        else if (yes && offer.kind === 'brief-show') { const card = briefCard(offer.title, offer.body); if (card) { this.putCard(card); this.sayLine('On screen, sir.'); } else this.sayLine('There is nothing in it to show yet, sir.'); }
         else if (yes && offer.kind === 'briefing-resume') { this.navigate('briefing'); this.playBriefing(offer.from || 0); }
         else if (yes && offer.kind === 'project-first-move') this.startProjectFirstMove(offer);
         else if (yes && offer.kind === 'project-start-another') this.startAnotherProject(offer.text);
@@ -11939,7 +11973,9 @@ export default class App extends Component {
   // microphone, and a round-trip to be told to stop listening is absurd.
   // Deliberately narrow — it must never eat a real question that happens to
   // contain the words.
-  static STAND_DOWN = /^\s*(?:ok(?:ay)?|alright|right|hey nova)?[,\s]*(?:nova[,\s]*)?(?:stand down|stop listening|that'?s all|that'?ll be all|nothing else|go to sleep|never ?mind|dismissed|thank you,? that'?s all)\s*[.!]?\s*$/i;
+  // "go to sleep" is NOT here (8 Nov 2026): it is the server's standby (lib/standby.js),
+  // which darkens the wall and answers "are you there?"; a stand-down only closed the mic
+  static STAND_DOWN = /^\s*(?:ok(?:ay)?|alright|right|hey nova)?[,\s]*(?:nova[,\s]*)?(?:stand down|stop listening|that'?s all|that'?ll be all|nothing else|never ?mind|dismissed|thank you,? that'?s all)\s*[.!]?\s*$/i;
   // REPLY IN PLACE — his ask, 21 Sep 2026 (src/ReplySheet.jsx carries the
   // why). A banner, a nudge or a report can open the one composer over the
   // current screen with its own words as the situation, so his answer lands
@@ -12389,11 +12425,12 @@ export default class App extends Component {
     // "Report's up, 13 blocks on the HUD" and "nothing's in front of you".
     // The lookup's cards and the panels the glass is holding are named here
     // so "what's on the screen", "the Wired one", "clear the rest" resolve.
-    const lk = s.askLookup?.cards || [];
-    const vis = Object.values(s.glassVisuals || {}).filter((v) => v && v.kind !== 'page' && v.kind !== 'video');
+    const entries = Object.entries(s.glassVisuals || {}).filter(([, v]) => v && v.kind);
+    const lk = entries.filter(([k]) => k.startsWith('lk:')).map(([, v]) => v);
+    const vis = entries.filter(([k]) => !k.startsWith('lk:')).map(([, v]) => v);
     if (lk.length || vis.length) {
-      const name = (c) => `${c.kind === 'video' ? 'a clip' : c.kind === 'page' ? 'a page' : `a ${c.kind}`}${c.host ? ` from ${c.host}` : c.channel ? ` by ${c.channel}` : ''}${c.title ? ` "${String(c.title).slice(0, 60)}"` : ''}`;
-      const all = [...lk.map((l) => l.card || l), ...vis];
+      const name = (c) => `${c.kind === 'video' ? 'a clip' : c.kind === 'page' ? 'a page' : `a ${c.kind}`}${c.host ? ` from ${c.host}` : c.channel ? ` by ${c.channel}` : ''}${c.title ? ` "${String(c.title).slice(0, 60)}"` : c.label ? ` "${String(c.label).slice(0, 60)}"` : ''}`;
+      const all = [...lk, ...vis];
       bits.push(`On the glass now: ${all.length} card${all.length === 1 ? '' : 's'} (${all.slice(0, 8).map(name).join('; ')}${all.length > 8 ? '; …' : ''})`);
     } else if (s.screen === 'voice' && !card?.label) {
       bits.push('Nothing is on the glass');

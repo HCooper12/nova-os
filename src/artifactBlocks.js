@@ -205,7 +205,14 @@ export function messageParts(raw, { final = true } = {}) {
 export function speakableText(raw, { final = false } = {}) {
   const { text } = parseArtifactBlocks(raw, { final });
   // a token sits on its own line: take the line, not just the token
-  return text.replace(/\n?[ \t]*\[\[artifact:[^\]]*\]\][ \t]*(?=\n|$)/gi, '').replace(/\[\[artifact:[^\]]*\]\]/gi, '').replace(/\n{3,}/g, '\n\n').trim();
+  return text.replace(/\n?[ \t]*\[\[artifact:[^\]]*\]\][ \t]*(?=\n|$)/gi, '').replace(/\[\[artifact:[^\]]*\]\]/gi, '')
+    // a numbered Sources block (the local lane's withSources) is for the
+    // record, never for the voice: read aloud it was "[1] https://screenawake."
+    // and broke the local TTS (8 Nov 2026)
+    .replace(/\n+\s*Sources?:\s*\n(?:\s*\[\d+\][^\n]*\n?)+\s*$/i, '')
+    // and the [1][2] markers the local lane leaves in its sentences
+    .replace(/\s*\[\d{1,2}\](?=[\s.,;:!?]|\[|$)/g, '')
+    .replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /**

@@ -44,6 +44,10 @@ const clean = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 const ASKED = /\b(?:look (?:it|that|this|them|him|her) up|look up|search (?:for|the web|online|the internet)|search it|google (?:it|that|this|for)?|find out (?:about|what|who|where|when|how)|read up on)\b/i;
 // his own world is never the web, whatever verb he used
 const OWN = /\b(?:my|our|mine|ours|myself)\b/i;
+// nor is what is in front of him: the glass, the wall, the cards on it (the
+// reel test, 8 Nov 2026: "What's on the screen right now?" searched the web
+// and the answer described a website called ScreenAwake)
+const GLASS = /\b(?:on|the|this|that|his|your) (?:screen|glass|wall|hud|display)\b|\b(?:these|those|the|that|this) (?:cards?|panels?|boxes|tiles?)\b|\bin front of me\b|\bwhat am i looking at\b|\bup there\b|\bon show\b/i;
 const CALLED = /\b(?:it'?s |this is |that'?s |they'?re )?(?:called|named|known as)\s+([^.,;!?]+)/i;
 const LEAD = /^(?:(?:so|and|ok|okay|right|well|hey|now)[, ]+)?(?:nova[,:]?\s*)?(?:(?:why don'?t|can|could|would|will) you |please |just )*(?:go (?:and |on and )?)?(?:look (?:it|that|this|them) up|look up|search (?:for|the web for|online for|the internet for)?|google|find out (?:about|what|who)?|read up on|check (?:out|on)?|research)\s*/i;
 const TAIL = /\s*(?:for me|please|online|on the web|on the internet|would you|will you|right now|quickly)\s*[.?!]*\s*$/i;
@@ -84,6 +88,7 @@ export function lookupWanted(raw, { previous = '' } = {}) {
   if (!q) return null;
   if (needsClaude(q)) return null;   // a correction of the last answer
   if (OWN.test(q.replace(/\bfor me\b/gi, ''))) return null;
+  if (GLASS.test(q)) return null;         // a question about what is on the glass answers from the glass
   const explicit = ASKED.test(q);
   if (!explicit && !webLookup(q)) return null;
   const query = lookupQuery(q, previous);
@@ -93,6 +98,9 @@ export function lookupWanted(raw, { previous = '' } = {}) {
   const name = lookupName(q, query);
   return { query, name, why: explicit ? 'he asked for a lookup' : 'a question about the outside world' };
 }
+
+/** Is this about what is on the glass? (lib/askDispatch routes it to Claude, which holds the screen block.) Pure. */
+export const glassQuestion = (raw) => GLASS.test(String(raw || '').replace(/\[[^\]]*\]/g, ' '));
 
 /** The short name of what is being looked up, for the ack. Pure. */
 export function lookupName(raw, query) {

@@ -252,3 +252,9 @@ test('a map: the model names a place, code finds it, the card carries the pin; a
   assert.match(calls[0][1], /NovaOS/);
   assert.ok(VISUAL_KINDS.includes('map'));
 });
+
+test('a question about the glass is never a web lookup (the reel test, 8 Nov): the screen, the wall, the cards', () => {
+  for (const q of ["What's on the screen right now?", 'what is on the wall', 'which of these cards is the review', 'what am I looking at', 'is the TechCrunch one still up there'])
+    assert.equal(lookupWanted(q), null, q);
+  assert.ok(lookupWanted('what is the busy bar by flipper devices'));
+});

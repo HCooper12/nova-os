@@ -249,7 +249,8 @@ export function valsNovaThread(app, ctx, v) {
       go: (k) => app.navigate(k),
       stop: () => app.stopSpeaking(),
       // a word back from code when his words moved the glass (src/glassVoice.js)
-      sayLine: (t) => { if (t && st.voiceSpeak) app.speakTtsSentence(t, null, { stance: 'ack' }); },
+      // a line code says (a glass receipt, a camera's answer): in the chat as Nova's, so the record and the next model turn see it, and spoken when his voice is on
+      sayLine: (t) => { if (t) app.sayLine(t); },
       // a camera frame attached to the next question ("what am I holding?")
       attachSnapshot: (dataUrl) => app.setState((s) => ({ pendingAttach: [...(s.pendingAttach || []), { name: 'camera.jpg', kind: 'image', dataUrl, thumb: dataUrl }].slice(0, 6) })),
       ask: (t) => v.sendOrb(t),
