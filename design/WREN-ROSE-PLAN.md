@@ -81,6 +81,9 @@ the live service: frames in the Nova session's scratchpad proof5/. Known:
 headless Bing still degrades many queries even with the Bing parameters (the
 relevance filter says so plainly); the phone proof was Chrome emulating an
 iPhone, not WebKit; phase 7 (camera, map) not started. The search key is
-`BRAVE_SEARCH_KEY` in the environment or `~/.atlas/.env`. The decision on the
-sidebar squares (icons, not the mockup's blanks) stands as built unless he says
-otherwise.
+`BRAVE_SEARCH_KEY` in the environment or `~/.atlas/.env`. The sidebar squares keep
+their icons (his call, 8 Nov). The Brave key is dropped for now (his call:
+the free tier asks for a card), so headless Bing stays the search. 8 Nov,
+f289bca: Nova parity carried over: a lookup reads six pages and three clips
+(ten and four when he asks for depth), and Wren says references, pages,
+videos, links, never "the wall".

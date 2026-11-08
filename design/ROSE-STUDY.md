@@ -280,3 +280,43 @@ card up (src/briefCounts.js).
 **Not proved:** his own devices; the brief-done line in a live run (unit
 tests only); the phone's idle rail frame; the first lookup answer that run
 came from the local model with [1][2] in the record (speech strips them).
+
+### 8 Nov, round six (commits 277e654b → e564686c on main; Wren f289bca)
+
+His three calls: Nova never says "the glass" to him ("references, links,
+videos, etc."); a lookup is not capped at five cards; Wren's sidebar keeps
+its icons; the Brave key is dropped for now (the free tier wants a card).
+
+**The words.** The word belonged to the build, and the model echoed it
+because the screen block taught it ("On the glass now: 5 cards"). Now the
+block says "On his screen now: 9 references (a video by …; a page from
+wired.com …). Call them references, pages, videos or links, never 'the
+glass'", TURN_TAKING and the running-glass contract carry the rule, the
+LOOKED UP block repeats it, the single-card directive is headed ON SCREEN,
+and the visible labels follow (the rail's aria, the Voice history panel
+"SHOWN SO FAR", "Replay with the panels", the move toast). Internal names
+(glassVisuals, glassVoice, GLASS_CONTRACT) stay. Proof on the scratch rig:
+"What's on the screen right now?" → "Nine references are up, sir: three
+videos and six pages, all on the Busy Bar from Flipper Devices…"
+
+**The count.** `PAGES` 6, `CLIPS` 3 (every relevant result one search page
+gives, read in parallel inside the same six seconds); "properly",
+"everything you can find", "dig into it", "in depth" is a DEEP lookup
+(`lookupScale`: ten pages, four clips, twelve seconds), the depth words are
+dropped from the query, and a deep lookup goes to Claude (the small model
+answered ten pages with a bare "[1] [4] [5]" line). Measured: quick "the
+Busy Bar" → 6 found, 4 read in 6.0 s (Bing took 4.4 s), 3 clips, 9 cards;
+deep → 7/10 read in 11 s, 4 clips, 14 cards, Claude's two paragraphs. The
+Mac wall holds sixteen. Wren carries the same scale and vocabulary.
+
+**Gaps still open against Rose (measured, not guessed):** speed above all:
+Rose answers within a breath of him stopping; Nova's lookup turn here ran
+20–39 s end to end (Bing 4.4 s in headless Chrome, then the model; the ack
+covers the first second only). A past report brought back by name across
+days ("that VR report you gave me earlier"): the wall's history is this
+session's forty cards, in memory. The honest-refusal line ("that's not a
+number anyone has; what's on the board is 63.77%") is a lens rule and a
+code gate, never run as a reel exchange. A quick lookup may still land on
+the local model, which writes "[1] [2]" into the chat text (speech strips
+them). Figures, quotes and entities drawn by Claude live: unit-tested, not
+seen in a run. The camera opens on command, never watches. His own devices.
