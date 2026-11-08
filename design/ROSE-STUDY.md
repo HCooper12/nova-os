@@ -395,3 +395,38 @@ Not done: the Researcher's finished briefs are not in this record (they
 live in the Inbox as documents; "bring up that VR report" would need their
 titles here too), and the Mac's scattered cards still overlap at 1440×900
 when nine are up (the seeded layout, not this round).
+
+### 8 Nov, round nine: briefs in the recall, and the model's share of a turn (Nova 28a54330, 2ddffbdf, 38ff25af; Wren 37767d6, 06aed7e)
+
+**Briefs.** A finished Researcher brief joins the recall record as one note
+card (title, first prose lines, code's counts) under `lk:b1`; briefs filed
+before the record are found in the Inbox, read-only, on a miss. On his real
+Inbox, read-only from the live server: "bring up the side delt report" →
+"Back up, sir: the Best Exercises for Side Delt Growth evidence brief from
+last week, 5 sections, 13 sources." The card wears BRIEF // RESEARCHER and
+the phone's mini card shows the title (it showed the first sentence until
+the proof caught it). Wren has no Researcher; its weekly ideas are its
+briefs, and "bring up the expert idea" returns his real idea from 18
+October on the live Wren.
+
+**Where the model's seconds went (measured, real model, scratch rig).**
+From the pages being ready to the first word: a conversation's FIRST turn
+3.4 s, a later turn 1.6–1.7 s. The first prompt is about 31k tokens (57k
+characters of instructions, 53k of live context over some 25 sections with
+no single bloat, the pages). That cost lands only on turn one, and turn one
+also started its process cold, because the prewarm only warmed a session
+that already existed (and a stored session from yesterday was refused at
+the ask anyway). Now the prewarm starts a fresh session's process when
+there is no live conversation and the turn claims it. Separately, a quick
+sprint sat its full 6 s on one slow page after five were read; it now goes
+on at four pages (eight deep), the straggler still filling its card.
+
+| Turn (new conversation, prewarmed) | sprint | model | first words |
+|---|---|---|---|
+| Busy Bar | 2.0 s | 2.4 s | 4.4 s |
+| Meta Quest 3S price | 3.4 s (was 6.0) | 2.5 s | 5.9 s (was 10.5) |
+| Flipper Zero | 1.9 s | 2.7 s | 4.6 s |
+
+Not done: cutting the 31k-token first prompt itself (it would change what
+Nova knows on turn one; worth a measured trial of a lookup-turn prompt
+without the agents' rooms and the weekly debrief, his call).
