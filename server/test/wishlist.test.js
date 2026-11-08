@@ -409,3 +409,27 @@ test('Quick Capture\'s receipt: the tag names the list, a failed add shows its c
   assert.match(m.rows[1].why, /Share My Shopping Wishlist with the Nova connection/);
   assert.equal(m.rows[1].onUndo, null);
 });
+
+// ------------------------------------------------ opening the page reads Notion (9 Nov)
+test('opening the Wishlist page reads Notion again when the last read is over a minute old, and not before', async () => {
+  const { default: express } = await import('express');
+  const { wishlistRouter, OPEN_REFRESH_MS } = await import('../routes/wishlist.js');
+  const n = await fresh({ rows: [] });
+  await W.readAll();
+  const app = express(); app.use('/api', wishlistRouter(dataDir));
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  const get = () => fetch(`http://127.0.0.1:${srv.address().port}/api/wishlist`).then((r) => r.json());
+  const reads = () => n.calls.filter((c) => c.url === `/data_sources/${W.ITEMS_DS}/query`).length;
+  try {
+    const before = reads();
+    await get();
+    assert.equal(reads(), before, 'a read a moment ago is not repeated');
+    const cur = await W.readItems();
+    const old = new Date(Date.now() - OPEN_REFRESH_MS - 5000).toISOString();
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(path.join(dataDir, 'wishlist', 'items.json'), JSON.stringify({ ...cur, lastSync: old }));
+    const v = await get();
+    assert.equal(v.syncing, true, 'the page is told a read is under way, so it looks again');
+    await waitFor(() => reads() === before + 1);
+  } finally { srv.close(); }
+});

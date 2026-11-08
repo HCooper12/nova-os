@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+export const OPEN_REFRESH_MS = 60_000;
+
 // HIS NOTION WISHLIST (lib/wishlist.js). Every write files a record on the
 // inbox rails; its Undo is /api/inbox/:id/undo like every other.
 export function wishlistRouter(vaultPath) {
@@ -7,12 +9,20 @@ export function wishlistRouter(vaultPath) {
   const fail = (res, err, code = 400) => res.status(err.status || code).json({ error: err.message, code: err.code || null, ...(err.record ? { recordId: err.record.id } : {}) });
 
   // the cached items, when Notion was last read, and shared:false with the
-  // reason when Notion cannot show them. A first visit starts a read.
+  // reason when Notion cannot show them. OPENING THE PAGE READS NOTION AGAIN
+  // when the last read (or try) is over a minute old (his call, 9 Nov), so an
+  // edit he just made in Notion is here and on the shared page within a
+  // moment; the read starts before the view is taken so the page sees
+  // `syncing` and looks again until it lands. The 15-minute timer stays.
   router.get('/wishlist', async (_req, res) => {
     try {
       const W = await import('../lib/wishlist.js');
-      const view = await W.wishlistView();
-      if (!view.lastSync && !view.syncing && view.reason !== 'Connect Notion in Settings first') W.kickSync(0);
+      let view = await W.wishlistView();
+      if (view.reason !== 'Connect Notion in Settings first' && !view.syncing) {
+        const cur = await W.readItems();
+        const last = Math.max(Date.parse(cur.lastSync || 0) || 0, Date.parse(cur.lastTriedAt || 0) || 0);
+        if (Date.now() - last > OPEN_REFRESH_MS) { W.readAll().catch(() => {}); view = await W.wishlistView(); }
+      }
       res.json(view);
     } catch (err) { fail(res, err, 500); }
   });
