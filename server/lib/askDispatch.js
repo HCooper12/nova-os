@@ -359,7 +359,9 @@ function startAskNow(cwd, opts = {}) {
       || (glassQuestion(said) ? 'it is about what is on his screen' : null)
       // ten pages read for one answer is a synthesis; the small model answered
       // one with a bare "[1] [4] [5]" line and a Sources list (measured 8 Nov)
-      || (opts.lookup?.depth === 'deep' ? 'a deep lookup is a synthesis across many pages' : null)
+      // and a quick one measured 27 s on the small model before it gave up
+      // and handed over anyway (8 Nov): a lookup turn is Claude's from the start
+      || (opts.lookup ? (opts.lookup.depth === 'deep' ? 'a deep lookup is a synthesis across many pages' : 'the pages were read for this turn and he is waiting') : null)
       || (playbooksFor({ text: opts.question, agent: 'nova', vaultPath: cwd }).length ? 'a playbook fits this' : null)
     : null;
   if (routed) console.log(`ask: ${routed}; Claude answers (the model on this Mac is not asked)`);

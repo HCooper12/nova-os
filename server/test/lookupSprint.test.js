@@ -322,3 +322,25 @@ test('his words for depth set the scale and never reach the search', () => {
   assert.equal(w.query, 'the Busy Bar');
   assert.equal(w.depth, 'deep');
 });
+
+test('a search that misses is retried without its quotes, then by the name alone', async () => {
+  const { retryQueries } = await import('../lib/lookupSprint.js');
+  assert.deepEqual(retryQueries('"Busy Bar" Flipper Devices'), ['Busy Bar Flipper Devices', '"Busy Bar"', 'Busy Bar']);
+  assert.deepEqual(retryQueries('the Meta Quest 3S price'), ['Meta Quest']);
+  const tried = [];
+  const lk = await runLookupSprint('"Busy Bar" Flipper Devices', { deps: deps({ search: async (q) => { tried.push(q); if (tried.length < 2) throw new Error('www.bing.com showed 10 results, none of them about the question'); return deps().search(); }, clips: async () => [] }) });
+  assert.deepEqual(tried, ['"Busy Bar" Flipper Devices', 'Busy Bar Flipper Devices']);
+  assert.equal(lk.searchedAs, 'Busy Bar Flipper Devices');
+  assert.equal(lk.sources.length, 3);
+  // a refusal is not retried
+  const once = [];
+  const lk2 = await runLookupSprint('"Busy Bar"', { deps: deps({ search: async (q) => { once.push(q); throw new Error('www.bing.com asked for a human check'); }, clips: async () => [] }) });
+  assert.equal(once.length, 1);
+  assert.match(lk2.searchError, /human check/);
+});
+
+test('a question clause after the thing is for the model, not the search', () => {
+  assert.equal(lookupQuery('Look up the Flipper Zero for me, what is it exactly?'), 'the Flipper Zero');
+  assert.equal(lookupQuery('look up the Busy Bar, who makes it'), 'the Busy Bar');
+  assert.equal(lookupQuery('What is the price of the Meta Quest 3S right now?'), lookupQuery('What is the price of the Meta Quest 3S right now?'));
+});

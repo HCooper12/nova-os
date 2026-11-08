@@ -43,6 +43,11 @@ export const CLIPS = 3;
 export const BUDGET_MS = 6000;
 export const DEEP = { pages: 10, clips: 4, budgetMs: 12000 };
 export const PAGE_CHARS = 2400;
+export const READ_MS = 3500;
+export const PICTURE_MS = 1200;
+// hosts that show a login wall to a browser that is not signed in: never a
+// pick (facebook 6.4 s to a wall, instagram refused by rule, measured 8 Nov)
+const WALLED = /(?:^|\.)(?:facebook|instagram|tiktok|linkedin|x|twitter|threads|pinterest)\.(?:com|net)$/i;
 // his words for depth; "look it up" alone is the quick kind
 const DEEP_RE = /\b(?:properly|thoroughly|in depth|in detail|deep dive|dig (?:in|into|deeper)|everything (?:you can|there is)(?: find)?|all you can find|as much as you can|every source|all the sources|the full picture|comprehensive|exhaustive|leave nothing out)\b/i;
 
@@ -66,6 +71,8 @@ const GLASS = /\b(?:on|the|this|that|his|your) (?:screen|glass|wall|hud|display)
 const CALLED = /\b(?:it'?s |this is |that'?s |they'?re )?(?:called|named|known as)\s+([^.,;!?]+)/i;
 const LEAD = /^(?:(?:so|and|ok|okay|right|well|hey|now)[, ]+)?(?:nova[,:]?\s*)?(?:(?:why don'?t|can|could|would|will) you |please |just )*(?:go (?:and |on and )?)?(?:look (?:it|that|this|them) up|look up|search (?:for|the web for|online for|the internet for)?|google|find out (?:about|what|who)?|read up on|check (?:out|on)?|research)\s*/i;
 const TAIL = /\s*(?:for me|please|online|on the web|on the internet|would you|will you|right now|quickly)\s*[.?!]*\s*$/i;
+// a question clause after the thing ("…, what is it exactly?") is for the model, not the search
+const ASIDE = /[,;:]?\s*(?:and )?(?:what|who|where|which|how(?: much)?)\s+\w+\s+(?:it|that|this|they|he|she)\b[^.?!]*[.?!]*\s*$/i;
 const PRON = /^(?:it|that|this|them|him|her|the thing|this thing|that thing)\s*[.?!]*$/i;
 const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'to', 'in', 'on', 'is', 'are', 'was', 'what', 'who', 'how', 'why', 'does', 'do', 'did', 'this', 'that', 'it', 'its', 'with', 'about', 'thing', 'called', 'one', 'me', 'you', 'we', 'they']);
 const contentWords = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9' -]/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w));
@@ -90,7 +97,7 @@ export function lookupQuery(raw, previous = '') {
     // found a dictionary twice (8 Nov); the article is dropped inside them
     if (contentWords(name).length) { const bare = name.replace(/^(?:the|a|an)\s+/i, ''); return qual ? `"${bare}" ${qual}` : `"${bare}"`; }
   }
-  let s = searchQuery(q).replace(LEAD, '').replace(TAIL, '').replace(/^(?:it'?s |this is |that'?s |they'?re )/i, '').trim();
+  let s = searchQuery(q).replace(LEAD, '').replace(ASIDE, '').replace(TAIL, '').replace(ASIDE, '').replace(/^(?:it'?s |this is |that'?s |they'?re )/i, '').trim();
   s = s.replace(/[.?!]+$/, '').trim();
   if (!s || PRON.test(s) || !contentWords(s).length) {
     const p = String(previous || '').replace(/\[[^\]]*\]/g, ' ').trim();
@@ -223,13 +230,15 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
 
   // clips start at once and land whenever they land (never in the prompt
   // after the deadline, always on screen)
+  // A PICTURE NEVER HOLDS THE SPRINT (8 Nov 2026): posters and page covers
+  // are waited for PICTURE_MS at most; a late one still lands on its card
+  // when it comes, through the same publish, while the model is already
+  // talking. The quick sprint had run to its whole budget on them.
+  const soon = (p, apply) => withDeadline(p.then((v) => { apply(v); return v; }).catch(() => null), Math.min(PICTURE_MS, Math.max(300, left())), null);
   const clipRun = Promise.resolve().then(() => clips(lookup.query, budgetMs)).then(async (found) => {
     lookup.clips = (found || []).slice(0, clipCount);
     safe(onClips, lookup);
-    await Promise.all(lookup.clips.map(async (c) => {
-      const p = await picture(`https://i.ytimg.com/vi/${c.id}/hqdefault.jpg`);
-      if (p) { c.poster = p; safe(onClips, lookup); }
-    }));
+    await Promise.all(lookup.clips.map((c) => soon(picture(`https://i.ytimg.com/vi/${c.id}/hqdefault.jpg`), (p) => { if (p) { c.poster = p; safe(onClips, lookup); } })));
   }).catch(() => {});
 
   const pageRun = (async () => {
@@ -239,31 +248,33 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
       found = await search(lookup.query);
     } catch (e) {
       // the full query missed ("the Busy Bar Flipper Devices" found nothing
-      // about the question, measured 8 Nov): the name alone gets one more go
-      const shorter = shorterQuery(lookup.query);
-      if (shorter && /none of them about/.test(String(e?.message || e))) {
-        try {
-          found = await search(shorter);
-          lookup.searchedAs = shorter;
-        } catch (e2) {
-          lookup.searchError = String(e2?.message || e2);
-          lookup.timings.search = now() - t0;
-          return;
-        }
-      } else {
-        lookup.searchError = String(e?.message || e);
+      // about the question, measured 8 Nov): the same words without their
+      // quotes get one more go (Bing on the fresh search profile answered a
+      // quoted name with dictionaries, 8 Nov evening), then the name alone.
+      // A search is a second now, so two more are still inside the budget.
+      let err = e;
+      found = null;
+      for (const again of retryQueries(lookup.query)) {
+        if (!/none of them about/.test(String(err?.message || err))) break;
+        try { found = await search(again); lookup.searchedAs = again; break; } catch (e2) { err = e2; }
+      }
+      if (!found) {
+        lookup.searchError = String(err?.message || err);
         lookup.timings.search = now() - t0;
         return;
       }
     }
     lookup.timings.search = now() - t0;
     if (found?.host) lookup.hostsRead.push(found.host);
-    const picks = (found?.results || []).filter((r) => r?.url && toolFor(r.url) !== 'transcript').slice(0, pages);
+    const picks = (found?.results || []).filter((r) => r?.url && toolFor(r.url) !== 'transcript' && !WALLED.test(hostOf(r.url))).slice(0, pages);
     lookup.sources = picks.map((r, i) => ({ n: i + 1, title: clean(r.title, 120) || hostOf(r.url), url: r.url, host: hostOf(r.url), snippet: clean(r.snippet, 200) || null, text: '', lines: [], image: null, read: false }));
     safe(onSearched, lookup);
     const t1 = now();
     await Promise.all(lookup.sources.map(async (s) => {
-      const ms = Math.max(2500, left());
+      // a read gets the budget left, never more than READ_MS: a login wall
+      // held a deep sprint 6.4 s past its last useful page (8 Nov); a slow
+      // page still lands on the wall when it comes, only not in the prompt
+      const ms = Math.min(READ_MS, Math.max(2500, left()));
       let p;
       try { p = await read(s.url, ms); } catch (e) { p = { ok: false, reason: String(e?.message || e) }; }
       if (p?.host && !lookup.hostsRead.includes(p.host)) lookup.hostsRead.push(p.host);
@@ -273,10 +284,7 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
         s.lines = firstLines(p.text);
         s.read = true;
         safe(onPage, lookup, s.n);
-        if (p.image) {
-          const pic = await picture(p.image);
-          if (pic) { s.image = pic; safe(onPage, lookup, s.n); }
-        }
+        if (p.image) await soon(picture(p.image), (pic) => { if (pic) { s.image = pic; safe(onPage, lookup, s.n); } });
       } else {
         lookup.misses.push({ url: s.url, reason: p?.reason || 'nothing readable' });
         safe(onPage, lookup, s.n);
@@ -289,6 +297,19 @@ export async function runLookupSprint(query, { name = null, budgetMs = BUDGET_MS
   lookup.timings.total = now() - started;
   lookup.done = true;
   return lookup;
+}
+
+/** The searches to try after the first found nothing about the question,
+ *  in order and without repeats: the words unquoted, then the name alone. Pure. */
+export function retryQueries(query) {
+  const q = String(query || '');
+  const out = [];
+  const push = (x) => { if (x && x !== q && !out.includes(x)) out.push(x); };
+  push(q.replace(/"/g, '').replace(/\s+/g, ' ').trim());
+  push(shorterQuery(q));
+  const s = shorterQuery(q);
+  if (s) push(s.replace(/"/g, '').trim());
+  return out;
 }
 
 /** The first few content words of a query, for a second search when the
