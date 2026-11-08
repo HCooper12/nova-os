@@ -36,7 +36,7 @@
 //
 // Read-only by construction, like browserResearch: navigate and extract
 // text; never click, post, fill or sign in.
-import { browserAvailable, profileExists, toolFor, withPage, readWithBrowser } from './browserResearch.js';
+import { browserAvailable, profileExists, toolFor, withPage, withSearchPage, readWithBrowser } from './browserResearch.js';
 import { readableText } from './recipeFromPage.js';
 
 const SEARCH_TIMEOUT_MS = () => Number(process.env.NOVA_RESEARCH_SEARCH_TIMEOUT_MS || 30_000);
@@ -181,7 +181,19 @@ export async function webSearch(query, { max = 6, timeoutMs = SEARCH_TIMEOUT_MS(
   const q = String(query || '').trim();
   if (!q) throw new Error('there was nothing to search for');
   if (braveKey() && !deps.withPage) return braveSearch(q, { max, deps });
-  const open = deps.withPage || withPage;
+  // the WARM search browser (browserResearch.js withSearchPage, 8 Nov 2026):
+  // its own profile, kept open between searches; a cold launch was 3 s of
+  // every search. A sign-in is never needed to search, so the signed-in
+  // profile is not touched here.
+  // …and when the warm browser cannot launch (its profile held by another
+  // Chrome), the search still runs, cold, on his profile as before
+  const open = deps.withPage || (async (fn) => {
+    try { return await withSearchPage(fn); } catch (e) {
+      if (!/Failed to launch|SingletonLock|ProcessSingleton|in use/i.test(String(e?.message))) throw e;
+      console.log(`research search: the warm browser could not start (${String(e.message).split('\n')[0].slice(0, 80)}); cold launch instead`);
+      return withPage(fn);
+    }
+  });
   if (!deps.withPage) {
     if (!browserAvailable()) throw new Error('Chrome is not installed where Nova expects it');
     if (!profileExists()) throw new Error('Nova\'s browser profile (~/.nova-browser) does not exist yet');
@@ -196,9 +208,25 @@ export async function webSearch(query, { max = 6, timeoutMs = SEARCH_TIMEOUT_MS(
   let timer;
   const page = open(async (p) => {
     await p.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
-    // the result list is server-rendered; a short settle lets late blocks land
-    await new Promise((r) => setTimeout(r, 1200));
-    return { html: await p.content(), text: await p.evaluate(() => (document.body ? document.body.innerText : '')).catch(() => '') };
+    // the result list is server-rendered: wait for its first entry (Bing's
+    // li.b_algo), at most 1.5 s, then a short settle for late blocks. The
+    // fixed 1.2 s this replaced was paid on every search (8 Nov 2026).
+    // A FRESH PROFILE IS REDIRECTED ONCE (8 Nov 2026: Bing sets its cookies
+    // and navigates again, and reading the page mid-way threw "Execution
+    // context was destroyed"): absorb one navigation, then read; a read that
+    // still lands mid-navigation is tried once more.
+    if (p.waitForSelector) {
+      await p.waitForSelector('li.b_algo, #b_results, .b_no', { timeout: 1500 }).catch(() => {});
+      await p.waitForNavigation?.({ waitUntil: 'domcontentloaded', timeout: 300 }).catch(() => {});
+      await p.waitForSelector('li.b_algo, #b_results, .b_no', { timeout: 1500 }).catch(() => {});
+    }
+    await new Promise((r) => setTimeout(r, p.waitForSelector ? 250 : 1200));
+    const read = async () => ({ html: await p.content(), text: await p.evaluate(() => (document.body ? document.body.innerText : '')).catch(() => '') });
+    try { return await read(); } catch (e) {
+      if (!/Execution context was destroyed|navigation/i.test(String(e.message))) throw e;
+      await p.waitForSelector?.('li.b_algo, #b_results, .b_no', { timeout: 2500 }).catch(() => {});
+      return read();
+    }
   });
   let got;
   try {

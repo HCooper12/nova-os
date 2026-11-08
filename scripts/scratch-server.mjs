@@ -72,7 +72,7 @@ const server = spawn(process.execPath, ['index.js'], {
   env: {
     ...process.env,
     PORT: String(PORT), HOST: '127.0.0.1',
-    NOVA_DATA_DIR: dataCopy, VAULT_PATH: vaultCopy, API_TOKEN: token,
+    NOVA_DATA_DIR: dataCopy, VAULT_PATH: vaultCopy, API_TOKEN: token, NOVA_SEARCH_PROFILE: path.join(scratch, "search-profile"),
     // dotenv never overrides a key that is already set, even to ''
     TELEGRAM_BOT_TOKEN: '', TELEGRAM_CHAT_ID: '', TODOIST_TOKEN: '', NOTION_TOKEN: '',
     ICLOUD_USERNAME: '', ICLOUD_APP_PASSWORD: '', BRAVE_SEARCH_KEY: '', ELEVENLABS_API_KEY: '',

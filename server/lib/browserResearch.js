@@ -1,6 +1,6 @@
 import path from 'node:path';
 import os from 'node:os';
-import { existsSync } from 'node:fs';
+import { existsSync, readlinkSync, unlinkSync, cpSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 
 // READING THE WEB AS HE WOULD, not as a bot.
@@ -257,3 +257,121 @@ export async function openSignInWindow(startUrl = 'https://www.instagram.com/acc
     browser.on('disconnected', () => resolve({ ok: true, profile: PROFILE_DIR }));
   });
 }
+
+/* ---------------------------- the warm search browser --------------------- */
+// SPEED (8 Nov 2026, his round after Rose): launching Chrome cost about 3 s
+// of every 4.4 s search, every search. A search needs no sign-in, so it runs
+// in its OWN profile (~/.nova-browser-search), in ONE headless Chrome that is
+// launched on the first search (or when he starts speaking, routes/voice.js
+// prewarm) and closed after SEARCH_IDLE_MS without a search. His signed-in
+// profile is never held open: the browser hand (lib/browse.js) and the
+// Instagram reads take it with its lock, and a warm browser there would turn
+// them away. `deps.launch` is the test seam; tests never start Chrome.
+export const SEARCH_PROFILE_DIR = process.env.NOVA_SEARCH_PROFILE || `${PROFILE_DIR}-search`;
+export const SEARCH_IDLE_MS = 10 * 60_000;
+let warm = null;            // { browser, timer, uses }
+let warming = null;         // the launch in flight, so two searches share one
+let launchImpl = null;      // tests inject; otherwise puppeteer-core
+
+// A STALE LOCK (8 Nov 2026): a server killed outright leaves its warm Chrome
+// behind, or the Chrome dies and leaves SingletonLock pointing at a pid that
+// is gone; either way the next launch fails "Failed to launch the browser
+// process". The lock names its host and pid: a dead pid's lock is removed
+// and the launch tried once more; a live pid is another Nova's browser, and
+// the search falls back to a cold launch on his profile (localResearch).
+export function clearStaleSearchLock(dir = SEARCH_PROFILE_DIR, { alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } } } = {}) {
+  let target;
+  try { target = readlinkSync(path.join(dir, 'SingletonLock')); } catch { return 'none'; }
+  const pid = Number(String(target).split('-').pop());
+  if (pid && alive(pid)) return 'live';
+  for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) { try { unlinkSync(path.join(dir, f)); } catch { /* already gone */ } }
+  return 'cleared';
+}
+
+// THE SEARCH PROFILE IS SEEDED FROM HIS (8 Nov 2026, measured): Bing hands a
+// brand-new profile dictionary results for the same query his profile gets
+// right (busy.app, Wired, TechCrunch), and no URL parameter changes that.
+// So the first launch copies his profile once, without its caches (392 MB
+// → ~120 MB; Cache, Code Cache, GPUCache, Service Worker) or the running
+// browser's own files (Singleton*, DevToolsActivePort). Pure given a copier.
+const SEED_SKIP = /^(?:Cache|Code Cache|GPUCache|GrShaderCache|GraphiteDawnCache|ShaderCache|Service Worker|DawnCache|DawnGraphiteCache|DawnWebGPUCache|component_crx_cache|extensions_crx_cache|BrowserMetrics(?:-spare\.pma)?|DeferredBrowserMetrics|Singleton(?:Lock|Socket|Cookie)|DevToolsActivePort|RunningChromeVersion|lockfile)$/;
+export function seedFilter(src) {
+  const base = path.basename(src);
+  return !SEED_SKIP.test(base);
+}
+export function seedSearchProfile(from = PROFILE_DIR, to = SEARCH_PROFILE_DIR, { copy = cpSync, exists = existsSync } = {}) {
+  if (exists(path.join(to, 'Default'))) return 'present';
+  if (!exists(path.join(from, 'Default'))) return 'no-source';
+  copy(from, to, { recursive: true, force: false, errorOnExist: false, filter: seedFilter });
+  return 'seeded';
+}
+
+async function launchSearchBrowser() {
+  if (launchImpl) return launchImpl();
+  if (process.env.NODE_TEST_CONTEXT && !process.env.NOVA_RESEARCH_IN_TESTS) throw new Error('Nova\'s search browser is not launched under the test runner');
+  const puppeteer = await import('puppeteer-core');
+  await mkdir(SEARCH_PROFILE_DIR, { recursive: true });
+  try { const seeded = seedSearchProfile(); if (seeded === 'seeded') console.log(`research search: the search profile was seeded from his browser profile (${SEARCH_PROFILE_DIR})`); } catch (e) { console.log(`research search: the search profile could not be seeded (${String(e.message).slice(0, 80)}); starting fresh`); }
+  const launch = () => puppeteer.default.launch({
+    executablePath: CHROME,
+    headless: 'new',
+    userDataDir: SEARCH_PROFILE_DIR,
+    args: ['--no-first-run', '--no-default-browser-check', '--disable-extensions'],
+  });
+  try { return await launch(); } catch (e) {
+    if (clearStaleSearchLock() === 'cleared') return launch();
+    throw e;
+  }
+}
+
+function touchWarm(idleMs = SEARCH_IDLE_MS) {
+  if (!warm) return;
+  clearTimeout(warm.timer);
+  warm.timer = setTimeout(() => { closeSearchBrowser().catch(() => {}); }, idleMs);
+  warm.timer.unref?.();
+}
+
+/** The warm browser, launched if it is not up; shared by concurrent searches. */
+export async function warmSearchBrowser({ idleMs = SEARCH_IDLE_MS } = {}) {
+  if (warm?.browser && warm.browser.isConnected?.() !== false) { touchWarm(idleMs); return warm.browser; }
+  if (!warming) {
+    warming = launchSearchBrowser().then((browser) => {
+      warm = { browser, timer: null, uses: 0, since: Date.now() };
+      browser.on?.('disconnected', () => { if (warm?.browser === browser) { clearTimeout(warm.timer); warm = null; } });
+      touchWarm(idleMs);
+      return browser;
+    }).finally(() => { warming = null; });
+  }
+  return warming;
+}
+
+/** Run `fn(page)` on a fresh tab of the warm search browser; the tab closes
+ *  whatever happens, the browser stays for the next search. */
+export async function withSearchPage(fn, { idleMs = SEARCH_IDLE_MS } = {}) {
+  const browser = await warmSearchBrowser({ idleMs });
+  const page = await browser.newPage();
+  if (warm) warm.uses += 1;
+  try {
+    await page.setViewport?.({ width: 1280, height: 1600 });
+    return await fn(page);
+  } finally {
+    await page.close?.().catch(() => {});
+    touchWarm(idleMs);
+  }
+}
+
+export async function closeSearchBrowser() {
+  const w = warm;
+  warm = null;
+  if (!w) return false;
+  clearTimeout(w.timer);
+  await w.browser.close?.().catch(() => {});
+  return true;
+}
+
+/** What is warm right now, for a health line or a test. */
+export function searchBrowserState() {
+  return warm ? { up: true, uses: warm.uses, sinceMs: Date.now() - warm.since } : { up: false };
+}
+
+export function _setSearchLaunchForTest(fn) { launchImpl = fn; }

@@ -576,6 +576,9 @@ export function voiceRouter(vaultPath) {
     let warmed = false;
     // the page index, so the search on this turn never pays the cold read
     import('../lib/vaultRetrieve.js').then(({ warmRetrieval }) => warmRetrieval(vaultPath)).catch(() => {});
+    // the search browser, so a lookup on this turn never pays Chrome's launch
+    // (3 s of a 4.4 s search, 8 Nov 2026); its own profile, idle-closed
+    if (process.env.NODE_TEST_CONTEXT === undefined) import('../lib/browserResearch.js').then(({ warmSearchBrowser }) => warmSearchBrowser()).catch(() => {});
     // Only warm a process for a session that actually exists. Warming a
     // random id would park a useless child in a 4-slot pool and evict the
     // one that matters.
