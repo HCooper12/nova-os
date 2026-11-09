@@ -14,6 +14,8 @@ import { gistOf } from './novaThreadFacts.js';
 import { clockNow } from './speechClock.js';
 import { TOKEN_RE } from './artifactBlocks.js';
 import { CountUp } from './CountUp.jsx';
+import { StageForm } from './StageForms.jsx';
+import { stageForm, cardDrawable, proposalCard } from './stageFormFacts.js';
 import { consultOf, subscribeConsult } from './motion/consultFeed.js';
 import {
   frameFor, macCoreScale, macState, satellitesOf, thinkingLine, SAT_SLOTS, SAT_SLOTS_DOCKED,
@@ -99,6 +101,7 @@ const G = {
   doc: <path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20zM14 3.5V8h4M9.5 12.5h5M9.5 16h5" />,
 };
 const Gl = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">{G[n]}</svg>;
+const minutesNow = () => { const t = new Date(); return t.getHours() * 60 + t.getMinutes(); };
 const Kbd = ({ children }) => <kbd className="nv-mac-kbd">{children}</kbd>;
 
 // THE MAC'S EMBERS (mockup 108 makeEmbers): 70 motes from one seed, rising,
@@ -432,15 +435,21 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   // THE WALL: a page or video beat the model wrote is a LIGHT on the card the
   // lookup already put up, never a second card
   const lightOf = (card) => (card?.kind === 'page' && !card.lookup && card.source ? `lk:p${card.source}` : card?.kind === 'video' && !card.lookup && card.clip ? `lk:v${card.clip}` : null);
+  const stageProposal = (!speaking || !!(T.stage?.total && T.stage.n >= T.stage.total)) ? (lastNova?.proposal || null) : null;
   const wallAll = (() => {
     const seen = new Set();
     const out = [];
-    const add = (key, card, extra = {}) => { if (!key || !card || seen.has(key) || gone.has(key)) return; seen.add(key); out.push({ key, card, ...extra }); };
+    const add = (key, card, extra = {}) => { if (!key || !card || seen.has(key) || gone.has(key) || !cardDrawable(card)) return; seen.add(key); out.push({ key, card, ...extra }); };
     for (const [key, card] of pinned) add(key, card, { pinned: true });
     for (const [key, card] of brought) add(key, card, { brought: true });
     for (const l of lookupCards) add(l.key, l.card);
     const model = replay ? replay.panels : [...codeNow.map((c) => ({ key: c.key, card: c })), ...allModel];
     for (const p of model) { if (lightOf(p.card)) continue; add(p.key, p.card); }
+    // THE PROPOSAL IS ITS OWN PANEL (mockup 114): the real one on the line,
+    // once its sentence is said, its body line and proposer read from its
+    // Inbox record; a calendar proposal keeps its own day panel instead
+    const pc = !replay && stageProposal && !code.some((c) => c.macKind === 'calendar') ? proposalCard(stageProposal, (T.inbox || []).find((r) => r.id === stageProposal.recordId) || null) : null;
+    if (pc) add(pc.key, pc);
     return out;
   })();
   // THE STAGE (phase 2, mockup 114): any panel of the answer, the briefing
@@ -479,13 +488,39 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   // a panel is placed once it is measured (an assumed height would fold
   // others and bring them back a frame later); until then it waits, unseen,
   // at the core, and one frame after it is placed it arrives from there
-  const plan = useMemo(() => (stageOn ? stagePlan(arrivals.filter((e) => heights[e.key]), { width: view.w, height: view.h, heights }) : []), [stageOn, arrivals, view.w, view.h, heights]);
+  // the words under the core, measured: the caption's keep holds their real
+  // height, so no panel ever sits on them (whole lines, so it rarely moves)
+  const plateRef = useRef(null);
+  const [capH, setCapH] = useState(0);
+  useEffect(() => {
+    const el = plateRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => { const h = Math.ceil((el.offsetTop + el.offsetHeight) / 8) * 8; setCapH((c) => (c === h ? c : h)); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const plan = useMemo(() => (stageOn ? stagePlan(arrivals.filter((e) => heights[e.key]), { width: view.w, height: view.h, heights, capH }) : []), [stageOn, arrivals, view.w, view.h, heights, capH]);
   const planAt = new Map(plan.map((l) => [l.key, l]));
+  // a new panel is measured before the screen is painted, so it is placed
+  // the moment it exists (the observer below keeps later changes of size)
+  useLayoutEffect(() => {
+    if (!stageOn) return;
+    const add = {};
+    for (const e of arrivals) {
+      if (heights[e.key]) continue;
+      const v = panelRefs.current.get(e.key)?.offsetHeight;
+      if (v) add[e.key] = v;
+    }
+    if (Object.keys(add).length) setHeights((h) => ({ ...h, ...add }));
+  }, [stageOn, arrivals]); // eslint-disable-line react-hooks/exhaustive-deps
   const [shown, setShown] = useState(() => new Set());
   useEffect(() => {
     if (!stageOn) { setShown((x) => (x.size ? new Set() : x)); return undefined; }
-    const id = requestAnimationFrame(() => setShown((x) => { const add = plan.filter((l) => !x.has(l.key)); if (!add.length) return x; const n = new Set(x); add.forEach((l) => n.add(l.key)); return n; }));
-    return () => cancelAnimationFrame(id);
+    const go = () => setShown((x) => { const add = plan.filter((l) => !x.has(l.key)); if (!add.length) return x; const n = new Set(x); add.forEach((l) => n.add(l.key)); return n; });
+    // one frame at its spot, then it arrives (a timer stands in when frames are held back)
+    const id = requestAnimationFrame(go);
+    const t = setTimeout(go, 34);
+    return () => { cancelAnimationFrame(id); clearTimeout(t); };
   }, [stageOn, plan]);
   const chip = stageChip(view.w, view.h);
   const folded = plan.filter((l) => l.folded && !gone.has(l.key));
@@ -534,7 +569,6 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const focus = turning || answerHeld || !!replay || wallOn;
   const proposal = lastNova?.proposal || null;
   const hasCalPanel = docked.some((p) => p.card?.macKind === 'calendar');
-  const hasStageCal = wallAll.some((w) => w.card?.macKind === 'calendar');
   const calDay = (code.find((c) => c.macKind === 'calendar')?.head?.sub || '').split(' ')[0];
   // the proposal's tick and cross join the last panel once its sentence is
   // being said (the answer's last panel), or once the answer is over
@@ -558,7 +592,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   // THINKING WHILE READING: the lookup's own progress under the state word
   const lookupLine = T.lookup && !T.lookup.done ? `reading ${T.lookup.pages.length ? `${T.lookup.pages.length} pages` : 'the web'} on ${T.lookup.query || 'that'}` : T.lookup?.done && T.lookup.pages.length ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read` : '';
   const line = S.key === 'thinking' ? (lookupLine && !sats.length ? lookupLine : thinkingLine(sats))
-    : answerHeld && proposal?.approve ? `yours to say${calDay ? ` on ${calDay}` : ''}`
+    : answerHeld && proposal?.approve && !stageOn ? `yours to say${calDay ? ` on ${calDay}` : ''}`
       : answerHeld && proposal?.status === 'done' ? (calDay ? `added to ${calDay}` : 'done on your word')
         : answerHeld && proposal?.status === 'dismissed' ? 'left as it was'
       : answerHeld && cut ? 'stopped; the panels stay'
@@ -577,7 +611,10 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   // its state word under it; the stage is the cards' (CORNER)
   const corner = cornerFrame(view.w, view.h);
   // the stage: the core at its centre, half size, the words 460 wide under it
-  const frame = cornerOn ? { cx: corner.cx, cy: corner.cy, s: corner.s, uw: 220, mx: corner.barX + corner.barW / 2, off: 130 } : stageOn ? stageFrame(view.w, view.h) : frame0;
+  // the stage's look holds from his first word (mockup 114: the core is at
+  // its centre, half size, while listening and thinking too)
+  const stageLook = stageOn || (turning && !hist && !cornerOn);
+  const frame = cornerOn ? { cx: corner.cx, cy: corner.cy, s: corner.s, uw: 220, mx: corner.barX + corner.barW / 2, off: 130 } : stageLook ? stageFrame(view.w, view.h) : frame0;
   const coreK = macCoreScale(S.key === 'listening' ? 'listening' : S.key === 'thinking' ? 'thinking' : speaking ? 'speaking' : 'rest', frame.s);
   const cur = useRef(null);
   const wallOnRef = useRef(cornerOn);
@@ -888,7 +925,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const edgeOn = focus;
   return (
     <div ref={rootRef} className="nv-mac" data-fixed="" data-state={dataState} data-focus={focus ? '1' : undefined} data-peek={peek ? '1' : undefined}
-      data-hist={hist ? '1' : undefined} data-open={openKey ? '1' : undefined} data-wall={cornerOn ? '1' : undefined} data-stage={stageOn ? '1' : undefined} data-sleep={asleep ? '1' : undefined} data-camera={camera ? '1' : undefined} onWheel={onWheel}
+      data-hist={hist ? '1' : undefined} data-open={openKey ? '1' : undefined} data-wall={cornerOn ? '1' : undefined} data-stage={stageLook ? '1' : undefined} data-sleep={asleep ? '1' : undefined} data-camera={camera ? '1' : undefined} onWheel={onWheel}
       style={{ '--fx-hue': sayHue }}>
       <canvas ref={emberRef} className="nv-mac-embers" aria-hidden="true" />
       {/* THE CAMERA as the wall's ground (Rose), with the boxes code drew */}
@@ -962,7 +999,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
           <small>{S.key === 'thinking' ? 'You asked' : 'Hearing you'}</small>
           <span>{String(heard || '').replace(/[?]\s*$/, '')}</span>
         </div>
-        <section className={`nv-mac-layer nv-mac-plate${hasDock ? ' docked' : ''}`} aria-hidden={!plateOn} aria-label={`${speaker.name}, speaking`}
+        <section ref={plateRef} className={`nv-mac-layer nv-mac-plate${hasDock ? ' docked' : ''}`} aria-hidden={!plateOn} aria-label={`${speaker.name}, speaking`}
           style={{ '--mac-pmax': `${Math.max(120, view.h - COMPOSER.foot - COMPOSER.h - 24 - (frame.cy + frame.off * frame.s + 46) - 80)}px` }}>
           {plateOn && (
             <>
@@ -974,7 +1011,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
                   voice on this machine, nothing is ever "said", so the plate
                   showed his question and no reply. The answer's own words
                   stand in, plainly, once it is over. */}
-              {!speaking && answerHeld && !said.length && ex.nova?.text && <p className="nv-mac-answer">{ex.nova.text}</p>}
+              {!speaking && answerHeld && !said.length && ex.nova?.text && <p className="nv-mac-answer">{stageOn ? String(lastNova?.text || ex.nova.text).replace(TOKEN_RE, ' ').replace(/\s+/g, ' ').trim() : ex.nova.text}</p>}
             </>
           )}
         </section>
@@ -1017,7 +1054,6 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
             const isOpen = openKey === d.key;
             const lit = stageLit(d.key);
             const isIn = !l.wait && !l.folded && shown.has(d.key);
-            const last = plan.filter((q) => !q.folded && !gone.has(q.key) && !wallAll.find((w) => w.key === q.key)?.pinned).pop()?.key === d.key;
             return (
               <div key={d.key} className={`nv-mac-sslot${isIn ? ' in' : ''}${l.folded ? ' fold' : ''}${lit ? ' lit' : ''}${isOpen ? ' open' : ''}`}
                 style={{ left: l.x, top: l.y, width: l.w, '--ex': `${l.ex}px`, '--ey': `${l.ey}px`, '--fx': `${l.fx}px`, '--fy': `${l.fy}px`, '--ry': `${l.ry}deg` }}
@@ -1030,7 +1066,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
                   onPin={() => togglePin(d)} onAway={() => putAway([d.key])}
                   onMove={(step) => { const at = wallAll.findIndex((x) => x.key === d.key); const nx = wallAll[(at + step + wallAll.length) % wallAll.length]; if (nx) focusPanel(nx.key); }}
                   playing={playing === d.key} onPlay={() => setPlaying(d.key)}
-                  decide={last && !d.pinned && decideReady && !hasStageCal && !d.card.macKind ? proposal : null}
+                  decide={d.card.kind === 'proposal' ? proposal : null} onDiscuss={() => fieldRef?.current?.focus?.()}
                   proposal={d.card.macKind === 'calendar' ? ((replay ? replay.proposal : fresh?.proposal) || null) : null}
                   onRecord={T.openRecord} onUndo={T.undoProposal} />
               </div>
@@ -1125,7 +1161,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
 // ONE DOCKED PANEL: hover lifts it and lights its thread; a click or Enter
 // opens it in place (the full card, its real actions); the pin keeps it
 // through the next question; × puts it away; arrows move between panels.
-function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover, onOpen, onClose, onPin, onAway, onMove, decide, proposal, onRecord, onUndo, view, wall = false, eyebrow = null, stage = null, openRect = null, arriving = false, playing = false, onPlay = null }) {
+function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover, onOpen, onClose, onPin, onAway, onMove, decide, proposal, onRecord, onUndo, view, wall = false, eyebrow = null, stage = null, openRect = null, arriving = false, playing = false, onPlay = null, onDiscuss = null }) {
   const ref = useRef(null);
   const [inOn, setIn] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setIn(true)); return () => cancelAnimationFrame(id); }, []);
@@ -1155,6 +1191,8 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
     ], { duration: Number.parseFloat(cssv('--nv-spring-snappy-ms')) || 640, easing: cssv('--nv-spring-snappy') || 'cubic-bezier(.32,.72,0,1)' });
   }, [open]);
   const card = { ...d.card, label: '', compact: !open, ...(wall ? { playing, onPlay } : {}) };
+  // on the stage, the mockup's form where the card's own data carries one
+  const form = stage && !d.card.macKind ? stageForm(d.card, { now: minutesNow() }) : null;
   const openStyle = open
     ? (openRect ? { position: 'fixed', left: openRect.x, top: openRect.y, width: openRect.w, maxHeight: openRect.h }
       : { position: 'fixed', top: OPEN_PANEL.top, right: OPEN_PANEL.right, width: OPEN_PANEL.width, maxHeight: view.h - OPEN_PANEL.top - COMPOSER.foot - COMPOSER.h - 22 })
@@ -1187,10 +1225,11 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
       {title && <h3 className="ptitle">{title}</h3>}
       <div className="pbody">
         <SafeVisual what="nova-mac-panel" resetKey={`${d.key}:${open ? 1 : 0}`}>
-          {d.card.macKind ? <CodeBody c={d.card} open={open} proposal={proposal} onRecord={onRecord} onUndo={onUndo} /> : <StageCard card={card} face="summary" />}
+          {d.card.macKind ? <CodeBody c={d.card} open={open} proposal={proposal} onRecord={onRecord} onUndo={onUndo} />
+            : form?.form ? <StageForm f={form} decide={decide} onDiscuss={onDiscuss} /> : <StageCard card={card} face="summary" />}
         </SafeVisual>
       </div>
-      {decide && (
+      {decide && !form?.form && (
         <div className={`decide on${decide.status !== 'pending' ? ' answered' : ''}`}>
           {decide.status === 'pending' && decide.approve ? (
             <>
@@ -1241,7 +1280,8 @@ function StageSheet({ panels, folded, heights = {}, onClose, onRecord }) {
                     {e.title && <h3 className="ptitle">{e.title}</h3>}
                     <div className="pbody">
                       <SafeVisual what="nova-mac-sheet" resetKey={d.key}>
-                        {d.card.macKind ? <CodeBody c={d.card} open={false} proposal={null} onRecord={onRecord} onUndo={null} /> : <StageCard card={{ ...d.card, label: '', compact: true }} face="summary" />}
+                        {d.card.macKind ? <CodeBody c={d.card} open={false} proposal={null} onRecord={onRecord} onUndo={null} />
+                          : stageForm(d.card, { now: minutesNow() }).form ? <StageForm f={stageForm(d.card, { now: minutesNow() })} /> : <StageCard card={{ ...d.card, label: '', compact: true }} face="summary" />}
                       </SafeVisual>
                     </div>
                   </div>
@@ -1364,8 +1404,7 @@ function MacComposer({ refEl, T, dict, fieldRef, onSend, onTalk, width = COMPOSE
           <LocalInput ref={fieldRef} value={C.value} className="field" data-orb-composer=""
             onChange={(t) => C.setTyped(t)} onSubmit={(t) => onSend(t)}
             autoCorrect="on" autoCapitalize="sentences" spellCheck enterKeyHint="send" disabled={C.offline}
-            aria-label="Message Nova" placeholder={C.offline ? 'Reconnect to ask Nova' : 'Type to Nova'} />
-          <span className="hintk">or hold <Kbd>⌥</Kbd><Kbd>Space</Kbd></span>
+            aria-label="Message Nova" placeholder={C.offline ? 'Reconnect to ask Nova' : 'Ask Nova, or hold ⌥ Space'} />
           <button type="button" className="mic" onClick={onTalk} disabled={!dict.supported || C.offline} aria-label="Talk to Nova"><Gl n="mic" /></button>
         </div>
       )}

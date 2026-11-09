@@ -60,7 +60,11 @@ export const mmss = (sec) => { const s = Math.max(0, Math.round(sec)); return `$
 export function sparkPath(values, { w = 280, h = 84, pad = 6 } = {}) {
   const v = values.filter((x) => Number.isFinite(x));
   if (v.length < 3) return null;
-  const lo = Math.min(...v); const hi = Math.max(...v); const span = hi - lo || 1;
+  // a wobble is drawn as a wobble: the box spans at least 4% of the level,
+  // so half a kilo on 82 never fills it as a cliff would
+  const mid = (Math.min(...v) + Math.max(...v)) / 2;
+  const span = Math.max(Math.max(...v) - Math.min(...v), Math.abs(mid) * 0.04) || 1;
+  const lo = mid - span / 2;
   const pts = v.map((x, i) => [pad + (i / (v.length - 1)) * (w - pad * 2), pad + (1 - (x - lo) / span) * (h - pad * 2)]);
   return { d: pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '), end: pts[pts.length - 1] };
 }
@@ -126,11 +130,12 @@ export function stageForm(card, { now = null } = {}) {
     if (!items.length) return none;
     const label = String(card.label || '');
     const notes = items.map((i) => String(i.note || '').trim());
+    const foot = card.foot ? String(card.foot) : '';
     if (/^sources?$/i.test(label.trim())) return { ...none, form: 'sources', items: items.map((i) => ({ name: i.name, note: i.note || '' })), meta: String(items.length) };
     if (notes.every((x) => clock(x) != null)) {
       const at = items.map((i, j) => ({ name: i.name, time: notes[j], m: clock(notes[j]) }));
       const next = now == null ? -1 : at.findIndex((x) => x.m >= now);
-      return { ...none, form: 'timeline', items: at.map((x, j) => ({ name: x.name, time: x.time, now: j === next })), meta: String(items.length) };
+      return { ...none, form: 'timeline', items: at.map((x, j) => ({ name: x.name, time: x.time, now: j === next })), meta: String(items.length), foot };
     }
     if (items.every((i) => dayOf(i.name) >= 0)) {
       const by = new Map(items.map((i) => [dayOf(i.name), String(i.note || '').trim()]));
@@ -140,10 +145,10 @@ export function stageForm(card, { now = null } = {}) {
     }
     if (notes.every((x) => /^\d+\s*[×x]\s*\d+/.test(x))) {
       const session = label.split(/\s*·\s*/)[1];
-      return { ...none, form: 'rows', items: items.map((i) => ({ name: i.name, note: i.note })), title: session ? `${session[0].toUpperCase()}${session.slice(1).toLowerCase()} day, ${lower(items[0].name)} first` : '' };
+      return { ...none, form: 'rows', items: items.map((i) => ({ name: i.name, note: i.note })), title: session ? `${session[0].toUpperCase()}${session.slice(1).toLowerCase()} day, ${lower(items[0].name)} first` : '', foot };
     }
-    if (notes.every((x) => AGENT_HUE[x.toLowerCase()])) return { ...none, form: 'agents', items: items.map((i) => ({ name: i.name, who: i.note, hue: AGENT_HUE[String(i.note).toLowerCase()] })), meta: String(items.length) };
-    if (notes.every((x) => !x)) return { ...none, form: 'dots', items: items.map((i) => ({ name: i.name })), meta: String(items.length) };
+    if (notes.every((x) => AGENT_HUE[x.toLowerCase()])) return { ...none, form: 'agents', items: items.map((i) => ({ name: i.name, who: i.note, hue: AGENT_HUE[String(i.note).toLowerCase()] })), meta: String(items.length), foot };
+    if (notes.every((x) => !x)) return { ...none, form: 'dots', items: items.map((i) => ({ name: i.name })), meta: String(items.length), foot };
     return none;
   }
 

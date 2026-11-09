@@ -366,7 +366,9 @@ export function stageEyebrow(card, opts = {}) {
   // (stageFormFacts); "Nova's own" is never a scope
   if (card?.kind === 'proposal') return { tag: 'Proposal', meta: f.meta, title: f.title };
   if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: f.meta, title: '' };
-  const label = String(card?.label || '').replace(/\s+/g, ' ').trim();
+  // the subject only: "Protein vs your 140g floor" is tagged Protein (the
+  // target it names is drawn as the dashed line)
+  const label = String(card?.label || '').replace(/\s+/g, ' ').trim().split(/\s+vs\.?\s+/i)[0];
   const title = String(card?.title || '').replace(/\s+/g, ' ').trim();
   return { tag: label || e.kind, meta: f.meta, title: f.title || (title && title.toLowerCase() !== label.toLowerCase() ? title : '') };
 }
@@ -374,7 +376,7 @@ export function stageEyebrow(card, opts = {}) {
 // a spoken card's own tone (server/lib/spokenCards.js: cy, gold, warn, good)
 // is the hue its stage panel wears, so colour carries the verdict the server
 // gave it; a data panel keeps its finder's hue; anything else is Nova's own
-const TONE_HUE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-warn)', good: 'var(--nv-good)' };
+const TONE_HUE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-warn)', good: 'var(--nv-good)', vi: 'var(--nv-vi)' };
 export function stageHue(card, fallback = 'var(--nv-nova)') {
   if (card?.head?.hue) return card.head.hue;
   if (card?.hue) return card.hue;
