@@ -128,8 +128,10 @@ export function buildWishlistView({ source, ui = {}, offline = false, now = Date
   const pass = (it) => cat === 'all' ? true : cat === 'star' ? true : (it.categories || []).includes(cat.slice(2));
   const shown = items.filter(pass);
   const of = (status) => sortItems(shown.filter((i) => (i.status || STATUS.considering) === status), cat === 'star').map(card);
-  const considering = sortItems(shown.filter((i) => ![STATUS.month, STATUS.purchased, STATUS.cancelled].includes(i.status)), cat === 'star').map(card);
-  const month = of(STATUS.month);
+  const isStar = cat === 'star';
+  // Most wanted is ONE list, 3 stars down to 0, across Considering and This month
+  const considering = sortItems(shown.filter((i) => ![STATUS.purchased, STATUS.cancelled].includes(i.status) && (isStar || i.status !== STATUS.month)), isStar).map(card);
+  const month = isStar ? [] : of(STATUS.month);
   const purchased = of(STATUS.purchased);
   const cancelled = of(STATUS.cancelled);
 
@@ -153,8 +155,8 @@ export function buildWishlistView({ source, ui = {}, offline = false, now = Date
     filtered: cat !== 'all',
     noMatch: cat !== 'all' && shown.length === 0,
     groups: [
-      { key: 'considering', label: 'Considering', countLabel: considering.length ? String(considering.length) : 'none', cards: considering, empty: considering.length ? null : 'Nothing under Considering here.' },
-      { key: 'month', label: 'This month', countLabel: month.length ? String(month.length) : 'none', cards: month, empty: month.length ? null : 'Nothing marked for this month. Tap a card, then <b>This month</b>.' },
+      { key: 'considering', label: isStar ? 'Most wanted' : 'Considering', countLabel: considering.length ? String(considering.length) : 'none', cards: considering, empty: considering.length ? null : 'Nothing under Considering here.' },
+      ...(isStar ? [] : [{ key: 'month', label: 'This month', countLabel: month.length ? String(month.length) : 'none', cards: month, empty: month.length ? null : 'Nothing marked for this month. Tap a card, then <b>This month</b>.' }]),
     ],
     purchased: { label: 'Purchased', countLabel: purchased.length ? String(purchased.length) : 'none', cards: purchased, fold: fold(purchased, 'bought'), open: !!ui.boughtOpen },
     cancelled: cancelled.length ? { label: 'Cancelled', countLabel: String(cancelled.length), cards: cancelled, fold: fold(cancelled, 'set aside'), open: !!ui.cancelledOpen } : null,

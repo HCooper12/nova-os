@@ -58,7 +58,7 @@ test('six chips up front, the rest behind Show all; a chip filters', () => {
 });
 
 test('Most wanted orders 3 stars down to 0 and keeps the unstarred last', () => {
-  const items = [it('none'), it('one', { stars: 1 }), it('three', { stars: 3 }), it('two', { stars: 2 })];
+  const items = [it('none'), it('one', { stars: 1 }), it('three', { stars: 3, status: 'Purchasing This Month' }), it('two', { stars: 2 })];
   const v = buildWishlistView({ source: src(items), ui: { cat: 'star' }, now: NOW });
   assert.deepEqual(v.groups[0].cards.map((c) => c.stars), [3, 2, 1, 0]);
   assert.equal(v.chips.find((c) => c.key === 'star').n, 4);
