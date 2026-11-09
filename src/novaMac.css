@@ -420,3 +420,77 @@
    notices stay off this page; what matters is spoken. NovaMac sets the
    attribute on <html>; DynamicIsland's root carries data-island-root. */
 html[data-nova-wall] [data-island-root] { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+
+/* ---- THE STAGE (phase 2, mockup 114): panels placed by rule around the
+   core, one per sentence, each arriving from the core and staying; the lit
+   one tethered; what runs out of room folds into Earlier. Transform and
+   opacity only; a short fade under reduced motion. ---- */
+.nv-mac[data-stage] .nv-mac-stword b { font: 600 13px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--nv-ink60); animation: none; }
+.nv-mac[data-stage] .nv-mac-stword .line { font: 400 13px var(--nv-font-ui); color: var(--nv-ink40); }
+.nv-mac[data-stage] .nv-mac-stword { height: 26px; }
+.nv-mac[data-stage] .nv-mac-exch, .nv-mac[data-stage] .nv-mac-heard { opacity: 0 !important; pointer-events: none; }
+/* the words under the core: the sentence being said, no plate around it */
+.nv-mac[data-stage] .nv-mac-layer.nv-mac-plate { top: 34px; padding: 0; border-radius: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; text-align: center; }
+.nv-mac[data-stage] .nv-mac-plate .esc, .nv-mac[data-stage] .nv-mac-plate .nv-fx-phead, .nv-mac[data-stage] .nv-mac-plate .pq { display: none; }
+.nv-mac[data-stage] .nv-mac-plate .nv-fx-pbody { max-height: 82px; padding-bottom: 0; }
+.nv-mac[data-stage] .nv-mac-plate .nv-fx-pcol { font: 400 21px/1.3 var(--nv-font-serif); letter-spacing: -.005em; text-wrap: balance; }
+.nv-mac[data-stage] .nv-mac-plate .nv-fx-pcol p.earlier { display: none; }
+.nv-mac[data-stage] .nv-mac-answer { font: 400 21px/1.3 var(--nv-font-serif); color: var(--nv-ink); margin: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+
+.nv-mac-stage { position: absolute; inset: 0; z-index: 14; pointer-events: none; perspective: 1600px; }
+.nv-mac-steth { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: visible; }
+.nv-mac-steth path { fill: none; stroke-width: 1.2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; transition: stroke-dashoffset .5s var(--nv-ease), opacity .2s var(--nv-ease-exit); }
+.nv-mac-steth path.on { stroke-dashoffset: 0; opacity: .7; }
+.nv-mac-sslot { position: absolute; z-index: 1; pointer-events: none; opacity: 0; transform: translate3d(var(--ex, 0), var(--ey, 0), 0) scale(.92);
+  transition: opacity .22s var(--nv-ease-exit), transform .22s var(--nv-ease-exit); }
+.nv-mac-sslot.in { opacity: 1; pointer-events: auto; transform: none; transition: opacity .32s var(--nv-ease), transform .56s var(--nv-spring-smooth); }
+.nv-mac-sslot.fold { opacity: 0; pointer-events: none; transform: translate3d(var(--fx, 0), var(--fy, 0), 0) scale(.2); transition: opacity .34s var(--nv-ease-exit), transform .4s var(--nv-ease); }
+.nv-mac-sslot.lit, .nv-mac-sslot.open { z-index: 2; }
+.nv-mac-sslot .nv-mac-pnl, .nv-mac-sslot .nv-mac-pnl.in { width: 100%; padding: 14px 16px 16px; filter: none; opacity: .78; transform: rotateY(var(--ry, 0deg));
+  transition: opacity var(--nv-dur-base) var(--nv-ease), transform var(--nv-dur-slow) var(--nv-ease), box-shadow var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-sslot.lit .nv-mac-pnl, .nv-mac-sslot .nv-mac-pnl.open, .nv-mac-sslot .nv-mac-pnl.in.hov, .nv-mac-sslot .nv-mac-pnl.in:focus-visible { opacity: 1; transform: none; }
+.nv-mac-sslot.lit .nv-mac-pnl { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 60%, transparent), inset 0 1px 0 rgba(190, 225, 255, .18), 0 30px 60px -30px rgba(0, 0, 0, .9), 0 0 60px -24px var(--h); }
+.nv-mac-sslot .nv-mac-pnl::before, .nv-mac-sslot .nv-mac-pnl::after { opacity: 0; transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-mac-sslot.lit .nv-mac-pnl::before, .nv-mac-sslot.lit .nv-mac-pnl::after { opacity: .9; }
+/* the eyebrow (mockup .peye): a square tag, the subject in the hue, the source on the right */
+.nv-mac-sslot .nv-mac-pnl .ptag, .nv-mac-ssheet .nv-mac-pnl .ptag { position: relative; gap: 8px; margin-bottom: 9px; font: 600 10px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; }
+.nv-mac-sslot .nv-mac-pnl .ptag > i, .nv-mac-ssheet .nv-mac-pnl .ptag > i { border-radius: 2px; box-shadow: 0 0 10px var(--h); }
+.nv-mac-sslot .nv-mac-pnl .peye, .nv-mac-ssheet .nv-mac-pnl .peye { font: inherit; letter-spacing: inherit; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-mac-sslot .nv-mac-pnl .pmeta, .nv-mac-ssheet .nv-mac-pnl .pmeta { margin-left: auto; flex: none; color: var(--nv-ink40); letter-spacing: .08em; }
+.nv-mac-sslot .nv-mac-pnl .pact { position: absolute; right: 0; top: -4px; margin: 0; background: var(--nv-glass2); border-radius: 13px; }
+.nv-mac-sslot .nv-mac-pnl .ptitle, .nv-mac-ssheet .nv-mac-pnl .ptitle { margin: 0 0 10px; font: 400 18px/1.18 var(--nv-font-serif); text-wrap: balance; }
+.nv-mac-sslot .nv-mac-pnl.open .ptitle { font-size: 26px; }
+.nv-mac-sslot .nv-mac-pnl .pbody, .nv-mac-ssheet .nv-mac-pnl .pbody { font: 400 13.5px/1.45 var(--nv-font-ui); }
+
+/* Earlier: what folded away, counted, one click to open (mockup .earlier) */
+.nv-mac-earlier { position: absolute; z-index: 21; height: 40px; padding: 0 14px 0 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 9px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink);
+  background: var(--nv-glass); box-shadow: inset 0 0 0 1px var(--nv-edge); opacity: 0; transform: translate3d(-10px, 0, 0) scale(.92); pointer-events: none;
+  transition: opacity var(--nv-dur-base) var(--nv-ease), transform .5s var(--nv-spring-bouncy); }
+.nv-mac-earlier.on { opacity: 1; transform: none; pointer-events: auto; }
+.nv-mac-earlier:active { transform: scale(.96); }
+.nv-mac-earlier .stk { position: relative; width: 18px; height: 14px; }
+.nv-mac-earlier .stk i { position: absolute; inset: 0; border-radius: 3px; box-shadow: inset 0 0 0 1.2px var(--nv-ink60); background: var(--nv-bg1); }
+.nv-mac-earlier .stk i:nth-child(1) { transform: translate(4px, -4px); opacity: .4; }
+.nv-mac-earlier .stk i:nth-child(2) { transform: translate(2px, -2px); opacity: .7; }
+.nv-mac-earlier b { font: 600 13px var(--nv-font-mono); color: var(--nv-cy); font-variant-numeric: tabular-nums; }
+/* everything from this answer, over a dimmed stage (mockup .sheet) */
+.nv-mac-sscrim { position: absolute; inset: 0; z-index: 40; background: rgba(4, 5, 10, .6); animation: nvMacFade var(--nv-dur-base) var(--nv-ease) both; }
+.nv-mac-ssheet { position: absolute; left: 200px; right: 200px; top: 42px; bottom: 70px; z-index: 41; border-radius: 18px; padding: 22px 24px; overflow: auto; outline: none;
+  background: color-mix(in srgb, var(--nv-bg1) 86%, transparent); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); box-shadow: inset 0 0 0 1px var(--nv-edge), 0 40px 90px -30px #000;
+  transform-origin: 100% 100%; animation: nvMacSheet .5s var(--nv-spring-smooth) both; }
+@keyframes nvMacFade { from { opacity: 0; } }
+@keyframes nvMacSheet { from { opacity: 0; transform: translate3d(260px, 300px, 0) scale(.6); } }
+.nv-mac-ssheet > h3 { margin: 0 0 4px; font: 400 24px var(--nv-font-serif); }
+.nv-mac-ssheet .sub { margin: 0 0 18px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-mac-ssheet .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.nv-mac-ssheet .col { display: grid; gap: 16px; min-width: 0; }
+.nv-mac-ssheet .nv-mac-pnl { opacity: 1; transform: none; filter: none; cursor: default; padding: 14px 16px 16px; }
+.nv-mac-ssheet .x { position: absolute; right: 18px; top: 18px; width: 34px; height: 34px; border-radius: 17px; display: grid; place-items: center; color: var(--nv-ink60); box-shadow: inset 0 0 0 1px var(--nv-edge); }
+.nv-mac-ssheet .x .ic { width: 14px; height: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-mac-sslot, .nv-mac-sslot.in, .nv-mac-sslot.fold { transform: none !important; transition: opacity .2s linear !important; }
+  .nv-mac-sslot .nv-mac-pnl, .nv-mac-sslot .nv-mac-pnl.in { transform: none !important; }
+  .nv-mac-steth path { stroke-dashoffset: 0; transition: opacity .2s linear; }
+  .nv-mac-earlier { transform: none !important; transition: opacity .2s linear; }
+  .nv-mac-ssheet { animation: nvMacFade .2s linear both; }
+}

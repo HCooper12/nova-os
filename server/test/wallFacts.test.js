@@ -248,6 +248,25 @@ test('the Mac stage plan: no cap, nothing on the core or the caption, each panel
   }
 });
 
+test('the Mac stage eyebrow: the subject on the left, the source on the right, a title only when the card has its own line', async () => {
+  const { stageEyebrow } = await import('../../src/wallFacts.js');
+  assert.deepEqual(stageEyebrow({ kind: 'metric', label: 'STEPS', value: '4' }), { tag: 'STEPS', meta: 'Nova’s own', title: '' });
+  assert.deepEqual(stageEyebrow({ kind: 'note', label: 'Proposal', title: 'Add four sets on Saturday', by: 'coach' }).title, 'Add four sets on Saturday');
+  assert.deepEqual(stageEyebrow({ kind: 'page', host: 'www.example.org', title: 'A review' }), { tag: 'Page', meta: 'example.org', title: '' });
+  const code = stageEyebrow({ macKind: 'brief', title: 'Lateral raise volume', head: { sub: 'brief, 9 Nov' } });
+  assert.deepEqual(code, { tag: 'Researcher', meta: 'brief, 9 Nov', title: 'Lateral raise volume' });
+  assert.equal(stageEyebrow({ kind: 'list' }).tag, 'List', 'no label: the kind in words, never blank');
+});
+
+test('the Mac stage hue: a code panel\'s head, a data panel\'s finder, a spoken card\'s tone, else Nova', async () => {
+  const { stageHue } = await import('../../src/wallFacts.js');
+  assert.equal(stageHue({ macKind: 'brief', head: { hue: 'var(--nv-m-quads)' } }), 'var(--nv-m-quads)');
+  assert.equal(stageHue({ kind: 'bars', hue: 'var(--nv-m-back)', tone: 'cy' }), 'var(--nv-m-back)');
+  assert.equal(stageHue({ kind: 'metric', tone: 'warn' }), 'var(--nv-warn)');
+  assert.equal(stageHue({ kind: 'list' }), 'var(--nv-nova)');
+  assert.equal(stageHue({ kind: 'list', tone: 'nonsense' }, 'var(--nv-cy)'), 'var(--nv-cy)', 'an unknown tone is no colour of its own');
+});
+
 test('the Mac stage tether: a panel under the caption hangs from the caption\'s foot, never through the words', async () => {
   const { stageTether, stageKeep } = await import('../../src/wallFacts.js');
   const core = [720, 290];

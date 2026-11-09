@@ -339,6 +339,30 @@ export function stageTether(core, rim, rect, caption = null) {
   return `M${f(sx)} ${f(sy)} Q${f(qx)} ${f(qy)} ${f(bx)} ${f(by)}`;
 }
 
+// THE STAGE'S EYEBROW (mockup 114 .peye): the subject in the panel's hue on
+// the left, where it came from on the right, and a serif title only when the
+// card carries a line of its own beyond its label. A page or a video draws
+// its own title; a panel code built names its kind and its source.
+const CODE_TAG = { sets: 'Sets', brief: 'Researcher', calendar: 'Calendar' };
+export function stageEyebrow(card) {
+  if (card?.macKind) return { tag: CODE_TAG[card.macKind] || 'Nova', meta: card.head?.sub || '', title: card.title || '' };
+  const e = eyebrowOf(card);
+  if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: e.source, title: '' };
+  const label = String(card?.label || '').replace(/\s+/g, ' ').trim();
+  const title = String(card?.title || '').replace(/\s+/g, ' ').trim();
+  return { tag: label || e.kind, meta: e.source, title: title && title.toLowerCase() !== label.toLowerCase() ? title : '' };
+}
+
+// a spoken card's own tone (server/lib/spokenCards.js: cy, gold, warn, good)
+// is the hue its stage panel wears, so colour carries the verdict the server
+// gave it; a data panel keeps its finder's hue; anything else is Nova's own
+const TONE_HUE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-warn)', good: 'var(--nv-good)' };
+export function stageHue(card, fallback = 'var(--nv-nova)') {
+  if (card?.head?.hue) return card.head.hue;
+  if (card?.hue) return card.hue;
+  return TONE_HUE[card?.tone] || fallback;
+}
+
 // the core's rim at the stage's scale (mockup: R0 193.2 x the speaking body
 // 0.8 x 0.5, and 8 px off it)
 export const STAGE_RIM = 193.2 * 0.8 * 0.5 + 8;
