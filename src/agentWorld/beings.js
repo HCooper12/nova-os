@@ -169,7 +169,7 @@ export function createBeingKit(T, TK) {
       line: 'Files every note where you will find it again, and says where.',
       work: 'Working: a drawer slides out and an index card rises from it.',
       wait: 'Waiting: the drawer stands open with nothing filed.' },
-    { id: 'mealprep', name: 'Meal Prep', dept: 'Fuel', skin: 'glaze',
+    { id: 'mealprep', name: 'Chef', dept: 'Fuel', skin: 'glaze',
       line: 'Works out what to eat tonight from what is actually in the kitchen.',
       work: 'Working: it stirs, the steam curls up, and the eyes go to happy crescents.',
       wait: 'Waiting: the pot held off the heat, a warm smile.' },

@@ -69,7 +69,27 @@ function sortItems(list, byStars = false) {
   }).map((x) => x.it);
 }
 
-function card(it) {
+// what the shop shows now (server: livePriceFor), as the words a card shows. Pure.
+function liveFields(it, live, now = Date.now()) {
+  if (!live) return { livePrice: false };
+  const cur = live.currency ? `${live.currency} ` : '';
+  const label = (n) => (live.currency ? `${cur}${priceLabel(n).slice(1)}` : priceLabel(n));
+  const off = live.was ? Math.round((1 - live.price / live.was) * 100) : 0;
+  const saved = typeof it.price === 'number' && !live.currency && Math.abs(it.price - live.price) >= 0.5 ? priceLabel(it.price) : null;
+  return {
+    livePrice: true,
+    price: label(live.price),
+    sale: !!live.was,
+    was: live.was ? label(live.was) : null,
+    off: off > 0 ? `${off}% off` : null,
+    savedPrice: saved,
+    soldOut: live.inStock === false,
+    priceAgo: agoLabel(live.checkedAt, now),
+    priceStale: !!live.stale,
+  };
+}
+
+function card(it, live = null) {
   return {
     id: it.id,
     name: it.name || 'Untitled',
@@ -80,6 +100,7 @@ function card(it) {
     stars: Math.max(0, Math.min(3, it.stars || 0)),
     starMark: it.stars ? '★'.repeat(Math.min(3, it.stars)) : '',
     price: priceLabel(it.price),
+    ...liveFields(it, live),
     image: it.image || null,
     demoArt: it.demoArt || null,
     status: it.status,
@@ -95,6 +116,7 @@ export function buildWishlistView({ source, ui = {}, offline = false, now = Date
     return { state: offline ? 'offline-empty' : 'loading', syncLine: offline ? 'Offline, and this phone has not read your Wishlist yet' : 'Reading your Notion list…' };
   }
   const items = Array.isArray(source.items) ? source.items : [];
+  const cardOf = (it) => card(it, (source.live || {})[it.id] || null);
   const read = agoLabel(source.lastSync, now);
 
   if (source.shared === false) {
@@ -127,10 +149,10 @@ export function buildWishlistView({ source, ui = {}, offline = false, now = Date
 
   const pass = (it) => cat === 'all' ? true : cat === 'star' ? true : (it.categories || []).includes(cat.slice(2));
   const shown = items.filter(pass);
-  const of = (status) => sortItems(shown.filter((i) => (i.status || STATUS.considering) === status), cat === 'star').map(card);
+  const of = (status) => sortItems(shown.filter((i) => (i.status || STATUS.considering) === status), cat === 'star').map(cardOf);
   const isStar = cat === 'star';
   // Most wanted is ONE list, 3 stars down to 0, across Considering and This month
-  const considering = sortItems(shown.filter((i) => ![STATUS.purchased, STATUS.cancelled].includes(i.status) && (isStar || i.status !== STATUS.month)), isStar).map(card);
+  const considering = sortItems(shown.filter((i) => ![STATUS.purchased, STATUS.cancelled].includes(i.status) && (isStar || i.status !== STATUS.month)), isStar).map(cardOf);
   const month = isStar ? [] : of(STATUS.month);
   const purchased = of(STATUS.purchased);
   const cancelled = of(STATUS.cancelled);
@@ -168,7 +190,7 @@ export function buildWishlistView({ source, ui = {}, offline = false, now = Date
 export function sheetFor(source, id) {
   const it = (source?.items || []).find((i) => i.id === id);
   if (!it) return null;
-  const c = card(it);
+  const c = card(it, (source.live || {})[it.id] || null);
   const statusWord = it.status === STATUS.month ? 'This month' : it.status === STATUS.purchased ? 'Purchased' : it.status === STATUS.cancelled ? 'Cancelled' : 'Considering';
   return {
     ...c,

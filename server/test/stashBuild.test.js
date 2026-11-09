@@ -128,7 +128,7 @@ test('Open Graph: the picture, the name and the offer read off a page; fallbacks
   assert.equal(p.title, 'Hydrating Cleanser 236 ml');
   assert.equal(p.images[0], 'https://skin.example.com/img/cleanser.png', 'a relative og:image is made absolute');
   assert.equal(p.product, true);
-  assert.deepEqual(p.offer, { price: 21.95, currency: 'AUD', inStock: true });
+  assert.deepEqual(p.offer, { price: 21.95, was: null, currency: 'AUD', inStock: true });
   const icon = meta.parsePage((await fixture('icon-only.html')).toString(), 'https://shop.example.com/mat');
   assert.equal(icon.title, 'Desk Mat, Large', 'twitter:title when there is no og:title');
   assert.deepEqual(icon.images, []);

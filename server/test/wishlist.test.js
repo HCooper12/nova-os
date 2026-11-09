@@ -108,6 +108,8 @@ function withNotion(opts) {
   W.deps.findImage = async () => null;
   W.deps.backfillImages = false;
   W.deps.proposePictures = false;
+  W.deps.livePrices = false;
+  W.deps.findOffer = async () => null;
   return notion;
 }
 async function fresh(opts) {
@@ -509,4 +511,35 @@ test('rows with no picture get candidates to choose from, once a week, and a can
   assert.equal(asked, 1, 'not searched again inside a week');
   assert.equal((await W.readProposals()).p1.options[0].full, 'https://c.example.com/1.jpg');
   assert.equal(n.calls.filter((c) => c.method === 'PATCH').length, 0, 'nothing is written to Notion by a proposal');
+});
+
+test('the live price: a sale is read off the page as a sale, refreshed only when stale, and his own Notion price is never written', async () => {
+  const { parsePage } = await import('../lib/stashMeta.js');
+  const html = '<script type="application/ld+json">{"@type":"Product","name":"Boots","offers":{"@type":"Offer","price":"80","priceCurrency":"AUD","priceSpecification":[{"priceType":"https://schema.org/ListPrice","price":"100"}]}}</script>';
+  const o = parsePage(html, 'https://s.example/b').offer;
+  assert.equal(o.price, 80);
+  assert.equal(o.was, 100);
+  assert.equal(parsePage(html.replace('"100"', '"80"'), 'https://s.example/b').offer.was, null, 'no sale when the was-price is not higher');
+
+  const n = await fresh({ rows: [{ id: 'r1', created_time: '2026-10-01T00:00:00Z', properties: { Name: { title: t('Boots') }, 'Item link': { rich_text: t('https://s.example/b') }, Price: { number: 120 }, Status: { status: { name: 'Considering Purchase' } } } }] });
+  await W.readAll();
+  await waitFor(async () => (await W.readItems()).items.length);
+  let asked = 0;
+  W.deps.findOffer = async () => { asked += 1; return { price: 80, was: 100, currency: 'AUD', inStock: true }; };
+  await W.refreshPrices();
+  assert.equal(asked, 1);
+  await W.refreshPrices();
+  assert.equal(asked, 1, 'fresh inside six hours: not asked again');
+  const rec = (await W.readPrices()).r1;
+  assert.deepEqual(W.livePriceFor(rec), { price: 80, was: 100, sale: true, currency: null, inStock: true, checkedAt: rec.checkedAt, stale: false });
+  assert.equal(n.calls.filter((c) => c.method === 'PATCH').length, 0, 'his own price is never written');
+  const v = await W.wishlistView();
+  assert.equal(v.live.r1.sale, true);
+  assert.equal(v.items[0].price, 120);
+  // a failed read keeps the last good price and says so
+  W.deps.now = () => new Date(Date.now() + 7 * 3600_000);
+  W.deps.findOffer = async () => null;
+  await W.refreshPrices();
+  assert.equal(W.livePriceFor((await W.readPrices()).r1).stale, true);
+  assert.equal(W.livePriceFor((await W.readPrices()).r1).price, 80);
 });

@@ -216,7 +216,14 @@ function offerOf(product, list) {
   avail = avail || metaOf(list, 'product:availability', 'og:availability', 'availability');
   const a = String(avail || '').toLowerCase();
   const inStock = !a ? null : /outofstock|out of stock|oos|soldout|sold out|discontinued/.test(a) ? false : /instock|in stock|limitedavailability|onlineonly|preorder|backorder/.test(a) ? true : null;
-  return { price: Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : null, currency: currency || null, inStock };
+  // the price it WAS: a list/strikethrough price in the offer, or the shop's own
+  // "original price" tag. Only ever what the page states.
+  const specs = [].concat(o?.priceSpecification || []);
+  const listSpec = specs.find((x) => x && /list|strike|msrp|rrp|original|was/i.test(String(x.priceType || x.name || '')));
+  const wasRaw = listSpec?.price ?? metaOf(list, 'product:original_price:amount', 'og:price:standard_amount', 'product:price:standard_amount', 'product:compare_at_price:amount');
+  const was = Number(String(wasRaw ?? '').replace(/[^0-9.]/g, ''));
+  const now = Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : null;
+  return { price: now, was: now && Number.isFinite(was) && was > now * 1.01 ? Math.round(was * 100) / 100 : null, currency: currency || null, inStock };
 }
 
 // the reading text: paragraphs of the article, or of the page when it has none

@@ -25,7 +25,7 @@ export const ROLES = {
   practice: { role: 'Rehearses a hard conversation with you', art: 'masks' },
 };
 const ORDER = ['commander', 'coach', 'cfo', 'guardian', 'researcher', 'watcher', 'librarian', 'mealprep', 'leader', 'practice'];
-const NAME = { commander: 'Commander', coach: 'Coach', cfo: 'CFO', guardian: 'Guardian', researcher: 'Researcher', watcher: 'Watcher', librarian: 'Librarian', mealprep: 'Meal Prep', leader: 'Leader', practice: 'Practice' };
+const NAME = { commander: 'Commander', coach: 'Coach', cfo: 'CFO', guardian: 'Guardian', researcher: 'Researcher', watcher: 'Watcher', librarian: 'Librarian', mealprep: 'Chef', leader: 'Leader', practice: 'Practice' };
 const ASK_NAME = { nova: 'Nova', coach: 'Coach', leader: 'Leader', researcher: 'Researcher', librarian: 'Librarian', cfo: 'CFO' };
 const ASK_HUE = { nova: '--nv-cy', coach: '--nv-m-chest', leader: '--nv-mg', researcher: '--nv-m-quads', librarian: '--nv-m-back', cfo: '--nv-good' };
 export const KIND_LABEL = { asked: 'You asked; nobody could', hand: 'You did it by hand', inbox: 'You handled it in the Inbox', lend: 'Another agent can lend it' };

@@ -87,3 +87,16 @@ test('labels', () => {
   assert.equal(agoLabel('2026-10-30T01:59:50Z', NOW), 'just now');
   assert.equal(agoLabel(null, NOW), null);
 });
+
+test('a sale shows as one: the shop price, the was-price struck, the percent off, and what he noted', () => {
+  const src2 = { ...src([it('boots', { price: 120 })]), live: { boots: { price: 80, was: 100, sale: true, currency: null, inStock: true, checkedAt: '2026-11-10T00:00:00Z', stale: false } } };
+  const c = buildWishlistView({ source: src2, now: NOW }).groups[0].cards[0];
+  assert.equal(c.price, '$80');
+  assert.equal(c.sale, true);
+  assert.equal(c.was, '$100');
+  assert.equal(c.off, '20% off');
+  assert.equal(c.savedPrice, '$120');
+  const plain = buildWishlistView({ source: src([it('x', { price: 50 })]), now: NOW }).groups[0].cards[0];
+  assert.equal(plain.price, '$50');
+  assert.ok(!plain.sale);
+});

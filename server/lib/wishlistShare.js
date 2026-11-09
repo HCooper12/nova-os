@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readItems, readState } from './wishlist.js';
+import { readItems, readState, readPrices } from './wishlist.js';
 
 // THE SHAREABLE WISHLIST (8 Nov 2026, his ask): a page he can send to anyone
 // that is nicer to scroll than the Notion page and is always current.
@@ -18,7 +18,8 @@ import { readItems, readState } from './wishlist.js';
 // WHAT LEAVES THIS MAC is decided here, in code, and pinned by the test:
 //   - only items still wanted (Considering, Purchasing This Month);
 //     Purchased and Cancelled never appear (a gift-giver must not buy twice)
-//   - name, stars, price, shop, link, categories, notes, photo, date added
+//   - name, stars, price (the shop's current AUD price when Nova knows it, with
+//     the was-price on a sale), shop, link, categories, notes, photo, date added
 //   - NEVER: priority, Notion page ids, Notion links, the status text
 //   - his hand-written Sizes only when share.json says includeSizes: true
 // Photos are re-encoded to 720px JPEG (sips), named by content hash.
@@ -45,12 +46,20 @@ export const deps = {
 };
 
 // pure: what one item looks like to other people
-export function publicItem(it, image) {
+// the shop's price now, when it is in Australian dollars and known; else his own noted price
+export function publicPrice(it, rec) {
+  const aud = rec && rec.price && !rec.failed && (!rec.currency || rec.currency.toUpperCase() === 'AUD');
+  return aud ? { price: rec.price, was: rec.was || null } : { price: it.price ?? null, was: null };
+}
+
+export function publicItem(it, image, rec = null) {
+  const { price, was } = publicPrice(it, rec);
   return {
     id: createHash('sha1').update(it.id).digest('hex').slice(0, 10),
     name: it.name,
     stars: it.stars || 0,
-    price: it.price ?? null,
+    price,
+    was,
     store: it.store || null,
     link: it.link || null,
     categories: it.categories || [],
@@ -110,6 +119,7 @@ export async function buildShare({ outDir = shareDir(), includeSizes } = {}) {
 
   const media = path.join(dataRoot(), 'stash', 'media');
   const out = [];
+  const prices = await readPrices();
   const keep = new Set();
   for (const it of items) {
     let image = null;
@@ -119,7 +129,7 @@ export async function buildShare({ outDir = shareDir(), includeSizes } = {}) {
       if (!existsSync(dest)) { try { await deps.resize(path.join(media, it.image), dest); } catch { /* the card shows its letter instead */ } }
       if (existsSync(dest)) { image = `img/${name}`; keep.add(name); }
     }
-    out.push(publicItem(it, image));
+    out.push(publicItem(it, image, prices[it.id]));
   }
   for (const f of await readdir(path.join(outDir, 'img'))) if (!keep.has(f)) await rm(path.join(outDir, 'img', f), { force: true });
 

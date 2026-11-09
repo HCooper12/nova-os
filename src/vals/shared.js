@@ -20,7 +20,7 @@ export const AGENTS = [
   { id: 'researcher', name: 'Researcher', role: 'WEB', on: true },
   { id: 'watcher', name: 'Watcher', role: 'VIDEO', on: true },
   { id: 'librarian', name: 'Librarian', role: 'LIBRARY', on: true },
-  { id: 'mealprep', name: 'Meal Prep', role: 'FUEL', on: true },
+  { id: 'mealprep', name: 'Chef', role: 'FUEL', on: true },
   { id: 'leader', name: 'Leader', role: 'LEADERSHIP', on: true },
   { id: 'practice', name: 'Practice', role: 'REHEARSAL', on: true },
 ];

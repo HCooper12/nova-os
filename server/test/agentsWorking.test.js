@@ -51,10 +51,10 @@ test('no surface counts the roster list any more', async () => {
   }
 });
 
-test('the same ten agents and rules as the Org map: Meal Prep is its own agent, and a record stuck past 30 minutes is not working', () => {
+test('the same ten agents and rules as the Org map: Chef is his own agent, and a record stuck past 30 minutes is not working', () => {
   const old = new Date(Date.now() - 31 * 60e3).toISOString();
   const fresh = new Date().toISOString();
-  assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'meal-prep', status: 'classifying', createdAt: fresh }] } }), ['Meal Prep']);
+  assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'meal-prep', status: 'classifying', createdAt: fresh }] } }), ['Chef']);
   assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'coach', status: 'classifying', createdAt: old }] } }), []);
   assert.deepEqual(workingAgentNames({ leaderBusy: true, practiceScene: { slug: 'x' } }), ['Leader', 'Practice']);
   assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'read-next', status: 'classifying', createdAt: fresh }] } }), ['Librarian']);

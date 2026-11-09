@@ -11026,7 +11026,7 @@ export default class App extends Component {
       });
   }
   talkAboutSkill(s, agentId) {
-    const name = { mealprep: 'Meal Prep', cfo: 'CFO' }[agentId] || (agentId ? agentId[0].toUpperCase() + agentId.slice(1) : 'an agent');
+    const name = { mealprep: 'Chef', cfo: 'CFO' }[agentId] || (agentId ? agentId[0].toUpperCase() + agentId.slice(1) : 'an agent');
     this.talkAboutInbox(`Talk me through a skill you suggested for ${name}: “${s.skill}”.${s.count ? ` The evidence: ${s.count} ${s.evidence} (${s.source}).` : ''} Is it worth building, and what would it take?`);
   }
   // WORKING ON THIS MAC. The Ops screen polls its own small endpoint while

@@ -188,3 +188,9 @@
 .nv-wl-pp { flex: none; width: 38%; max-width: 150px; scroll-snap-align: start; border: 0; padding: 0; border-radius: 14px; overflow: hidden; background: var(--nv-well); box-shadow: inset 0 0 0 1px var(--wl-ring); text-align: left; }
 .nv-wl-pp img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
 .nv-wl-pp small { display: block; padding: 6px 8px 8px; font-size: 11px; color: var(--wl-ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* a sale is the one loud thing on a card */
+.nv-wl-price.sale, .nv-wl-ln .num.sale { color: var(--nv-good); font-weight: 650; }
+.nv-wl-price s, .nv-wl-ln .num s { margin-left: 5px; color: var(--wl-ink3); font-weight: 400; text-decoration-thickness: 1px; }
+.nv-wl-salebadge { position: absolute; right: 8px; top: 8px; z-index: 2; padding: 4px 8px; border-radius: 8px; font: 650 11px/1 var(--nv-font-ui); letter-spacing: .04em; text-transform: uppercase; color: var(--nv-bg, #000); background: var(--nv-good); }
+.nv-wl-salebadge.in { position: static; display: inline-block; }

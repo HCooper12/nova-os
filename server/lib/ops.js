@@ -48,7 +48,7 @@ const SCHEDULED = [
   // hourly, and free once the index exists — only changed pages are embedded
   { id: 'embeddings', label: 'Meaning Index', role: 'the vault, searchable by meaning', cadenceHours: 2 },
   { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas', cadenceHours: 2 },
-  { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
+  { id: 'mealprep', label: 'Chef', role: 'weekly prep proposals', cadenceHours: 3 },
   { id: 'fuel-review', label: 'Numbers Review', role: 'his calorie and protein targets against his weight, log and training, Mondays', cadenceHours: 2 },
   // ticks every 30 min; opens Chrome and reads the menus only once a fortnight, 3–5am
   { id: 'eat-out', label: 'Takeaway Catalogue', role: 'chain and supermarket menus refreshed every two weeks', cadenceHours: 2 },

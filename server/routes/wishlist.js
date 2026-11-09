@@ -23,6 +23,11 @@ export function wishlistRouter(vaultPath) {
         const last = Math.max(Date.parse(cur.lastSync || 0) || 0, Date.parse(cur.lastTriedAt || 0) || 0);
         if (Date.now() - last > OPEN_REFRESH_MS) { W.readAll().catch(() => {}); view = await W.wishlistView(); }
       }
+      // opening the page also refreshes the shops' prices that are over six hours old
+      if (view.shared && W.deps.livePrices) {
+        const stale = W.pricesStale((await W.readItems()).items || [], await W.readPrices());
+        if (stale.length && !W.isPricing()) { W.refreshPrices().catch(() => {}); view = { ...view, syncing: true }; }
+      }
       res.json(view);
     } catch (err) { fail(res, err, 500); }
   });

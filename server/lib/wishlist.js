@@ -62,6 +62,7 @@ const dir = () => path.join(dataRoot(), 'wishlist');
 const stateFile = () => path.join(dir(), 'state.json');
 const itemsFile = () => path.join(dir(), 'items.json');
 const proposalsFile = () => path.join(dir(), 'picture-proposals.json');
+const pricesFile = () => path.join(dir(), 'prices.json');
 
 // swappable in tests: Notion is always a fake there
 export const deps = {
@@ -73,6 +74,14 @@ export const deps = {
   cacheImage,
   backfillImages: true,
   proposePictures: true,
+  livePrices: true,
+  // the price the shop shows right now: { price, was, currency, inStock } or null
+  findOffer: async (link) => {
+    const page = await fetchPage(link);
+    const offer = page.state === 'ok' ? parsePage(page.html, link)?.offer : null;
+    if (offer?.price) return offer;
+    return browserOffer(link);
+  },
   // up to four candidate pictures for a name: the web search Nova already
   // trusts (junk results filtered), then each result page's own main picture.
   // [{ thumb, full, host }]. Proposals only; nothing is saved from them.
@@ -1123,6 +1132,82 @@ export async function proposePictures(items) {
   return made;
 }
 
+// THE LIVE PRICE (10 Nov, his ask): what the shop shows now, and a sale shown
+// as one. It never touches his Notion Price (that is what HE noted). Read
+// from the link by the same reader the add uses, then his Chrome for shops
+// that turn a plain read away. Stored in prices.json; refreshed when the page
+// is opened and a price is over PRICE_FRESH_MS old.
+export const PRICE_FRESH_MS = 6 * 3600_000;
+export const PRICE_BATCH = 40;
+
+export async function browserOffer(link) {
+  try {
+    const B = await import('./browserResearch.js');
+    if (!B.browserAvailable()) return null;
+    return await B.withSearchPage(async (page) => {
+      await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 25_000 });
+      await new Promise((r) => setTimeout(r, 2500));
+      const html = await page.content();
+      const parsed = parsePage(html, link)?.offer;
+      if (parsed?.price) return parsed;
+      // Amazon draws its price in the page, not in a tag
+      const dom = await page.evaluate(() => {
+        const num = (sel) => { const t = document.querySelector(sel)?.textContent || ''; const n = Number(t.replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
+        return { price: num('.priceToPay .a-offscreen') || num('#corePrice_feature_div .a-price .a-offscreen') || num('.a-price .a-offscreen'), was: num('.basisPrice .a-offscreen') || num('.a-text-price .a-offscreen'), cur: /\$/.test(document.querySelector('.a-price .a-offscreen')?.textContent || '') ? 'AUD' : null };
+      }).catch(() => null);
+      return dom?.price ? { price: dom.price, was: dom.was && dom.was > dom.price * 1.01 ? dom.was : null, currency: /\.au(\/|$)/.test(link) ? 'AUD' : dom.cur, inStock: null } : null;
+    });
+  } catch { return null; }
+}
+
+export async function readPrices() { return readJson(pricesFile(), {}); }
+
+let pricing = null;
+export function isPricing() { return !!pricing; }
+const wantsPrice = (i) => i.link && ![STATUSES[2], STATUSES[3]].includes(i.status);
+export function pricesStale(items, prices, now = Date.now()) {
+  return items.filter((i) => wantsPrice(i) && !(prices[i.id] && prices[i.id].link === i.link && now - Date.parse(prices[i.id].checkedAt || 0) < PRICE_FRESH_MS));
+}
+// Starts a refresh of what is stale (oldest first, at most PRICE_BATCH, one
+// shop page at a time). One at a time; returns the running promise.
+export function refreshPrices({ force = false } = {}) {
+  if (pricing) return pricing;
+  pricing = (async () => {
+    let changed = 0;
+    try {
+      const { items } = await readItems();
+      const prices = await readPrices();
+      const todo = (force ? items.filter(wantsPrice) : pricesStale(items, prices, deps.now().getTime()))
+        .sort((a, b) => Date.parse(prices[a.id]?.checkedAt || 0) - Date.parse(prices[b.id]?.checkedAt || 0)).slice(0, PRICE_BATCH);
+      for (const it of todo) {
+        const offer = await deps.findOffer(it.link).catch(() => null);
+        const all = await readPrices();
+        const prev = all[it.id];
+        const at = deps.now().toISOString();
+        if (offer?.price) {
+          all[it.id] = { link: it.link, price: offer.price, was: offer.was || null, currency: offer.currency || null, inStock: offer.inStock ?? null, checkedAt: at, since: prev && prev.price === offer.price && prev.was === (offer.was || null) ? prev.since || at : at };
+          if (!prev || prev.price !== offer.price || prev.was !== (offer.was || null)) changed += 1;
+        } else {
+          // keep the last good price, say when the last try failed
+          all[it.id] = { ...(prev || { link: it.link }), link: it.link, checkedAt: at, failed: true };
+        }
+        await writeJson(pricesFile(), all);
+      }
+    } catch { /* a price is never worth breaking a read */ }
+    if (changed) import('./wishlistShare.js').then((m) => m.publishShare()).catch(() => {});
+    return { changed };
+  })().finally(() => { pricing = null; });
+  return pricing;
+}
+
+// What a card may say about price. Pure. AUD only is compared with his own
+// price; another currency is shown with its code, never converted.
+export function livePriceFor(rec) {
+  if (!rec || !rec.price || rec.failed && !rec.price) return null;
+  const cur = rec.currency && rec.currency.toUpperCase() !== 'AUD' ? rec.currency.toUpperCase() : null;
+  return { price: rec.price, was: rec.was || null, sale: !!rec.was, currency: cur, inStock: rec.inStock, checkedAt: rec.checkedAt, stale: !!rec.failed };
+}
+
 // What the page reads: the cached items, when they were read, and the
 // honest reason when Notion cannot show them.
 export async function wishlistView() {
@@ -1139,7 +1224,9 @@ export async function wishlistView() {
     proposals: Object.fromEntries(Object.entries(await readProposals()).filter(([id, v]) => v.options?.length && (cur.items || []).some((i) => i.id === id && !i.image)).map(([id, v]) => [id, v.options])),
     sizes: st.sizes,
     lastSync: cur.lastSync,
-    syncing: isSyncing(),
+    syncing: isSyncing() || isPricing(),
+    // the shop's price now, and a sale as a sale (never written over his own price)
+    live: Object.fromEntries(Object.entries(await readPrices()).map(([id, r]) => [id, livePriceFor(r)]).filter(([, v]) => v)),
     shared,
     reason,
     error: shared ? cur.error : null,

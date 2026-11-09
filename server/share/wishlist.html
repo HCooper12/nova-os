@@ -46,6 +46,8 @@ h1 em { font-style: italic; color: var(--accent); }
 .chip small { font: 400 12px/1 var(--sans); color: var(--ink3); margin-left: 6px; }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
 .chip[aria-pressed="true"] small { color: color-mix(in srgb, var(--ground) 65%, transparent); }
+.sale { font: 600 11px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ground); background: var(--accent); padding: 4px 7px; border-radius: 6px; margin-right: 2px; }
+.meta s { color: var(--ink3); font-weight: 400; margin-left: 2px; }
 .chip:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .chip-more { border-style: dashed; }
 
@@ -132,7 +134,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
   function card(it, i, big) {
     const pic = it.image ? `<img src="${esc(it.image)}" alt="" loading="${i < 8 ? 'eager' : 'lazy'}" decoding="async">` : `<span class="ph">${esc((it.name || '?').trim().charAt(0).toUpperCase())}</span>`;
     const stars = it.stars ? `<span class="stars" role="img" aria-label="${it.stars} of 3 stars, one of the things wanted most">${'★'.repeat(it.stars)}</span>` : '';
-    const meta = [it.price != null ? `<b>${money(it.price)}</b>` : '', it.store ? esc(it.store.replace(/^www\./, '')) : ''].filter(Boolean).join('<span aria-hidden="true">·</span>');
+    const meta = [it.price != null ? (it.was ? `<span class="sale">Sale</span> <b>${money(it.price)}</b> <s>${money(it.was)}</s>` : `<b>${money(it.price)}</b>`) : '', it.store ? esc(it.store.replace(/^www\./, '')) : ''].filter(Boolean).join('<span aria-hidden="true">·</span>');
     const tag = it.link ? 'a' : 'div';
     const href = it.link ? ` href="${esc(it.link)}" target="_blank" rel="noopener noreferrer"` : '';
     return `<${tag} class="card rise" style="--i:${Math.min(i, 14)}"${href}><div class="pic">${pic}${stars}</div><h3 class="name">${esc(it.name)}</h3>${meta ? `<p class="meta">${meta}</p>` : ''}${big && it.notes ? `<p class="note">${esc(it.notes)}</p>` : ''}</${tag}>`;

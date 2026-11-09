@@ -77,13 +77,14 @@ const Card = memo(function Card({ W, c, i }) {
     <Interactive as="button" type="button" className="nv-wl-card" data-flip={c.id} onClick={() => W.open(c.id)} haptic="tick" style={rise(i)}
       aria-label={`${c.name}${c.stars ? `, ${['', 'most wanted', 'top', 'very top'][c.stars]}` : ''}${c.priority ? `, ${c.priority} priority` : ''}${c.price ? `, ${c.price}` : ''}`}>
       <Photo W={W} c={c} className="nv-wl-ph" />
+      {c.sale && <span className="nv-wl-salebadge">{c.off || 'Sale'}</span>}
       {c.starMark && <span className="nv-wl-star" key={c.starMark} aria-hidden="true">{c.starMark}</span>}
       <span className="nv-wl-meta">
         <span className="nv-wl-nm">{c.name}</span>
         <span className="nv-wl-sub">
           {c.pri && <i className={`nv-wl-pr ${c.pri}`} aria-hidden="true" />}
           <span className="nv-wl-store">{c.store}</span>
-          {c.price && <span className="nv-wl-price">{c.price}</span>}
+          {c.price && <span className={`nv-wl-price${c.sale ? ' sale' : ''}`}>{c.price}{c.sale && c.was ? <s>{c.was}</s> : null}</span>}
         </span>
       </span>
     </Interactive>
@@ -374,8 +375,11 @@ function CardSheet({ W, s }) {
             {s.priority && <span className="pill"><i className={`nv-wl-pr ${s.pri}`} aria-hidden="true" />{s.priority}</span>}
             {s.categories.map((c) => <span key={c}>{c}</span>)}
             <span>{s.statusWord}</span>
-            {s.price && <span className="num">{s.price}</span>}
+            {s.price && <span className={`num${s.sale ? ' sale' : ''}`}>{s.price}{s.sale && s.was ? <s>{s.was}</s> : null}</span>}
+            {s.sale && <span className="nv-wl-salebadge in">Sale{s.off ? `, ${s.off}` : ''}</span>}
+            {s.soldOut && <span>Sold out</span>}
           </p>
+          {s.livePrice && <div className="nv-wl-kv"><span>Price</span><span className="val">{s.price}{s.sale && s.was ? ` (was ${s.was})` : ''}<small>{s.priceStale ? `Could not check just now; last read ${s.priceAgo || 'earlier'}` : `From the shop, read ${s.priceAgo || 'just now'}`}{s.savedPrice ? `. You noted ${s.savedPrice}` : ''}</small></span></div>}
           <div className="nv-wl-kv"><span>Link</span>{s.link ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={(e) => { e.preventDefault(); W.openLink(s.link); }}>{s.linkShown}</a> : <span className="none">No link on this row</span>}</div>
           <div className="nv-wl-kv"><span>Notes</span>{s.notes ? <span className="val">{s.notes}</span> : <span className="none">None yet</span>}</div>
           {s.size && <div className="nv-wl-kv"><span>Size</span><span className="val">{s.size.lines.join(' · ')}<small>{s.size.label}, from your Sizes</small></span></div>}

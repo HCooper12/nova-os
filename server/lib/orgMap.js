@@ -31,7 +31,7 @@ export const BEINGS = [
   { id: 'researcher', name: 'Researcher', district: 'knowledge' },
   { id: 'watcher', name: 'Watcher', district: 'knowledge' },
   { id: 'librarian', name: 'Librarian', district: 'knowledge' },
-  { id: 'mealprep', name: 'Meal Prep', district: 'fuel' },
+  { id: 'mealprep', name: 'Chef', district: 'fuel' },
   { id: 'leader', name: 'Leader', district: 'mind' },
   { id: 'practice', name: 'Practice', district: 'mind' },
 ];

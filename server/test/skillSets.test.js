@@ -101,7 +101,7 @@ test('a tick files on the rails to the build list, and Undo takes it off', async
   assert.equal(record.undoData.route, 'skill-backlog');
   let raw = await readFile(path.join(vault, SKILLS_REL), 'utf8');
   const bl = parseBacklog(raw);
-  assert.ok(bl.some((i) => i.text === 'Meal Prep: Log your usual meals for you from the rotation'));
+  assert.ok(bl.some((i) => i.text === 'Chef: Log your usual meals for you from the rotation'));
   // never a capability: the registry parser does not see it
   assert.ok(!parseSkills(raw).some((d) => d.skills.some((k) => /usual meals/.test(k.text))));
   // it shows under Not yet for that agent, and is gone from suggestions
