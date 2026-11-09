@@ -342,6 +342,59 @@ plausible-but-wrong work ships.
 
 ---
 
+## 3b · How a redesign is thought through (the living stage, 10 Nov 2026)
+
+His words on mockup 113: "exactly the direction that I've been wanting ... this
+entire time", and "save the thinking process ... as a standing point for future
+reference and builds". This is that process, in the order it was done. The
+first two steps are my reading of why this round landed where earlier rounds
+did not. He named one of them himself: he had told me to disregard how Nova
+currently looks.
+
+1. **Start from the moment, and leave the existing pages out of it.** Ask what
+   Nova is doing right now (listening, thinking, speaking a briefing,
+   compiling research, sharing work out to agents, waiting on his word) and
+   what he needs in front of him at that moment. Earlier rounds started from
+   the current screens and rearranged them, so they stayed "rigid and confined
+   to the apps in sections". His permission to change the design is the
+   licence to do this. Ask for it when it has not been given.
+2. **Study the reference frame by frame, and write down behaviours.** Watch
+   the reels, pull the frames, and list what the surface DOES in order of
+   value to him (panels arrive as they are spoken of, the count follows the
+   content, the centre stays the speaker). The look of the reference is the
+   least useful part. Record it in a study doc (design/ATLAS-STUDY.md) with
+   Nova's gaps by file locator, before drawing anything.
+3. **Keep what he has already approved.** The core, the tokens and the window
+   chrome came straight from approved mockup 108 by line range. A new
+   direction changes the arrangement and the behaviour. It does not reopen
+   the materials.
+4. **Rules, never a fixed layout or a cap.** Panels are placed by a scoring
+   rule around the core (free space, distance to their anchor, balance between
+   sides). When room runs out the oldest panel from an earlier sentence folds
+   into a counted chip. The number shown is whatever the content needs.
+5. **Tie everything on screen to a cause.** Each panel is raised by the
+   sentence that speaks of it and tethered to it. Agents appear only while
+   they work. Nothing sits on the stage as decoration.
+6. **One clock drives every state.** The mockup runs from a single timeline,
+   so any moment can be frozen by URL and looked at. That is what made
+   checking every state possible.
+7. **Sample content, labelled, never his data.** The repo is public. Sources
+   use `.example` domains.
+8. **Build the mockup from small parts and a join script.** Small files
+   survive interruptions, parse-check on every join, and make a second round
+   cheap.
+9. **Look at every state before sending, and fix what is wrong.** Rest, each
+   scene mid-run and at the end, the sheet, both phone crops. Three faults
+   were found this way and fixed before he saw anything.
+10. **Say what was not checked.** Motion had no recording in round one and the
+    message to him said so.
+11. **Put the open calls to him plainly, each with a pick.** Three questions,
+    three answers the same day.
+
+Build rule he attached to the approval: the build is screenshotted AND
+screen-recorded against the mockup and must match exactly. The one exemption
+is Nova's own icon, which uses the icon animation Nova already has.
+
 ## 4 · Empirical discipline
 
 - **A claim without evidence is a draft.** "It works" means a test asserts

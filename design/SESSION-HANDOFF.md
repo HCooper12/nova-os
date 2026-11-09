@@ -11,6 +11,13 @@ the session log at the foot is append-only.
 
 ---
 
+## 10 Nov (later, Fable 5.2): 113 APPROVED IN DIRECTION, with changes. Round two is mockup 114. NOTHING BUILT
+- HIS ANSWERS: the direction is "exactly" what he wanted, simple and clean on Mac and phone. Changes: on the phone, all panels easier to see and motion as dynamic as the Mac; he is curious about the real 3D agent characters in place of the lobes; he wants pages as panels (Train, Fuel on the stage) shown "as a mock up in practice"; day ring: yes.
+- HIS BUILD RULE: screenshot AND screen-record the build against the mockup; it must match exactly. One exemption: Nova's icon uses the icon animation Nova already has.
+- DONE: the thinking process saved as standing (design/NOVA-METHOD.md §3b; memory nova-redesign-process).
+- NEXT ACTION: mockup 114 (revised phone, 3D agents, pages as panels), then his word; the Mac stage can be built in phases per ATLAS-STUDY §6; the phone build waits on the revised phone.
+- DO NOT: build the phone before he approves 114's phone; commit the two ios/ files.
+
 ## 10 Nov (Fable 5.2): THE LIVING STAGE, mockup 113 sent for his approval. NOTHING BUILT (Nova 6e310691, local only, not pushed)
 - GOAL: his two reels and his words: "this kind of dynamic aesthetic design where the platform just changes across its use ... more free flowing dynamic rather than rigid and confined just to the different apps in sections ... Especially for the Mac ... multiple panels (no limit as it should be determined natively by Nova how many to show) depicting the different information, sources, videos". For the morning briefing and any question that compiles research. He allowed redesigning parts of Nova to fit.
 - DONE: design/ATLAS-STUDY.md (32cec580, what the reels do and what Nova takes or leaves); design/mockups/113-living-stage.html (6e310691), built on approved mockup 108's core, tokens and chrome. States: rest, morning brief, research answer, agents split out as lobes, the day ring, approvals, the "everything from this answer" sheet, and the phone (one hero panel plus a rail). Frozen frames by URL: `?s=brief|research|agents&at=end|split|ring|<ms>&sheet=1`.
