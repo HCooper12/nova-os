@@ -63,11 +63,18 @@ export function warmDecision({ enabled = true, conversing = false, userOpened = 
   if (hidden) return { keep: false, why: 'hidden' };
   if (!conversing) return { keep: false, why: 'not-conversing' };
   if (!userOpened) return { keep: false, why: 'not-his' };
-  if (route === 'bluetooth') return { keep: false, why: 'bluetooth' };
-  // a mic WebKit named in a way we do not recognise may be a headset: held,
-  // it would put Nova's voice in phone-call quality for the whole
-  // conversation, so only the phone's own mic is held (29 Oct 2026)
-  if (route !== 'builtin') return { keep: false, why: 'unknown-route' };
+  // A BLUETOOTH MIC IS HELD TOO (9 Nov 2026). On AirPods every turn paid
+  // the hands-free route switch twice: 2.2 s median to open the mic (3.2 to
+  // 4.1 s in his 9 Nov session) and the output route flipping back for the
+  // reply. Holding the capture keeps the headset in hands-free for the whole
+  // conversation, so later turns open at once; the cost is Nova's voice in
+  // call quality on the headset while the conversation lasts, which is how
+  // ChatGPT's and Siri's voice modes run on AirPods as well. His receipt
+  // carries `micKept: 'bluetooth-held'` so the trade is visible.
+  if (route === 'bluetooth') return { keep: true, why: 'bluetooth-held' };
+  // a mic WebKit named in a way we do not recognise: held like the others,
+  // the two known routes both hold now and an unnamed one is one of them
+  if (route !== 'builtin') return { keep: true, why: 'unknown-route-held' };
   return { keep: true, why: 'conversation' };
 }
 

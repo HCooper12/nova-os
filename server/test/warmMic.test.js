@@ -31,12 +31,12 @@ test('the route comes from the track label; Bluetooth is told apart', () => {
 test('kept only inside a conversation he opened, on screen, on the phone mic', () => {
   const ok = { enabled: true, conversing: true, userOpened: true, hidden: false, route: 'builtin', live: true };
   assert.deepEqual(W.warmDecision(ok), { keep: true, why: 'conversation' });
-  // an unrecognised mic may be a headset: never held
-  assert.deepEqual(W.warmDecision({ ...ok, route: 'unknown' }), { keep: false, why: 'unknown-route' });
+  // 9 Nov 2026: a headset is held too (the hands-free switch cost 2 to 4 s a turn)
+  assert.deepEqual(W.warmDecision({ ...ok, route: 'unknown' }), { keep: true, why: 'unknown-route-held' });
   assert.equal(W.warmDecision({ ...ok, conversing: false }).why, 'not-conversing');
   assert.equal(W.warmDecision({ ...ok, userOpened: false }).why, 'not-his');
   assert.equal(W.warmDecision({ ...ok, hidden: true }).why, 'hidden');
-  assert.equal(W.warmDecision({ ...ok, route: 'bluetooth' }).why, 'bluetooth');
+  assert.deepEqual(W.warmDecision({ ...ok, route: 'bluetooth' }), { keep: true, why: 'bluetooth-held' });
   assert.equal(W.warmDecision({ ...ok, enabled: false }).why, 'off');
   assert.equal(W.warmDecision({ ...ok, live: false }).why, 'ended');
 });
@@ -71,11 +71,15 @@ test('a mic Nova opened by itself is never held', async () => {
   W._resetWarmMic();
 });
 
-test('an AirPods mic is released every turn, as before', async () => {
+test('an AirPods mic is held between turns in a conversation (9 Nov 2026), and released when it ends', async () => {
   W._resetWarmMic();
   const owner = {};
   const a = await W.takeMic({ owner, trigger: 'tap', getUserMedia: async () => fakeStream('AirPods Pro') });
-  assert.equal(W.giveBackMic(a.stream, { owner, conversing: true }).why, 'bluetooth');
+  assert.equal(W.giveBackMic(a.stream, { owner, conversing: true }).why, 'bluetooth-held');
+  assert.equal(a.stream.track.stopped, 0, 'the hands-free route stays up for the next turn');
+  const b = await W.takeMic({ owner, trigger: 'auto', getUserMedia: async () => { throw new Error('a second getUserMedia would pay the route switch again'); } });
+  assert.equal(b.reused, true);
+  assert.equal(W.giveBackMic(b.stream, { owner, conversing: false }).why, 'not-conversing');
   assert.equal(a.stream.track.stopped, 1);
   W._resetWarmMic();
 });
