@@ -119,6 +119,30 @@ for (const [key, rows] of [...places.entries()].sort()) {
   const cols = FIELDS.map((f) => fmt(rows.map((r) => r[f]).filter((v) => Number.isFinite(v))).padEnd(26));
   console.log(`${`${key} (${rows.length})`.padEnd(20)} ${cols.join(' ')}`);
 }
+// HIS LAST WORD → NOVA'S FIRST WORD (9 Nov 2026). His Siri recording that
+// day was the bar: Siri began answering inside a second of his last word.
+// For each spoken turn on Nova's own ears that an ask followed within 30 s:
+//   tailMs (the hold he sat through) + txMs (the Mac writing it down)
+//   + preAskMs (the client) + firstAudioMs (ack or first sentence playing)
+// is the silence he heard. Older receipts carry no tailMs and are left out.
+const voice = turns.filter((t) => t.surface === 'voice' && t.heard && Number.isFinite(t.tailMs) && inRange(t));
+const chain = [];
+for (const v of voice) {
+  const vAt = Date.parse(v.at);
+  const ask = asks.find((a) => { const d = Date.parse(a.at) - a.ms - vAt; return d >= -2000 && d <= 30_000; });
+  if (!ask) continue;
+  const first = Number.isFinite(ask.firstAudioMs) ? ask.firstAudioMs : Number.isFinite(ask.ackMs) ? ask.ackMs : null;
+  if (first === null) continue;
+  chain.push({ at: v.at, route: v.micRoute || '?', tail: v.tailMs, tx: v.txMs || 0, pre: ask.preAskMs || 0, first, total: v.tailMs + (v.txMs || 0) + (ask.preAskMs || 0) + first });
+}
+if (chain.length) {
+  const s = chain.map((c) => c.total).sort((a, b) => a - b);
+  console.log(`\nHIS LAST WORD → NOVA'S FIRST WORD, ${chain.length} turn(s) with the full chain: p50 ${pct(s, 50)}ms, p95 ${pct(s, 95)}ms (Siri on 9 Nov: under 1000ms)`);
+  console.log(`  ${'when (UTC)'.padEnd(17)} ${'mic'.padEnd(10)} ${'hold'.padStart(6)} ${'ears'.padStart(6)} ${'client'.padStart(6)} ${'first audio'.padStart(11)} ${'total'.padStart(7)}`);
+  for (const c of chain.slice(-12)) console.log(`  ${c.at.slice(0, 16).padEnd(17)} ${c.route.padEnd(10)} ${String(c.tail).padStart(6)} ${String(c.tx).padStart(6)} ${String(c.pre).padStart(6)} ${String(c.first).padStart(11)} ${String(c.total).padStart(7)}`);
+} else {
+  console.log('\nHIS LAST WORD → NOVA\'S FIRST WORD: no receipt carries tailMs yet (the 9 Nov build adds it); the next spoken turn on the new build will.');
+}
 const acked = asks.filter((t) => t.ackText);
 const heard = acked.filter((t) => Number.isFinite(t.ackMs));
 if (acked.length) console.log(`\n${acked.length} ask(s) came with an ack; ${heard.length} of them were heard (the rest were dropped because the answer caught up, or speech was off).`);

@@ -430,6 +430,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     const br = blindRef.current;
     blindRef.current = null;
     const reuseBlind = reason === 'hold' && !!br?.useText;
+    // THE WAIT AFTER HIS LAST WORD (9 Nov 2026): from the last sound the
+    // meter heard to the recorder stopping. With txMs, preAskMs and
+    // firstAudioMs this completes the one number his Siri recording set the
+    // bar for, his last word to Nova's first word (scripts/voice-latency.mjs).
+    const tailMs = turnRef.current?.lastHeardAt ? Math.max(0, stopAt - turnRef.current.lastHeardAt) : null;
     clearExtended();
     turnRef.current = null;
     micStopped();
@@ -517,6 +522,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
           endedBy,
           micOpenMs: meta.micOpenAt ? meta.micOpenAt - meta.startAt : null,
           ...(recMs !== null ? { recMs } : {}),
+          ...(tailMs !== null ? { tailMs } : {}),
           blindMs,
           ...(br?.reads?.length ? { blindReads: br.reads.length } : {}),
           ...(meta.stallMs ? { stallMs: meta.stallMs } : {}),

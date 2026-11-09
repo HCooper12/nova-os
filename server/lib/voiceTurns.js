@@ -77,7 +77,8 @@ export function listenFields(body = {}) {
   // null is a fact here: the microphone never opened
   if (body.micOpenMs === null) out.micOpenMs = null;
   else if (boundedMs(body.micOpenMs) !== undefined) out.micOpenMs = boundedMs(body.micOpenMs);
-  for (const k of ['recMs', 'blindMs']) if (boundedMs(body[k]) !== undefined) out[k] = boundedMs(body[k]);
+  // tailMs (9 Nov 2026): his last sound → the recorder stopping, the hold he sat through
+  for (const k of ['recMs', 'blindMs', 'tailMs']) if (boundedMs(body[k]) !== undefined) out[k] = boundedMs(body[k]);
   if (body.firstSoundMs === null) out.firstSoundMs = null;
   else if (boundedMs(body.firstSoundMs) !== undefined) out.firstSoundMs = boundedMs(body.firstSoundMs);
   if (typeof body.peak === 'number' && Number.isFinite(body.peak) && body.peak >= 0) out.peak = Math.round(Math.min(1, body.peak) * 10000) / 10000;
