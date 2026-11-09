@@ -105,6 +105,8 @@ function withNotion(opts) {
   W.deps.sleep = async () => {};
   W.deps.minGapMs = 0;
   W.deps.cacheImage = async () => 'aaaaaaaaaaaaaaaaaaaa.jpg';
+  W.deps.findImage = async () => null;
+  W.deps.backfillImages = false;
   return notion;
 }
 async function fresh(opts) {
@@ -362,6 +364,22 @@ test('editing in Nova: link, notes and price reach his row, the stars stay, and 
   await assert.rejects(W.editItem('r1', { link: 'not a link' }), /https/);
   await assert.rejects(W.editItem('r1', { name: '  ' }), /name/);
   await assert.rejects(W.editItem('r1', {}), /nothing to change/);
+});
+
+test('a row with a link and no picture gets the picture off its link, written to Notion; no link is never asked; a miss waits a day', async () => {
+  const n = await fresh({ rows: [] });
+  const mk = (id, link) => W.itemFromPage({ id, properties: { Name: { title: t(`Item ${id}`) }, ...(link ? { 'Item link': { rich_text: t(link) } } : {}) } });
+  let asked = 0;
+  W.deps.findImage = async () => { asked += 1; return 'https://cdn.example.com/haze.jpg'; };
+  assert.equal(await W.backfillImages([mk('r1', 'https://shop.example.com/haze'), mk('r2', null)]), 1);
+  assert.equal(asked, 1, 'a row with no link is never asked');
+  assert.equal(n.calls.filter((c) => c.method === 'PATCH').pop().body.properties.Gallery.files[0].external.url, 'https://cdn.example.com/haze.jpg');
+  W.deps.findImage = async () => { asked += 1; return null; };
+  const miss = [mk('r3', 'https://x.example.com/p')];
+  assert.equal(await W.backfillImages(miss), 0);
+  const before = asked;
+  await W.backfillImages(miss);
+  assert.equal(asked, before, 'a page that gave no picture is not asked again for a day');
 });
 
 // ---------------------------------------------------------------- the doors

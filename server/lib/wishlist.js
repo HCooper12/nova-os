@@ -70,6 +70,12 @@ export const deps = {
   minGapMs: MIN_GAP_MS,
   now: () => new Date(),
   cacheImage,
+  backfillImages: true,
+  // the main picture of a product page, or null
+  findImage: async (link) => {
+    const page = await fetchPage(link);
+    return page.state === 'ok' ? parsePage(page.html, link)?.images?.[0] || null : null;
+  },
 };
 
 async function readJson(file, fallback) {
@@ -935,7 +941,7 @@ async function runReadAll() {
     await writeJson(itemsFile(), out);
     // photos first, then the shareable page (lib/wishlistShare.js) rebuilds
     // from the same cache; it never throws and only pushes when content moved
-    fillImages(items).catch(() => {}).then(() => import('./wishlistShare.js')).then((m) => m.publishShare()).catch(() => {});
+    fillImages(items).then(() => (deps.backfillImages ? backfillImages(items) : 0)).catch(() => {}).then(() => import('./wishlistShare.js')).then((m) => m.publishShare()).catch(() => {});
     return { ok: true, count: items.length };
   } catch (e) {
     await writeJson(itemsFile(), { ...cur, error: e.message, errorCode: e.code || null, lastTriedAt: deps.now().toISOString() });
@@ -954,6 +960,41 @@ async function fillImages(items) {
     cur.items = cur.items.map((i) => (i.id === it.id ? { ...i, image: file } : i));
     await writeJson(itemsFile(), cur);
   }
+}
+
+// A row with a link and no picture: Nova reads the picture off the link
+// (the same reader the add uses), writes it into the row's Gallery, and keeps
+// it. A page that gives none is not asked again for a day, so the 15 minute
+// read never hammers a shop. Returns how many it filled.
+const RETRY_NO_IMAGE_MS = 24 * 3600_000;
+export async function backfillImages(items) {
+  let filled = 0;
+  for (const it of items) {
+    if (it.image || it.imageSource || !it.link) continue;
+    const cur = await readItems();
+    const tried = cur.imageTried?.[it.id];
+    if (tried && tried.link === it.link && deps.now().getTime() - Date.parse(tried.at) < RETRY_NO_IMAGE_MS) continue;
+    const src = await deps.findImage(it.link).catch(() => null);
+    const note = async (patch) => {
+      const c = await readItems();
+      c.imageTried = { ...(c.imageTried || {}), [it.id]: { link: it.link, at: deps.now().toISOString() } };
+      Object.assign(c, patch ? patch(c) : {});
+      await writeJson(itemsFile(), c);
+    };
+    if (!src) { await note(); continue; }
+    const file = await deps.cacheImage(src).catch(() => null);
+    if (!file) { await note(); continue; }
+    const gname = String(it.name || 'photo').slice(0, 90);
+    try {
+      await patchPage(it.id, { properties: { Gallery: { files: [{ type: 'external', name: gname, external: { url: src } }] } } });
+    } catch { await note(); continue; }
+    await note((c) => ({
+      images: { ...(c.images || {}), [`${it.id}:${gname}`]: file },
+      items: c.items.map((i) => (i.id === it.id ? { ...i, image: file } : i)),
+    }));
+    filled += 1;
+  }
+  return filled;
 }
 
 // What the page reads: the cached items, when they were read, and the
