@@ -531,7 +531,7 @@ test('the live price: a sale is read off the page as a sale, refreshed only when
   await W.refreshPrices();
   assert.equal(asked, 1, 'fresh inside six hours: not asked again');
   const rec = (await W.readPrices()).r1;
-  assert.deepEqual(W.livePriceFor(rec), { price: 80, was: 100, sale: true, currency: null, inStock: true, checkedAt: rec.checkedAt, stale: false });
+  assert.deepEqual(W.livePriceFor(rec), { price: 80, was: 100, sale: true, currency: null, inStock: true, variants: null, checkedAt: rec.checkedAt, stale: false });
   assert.equal(n.calls.filter((c) => c.method === 'PATCH').length, 0, 'his own price is never written');
   const v = await W.wishlistView();
   assert.equal(v.live.r1.sale, true);

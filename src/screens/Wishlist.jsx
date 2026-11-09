@@ -84,7 +84,8 @@ const Card = memo(function Card({ W, c, i }) {
         <span className="nv-wl-sub">
           {c.pri && <i className={`nv-wl-pr ${c.pri}`} aria-hidden="true" />}
           <span className="nv-wl-store">{c.store}</span>
-          {c.price && <span className={`nv-wl-price${c.sale ? ' sale' : ''}`}>{c.price}{c.sale && c.was ? <s>{c.was}</s> : null}</span>}
+          {c.price && <span className={`nv-wl-price${c.sale && c.was ? ' sale' : ''}`}>{c.price}{c.sale && c.was ? <s>{c.was}</s> : null}</span>}
+          {c.alt && <span className="nv-wl-alt">{c.alt.name} <b>{c.alt.price}</b>{c.alt.was ? <s>{c.alt.was}</s> : null}</span>}
         </span>
       </span>
     </Interactive>
@@ -379,6 +380,13 @@ function CardSheet({ W, s }) {
             {s.sale && <span className="nv-wl-salebadge in">Sale{s.off ? `, ${s.off}` : ''}</span>}
             {s.soldOut && <span>Sold out</span>}
           </p>
+          {s.variants && s.variants.length > 1 && (
+            <div className="nv-wl-kv"><span>Colours</span><span className="val nv-wl-vars">
+              {s.variants.map((v) => (
+                <span key={v.name} className={`nv-wl-var${v.was ? ' sale' : ''}`}>{v.name}{v.current ? ' (your link)' : ''}: <b>{v.price}</b>{v.was ? <s>{v.was}</s> : null}{v.off ? <em>{v.off}</em> : null}</span>
+              ))}
+            </span></div>
+          )}
           {s.livePrice && <div className="nv-wl-kv"><span>Price</span><span className="val">{s.price}{s.sale && s.was ? ` (was ${s.was})` : ''}<small>{s.priceStale ? `Could not check just now; last read ${s.priceAgo || 'earlier'}` : `From the shop, read ${s.priceAgo || 'just now'}`}{s.savedPrice ? `. You noted ${s.savedPrice}` : ''}</small></span></div>}
           <div className="nv-wl-kv"><span>Link</span>{s.link ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={(e) => { e.preventDefault(); W.openLink(s.link); }}>{s.linkShown}</a> : <span className="none">No link on this row</span>}</div>
           <div className="nv-wl-kv"><span>Notes</span>{s.notes ? <span className="val">{s.notes}</span> : <span className="none">None yet</span>}</div>

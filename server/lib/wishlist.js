@@ -1140,6 +1140,27 @@ export async function proposePictures(items) {
 export const PRICE_FRESH_MS = 6 * 3600_000;
 export const PRICE_BATCH = 40;
 
+// price and was-price drawn into an Amazon page (it has no price tag in its markup)
+async function amazonDom(page) {
+  return page.evaluate(() => {
+    const num = (sel) => { const t = document.querySelector(sel)?.textContent || ''; const n = Number(t.replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
+    return { price: num('.priceToPay .a-offscreen') || num('#corePrice_feature_div .a-price .a-offscreen') || num('.a-price .a-offscreen'), was: num('.basisPrice .a-offscreen') || num('.a-text-price .a-offscreen'), cur: /\$/.test(document.querySelector('.a-price .a-offscreen')?.textContent || '') ? 'AUD' : null };
+  }).catch(() => null);
+}
+const asAud = (d, link) => (d?.price ? { price: d.price, was: d.was && d.was > d.price * 1.01 ? d.was : null, currency: /\.au(\/|$)/.test(link) ? 'AUD' : d.cur, inStock: null } : null);
+
+// The colours/models a product page offers, from the page's own data:
+// [{ asin, name }] when there is more than one. Pure.
+export function variantsIn(html) {
+  const m = String(html || '').match(/"dimensionValuesDisplayData"\s*:\s*(\{[^}]*\})/);
+  if (!m) return [];
+  try {
+    const o = JSON.parse(m[1]);
+    const list = Object.entries(o).map(([asin, v]) => ({ asin, name: [].concat(v).join(' ').trim() })).filter((x) => /^[A-Z0-9]{10}$/.test(x.asin) && x.name);
+    return list.length > 1 ? list.slice(0, 6) : [];
+  } catch { return []; }
+}
+
 export async function browserOffer(link) {
   try {
     const B = await import('./browserResearch.js');
@@ -1148,14 +1169,32 @@ export async function browserOffer(link) {
       await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 25_000 });
       await new Promise((r) => setTimeout(r, 2500));
       const html = await page.content();
-      const parsed = parsePage(html, link)?.offer;
-      if (parsed?.price) return parsed;
-      // Amazon draws its price in the page, not in a tag
-      const dom = await page.evaluate(() => {
-        const num = (sel) => { const t = document.querySelector(sel)?.textContent || ''; const n = Number(t.replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
-        return { price: num('.priceToPay .a-offscreen') || num('#corePrice_feature_div .a-price .a-offscreen') || num('.a-price .a-offscreen'), was: num('.basisPrice .a-offscreen') || num('.a-text-price .a-offscreen'), cur: /\$/.test(document.querySelector('.a-price .a-offscreen')?.textContent || '') ? 'AUD' : null };
-      }).catch(() => null);
-      return dom?.price ? { price: dom.price, was: dom.was && dom.was > dom.price * 1.01 ? dom.was : null, currency: /\.au(\/|$)/.test(link) ? 'AUD' : dom.cur, inStock: null } : null;
+      let offer = parsePage(html, link)?.offer;
+      if (!offer?.price) offer = asAud(await amazonDom(page), link);
+      if (!offer?.price) return null;
+      // other colours of the same product, each at its own price (his link
+      // is one of them; a grey one can be on sale while his is not)
+      const list = variantsIn(html);
+      if (list.length) {
+        const here = (link.match(/\/dp\/([A-Z0-9]{10})/) || [])[1];
+        const origin = new URL(link).origin;
+        const variants = [];
+        for (const v of list) {
+          const isHere = v.asin === here;
+          let o = isHere ? offer : null;
+          if (!o) {
+            try {
+              await page.goto(`${origin}/dp/${v.asin}`, { waitUntil: 'domcontentloaded', timeout: 25_000 });
+              await new Promise((r) => setTimeout(r, 2000));
+              o = parsePage(await page.content(), link)?.offer;
+              if (!o?.price) o = asAud(await amazonDom(page), link);
+            } catch { o = null; }
+          }
+          variants.push({ name: v.name, price: o?.price || null, was: o?.was || null, current: isHere });
+        }
+        if (variants.some((v) => v.price)) offer = { ...offer, variants };
+      }
+      return offer;
     });
   } catch { return null; }
 }
@@ -1185,7 +1224,7 @@ export function refreshPrices({ force = false } = {}) {
         const prev = all[it.id];
         const at = deps.now().toISOString();
         if (offer?.price) {
-          all[it.id] = { link: it.link, price: offer.price, was: offer.was || null, currency: offer.currency || null, inStock: offer.inStock ?? null, checkedAt: at, since: prev && prev.price === offer.price && prev.was === (offer.was || null) ? prev.since || at : at };
+          all[it.id] = { link: it.link, price: offer.price, was: offer.was || null, currency: offer.currency || null, inStock: offer.inStock ?? null, variants: offer.variants || null, checkedAt: at, since: prev && prev.price === offer.price && prev.was === (offer.was || null) ? prev.since || at : at };
           if (!prev || prev.price !== offer.price || prev.was !== (offer.was || null)) changed += 1;
         } else {
           // keep the last good price, say when the last try failed
@@ -1205,7 +1244,7 @@ export function refreshPrices({ force = false } = {}) {
 export function livePriceFor(rec) {
   if (!rec || !rec.price || rec.failed && !rec.price) return null;
   const cur = rec.currency && rec.currency.toUpperCase() !== 'AUD' ? rec.currency.toUpperCase() : null;
-  return { price: rec.price, was: rec.was || null, sale: !!rec.was, currency: cur, inStock: rec.inStock, checkedAt: rec.checkedAt, stale: !!rec.failed };
+  return { price: rec.price, was: rec.was || null, sale: !!rec.was, currency: cur, inStock: rec.inStock, variants: rec.variants || null, checkedAt: rec.checkedAt, stale: !!rec.failed };
 }
 
 // What the page reads: the cached items, when they were read, and the

@@ -100,3 +100,22 @@ test('a sale shows as one: the shop price, the was-price struck, the percent off
   assert.equal(plain.price, '$50');
   assert.ok(!plain.sale);
 });
+
+test('another colour that is cheaper or on sale is shown beside the linked one (the Philips board)', () => {
+  const live = { price: 604.95, was: null, currency: null, checkedAt: '2026-11-10T00:00:00Z', variants: [{ name: 'Blue', price: 604.95, was: null, current: true }, { name: 'Dark Slate', price: 398, was: 599, current: false }] };
+  const c = buildWishlistView({ source: { ...src([it('iron', { price: 600 })]), live: { iron: live } }, now: NOW }).groups[0].cards[0];
+  assert.equal(c.price, '$604.95');
+  assert.equal(c.alt.name, 'Dark Slate');
+  assert.equal(c.alt.price, '$398');
+  assert.equal(c.alt.was, '$599');
+  assert.equal(c.sale, true, 'a sale on any colour counts');
+  assert.equal(c.variants.length, 2);
+  assert.equal(c.off, '34% off');
+});
+
+test('variantsIn reads the colours off an Amazon page and ignores a one-option page', async () => {
+  const W = await import('../lib/wishlist.js');
+  assert.deepEqual(W.variantsIn('x "dimensionValuesDisplayData":{"B0CQK94X98":["Blue"],"B0H3PDD52Z":["Dark Slate"]} y'), [{ asin: 'B0CQK94X98', name: 'Blue' }, { asin: 'B0H3PDD52Z', name: 'Dark Slate' }]);
+  assert.deepEqual(W.variantsIn('"dimensionValuesDisplayData":{"B0CQK94X98":["Blue"]}'), []);
+  assert.deepEqual(W.variantsIn('nothing'), []);
+});

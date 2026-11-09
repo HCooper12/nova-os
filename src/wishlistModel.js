@@ -76,12 +76,21 @@ function liveFields(it, live, now = Date.now()) {
   const label = (n) => (live.currency ? `${cur}${priceLabel(n).slice(1)}` : priceLabel(n));
   const off = live.was ? Math.round((1 - live.price / live.was) * 100) : 0;
   const saved = typeof it.price === 'number' && !live.currency && Math.abs(it.price - live.price) >= 0.5 ? priceLabel(it.price) : null;
+  // other colours/models of the same product, each at its own price
+  const vs = (live.variants || []).filter((v) => v.price).map((v) => ({
+    name: v.name, current: !!v.current, price: label(v.price), was: v.was ? label(v.was) : null,
+    off: v.was ? `${Math.round((1 - v.price / v.was) * 100)}% off` : null, raw: v.price,
+  }));
+  const alt = vs.filter((v) => !v.current && (v.raw < live.price || v.was)).sort((a, b) => a.raw - b.raw)[0] || null;
   return {
     livePrice: true,
+    variants: vs.length > 1 ? vs : [],
+    alt,
+    // a sale on ANY colour is a sale worth seeing
+    sale: !!live.was || !!alt?.was,
     price: label(live.price),
-    sale: !!live.was,
     was: live.was ? label(live.was) : null,
-    off: off > 0 ? `${off}% off` : null,
+    off: off > 0 ? `${off}% off` : alt?.off || null,
     savedPrice: saved,
     soldOut: live.inStock === false,
     priceAgo: agoLabel(live.checkedAt, now),
