@@ -141,6 +141,7 @@ export function editItem(app, item, fields) {
   if ('link' in fields) { const l = String(fields.link).trim(); patch.link = l || null; try { patch.store = l ? new URL(l).hostname.replace(/^www\./, '') : null; } catch { patch.store = null; } }
   if ('notes' in fields) patch.notes = String(fields.notes).trim() || null;
   if ('price' in fields) { const n = Number(String(fields.price).replace(/[$,\s]/g, '')); patch.price = String(fields.price).trim() === '' || !Number.isFinite(n) ? null : n; }
+  if ('priority' in fields) patch.priority = fields.priority;
   if ('categories' in fields) patch.categories = fields.categories;
   return write(app, {
     id: item.id, patch,

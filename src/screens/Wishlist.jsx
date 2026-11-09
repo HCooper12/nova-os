@@ -271,7 +271,7 @@ function Sheet({ label, onClose, children }) {
 // Only what he changed is sent. Prefilled from the card, so he types nothing
 // Nova already knows.
 function EditForm({ W, s, done }) {
-  const [f, setF] = useState({ name: s.name, link: s.link || '', notes: s.notes || '', price: s.priceRaw == null ? '' : String(s.priceRaw), categories: s.categories });
+  const [f, setF] = useState({ name: s.name, link: s.link || '', notes: s.notes || '', price: s.priceRaw == null ? '' : String(s.priceRaw), priority: s.priority || '', categories: s.categories });
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const toggle = (c) => setF((x) => ({ ...x, categories: x.categories.includes(c) ? x.categories.filter((y) => y !== c) : [...x.categories, c] }));
   const save = () => {
@@ -280,6 +280,7 @@ function EditForm({ W, s, done }) {
     if (f.link.trim() !== (s.link || '')) fields.link = f.link;
     if (f.notes.trim() !== (s.notes || '')) fields.notes = f.notes;
     if (f.price.trim() !== (s.priceRaw == null ? '' : String(s.priceRaw))) fields.price = f.price;
+    if (f.priority && f.priority !== (s.priority || '')) fields.priority = f.priority;
     if ([...f.categories].sort().join('|') !== [...s.categories].sort().join('|')) fields.categories = f.categories;
     if (Object.keys(fields).length) W.edit(s, fields);
     done();
@@ -290,6 +291,13 @@ function EditForm({ W, s, done }) {
       <label className="nv-wl-lab">Link<input value={f.link} onChange={set('link')} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://" aria-label="Link" /></label>
       <label className="nv-wl-lab">Price<input value={f.price} onChange={set('price')} inputMode="decimal" placeholder="No price" aria-label="Price" /></label>
       <label className="nv-wl-lab">Notes<textarea value={f.notes} onChange={set('notes')} rows={3} placeholder="Size, colour, why" aria-label="Notes" /></label>
+      <div className="nv-wl-lab">Priority
+        <div className="nv-wl-cats" role="radiogroup" aria-label="Priority">
+          {['High', 'Medium', 'Low'].map((p) => (
+            <Interactive key={p} as="button" type="button" role="radio" aria-checked={f.priority === p} className={f.priority === p ? 'on' : ''} onClick={() => setF((x) => ({ ...x, priority: p }))} haptic="tick">{p}</Interactive>
+          ))}
+        </div>
+      </div>
       {s.allCategories.length > 0 && (
         <div className="nv-wl-lab">Categories
           <div className="nv-wl-cats">

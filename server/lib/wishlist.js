@@ -793,6 +793,13 @@ export async function editItem(pageId, fields = {}) {
     prior.Price = { number: typeof item.price === 'number' ? item.price : null };
     cache.price = n;
   }
+  if (has('priority')) {
+    const pr = String(fields.priority ?? '').trim();
+    if (!PRIORITIES.includes(pr)) throw Object.assign(new Error(`priority must be ${PRIORITIES.join(', ')}`), { status: 400 });
+    props.Priority = { select: { name: pr } };
+    prior.Priority = item.priority ? { select: { name: item.priority } } : { select: null };
+    cache.priority = pr;
+  }
   if (has('categories')) {
     const want = [...new Set((Array.isArray(fields.categories) ? fields.categories : []).map((c) => String(c).trim()).filter(Boolean))];
     const unknown = want.filter((c) => !st.categories.some((x) => x.name === c));

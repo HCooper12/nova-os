@@ -355,6 +355,10 @@ test('editing in Nova: link, notes and price reach his row, the stars stay, and 
   assert.equal(back.Name.title[0].text.content, '⭐️⭐️Union Bomber Jacket');
   assert.equal(back['Item link'].rich_text[0].text.content, 'https://old.example.com/a');
   assert.equal(back.Price.number, 100);
+  const pe = await W.editItem('r1', { priority: 'High' });
+  assert.equal(n.calls.filter((c) => c.method === 'PATCH').pop().body.properties.Priority.select.name, 'High');
+  await assert.rejects(W.editItem('r1', { priority: 'Urgent' }), /priority/);
+  assert.ok(pe.recordId);
   await assert.rejects(W.editItem('r1', { link: 'not a link' }), /https/);
   await assert.rejects(W.editItem('r1', { name: '  ' }), /name/);
   await assert.rejects(W.editItem('r1', {}), /nothing to change/);
