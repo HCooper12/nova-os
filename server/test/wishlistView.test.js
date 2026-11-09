@@ -53,7 +53,15 @@ test('six chips up front, the rest behind Show all; a chip filters', () => {
   assert.equal(f.groups[0].cards.length, 1);
   assert.ok(f.chips.some((c) => c.key === 'c:F' && c.on), 'a chosen chip from behind Show all stays in view');
   const s = buildWishlistView({ source: src(items), ui: { cat: 'star' }, now: NOW });
-  assert.equal(s.groups[0].cards.length, 6);
+  // Most wanted shows every item, ordered 3 stars down to 0
+  assert.equal(s.groups[0].cards.length, 21);
+});
+
+test('Most wanted orders 3 stars down to 0 and keeps the unstarred last', () => {
+  const items = [it('none'), it('one', { stars: 1 }), it('three', { stars: 3 }), it('two', { stars: 2 })];
+  const v = buildWishlistView({ source: src(items), ui: { cat: 'star' }, now: NOW });
+  assert.deepEqual(v.groups[0].cards.map((c) => c.stars), [3, 2, 1, 0]);
+  assert.equal(v.chips.find((c) => c.key === 'star').n, 4);
 });
 
 test('a failed read keeps what it had and says why it is old', () => {

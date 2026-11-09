@@ -158,10 +158,9 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
 
   function rail(items) {
     const cats = counts(items);
-    const wanted = items.filter((i) => i.stars).length;
     const shown = moreOpen ? cats : cats.slice(0, MAX_CHIPS);
     const chip = (k, label, n) => `<button class="chip" data-f="${esc(k)}" aria-pressed="${filter === k}">${esc(label)}<small>${n}</small></button>`;
-    $('rail').innerHTML = chip('all', 'Everything', items.length) + (wanted ? chip('top', 'Most wanted', wanted) : '') +
+    $('rail').innerHTML = chip('all', 'Everything', items.length) + chip('top', 'Most wanted', items.length) +
       shown.map(([c, n]) => chip('c:' + c, c, n)).join('') +
       (!moreOpen && cats.length > MAX_CHIPS ? `<button class="chip chip-more" data-more="1">${cats.length - MAX_CHIPS} more</button>` : '');
   }
@@ -171,7 +170,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 calc(env(safe-area-i
     words();
     rail(items);
     let list = items;
-    if (filter === 'top') list = items.filter((i) => i.stars);
+    if (filter === 'top') list = items.slice(); // every item, ordered 3 stars down to 0
     else if (filter.startsWith('c:')) list = items.filter((i) => (i.categories || []).includes(filter.slice(2)));
     if (!list.length) { $('main').innerHTML = '<div class="state"><strong>Nothing here yet.</strong>Check back soon.</div>'; return; }
 

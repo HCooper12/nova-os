@@ -58,8 +58,10 @@ export function sizeFor(item, sizes) {
 }
 
 // the order inside a group: his priority, then his stars, then Notion's own order
-function sortItems(list) {
+function sortItems(list, byStars = false) {
   return list.map((it, i) => ({ it, i })).sort((a, b) => {
+    // "Most wanted": stars first, 3 down to 0, then his priority, then Notion's order
+    if (byStars && (b.it.stars || 0) !== (a.it.stars || 0)) return (b.it.stars || 0) - (a.it.stars || 0);
     const pa = PRIORITY_RANK[a.it.priority] ?? 3; const pb = PRIORITY_RANK[b.it.priority] ?? 3;
     if (pa !== pb) return pa - pb;
     if ((b.it.stars || 0) !== (a.it.stars || 0)) return (b.it.stars || 0) - (a.it.stars || 0);
@@ -83,6 +85,7 @@ function card(it) {
     status: it.status,
     categories: it.categories || [],
     notes: it.notes || null,
+    priceRaw: typeof it.price === 'number' ? it.price : null,
   };
 }
 
@@ -119,14 +122,13 @@ export function buildWishlistView({ source, ui = {}, offline = false, now = Date
   const rest = catChips.slice(UP_FRONT_CATEGORIES);
   // a chosen chip from behind "Show all" stays in view
   const chosenRest = rest.find((c) => c.on);
-  const starred = activeItems.filter((i) => (i.stars || 0) > 0).length;
-  const chips = [chip('all', 'All', activeItems.length), ...(starred ? [chip('star', '★ Most wanted', starred)] : []), ...upFront, ...(chosenRest && !ui.allCats ? [chosenRest] : [])];
+  const chips = [chip('all', 'All', activeItems.length), chip('star', '★ Most wanted', activeItems.length), ...upFront, ...(chosenRest && !ui.allCats ? [chosenRest] : [])];
   const moreChips = ui.allCats ? rest : [];
 
-  const pass = (it) => cat === 'all' ? true : cat === 'star' ? (it.stars || 0) > 0 : (it.categories || []).includes(cat.slice(2));
+  const pass = (it) => cat === 'all' ? true : cat === 'star' ? true : (it.categories || []).includes(cat.slice(2));
   const shown = items.filter(pass);
-  const of = (status) => sortItems(shown.filter((i) => (i.status || STATUS.considering) === status)).map(card);
-  const considering = sortItems(shown.filter((i) => ![STATUS.month, STATUS.purchased, STATUS.cancelled].includes(i.status))).map(card);
+  const of = (status) => sortItems(shown.filter((i) => (i.status || STATUS.considering) === status), cat === 'star').map(card);
+  const considering = sortItems(shown.filter((i) => ![STATUS.month, STATUS.purchased, STATUS.cancelled].includes(i.status)), cat === 'star').map(card);
   const month = of(STATUS.month);
   const purchased = of(STATUS.purchased);
   const cancelled = of(STATUS.cancelled);
@@ -171,6 +173,7 @@ export function sheetFor(source, id) {
     statusWord,
     linkShown: c.link ? c.link.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '') : null,
     size: sizeFor(it, source.sizes),
+    allCategories: Array.isArray(source.categories) ? source.categories : [],
     bought: it.status === STATUS.purchased,
     thisMonth: it.status === STATUS.month,
   };
