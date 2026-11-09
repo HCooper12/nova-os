@@ -61,6 +61,7 @@ const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(path.dirname(fileU
 const dir = () => path.join(dataRoot(), 'wishlist');
 const stateFile = () => path.join(dir(), 'state.json');
 const itemsFile = () => path.join(dir(), 'items.json');
+const proposalsFile = () => path.join(dir(), 'picture-proposals.json');
 
 // swappable in tests: Notion is always a fake there
 export const deps = {
@@ -71,6 +72,20 @@ export const deps = {
   now: () => new Date(),
   cacheImage,
   backfillImages: true,
+  proposePictures: true,
+  // up to four candidate pictures for a name, from an image search:
+  // [{ thumb, full, host }]. Proposals only; nothing is saved from them.
+  searchPictures: async (query) => {
+    const B = await import('./browserResearch.js');
+    if (!B.browserAvailable()) return [];
+    return B.withSearchPage(async (page) => {
+      await page.goto(`https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`, { waitUntil: 'domcontentloaded', timeout: 25_000 });
+      await page.waitForSelector('a.iusc', { timeout: 8000 }).catch(() => {});
+      return page.evaluate(() => [...document.querySelectorAll('a.iusc')].slice(0, 12).map((a) => {
+        try { const m = JSON.parse(a.getAttribute('m')); return { thumb: m.turl, full: m.murl, host: new URL(m.purl).hostname.replace(/^www\./, '') }; } catch { return null; }
+      }).filter((x) => x && /^https:/.test(x.thumb || '') && /^https?:/.test(x.full || '')).slice(0, 4));
+    }).catch(() => []);
+  },
   // the main picture of a product page, or null
   findImage: async (link) => {
     const page = await fetchPage(link);
@@ -860,7 +875,7 @@ export async function editItem(pageId, fields = {}) {
 // A link is also written to the row's Gallery in Notion (so Notion shows it
 // too); a photo stays on this Mac, because Notion needs a public address for
 // a picture and a phone photo has none. Undo puts back what was there.
-export async function setPicture(pageId, { url, dataUrl } = {}) {
+export async function setPicture(pageId, { url, dataUrl, fallbackUrl } = {}) {
   const item = await itemFor(pageId);
   if (!item) throw Object.assign(new Error('that item is not in the Wishlist Nova last read'), { status: 404 });
   let file = null; let external = null;
@@ -868,6 +883,7 @@ export async function setPicture(pageId, { url, dataUrl } = {}) {
     external = String(url).trim();
     if (!/^https?:\/\/\S+/i.test(external)) throw Object.assign(new Error('a picture link must start with https://'), { status: 400 });
     file = await deps.cacheImage(external).catch(() => null);
+    if (!file && fallbackUrl && /^https:/i.test(fallbackUrl)) { file = await deps.cacheImage(fallbackUrl).catch(() => null); if (file) external = String(fallbackUrl).trim(); }
     if (!file) throw Object.assign(new Error('Nova could not read a picture at that link'), { status: 400 });
   } else if (dataUrl) {
     const m = String(dataUrl).match(/^data:(image\/[a-z+.-]+);base64,([\s\S]+)$/i);
@@ -1022,7 +1038,7 @@ async function runReadAll() {
     await writeJson(itemsFile(), out);
     // photos first, then the shareable page (lib/wishlistShare.js) rebuilds
     // from the same cache; it never throws and only pushes when content moved
-    fillImages(items).then(() => (deps.backfillImages ? backfillImages(items) : 0)).catch(() => {}).then(() => import('./wishlistShare.js')).then((m) => m.publishShare()).catch(() => {});
+    fillImages(items).then(() => (deps.backfillImages ? backfillImages(items) : 0)).then(async () => (deps.proposePictures ? proposePictures((await readItems()).items) : 0)).catch(() => {}).then(() => import('./wishlistShare.js')).then((m) => m.publishShare()).catch(() => {});
     return { ok: true, count: items.length };
   } catch (e) {
     await writeJson(itemsFile(), { ...cur, error: e.message, errorCode: e.code || null, lastTriedAt: deps.now().toISOString() });
@@ -1078,6 +1094,28 @@ export async function backfillImages(items) {
   return filled;
 }
 
+// For a row that still has no picture (no link, or a shop that gave none):
+// look the NAME up and keep a few candidates for him to choose from. They
+// are only ever shown; a picture is saved when he taps one (setPicture).
+const PROPOSE_AGAIN_MS = 7 * 24 * 3600_000;
+export async function readProposals() { return readJson(proposalsFile(), {}); }
+export async function proposePictures(items) {
+  let made = 0;
+  for (const it of items) {
+    if (it.image || it.imageSource) continue;
+    const all = await readProposals();
+    const prev = all[it.id];
+    if (prev && deps.now().getTime() - Date.parse(prev.at) < PROPOSE_AGAIN_MS) continue;
+    const query = String(it.name || '').replace(/\s*[-–]\s*(book|ps2 game|ps4 game)\s*$/i, ' $1').slice(0, 120);
+    const options = await deps.searchPictures(query).catch(() => []);
+    const next = await readProposals();
+    next[it.id] = { at: deps.now().toISOString(), query, options };
+    await writeJson(proposalsFile(), next);
+    if (options.length) made += 1;
+  }
+  return made;
+}
+
 // What the page reads: the cached items, when they were read, and the
 // honest reason when Notion cannot show them.
 export async function wishlistView() {
@@ -1090,6 +1128,8 @@ export async function wishlistView() {
     // the expiring Notion file link and its key stay on the server
     items: (cur.items || []).map((i) => { const { imageSource: _s, imageKey: _k, ...rest } = i; return rest; }),
     categories: st.categories.map((c) => c.name),
+    // candidate pictures for rows that have none, for him to choose from
+    proposals: Object.fromEntries(Object.entries(await readProposals()).filter(([id, v]) => v.options?.length && (cur.items || []).some((i) => i.id === id && !i.image)).map(([id, v]) => [id, v.options])),
     sizes: st.sizes,
     lastSync: cur.lastSync,
     syncing: isSyncing(),

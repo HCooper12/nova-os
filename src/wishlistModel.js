@@ -176,6 +176,7 @@ export function sheetFor(source, id) {
     linkShown: c.link ? c.link.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '') : null,
     size: sizeFor(it, source.sizes),
     allCategories: Array.isArray(source.categories) ? source.categories : [],
+    proposals: it.image ? [] : ((source.proposals || {})[it.id] || []),
     bought: it.status === STATUS.purchased,
     thisMonth: it.status === STATUS.month,
   };

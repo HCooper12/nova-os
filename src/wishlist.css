@@ -183,3 +183,8 @@
 
 .nv-wl-pic { display: grid; gap: 8px; }
 .nv-wl-pic .nv-wl-act { cursor: pointer; }
+
+.nv-wl-props { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 0 6px; margin-right: -4px; }
+.nv-wl-pp { flex: none; width: 38%; max-width: 150px; scroll-snap-align: start; border: 0; padding: 0; border-radius: 14px; overflow: hidden; background: var(--nv-well); box-shadow: inset 0 0 0 1px var(--wl-ring); text-align: left; }
+.nv-wl-pp img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.nv-wl-pp small { display: block; padding: 6px 8px 8px; font-size: 11px; color: var(--wl-ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -107,6 +107,7 @@ function withNotion(opts) {
   W.deps.cacheImage = async () => 'aaaaaaaaaaaaaaaaaaaa.jpg';
   W.deps.findImage = async () => null;
   W.deps.backfillImages = false;
+  W.deps.proposePictures = false;
   return notion;
 }
 async function fresh(opts) {
@@ -495,4 +496,17 @@ test('a picture he chooses: a link goes to the Gallery and the cache, a photo st
   await assert.rejects(W.setPicture('r1', { url: 'nope' }), /https/);
   await assert.rejects(W.setPicture('r1', { dataUrl: 'data:text/plain;base64,AAAA' }), /not a picture/);
   await assert.rejects(W.setPicture('r1', {}), /nothing to set/);
+});
+
+test('rows with no picture get candidates to choose from, once a week, and a candidate saves nothing until he taps it', async () => {
+  const n = await fresh({ rows: [] });
+  let asked = 0;
+  W.deps.searchPictures = async (q) => { asked += 1; return [{ thumb: 'https://t.example.com/1.jpg', full: 'https://c.example.com/1.jpg', host: 'shop.example.com', q }]; };
+  const items = [W.itemFromPage({ id: 'p1', properties: { Name: { title: t('Vinyl player with Bluetooth') } } }), { id: 'p2', name: 'Has one', image: 'x.jpg' }];
+  assert.equal(await W.proposePictures(items), 1);
+  assert.equal(asked, 1, 'a row with a picture is never searched');
+  await W.proposePictures(items);
+  assert.equal(asked, 1, 'not searched again inside a week');
+  assert.equal((await W.readProposals()).p1.options[0].full, 'https://c.example.com/1.jpg');
+  assert.equal(n.calls.filter((c) => c.method === 'PATCH').length, 0, 'nothing is written to Notion by a proposal');
 });

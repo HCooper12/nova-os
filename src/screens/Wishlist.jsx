@@ -354,6 +354,20 @@ function CardSheet({ W, s }) {
       {() => (
         <>
           <Photo W={W} c={s} className="nv-wl-big" />
+          {!editing && s.proposals.length > 0 && (
+            <div className="nv-wl-prop">
+              <p className="nv-wl-hint">Nova found these for “{s.name}”. Tap the right one, or none.</p>
+              <div className="nv-wl-props">
+                {s.proposals.map((o) => (
+                  <Interactive key={o.full} as="button" type="button" className="nv-wl-pp" aria-label={`Use this picture, from ${o.host}`}
+                    onClick={() => W.picture(s, { url: o.full, fallbackUrl: o.thumb })} haptic="commit" disabled={ro}>
+                    <img src={o.thumb} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+                    <small>{o.host}</small>
+                  </Interactive>
+                ))}
+              </div>
+            </div>
+          )}
           {editing ? <EditForm W={W} s={s} done={() => setEditing(false)} /> : (<>
           <h3 className="nv-wl-st">{s.name}</h3>
           <p className="nv-wl-ln">
