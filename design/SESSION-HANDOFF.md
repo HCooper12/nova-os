@@ -15,7 +15,11 @@ the session log at the foot is append-only.
 - HIS ANSWERS: the direction is "exactly" what he wanted, simple and clean on Mac and phone. Changes: on the phone, all panels easier to see and motion as dynamic as the Mac; he is curious about the real 3D agent characters in place of the lobes; he wants pages as panels (Train, Fuel on the stage) shown "as a mock up in practice"; day ring: yes.
 - HIS BUILD RULE: screenshot AND screen-record the build against the mockup; it must match exactly. One exemption: Nova's icon uses the icon animation Nova already has.
 - DONE: the thinking process saved as standing (design/NOVA-METHOD.md §3b; memory nova-redesign-process).
-- NEXT ACTION: mockup 114 (revised phone, 3D agents, pages as panels), then his word; the Mac stage can be built in phases per ATLAS-STUDY §6; the phone build waits on the revised phone.
+- DONE: design/mockups/114-living-stage-round-two.html (d3332544, local, not pushed), sent to him. Phone: the newest panel lands large, earlier ones stay as small copies in a peeking rail, and "See all" (or Nova finishing) deals every panel out of the core into two columns; tap one to open it over a scrim. Agents: Nova's real characters (src/agentWorld/beings.js inlined, three.js from cdnjs), with a switch back to the lobes (`3d=0`). Train and Fuel open as panels on the same stage. Frozen frames: `?s=brief|research|agents|train|fuel&at=end|split|ring|<ms>&sheet=1&ph=all|hero&open=<n>&3d=0`.
+- VERIFIED: stills only (headless Chrome, 1500 wide) of rest, brief, research, agents split / ring / end, train, fuel, the sheet, and the phone for each. NOT VERIFIED: motion (virtual time cannot record it), WebKit, his phone.
+- OPEN, his word: characters or lobes; the revised phone; pages as panels.
+- NEXT ACTION: on his word, build phase 1 per ATLAS-STUDY §6 (a pure `stageLayout` beside `scatterLayout` in src/wallFacts.js, tests in server/test/wallFacts.test.js); the phone build waits on his yes to 114's phone.
+- TRAP: 114 is generated from parts in the session scratchpad (build114.mjs); if they are gone, rebuild the parts from the HTML, never hand-edit it.
 - DO NOT: build the phone before he approves 114's phone; commit the two ios/ files.
 
 ## 10 Nov (Fable 5.2): THE LIVING STAGE, mockup 113 sent for his approval. NOTHING BUILT (Nova 6e310691, local only, not pushed)
