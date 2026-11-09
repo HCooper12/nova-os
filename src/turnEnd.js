@@ -35,10 +35,20 @@
 // browser's own ~1–1.5s endpointer, which is the thing that was cutting him
 // off, but 0.6s less dead air on every single turn. The two either side of
 // it are unchanged, so both directions are one tap away.
+//
+// 9 Nov 2026, his Siri recording as the bar: Siri answers inside a second
+// of his last word; Nova's hold alone was 2.0 s before anything started.
+// Shipped voice assistants end a finished clause after 0.5 to 0.8 s of
+// silence (OpenAI's server VAD example 500 ms, Hume's default 800 ms) and
+// wait longer only when the words sound unfinished, which is exactly what
+// the STILL TALKING? extension below does. So the holds come down: Natural
+// 2.0 → 1.4 s, Quick 1.6 → 1.1 s, Patient 4.2 → 3.0 s. The floor is the
+// peek (PEEK_LEAD_MS): the clip so far must be read before the hold is up,
+// so an unfinished sentence earns its extension instead of a cut.
 export const HOLD_PRESETS = [
-  { value: 'quick',   label: 'Quick',   holdMs: 1600, leadMs: 5000, hint: 'Sends soon after you stop. Closest to how it was.' },
-  { value: 'natural', label: 'Natural', holdMs: 2000, leadMs: 7000, hint: 'Room for a breath mid-sentence.' },
-  { value: 'patient', label: 'Patient', holdMs: 4200, leadMs: 10000, hint: 'For thinking out loud. Tap the core to send early.' },
+  { value: 'quick',   label: 'Quick',   holdMs: 1100, leadMs: 5000, hint: 'Sends soon after you stop.' },
+  { value: 'natural', label: 'Natural', holdMs: 1400, leadMs: 7000, hint: 'Room for a breath; an unfinished sentence gets longer.' },
+  { value: 'patient', label: 'Patient', holdMs: 3000, leadMs: 10000, hint: 'For thinking out loud. Tap the core to send early.' },
 ];
 
 export const DEFAULT_HOLD = 'natural';
@@ -75,7 +85,7 @@ export const EXTEND_MS = 2200;
 export const MAX_EXTENSIONS = 2;
 // How long before the hold is up the own-ears path starts reading the clip
 // so far (the Mac needs time to transcribe it; see useDictation peek).
-export const PEEK_LEAD_MS = 1000;
+export const PEEK_LEAD_MS = 900;
 
 // The pause that ends this turn now: his hold plus any extensions it earned.
 export const holdFor = (turn, holdMs) => holdMs + ((turn?.extensions || 0) * EXTEND_MS);

@@ -180,8 +180,12 @@ test('a turn that no longer exists is over', () => {
 
 // ---- what he can choose ----
 
-test('every preset is slower than the browser endpointer this replaces', () => {
-  for (const p of HOLD_PRESETS) assert.ok(p.holdMs >= 1500, `${p.value} is ${p.holdMs}ms`);
+// 9 Nov 2026: the holds came down to the range shipped voice assistants use
+// (0.5 to 0.8 s after a finished clause, longer on unfinished words); each
+// still leaves the own-ears peek room to read the clip before the hold is up
+test('every preset is slower than the own-ears peek that judges unfinished words, and none drags past a breath', () => {
+  for (const p of HOLD_PRESETS) assert.ok(p.holdMs > PEEK_LEAD_MS, `${p.value} is ${p.holdMs}ms`);
+  for (const p of HOLD_PRESETS) assert.ok(p.holdMs <= 3000, `${p.value} is ${p.holdMs}ms`);
 });
 
 test('every preset waits longer for him to begin than to continue', () => {
@@ -199,8 +203,8 @@ test('a corrupt stored setting falls back to the default, never to zero', () => 
 });
 
 test('a real stored setting is honoured', () => {
-  assert.equal(holdTiming('patient').holdMs, 4200);
-  assert.equal(holdTiming('natural').holdMs, 2000, 'he reported 2.6s as too long a pause');
+  assert.equal(holdTiming('patient').holdMs, 3000);
+  assert.equal(holdTiming('natural').holdMs, 1400, 'he reported 2.6s as too long a pause, and 2.0 s as laggy against Siri (9 Nov 2026)');
 });
 
 // ---- STILL TALKING? the hold extends on unfinished words (27 Oct 2026) ----
