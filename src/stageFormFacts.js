@@ -53,7 +53,17 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 const lower = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-const clock = (s) => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+// a row's time as the briefing writes it: "17:30", "5:30 pm", "5:30 pm · passed"
+const clock = (s) => {
+  const m = String(s || '').trim().match(/^(\d{1,2}):(\d{2})(?:\s*(am|pm))?(?:\s*·\s*passed)?$/i);
+  if (!m) return null;
+  let h = Number(m[1]) % 24;
+  if (m[3]) h = (h % 12) + (m[3].toLowerCase() === 'pm' ? 12 : 0);
+  return h * 60 + Number(m[2]);
+};
+const ALL_DAY = /^all day$/i;
+// what an Inbox record's kind is, in the words of the agent that made it
+const KIND_WHO = { research: 'Researcher', 'forge-job': 'Forge', 'watch-note': 'Watch note', distill: 'Distill', study: 'Study', video: 'Video', pattern: 'Pattern', studio: 'Studio', 'brain-week': 'Brain week', 'fuel-cross': 'Fuel' };
 export const mmss = (sec) => { const s = Math.max(0, Math.round(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 /** The spark's points, in a 280 x 84 box, from a numeric series. Pure. */
@@ -110,7 +120,7 @@ export function stageForm(card, { now = null } = {}) {
     const target = num(card.target) ?? num(label.match(/(\d+(?:\.\d+)?)\s*g\s+floor\b/i)?.[1]);
     const ref = bars.reduce((a, b) => (Number(b.pct) > Number(a.pct) ? b : a), bars[0]);
     const max = Number(ref.pct) > 0 ? (Number(ref.value) * 100) / Number(ref.pct) : null;
-    const tPct = target != null && max ? Math.max(0, Math.min(100, (target / max) * 100)) : null;
+    const tPct = num(card.targetPct) ?? (target != null && max ? Math.max(0, Math.min(100, (target / max) * 100)) : null);
     const rows = bars.map((b) => ({ name: b.name, pct: Math.max(2, Math.min(100, Number(b.pct) || 0)), low: tPct != null ? Number(b.value) < target : b.tone === 'warn' }));
     const under = tPct != null ? rows.filter((r) => r.low).length : null;
     const names = bars.map((b) => String(b.name || '').trim());
@@ -132,23 +142,35 @@ export function stageForm(card, { now = null } = {}) {
     const notes = items.map((i) => String(i.note || '').trim());
     const foot = card.foot ? String(card.foot) : '';
     if (/^sources?$/i.test(label.trim())) return { ...none, form: 'sources', items: items.map((i) => ({ name: i.name, note: i.note || '' })), meta: String(items.length) };
-    if (notes.every((x) => clock(x) != null)) {
-      const at = items.map((i, j) => ({ name: i.name, time: notes[j], m: clock(notes[j]) }));
-      const next = now == null ? -1 : at.findIndex((x) => x.m >= now);
-      return { ...none, form: 'timeline', items: at.map((x, j) => ({ name: x.name, time: x.time, now: j === next })), meta: String(items.length), foot };
+    if (notes.every((x) => clock(x) != null || ALL_DAY.test(x)) && notes.some((x) => clock(x) != null)) {
+      // shown on the 24-hour clock, from the same minutes (mockup 114's form)
+      const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      const at = items.map((i, j) => { const m = clock(notes[j]); return { name: i.name, time: m == null ? notes[j] : hhmm(m), m, past: /·\s*passed$/i.test(notes[j]) }; });
+      const next = now == null ? -1 : at.findIndex((x) => x.m != null && x.m >= now);
+      const timed = at.filter((x) => x.m != null).length;
+      // a calendar's timed events are its fixed points; anything else is a count
+      const cal = /\b(calendar|your day)\b/i.test(label);
+      return { ...none, form: 'timeline', items: at.map((x, j) => ({ name: x.name, time: x.time, now: j === next, past: x.past })), meta: cal ? `${timed} fixed` : String(items.length), foot };
     }
     if (items.every((i) => dayOf(i.name) >= 0)) {
       const by = new Map(items.map((i) => [dayOf(i.name), String(i.note || '').trim()]));
       const days = DAYS.map(([full, , d], j) => { const note = by.get(j); return { d, note: note || '', on: !!note && !/^(free|rest)$/i.test(note), free: !!note && /^(free|rest)$/i.test(note), full }; });
       const free = days.filter((x) => x.free);
-      return { ...none, form: 'week', days, title: free.length === 1 ? `${free[0].full[0].toUpperCase()}${free[0].full.slice(1)} is free` : '' };
+      // the week's room is good news: green, as the mockup draws it
+      return { ...none, form: 'week', days, hue: 'var(--nv-good)', title: free.length === 1 ? `${free[0].full[0].toUpperCase()}${free[0].full.slice(1)} is free` : '' };
     }
     if (notes.every((x) => /^\d+\s*[×x]\s*\d+/.test(x))) {
       const session = label.split(/\s*·\s*/)[1];
       return { ...none, form: 'rows', items: items.map((i) => ({ name: i.name, note: i.note })), title: session ? `${session[0].toUpperCase()}${session.slice(1).toLowerCase()} day, ${lower(items[0].name)} first` : '', foot };
     }
-    if (notes.every((x) => AGENT_HUE[x.toLowerCase()])) return { ...none, form: 'agents', items: items.map((i) => ({ name: i.name, who: i.note, hue: AGENT_HUE[String(i.note).toLowerCase()] })), meta: String(items.length), foot };
-    if (notes.every((x) => !x)) return { ...none, form: 'dots', items: items.map((i) => ({ name: i.name })), meta: String(items.length), foot };
+    // drafts: rows that ARE Inbox records (an id each), or rows named by agent
+    const records = items.every((i) => i.id);
+    if (records || notes.every((x) => AGENT_HUE[x.toLowerCase()])) {
+      const rows = items.map((i) => { const who = KIND_WHO[String(i.note || '').toLowerCase()] || i.note || ''; return { id: i.id || null, name: i.name, who, hue: AGENT_HUE[who.toLowerCase()] || null }; });
+      return { ...none, form: 'agents', items: rows, meta: records ? `${items.length} ${items.length === 1 ? 'draft' : 'drafts'}` : String(items.length), foot };
+    }
+    // what to keep in mind is a caution: the warn hue, as the mockup draws it
+    if (notes.every((x) => !x)) return { ...none, form: 'dots', items: items.map((i) => ({ name: i.name })), meta: String(items.length), foot, hue: /\b(keep(ing)? in mind|concern|caution|risk|watch out)\b/i.test(label) ? 'var(--nv-warn)' : null };
     return none;
   }
 
@@ -158,7 +180,12 @@ export function stageForm(card, { now = null } = {}) {
     const start = Number.isFinite(card.startS) ? card.startS : null;
     return { ...none, form: 'video', name: card.title, host: card.channel || card.host || '', poster: card.poster || null, start: start != null ? mmss(start) : '', meta: start != null ? `from ${mmss(start)}` : '' };
   }
-  if (k === 'note' && (card.lines || []).length) return { ...none, form: 'note', lines: card.lines, title: card.title || '' };
+  // a talk or podcast whose moment was proven (its own stamp, server/lib/visualMoment.js)
+  if (k === 'media' && card.stamp && (card.title || card.caption)) {
+    return { ...none, form: 'video', name: card.title || card.caption, host: card.channel || '', poster: card.src || null, start: String(card.stamp), meta: `from ${card.stamp}` };
+  }
+  // what is NOT known is a warning: the warn hue on its eyebrow
+  if (k === 'note' && (card.lines || []).length) return { ...none, form: 'note', lines: card.lines, title: card.title || '', hue: /\b(not in|missing|not found|no record|gap|unknown)\b/i.test(String(card.label || '')) ? 'var(--nv-warn)' : null };
   return none;
 }
 

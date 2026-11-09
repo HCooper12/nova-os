@@ -1066,7 +1066,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
                   onPin={() => togglePin(d)} onAway={() => putAway([d.key])}
                   onMove={(step) => { const at = wallAll.findIndex((x) => x.key === d.key); const nx = wallAll[(at + step + wallAll.length) % wallAll.length]; if (nx) focusPanel(nx.key); }}
                   playing={playing === d.key} onPlay={() => setPlaying(d.key)}
-                  decide={d.card.kind === 'proposal' ? proposal : null} onDiscuss={() => fieldRef?.current?.focus?.()}
+                  decide={d.card.kind === 'proposal' ? proposal : null} onDiscuss={() => fieldRef?.current?.focus?.()} records={T.inbox} onRecordAct={T.inboxAct}
                   proposal={d.card.macKind === 'calendar' ? ((replay ? replay.proposal : fresh?.proposal) || null) : null}
                   onRecord={T.openRecord} onUndo={T.undoProposal} />
               </div>
@@ -1161,7 +1161,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
 // ONE DOCKED PANEL: hover lifts it and lights its thread; a click or Enter
 // opens it in place (the full card, its real actions); the pin keeps it
 // through the next question; × puts it away; arrows move between panels.
-function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover, onOpen, onClose, onPin, onAway, onMove, decide, proposal, onRecord, onUndo, view, wall = false, eyebrow = null, stage = null, openRect = null, arriving = false, playing = false, onPlay = null, onDiscuss = null }) {
+function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover, onOpen, onClose, onPin, onAway, onMove, decide, proposal, onRecord, onUndo, view, wall = false, eyebrow = null, stage = null, openRect = null, arriving = false, playing = false, onPlay = null, onDiscuss = null, records = null, onRecordAct = null }) {
   const ref = useRef(null);
   const [inOn, setIn] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setIn(true)); return () => cancelAnimationFrame(id); }, []);
@@ -1226,7 +1226,7 @@ function MacPanel({ d, refFn, lit, held, open, dim, hover, pinned, out, onHover,
       <div className="pbody">
         <SafeVisual what="nova-mac-panel" resetKey={`${d.key}:${open ? 1 : 0}`}>
           {d.card.macKind ? <CodeBody c={d.card} open={open} proposal={proposal} onRecord={onRecord} onUndo={onUndo} />
-            : form?.form ? <StageForm f={form} decide={decide} onDiscuss={onDiscuss} /> : <StageCard card={card} face="summary" />}
+            : form?.form ? <StageForm f={form} decide={decide} onDiscuss={onDiscuss} records={records} onRecordAct={onRecordAct} /> : <StageCard card={card} face="summary" />}
         </SafeVisual>
       </div>
       {decide && !form?.form && (

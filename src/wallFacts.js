@@ -368,7 +368,8 @@ export function stageEyebrow(card, opts = {}) {
   if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: f.meta, title: '' };
   // the subject only: "Protein vs your 140g floor" is tagged Protein (the
   // target it names is drawn as the dashed line)
-  const label = String(card?.label || '').replace(/\s+/g, ' ').trim().split(/\s+vs\.?\s+/i)[0];
+  // and a count the scope already carries ("TODAY · 3 ON THE CALENDAR") is dropped
+  const label = String(card?.label || '').replace(/\s+/g, ' ').trim().split(/\s+vs\.?\s+/i)[0].replace(/\s*·\s*\d+ on the calendar$/i, '');
   const title = String(card?.title || '').replace(/\s+/g, ' ').trim();
   return { tag: label || e.kind, meta: f.meta, title: f.title || (title && title.toLowerCase() !== label.toLowerCase() ? title : '') };
 }
@@ -380,7 +381,8 @@ const TONE_HUE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-w
 export function stageHue(card, fallback = 'var(--nv-nova)') {
   if (card?.head?.hue) return card.head.hue;
   if (card?.hue) return card.hue;
-  return stageForm(card).hue || TONE_HUE[card?.tone] || fallback;
+  // the card's own tone first; without one, the subject's hue (stageFormFacts)
+  return TONE_HUE[card?.tone] || stageForm(card).hue || fallback;
 }
 
 /** The core's rect and the caption's, the caption holding the words' real

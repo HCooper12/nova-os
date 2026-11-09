@@ -268,6 +268,9 @@ export function valsNovaThread(app, ctx, v) {
       // on the inbox rails (only when its record carries undoData)
       week: st.liveTrainOverview?.muscleWeek || null,
       inbox: st.liveInbox?.items || null,
+      // a draft's own tick and cross on the Mac stage: the Inbox's approve and
+      // discard for that record (App.inboxAction, undoable from the Inbox)
+      inboxAct: live ? (id, kind) => app.inboxAction(id, kind) : null,
       calendarEvents: st.liveCalendarRange ?? null,
       loadCalendar: () => app.loadCalendarRange(),
       undoProposal: live ? (id) => app.undoVoiceProposal(id) : null,

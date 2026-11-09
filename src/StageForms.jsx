@@ -17,12 +17,12 @@ const Num = ({ value }) => {
 };
 const Ic = ({ d }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg>;
 
-export function StageForm({ f, decide = null, onDiscuss = null }) {
-  const body = formBody(f, decide, onDiscuss);
+export function StageForm({ f, decide = null, onDiscuss = null, records = null, onRecordAct = null }) {
+  const body = formBody(f, decide, onDiscuss, records, onRecordAct);
   return body ? <div className="nv-mac-sform" data-form={f.form}>{body}</div> : null;
 }
 
-function formBody(f, decide, onDiscuss) {
+function formBody(f, decide, onDiscuss, records, onRecordAct) {
   switch (f.form) {
     case 'ring':
       return (
@@ -51,11 +51,34 @@ function formBody(f, decide, onDiscuss) {
     case 'rows':
       return <><ul className="rows">{f.items.map((it, i) => <li key={i}><i />{it.name}<span>{it.note}</span></li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
     case 'timeline':
-      return <><ul className="tl">{f.items.map((it, i) => <li key={i} className={it.now ? 'now' : undefined}><time>{it.time}</time>{it.name}</li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
+      return <><ul className="tl">{f.items.map((it, i) => <li key={i} className={it.now ? 'now' : it.past ? 'past' : undefined}><time>{it.time}</time>{it.name}</li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
     case 'dots':
       return <><ul className="dots">{f.items.map((it, i) => <li key={i}>{it.name}</li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
     case 'agents':
-      return <><ul className="drafts">{f.items.map((it, i) => <li key={i}><div><small style={{ '--c': it.hue }}>{it.who}</small>{it.name}</div></li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
+      // each draft's tick and cross act on its own Inbox record; a row with no
+      // record, or no way to reach the Inbox, has no buttons; a decided one
+      // says what became of it, from the record itself
+      return (
+        <>
+          <ul className="drafts">{f.items.map((it, i) => {
+            const rec = it.id && records ? records.find((r) => r.id === it.id) : null;
+            const st = rec?.status || null;
+            return (
+              <li key={it.id || i}>
+                <div><small style={it.hue ? { '--c': it.hue } : undefined}>{it.who}</small>{it.name}</div>
+                {it.id && onRecordAct && st === 'pending' && (
+                  <>
+                    <button type="button" className="dec y" aria-label={`Keep: ${it.name}`} onClick={() => onRecordAct(it.id, 'approve')}><Ic d="M5 12.5l4.5 4.5L19 7.5" /></button>
+                    <button type="button" className="dec" aria-label={`Drop: ${it.name}`} onClick={() => onRecordAct(it.id, 'discard')}><Ic d="M6 6l12 12M18 6 6 18" /></button>
+                  </>
+                )}
+                {it.id && st && st !== 'pending' && <span className={`dres${st === 'filed' ? ' y' : ''}`}>{st === 'filed' ? 'Kept' : st === 'discarded' ? 'Dropped' : st}</span>}
+              </li>
+            );
+          })}</ul>
+          {f.foot && <div className="pfoot">{f.foot}</div>}
+        </>
+      );
     case 'week':
       return <div className="week">{f.days.map((d, i) => <div key={i} className={d.free ? 'free' : d.on ? 'on' : undefined}>{d.d}<b>{d.note || '·'}</b></div>)}</div>;
     case 'sources':

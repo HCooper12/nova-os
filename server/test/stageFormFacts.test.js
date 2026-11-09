@@ -48,7 +48,7 @@ test('lists take the form their rows carry: times, weekdays, sets x reps, agents
   const day = stageForm({ kind: 'list', label: 'YOUR DAY', items: [{ name: 'Stand-up', note: '9:30' }, { name: 'One to one', note: '13:00' }, { name: 'Pull day', note: '18:00' }] }, { now: 10 * 60 });
   assert.equal(day.form, 'timeline');
   assert.deepEqual(day.items.map((x) => x.now), [false, true, false], 'the next point after now is marked');
-  assert.equal(day.meta, '3');
+  assert.equal(day.meta, '3 fixed', 'a calendar timed events are its fixed points');
   const week = stageForm({ kind: 'list', label: 'THIS WEEK', items: [{ name: 'Monday', note: 'Push' }, { name: 'Wednesday', note: 'Pull' }, { name: 'Saturday', note: 'Free' }] });
   assert.equal(week.form, 'week');
   assert.equal(week.days.length, 7);
@@ -85,4 +85,42 @@ test('a proposal panel reads its body line and proposer from its record, and is 
   const f = stageForm(p);
   assert.deepEqual([f.form, f.hue, f.meta], ['proposal', 'var(--nv-good)', 'coach']);
   assert.equal(sparkPath([1, 2]), null);
+});
+
+test('the briefing calendar rows ("9:30 am", "5:30 pm · passed", "all day") make the timeline, fixed points counted', () => {
+  const f = stageForm({ kind: 'list', label: 'TODAY · 3 ON THE CALENDAR', items: [{ name: 'Gym', note: 'all day' }, { name: 'Stand-up', note: '9:30 am · passed' }, { name: 'Pull day', note: '6:00 pm' }] }, { now: 12 * 60 });
+  assert.equal(f.form, 'timeline');
+  assert.equal(f.meta, '2 fixed', 'the all-day note is not a fixed point');
+  assert.deepEqual(f.items.map((x) => [x.time, x.past, x.now]), [['all day', false, false], ['09:30', true, false], ['18:00', false, true]]);
+  assert.equal(stageForm({ kind: 'list', label: 'NOTES', items: [{ name: 'a', note: 'all day' }] }).form, null, 'no timed row: not a timeline');
+});
+
+test('overnight drafts that are Inbox records carry their ids and count as drafts; rows without one are only named', () => {
+  const f = stageForm({ kind: 'list', label: 'THE FLEET, OVERNIGHT', items: [{ name: 'Sleep debt', note: 'research', id: 'r1' }, { name: 'Merged notes', note: 'distill', id: 'r2' }] });
+  assert.equal(f.form, 'agents');
+  assert.equal(f.meta, '2 drafts');
+  assert.deepEqual(f.items.map((x) => [x.id, x.who]), [['r1', 'Researcher'], ['r2', 'Distill']]);
+  assert.equal(f.items[0].hue, 'var(--nv-m-quads)');
+  const named = stageForm({ kind: 'list', items: [{ name: 'X', note: 'Librarian' }] });
+  assert.equal(named.items[0].id, null, 'no record id: no buttons');
+  assert.equal(named.meta, '1');
+});
+
+test('hue by subject when a card has no tone: caution is warn, what is not known is warn, the week is green, a tone always wins', async () => {
+  const { stageHue } = await import('../../src/wallFacts.js');
+  assert.equal(stageHue({ kind: 'list', label: 'WORTH KEEPING IN MIND', items: [{ name: 'a' }] }), 'var(--nv-warn)');
+  assert.equal(stageHue({ kind: 'note', label: 'NOT IN THE PAGES', lines: ['x'] }), 'var(--nv-warn)');
+  assert.equal(stageHue({ kind: 'list', label: 'THIS WEEK', items: [{ name: 'Saturday', note: 'Free' }] }), 'var(--nv-good)');
+  assert.equal(stageHue({ kind: 'proposal', title: 'x' }), 'var(--nv-good)');
+  assert.equal(stageHue({ kind: 'list', label: 'WORTH KEEPING IN MIND', tone: 'cy', items: [{ name: 'a' }] }), 'var(--nv-cy)');
+  assert.equal(stageHue({ kind: 'list', label: 'ERRANDS', items: [{ name: 'a' }] }), 'var(--nv-nova)');
+});
+
+test('a talk with a proven moment takes the video form with its chip; the bars use the target the card states', () => {
+  const m = stageForm({ kind: 'media', title: 'On sleep', channel: 'A podcast', stamp: '41:10', src: 'x.jpg' });
+  assert.deepEqual([m.form, m.start, m.meta], ['video', '41:10', 'from 41:10']);
+  assert.equal(stageForm({ kind: 'media', title: 'No moment' }).form, null);
+  const b = stageForm({ kind: 'bars', label: 'Protein this week', target: 140, targetPct: 84.3, bars: [{ name: 'M', value: 150, pct: 90 }, { name: 'T', value: 98, pct: 59 }] });
+  assert.equal(b.target, 84.3);
+  assert.equal(b.title, 'Under the line once');
 });
