@@ -180,3 +180,6 @@
 .nv-wl-cats button.on { background: color-mix(in srgb, var(--nv-cy) 16%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--nv-cy) 55%, transparent); color: var(--nv-cy); }
 .nv-wl-acts.two { grid-template-columns: 1fr 1fr; }
 .nv-wl-act.ed { width: 100%; margin: 12px 0 4px; }
+
+.nv-wl-pic { display: grid; gap: 8px; }
+.nv-wl-pic .nv-wl-act { cursor: pointer; }

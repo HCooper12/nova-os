@@ -478,3 +478,21 @@ test('opening the Wishlist page reads Notion again when the last read is over a 
     await waitFor(() => reads() === before + 1);
   } finally { srv.close(); }
 });
+
+test('a picture he chooses: a link goes to the Gallery and the cache, a photo stays on this Mac, Undo puts it back', async () => {
+  const rows = [{ id: 'r1', created_time: '2026-10-01T00:00:00Z', properties: { Name: { title: t('Vinyl player') }, Status: { status: { name: 'Considering Purchase' } } } }];
+  const n = await fresh({ rows });
+  W.deps.backfillImages = false;
+  await W.readAll();
+  await waitFor(async () => (await W.readItems()).items.length);
+  const a = await W.setPicture('r1', { url: 'https://cdn.example.com/v.jpg' });
+  assert.equal(a.image, 'aaaaaaaaaaaaaaaaaaaa.jpg');
+  assert.equal(n.calls.filter((c) => c.method === 'PATCH').pop().body.properties.Gallery.files[0].external.url, 'https://cdn.example.com/v.jpg');
+  assert.equal((await W.readItems()).items[0].image, 'aaaaaaaaaaaaaaaaaaaa.jpg');
+  await undoRecord('/vault', a.recordId);
+  assert.deepEqual(n.calls.filter((c) => c.method === 'PATCH').pop().body.properties.Gallery.files, []);
+  assert.equal((await W.readItems()).items[0].image, null);
+  await assert.rejects(W.setPicture('r1', { url: 'nope' }), /https/);
+  await assert.rejects(W.setPicture('r1', { dataUrl: 'data:text/plain;base64,AAAA' }), /not a picture/);
+  await assert.rejects(W.setPicture('r1', {}), /nothing to set/);
+});

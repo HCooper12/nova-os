@@ -298,6 +298,17 @@ export async function cacheImage(imageUrl) {
   return null;
 }
 
+// A picture he gave Nova directly (a photo from his phone), kept like any
+// other. Returns "<hash>.<ext>" or null when it is not a usable picture.
+export async function saveImageBuffer(buf, mime) {
+  const ext = EXT(String(mime || ''));
+  if (!ext || !buf || buf.length < IMAGE_MIN || buf.length > IMAGE_MAX) return null;
+  const name = `${createHash('sha1').update(buf).digest('hex').slice(0, 20)}.${ext}`;
+  await mkdir(mediaDir(), { recursive: true });
+  await writeFile(path.join(mediaDir(), name), buf);
+  return name;
+}
+
 export async function readMedia(file) {
   if (!MEDIA_RE.test(String(file))) return null;
   const full = path.join(mediaDir(), file);

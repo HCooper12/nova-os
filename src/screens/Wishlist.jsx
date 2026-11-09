@@ -270,7 +270,27 @@ function Sheet({ label, onClose, children }) {
 // EDIT IN NOVA: every field of the row, written to his Notion row with Undo.
 // Only what he changed is sent. Prefilled from the card, so he types nothing
 // Nova already knows.
+// a phone photo, shrunk to 1000px so it travels light
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const u = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1000 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u);
+      resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); reject(new Error('could not read that photo')); };
+    img.src = u;
+  });
+}
+
 function EditForm({ W, s, done }) {
+  const [photo, setPhoto] = useState(null);
+  const [pic, setPic] = useState('');
   const [f, setF] = useState({ name: s.name, link: s.link || '', notes: s.notes || '', price: s.priceRaw == null ? '' : String(s.priceRaw), priority: s.priority || '', categories: s.categories });
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const toggle = (c) => setF((x) => ({ ...x, categories: x.categories.includes(c) ? x.categories.filter((y) => y !== c) : [...x.categories, c] }));
@@ -283,6 +303,8 @@ function EditForm({ W, s, done }) {
     if (f.priority && f.priority !== (s.priority || '')) fields.priority = f.priority;
     if ([...f.categories].sort().join('|') !== [...s.categories].sort().join('|')) fields.categories = f.categories;
     if (Object.keys(fields).length) W.edit(s, fields);
+    if (photo) W.picture(s, { dataUrl: photo });
+    else if (pic.trim()) W.picture(s, { url: pic.trim() });
     done();
   };
   return (
@@ -291,6 +313,15 @@ function EditForm({ W, s, done }) {
       <label className="nv-wl-lab">Link<input value={f.link} onChange={set('link')} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://" aria-label="Link" /></label>
       <label className="nv-wl-lab">Price<input value={f.price} onChange={set('price')} inputMode="decimal" placeholder="No price" aria-label="Price" /></label>
       <label className="nv-wl-lab">Notes<textarea value={f.notes} onChange={set('notes')} rows={3} placeholder="Size, colour, why" aria-label="Notes" /></label>
+      <div className="nv-wl-lab">Picture
+        <div className="nv-wl-pic">
+          <label className="nv-wl-act">
+            {photo ? 'Photo chosen' : 'Choose a photo'}
+            <input type="file" accept="image/*" hidden onChange={(e) => { const file = e.target.files?.[0]; if (file) shrink(file).then(setPhoto).catch(() => {}); }} />
+          </label>
+          <input value={pic} onChange={(e) => setPic(e.target.value)} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="or paste an image link" aria-label="Picture link" />
+        </div>
+      </div>
       <div className="nv-wl-lab">Priority
         <div className="nv-wl-cats" role="radiogroup" aria-label="Priority">
           {['High', 'Medium', 'Low'].map((p) => (

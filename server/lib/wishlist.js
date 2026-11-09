@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { getNotionToken } from './notionAuth.js';
-import { fetchPage, parsePage, cacheImage, decode } from './stashMeta.js';
+import { fetchPage, parsePage, cacheImage, saveImageBuffer, decode } from './stashMeta.js';
 import { stashKey, hostOf, TRACKING_PARAMS } from '../../src/stashUrl.js';
 
 // HIS WISHLIST, IN NOTION (29 Oct 2026, his ask).
@@ -74,9 +74,37 @@ export const deps = {
   // the main picture of a product page, or null
   findImage: async (link) => {
     const page = await fetchPage(link);
-    return page.state === 'ok' ? parsePage(page.html, link)?.images?.[0] || null : null;
+    const plain = page.state === 'ok' ? parsePage(page.html, link)?.images?.[0] || null : null;
+    if (plain) return plain;
+    // shops that turn a plain read away (Amazon, eBay, Ralph Lauren...): his
+    // own Chrome profile, one tab, only for a row that has no picture yet
+    return browserImage(link);
   },
 };
+
+// The main picture of a product page, read the way he would see it.
+export async function browserImage(link) {
+  try {
+    const B = await import('./browserResearch.js');
+    if (!B.browserAvailable()) return null;
+    return await B.withSearchPage(async (page) => {
+      await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 25_000 });
+      await new Promise((r) => setTimeout(r, 2500));
+      return page.evaluate(() => {
+        const meta = (n) => document.querySelector(`meta[property="${n}"],meta[name="${n}"]`)?.content || '';
+        const abs = (u) => { try { return u ? new URL(u, location.href).href : ''; } catch { return ''; } };
+        const amazon = document.querySelector('#landingImage');
+        const hi = amazon?.getAttribute('data-old-hires') || amazon?.src || '';
+        const og = meta('og:image') || meta('twitter:image');
+        if (hi) return abs(hi);
+        if (og) return abs(og);
+        const big = [...document.images].map((i) => ({ src: i.currentSrc || i.src, a: (i.naturalWidth || 0) * (i.naturalHeight || 0) }))
+          .filter((i) => i.src && /^https?:/.test(i.src) && i.a >= 90000).sort((a, b) => b.a - a.a)[0];
+        return big ? big.src : null;
+      });
+    });
+  } catch { return null; }
+}
 
 async function readJson(file, fallback) {
   try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; }
@@ -828,6 +856,44 @@ export async function editItem(pageId, fields = {}) {
   return { item: { id: pageId, ...cache }, changed, recordId: rec.id };
 }
 
+// A PICTURE HE CHOOSES (10 Nov): an image link, or a photo from his phone.
+// A link is also written to the row's Gallery in Notion (so Notion shows it
+// too); a photo stays on this Mac, because Notion needs a public address for
+// a picture and a phone photo has none. Undo puts back what was there.
+export async function setPicture(pageId, { url, dataUrl } = {}) {
+  const item = await itemFor(pageId);
+  if (!item) throw Object.assign(new Error('that item is not in the Wishlist Nova last read'), { status: 404 });
+  let file = null; let external = null;
+  if (url) {
+    external = String(url).trim();
+    if (!/^https?:\/\/\S+/i.test(external)) throw Object.assign(new Error('a picture link must start with https://'), { status: 400 });
+    file = await deps.cacheImage(external).catch(() => null);
+    if (!file) throw Object.assign(new Error('Nova could not read a picture at that link'), { status: 400 });
+  } else if (dataUrl) {
+    const m = String(dataUrl).match(/^data:(image\/[a-z+.-]+);base64,([\s\S]+)$/i);
+    if (!m) throw Object.assign(new Error('that is not a picture'), { status: 400 });
+    file = await saveImageBuffer(Buffer.from(m[2], 'base64'), m[1]);
+    if (!file) throw Object.assign(new Error('that picture is too small or too large to use'), { status: 400 });
+  } else throw Object.assign(new Error('nothing to set'), { status: 400 });
+
+  const gname = String(item.name || 'photo').slice(0, 90);
+  if (external) {
+    await patchPage(pageId, { properties: { Gallery: { files: [{ type: 'external', name: gname, external: { url: external } }] } } });
+  }
+  const cur = await readItems();
+  cur.localImages = { ...(cur.localImages || {}), [pageId]: file };
+  if (external) cur.images = { ...(cur.images || {}), [`${pageId}:${gname}`]: file };
+  cur.items = cur.items.map((i) => (i.id === pageId ? { ...i, image: file, ...(external ? { imageSource: external, imageKey: `${pageId}:${gname}` } : {}) } : i));
+  await writeJson(itemsFile(), cur);
+  const rec = await fileRecord({
+    text: `New picture for ${item.name}`,
+    destination: external ? 'Wishlist · picture (also in Notion)' : 'Wishlist · picture (on this Mac)',
+    undoData: { kind: 'wishlist-image', pageId, name: item.name, prior: item.image || null, wroteNotion: !!external, priorSource: item.imageSource || null, gname },
+  });
+  kickSync();
+  return { image: file, recordId: rec.id };
+}
+
 // THE UNDO (inbox.js undoFiling dispatches every `wishlist-*` kind here)
 export async function undoWishlist(undo) {
   const label = undo.name || 'it';
@@ -855,6 +921,19 @@ export async function undoWishlist(undo) {
     await patchCache(undo.pageId, { rawName: undo.prior, name: base, stars });
     kickSync();
     return `${label} has its name back as it was`;
+  }
+  if (undo.kind === 'wishlist-image') {
+    if (undo.wroteNotion) {
+      const ext = undo.priorSource && !/amazonaws\.com|notion\.so|notion-static/i.test(undo.priorSource) ? [{ type: 'external', name: undo.gname, external: { url: undo.priorSource } }] : [];
+      await patchPage(undo.pageId, { properties: { Gallery: { files: ext } } });
+    }
+    const cur = await readItems();
+    cur.localImages = { ...(cur.localImages || {}) };
+    if (undo.prior) cur.localImages[undo.pageId] = undo.prior; else delete cur.localImages[undo.pageId];
+    cur.items = cur.items.map((i) => (i.id === undo.pageId ? { ...i, image: undo.prior || null } : i));
+    await writeJson(itemsFile(), cur);
+    kickSync();
+    return `${label} has its old picture back`;
   }
   if (undo.kind === 'wishlist-edit') {
     await patchPage(undo.pageId, { properties: undo.prior });
@@ -935,9 +1014,11 @@ async function runReadAll() {
     const items = pages.filter((pg) => !pg.archived && !pg.in_trash).map((pg) => {
       const it = itemFromPage(pg, catNames);
       const kept = it.imageKey && images[it.imageKey];
-      return { ...it, image: kept && existsSync(path.join(dataRoot(), 'stash', 'media', kept)) ? kept : null };
+      const have = (f) => f && existsSync(path.join(dataRoot(), 'stash', 'media', f)) ? f : null;
+      // a photo he gave Nova himself outlasts every re-read of Notion
+      return { ...it, image: have(kept) || have((cur.localImages || {})[it.id]) };
     });
-    const out = { items, lastSync: deps.now().toISOString(), error: null, errorCode: null, images };
+    const out = { items, lastSync: deps.now().toISOString(), error: null, errorCode: null, images, localImages: cur.localImages || {}, imageTried: cur.imageTried || {} };
     await writeJson(itemsFile(), out);
     // photos first, then the shareable page (lib/wishlistShare.js) rebuilds
     // from the same cache; it never throws and only pushes when content moved

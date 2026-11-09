@@ -78,6 +78,14 @@ export function wishlistRouter(vaultPath) {
     } catch (err) { fail(res, err); }
   });
 
+  // { url } an image link, or { dataUrl } a photo from his phone
+  router.post('/wishlist/:id/picture', async (req, res) => {
+    try {
+      const { setPicture } = await import('../lib/wishlist.js');
+      res.json(await setPicture(req.params.id, req.body || {}));
+    } catch (err) { fail(res, err); }
+  });
+
   router.post('/wishlist/:id/remove', async (req, res) => {
     try {
       const { removeItem } = await import('../lib/wishlist.js');

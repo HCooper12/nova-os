@@ -149,6 +149,22 @@ export function editItem(app, item, fields) {
     live: (conn) => api.wishlistEdit(conn, item.id, fields),
   });
 }
+// A picture he chooses: { url } (also written to Notion) or { dataUrl } (a
+// photo from his phone, kept on the Mac). Live only; the server reads it.
+export function setPicture(app, item, body) {
+  if (isOffline(app)) { app.toastMsg('Offline: Nova sets the picture once your Mac is back'); return Promise.resolve(false); }
+  if (isDemo(app)) { app.toastMsg('Demo: nothing reaches your Mac here'); return Promise.resolve(false); }
+  const conn = getConnection();
+  if (!conn) return Promise.resolve(false);
+  return api.wishlistPicture(conn, item.id, body).then((r) => {
+    setSource(app, patchItem(wishlistSource(app), item.id, { image: r.image }));
+    tickReceipt({
+      key: `wish:${r.recordId}`, label: `New picture for ${item.name}`, title: `New picture for ${item.name}`,
+      undo: () => api.inboxUndo(conn, r.recordId).then(() => loadWishlist(app)).catch((e) => app.toastMsg('Could not undo: ' + e.message)),
+    });
+    return true;
+  }).catch((e) => { app.toastMsg(`The picture did not change: ${e.message}`); return false; });
+}
 export function removeItem(app, item) {
   return write(app, {
     id: item.id, patch: null,

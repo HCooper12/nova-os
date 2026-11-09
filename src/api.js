@@ -810,6 +810,7 @@ export const api = {
   wishlistStatus: (conn, id, status) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/status`, { status }),
   wishlistStar: (conn, id, stars) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/star`, { stars }),
   wishlistEdit: (conn, id, fields) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/edit`, fields),
+  wishlistPicture: (conn, id, body) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/picture`, body, { timeoutMs: 45000 }),
   wishlistRemove: (conn, id) => post(conn, `/api/wishlist/${encodeURIComponent(id)}/remove`, {}),
   wishlistAdd: (conn, url, said = '') => post(conn, '/api/wishlist/add', { url, said }, { timeoutMs: 45000 }),
   // the photos are kept on his Mac behind the token, so they come as blobs (the Stash's way)
