@@ -198,3 +198,62 @@ test('the stage: an agent\'s panel lands by its agent, and a page with the rail 
   const page = stageLayout([{ key: 'a', w: 300, h: 150, sent: 0 }, { key: 'b', w: 300, h: 150, sent: 0 }], { rail: true });
   assert.ok(page.every((l) => l.x >= STAGE.railLeft));
 });
+
+test('the Mac stage (phase 2): the core at the mockup\'s spot less the title bar, the chip beside the composer', async () => {
+  const { stageFrame, stageChip, stageWidth, STAGE_TITLE } = await import('../../src/wallFacts.js');
+  const f = stageFrame(1440, 900 - STAGE_TITLE);
+  assert.deepEqual([f.cx, f.cy, f.s], [720, 318 - STAGE_TITLE, 0.5], 'mockup 114 sc.core 720, 318 at half size');
+  assert.equal(f.cy + f.off * f.s, 424 - STAGE_TITLE, 'the words start where the mockup\'s do (318 + 204 x 0.5 + 4)');
+  const c = stageChip(1440, 872);
+  assert.equal(c.left, 1076, 'mockup .earlier left 1076');
+  assert.deepEqual([c.cx, c.cy], [1126, 846 - STAGE_TITLE], 'mockup CHIP 1126, 846');
+  assert.equal(stageWidth({ kind: 'metric' }), 250);
+  assert.equal(stageWidth({ kind: 'list', macKind: 'calendar' }), 360, 'a code panel goes by its macKind');
+  assert.equal(stageWidth({ kind: 'something-new' }), 300);
+});
+
+test('the Mac stage: arrival keeps every panel\'s place and beat; only new keys join, at the end', async () => {
+  const { stageArrive } = await import('../../src/wallFacts.js');
+  const a = stageArrive([], ['x', 'y'], 0);
+  assert.deepEqual(a, [{ key: 'x', sent: 0 }, { key: 'y', sent: 0 }]);
+  const b = stageArrive(a, ['y', 'x', 'z'], 2);
+  assert.deepEqual(b, [{ key: 'x', sent: 0 }, { key: 'y', sent: 0 }, { key: 'z', sent: 2 }]);
+  assert.equal(stageArrive(b, ['x', 'z'], 3), b, 'nothing new: the same array, so React keeps it');
+  assert.equal(stageArrive(b, [], 4), b, 'a panel put away keeps its spot, so nothing after it moves');
+});
+
+test('the Mac stage plan: no cap, nothing on the core or the caption, each panel arrives from the core and folds to the chip', async () => {
+  const { stagePlan, stageFrame, stageChip, stageKeep, STAGE_RIM } = await import('../../src/wallFacts.js');
+  const entries = Array.from({ length: 24 }, (_, i) => ({ key: `p${i}`, w: [250, 340, 320, 360][i % 4], sent: i }));
+  const heights = Object.fromEntries(entries.map((e, i) => [e.key, [150, 200, 170, 230][i % 4]]));
+  const plan = stagePlan(entries, { width: 1440, height: 872, heights });
+  assert.equal(plan.length, 24, 'every panel has a place; none is dropped by a cap');
+  assert.ok(plan.some((p) => p.folded), 'twenty-four cannot all stay up');
+  assert.equal(plan[23].folded, false, 'the newest is up');
+  const f = stageFrame(1440, 872);
+  const chip = stageChip(1440, 872);
+  const hit = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+  for (const p of plan.filter((q) => !q.folded && !q.forced)) {
+    for (const k of stageKeep([f.cx, f.cy])) assert.equal(hit([p.x, p.y, p.x + p.w, p.y + p.h], k), false, `${p.key} sits on the core or the caption`);
+    assert.ok(p.y >= 16 && p.y + p.h <= 872 - 108, `${p.key} is off the stage`);
+    const mx = p.x + p.w / 2; const my = p.y + p.h / 2;
+    // it arrives from the core's side, 28 px out, and folds to the chip
+    assert.ok(Math.abs(Math.hypot(p.ex, p.ey) - 28) < 0.2);
+    assert.equal(p.fx, Math.round(chip.cx - mx));
+    assert.equal(p.fy, Math.round(chip.cy - my));
+    // the tether leaves the core's rim, or hangs from the caption's foot
+    const [sx, sy] = p.tether.slice(1).split(' Q')[0].split(' ').map(Number);
+    const r = Math.hypot(sx - f.cx, sy - f.cy);
+    assert.ok(Math.abs(r - STAGE_RIM) < 0.5 || sy > f.cy + 200, `${p.key}'s tether starts ${r.toFixed(1)} from the core`);
+  }
+});
+
+test('the Mac stage tether: a panel under the caption hangs from the caption\'s foot, never through the words', async () => {
+  const { stageTether, stageKeep } = await import('../../src/wallFacts.js');
+  const core = [720, 290];
+  const cap = stageKeep(core)[1];
+  const under = stageTether(core, 85, [600, 560, 900, 700], cap);
+  assert.ok(under.startsWith(`M720.0 ${(cap[3] + 2).toFixed(1)} Q720.0 `), under);
+  const side = stageTether(core, 85, [900, 200, 1200, 360], cap);
+  assert.ok(side.startsWith('M805.0 290.0 Q'), side);
+});

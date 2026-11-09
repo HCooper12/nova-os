@@ -12,7 +12,7 @@
 // is the order of arrival: a panel never moves once placed, except for
 // tidy, maximise and put away.
 
-import { MAX_DOCKED } from './novaMacFacts.js';
+import { MAX_DOCKED, COMPOSER } from './novaMacFacts.js';
 
 // the wall's own grid, in the window's coordinates (less the title bar the
 // Mac draws itself: novaMacFacts TITLE_BAR)
@@ -218,13 +218,15 @@ export function stageKeep(core) {
  * folded, foldedBy }. A folded panel keeps the spot it held, so the fold can
  * be acted out from there. `keep` replaces the core-and-caption rects (the
  * agents scene keeps its whole ring clear); `caption` is the rect a tether
- * must not cross, null when there is none. Pure and seeded.
+ * must not cross, null when there is none. `top` is the highest a panel may
+ * sit (the Mac draws no title bar of its own, so its top is the mockup's less
+ * 28). Pure and seeded.
  */
-export function stageLayout(panels, { width = 1440, height = 900, core = [width / 2, 340], keep, caption, rail = false, seed = 5 } = {}) {
+export function stageLayout(panels, { width = 1440, height = 900, core = [width / 2, 340], keep, caption, rail = false, seed = 5, top = STAGE.top } = {}) {
   const cx = core[0];
   const keeps = keep || stageKeep(core);
   const cap = caption === undefined ? (keep ? null : keeps[1]) : caption;
-  const x0 = rail ? STAGE.railLeft : STAGE.left; const x1 = width - STAGE.right; const y0 = STAGE.top; const y1 = height - STAGE.bottomGap;
+  const x0 = rail ? STAGE.railLeft : STAGE.left; const x1 = width - STAGE.right; const y0 = top; const y1 = height - STAGE.bottomGap;
   let live = [];
   const out = [];
   const find = (p, i) => {
@@ -268,6 +270,104 @@ export function stageLayout(panels, { width = 1440, height = 900, core = [width 
     live.push({ rect: r, sent: p.sent, entry });
   });
   return out;
+}
+
+// ------------------------------------------------- the stage on the Mac
+// PHASE 2 (design/ATLAS-STUDY.md §6, mockup 114 approved 10 Nov 2026): while
+// Nova speaks an answer or a briefing, NovaMac lays its panels out with
+// stageLayout around the core at the centre. These are the mockup's numbers
+// in the build's coordinates: the build is the page inside the window, so
+// every y is the mockup's less its 28 px title bar.
+export const STAGE_TITLE = 28;
+// a panel's width by what it is (mockup 114's own: a figure 250, a chart or a
+// page 340, a session 360); a panel code built goes by its macKind
+export const STAGE_W = { metric: 250, figure: 250, instrument: 320, bars: 340, list: 320, steps: 320, key: 300, note: 300, quote: 300, entity: 300, body: 300, media: 300, video: 300, page: 340, image: 340, map: 340, shot: 340, sources: 320, program: 360, session: 360, sets: 340, brief: 340, calendar: 360 };
+export function stageWidth(card) {
+  return STAGE_W[card?.macKind] || STAGE_W[card?.kind] || 300;
+}
+
+/** Where the core sits while the stage is up (mockup sc.core 720, 318 at
+ *  half size), the width of the words under it (460) and how far under its
+ *  centre they start (204 x 0.5 + 4 = 106, as `off` at scale 0.5). Pure. */
+export function stageFrame(width = 1440, height = 900 - STAGE_TITLE) {
+  const cx = Math.round(width / 2);
+  const cy = Math.round((318 / 900) * (height + STAGE_TITLE)) - STAGE_TITLE;
+  return { cx, cy, s: 0.5, uw: 460, off: 212, mx: cx };
+}
+
+/** The Earlier chip beside the composer (mockup .earlier: 16 px right of
+ *  it, 34 px off the foot) and the point a folding panel flies to. Pure. */
+export function stageChip(width = 1440, height = 900 - STAGE_TITLE) {
+  const left = Math.round(width / 2 + COMPOSER.w / 2 + 16);
+  return { left, bottom: 34, cx: left + 50, cy: height - 54 };
+}
+
+/** The order panels came onto the stage, each with the beat that raised it.
+ *  A key seen before keeps its place and its beat (one put away keeps its
+ *  spot, so nothing after it moves); a new key joins at the end with `beat`.
+ *  Returns `prev` itself when nothing is new. Pure. */
+export function stageArrive(prev, keys, beat) {
+  const was = prev || [];
+  const seen = new Set(was.map((e) => e.key));
+  const add = [];
+  for (const k of keys || []) if (k && !seen.has(k)) { seen.add(k); add.push({ key: k, sent: beat }); }
+  return add.length ? [...was, ...add] : was;
+}
+
+const clampTo = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** The tether from the core's rim to the nearest point of a panel (mockup
+ *  layout()): a quadratic bowed by an eighth of its length; a panel below
+ *  the caption hangs from the caption's foot, so no line runs through the
+ *  words. `rect` is [x0, y0, x1, y1]. Returns the path's d. Pure. */
+export function stageTether(core, rim, rect, caption = null) {
+  const [ax, ay] = core;
+  const bx = clampTo(ax, rect[0], rect[2]); const by = clampTo(ay, rect[1], rect[3]);
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  const ux = (bx - ax) / len; const uy = (by - ay) / len;
+  let sx = ax + ux * rim; let sy = ay + uy * rim;
+  let qx = (sx + bx) / 2 - uy * len * 0.12; let qy = (sy + by) / 2 + ux * len * 0.12;
+  if (caption) {
+    let thru = false;
+    for (let k = 1; k < 10; k++) {
+      const px = ax + (bx - ax) * k / 10; const py = ay + (by - ay) * k / 10;
+      if (px >= caption[0] && px <= caption[2] && py >= caption[1] && py <= caption[3]) thru = true;
+    }
+    if (thru && by > caption[3]) { sx = bx; sy = caption[3] + 2; qx = bx; qy = (sy + by) / 2; }
+  }
+  const f = (n) => n.toFixed(1);
+  return `M${f(sx)} ${f(sy)} Q${f(qx)} ${f(qy)} ${f(bx)} ${f(by)}`;
+}
+
+// the core's rim at the stage's scale (mockup: R0 193.2 x the speaking body
+// 0.8 x 0.5, and 8 px off it)
+export const STAGE_RIM = 193.2 * 0.8 * 0.5 + 8;
+
+/**
+ * The whole stage for this window: where each panel lands (stageLayout, no
+ * cap), whether it has folded, where it arrives from (28 px towards the
+ * core), where it folds to (the Earlier chip), its slight turn towards the
+ * core when it sits far to one side, and its tether. `entries` are
+ * [{ key, w, sent }] in arrival order; `heights` the measured heights. Pure.
+ */
+export function stagePlan(entries, { width = 1440, height = 900 - STAGE_TITLE, heights = {}, assume = 190 } = {}) {
+  const f = stageFrame(width, height);
+  const core = [f.cx, f.cy];
+  const chip = stageChip(width, height);
+  const cap = stageKeep(core)[1];
+  const lay = stageLayout((entries || []).map((e) => ({ key: e.key, w: e.w, h: heights[e.key] || assume, sent: e.sent })),
+    { width, height, core, top: STAGE.top - STAGE_TITLE });
+  return lay.map((l) => {
+    const mx = l.x + l.w / 2; const my = l.y + l.h / 2;
+    const d = Math.hypot(f.cx - mx, f.cy - my) || 1;
+    return {
+      ...l,
+      ex: Number(((f.cx - mx) / d * 28).toFixed(1)), ey: Number(((f.cy - my) / d * 28).toFixed(1)),
+      fx: Math.round(chip.cx - mx), fy: Math.round(chip.cy - my),
+      ry: mx - f.cx > 300 ? -4 : mx - f.cx < -300 ? 4 : 0,
+      tether: stageTether(core, STAGE_RIM, [l.x, l.y, l.x + l.w, l.y + l.h], cap),
+    };
+  });
 }
 
 /** The core and the bar in the corner, for this stage. Pure. */
