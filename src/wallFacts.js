@@ -189,6 +189,87 @@ export function scatterLayout(cards, { width = 1440, height = 900, heights = {},
   return out;
 }
 
+// ------------------------------------------------------------- the stage
+// THE LIVING STAGE (10 Nov 2026, his approval of mockups 113 and 114). The
+// core sits where the moment puts it and each sentence raises its panels
+// around it. A panel takes the free spot NEAREST its anchor (the core, or the
+// agent that filed it) that touches nothing, the two sides are kept in
+// balance, and a spot whose tether would run through the caption or another
+// panel costs more. There is no cap: when no spot is free, the oldest panel
+// from an EARLIER sentence folds into the Earlier chip and the search runs
+// again. Panels of the sentence being spoken never fold each other. This is
+// the rule mockup 114 draws with (its `layout`), lifted out so it is tested.
+export const STAGE = { left: 36, right: 36, top: 44, bottomGap: 108, railLeft: 104, gap: 20, step: 14, coreKeep: 110, capW: 240, capTop: 100, capBottom: 225, sideCost: 40, crossCost: 340, jitter: 12, wide: 1.55 };
+
+const rectHit = (a, b, g) => a[0] < b[2] + g && a[2] > b[0] - g && a[1] < b[3] + g && a[3] > b[1] - g;
+const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** The rects nothing may land on: the core, and the caption under it. Pure. */
+export function stageKeep(core) {
+  const [cx, cy] = core;
+  return [[cx - STAGE.coreKeep, cy - STAGE.coreKeep, cx + STAGE.coreKeep, cy + STAGE.coreKeep], [cx - STAGE.capW, cy + STAGE.capTop, cx + STAGE.capW, cy + STAGE.capBottom]];
+}
+
+/**
+ * Where each panel lands on the stage. `panels` are [{ key, w, h, sent,
+ * anchor? }] in the order they are raised: `sent` is the sentence that raised
+ * the panel, `anchor` an [x, y] other than the core (an agent). Returns one
+ * entry per panel, in the same order: { key, x, y, w, h, side, anchor,
+ * folded, foldedBy }. A folded panel keeps the spot it held, so the fold can
+ * be acted out from there. `keep` replaces the core-and-caption rects (the
+ * agents scene keeps its whole ring clear); `caption` is the rect a tether
+ * must not cross, null when there is none. Pure and seeded.
+ */
+export function stageLayout(panels, { width = 1440, height = 900, core = [width / 2, 340], keep, caption, rail = false, seed = 5 } = {}) {
+  const cx = core[0];
+  const keeps = keep || stageKeep(core);
+  const cap = caption === undefined ? (keep ? null : keeps[1]) : caption;
+  const x0 = rail ? STAGE.railLeft : STAGE.left; const x1 = width - STAGE.right; const y0 = STAGE.top; const y1 = height - STAGE.bottomGap;
+  let live = [];
+  const out = [];
+  const find = (p, i) => {
+    const an = p.anchor || core;
+    const L = live.filter((q) => (q.rect[0] + q.rect[2]) / 2 < cx).length; const R = live.length - L;
+    let best = null; let bs = Infinity; let n = 0;
+    for (let y = y0; y <= y1 - p.h; y += STAGE.step) {
+      for (let x = x0; x <= x1 - p.w; x += STAGE.step) {
+        n += 1;
+        const r = [x, y, x + p.w, y + p.h];
+        if (keeps.some((k) => rectHit(r, k, 0)) || live.some((q) => rectHit(r, q.rect, STAGE.gap))) continue;
+        const mx = x + p.w / 2; const my = y + p.h / 2;
+        const tx = clampN(an[0], r[0], r[2]); const ty = clampN(an[1], r[1], r[3]);
+        let cross = 0;
+        for (let k = 2; k < 10 && !cross; k++) {
+          const px = an[0] + (tx - an[0]) * k / 10; const py = an[1] + (ty - an[1]) * k / 10; const pt = [px, py, px, py];
+          if ((cap && rectHit(pt, cap, 0)) || live.some((q) => rectHit(pt, q.rect, 4))) cross = 1;
+        }
+        const jit = Math.abs(seeded(seed + i * 977 + n)) * STAGE.jitter;
+        const s = Math.hypot((mx - an[0]) / STAGE.wide, my - an[1]) + jit + STAGE.sideCost * (mx < cx ? L : R) + STAGE.crossCost * cross;
+        if (s < bs) { bs = s; best = r; }
+      }
+    }
+    return best;
+  };
+  panels.forEach((p, i) => {
+    let r = find(p, i);
+    while (!r) {
+      const old = live.find((q) => q.sent !== p.sent);
+      if (!old) break;
+      old.entry.folded = true; old.entry.foldedBy = p.key;
+      live = live.filter((q) => q !== old);
+      r = find(p, i);
+    }
+    // nothing left to fold and still no room: the top corner, honestly marked
+    const forced = !r;
+    if (!r) r = [x0, y0, x0 + p.w, y0 + p.h];
+    const entry = { key: p.key, x: r[0], y: r[1], w: p.w, h: p.h, side: (r[0] + r[2]) / 2 < cx ? 'left' : 'right', anchor: p.anchor || core, folded: false, foldedBy: null };
+    if (forced) entry.forced = true;
+    out.push(entry);
+    live.push({ rect: r, sent: p.sent, entry });
+  });
+  return out;
+}
+
 /** The core and the bar in the corner, for this stage. Pure. */
 export function cornerFrame(width, height) {
   return { cx: CORNER.coreCx, cy: height - CORNER.coreCyFromBottom, s: CORNER.s, barX: CORNER.barX, barW: CORNER.barW };

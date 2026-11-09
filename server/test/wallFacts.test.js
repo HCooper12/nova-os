@@ -146,3 +146,55 @@ test('a recalled brief wears its own eyebrow, never "looked up"', async () => {
   assert.deepEqual(eyebrowOf({ kind: 'note', lookup: true, brief: true }), { kind: 'Brief', source: 'Researcher' });
   assert.deepEqual(eyebrowOf({ kind: 'note', lookup: true }), { kind: 'Note', source: 'looked up' });
 });
+
+// THE LIVING STAGE (10 Nov 2026): the placement rule of approved mockup 114.
+test('the stage: panels land nearest the core, touch nothing, keep off the core and the caption, and balance the sides', async () => {
+  const { stageLayout, stageKeep, STAGE } = await import('../../src/wallFacts.js');
+  const core = [720, 340];
+  const panels = [0, 0, 1, 1, 2, 3].map((sent, i) => ({ key: `p${i}`, w: [300, 260, 320, 240, 280, 300][i], h: [180, 150, 200, 140, 170, 160][i], sent }));
+  const lay = stageLayout(panels, { width: 1440, height: 900, core });
+  assert.equal(lay.length, 6);
+  assert.ok(lay.every((l) => !l.folded && !l.forced), 'six panels fit a 1440 stage with none folded');
+  const rect = (l) => [l.x, l.y, l.x + l.w, l.y + l.h];
+  const hit = (a, b, g) => a[0] < b[2] + g && a[2] > b[0] - g && a[1] < b[3] + g && a[3] > b[1] - g;
+  for (let i = 0; i < lay.length; i++) for (let j = i + 1; j < lay.length; j++) assert.equal(hit(rect(lay[i]), rect(lay[j]), STAGE.gap), false, `${lay[i].key} and ${lay[j].key} touch`);
+  for (const l of lay) for (const k of stageKeep(core)) assert.equal(hit(rect(l), k, 0), false, `${l.key} sits on the core or the caption`);
+  assert.ok(lay.every((l) => l.x >= STAGE.left && l.x + l.w <= 1440 - STAGE.right && l.y >= STAGE.top && l.y + l.h <= 900 - STAGE.bottomGap));
+  const left = lay.filter((l) => l.side === 'left').length;
+  assert.ok(Math.abs(left - (lay.length - left)) <= 2, `sides out of balance: ${left} left of ${lay.length}`);
+  // the first panel is nearer the core than the last: nearest free spot first
+  const dist = (l) => Math.hypot(l.x + l.w / 2 - core[0], l.y + l.h / 2 - core[1]);
+  assert.ok(dist(lay[0]) < dist(lay[5]));
+  assert.deepEqual(stageLayout(panels, { width: 1440, height: 900, core }), lay, 'seeded: the same every time');
+});
+
+test('the stage has no cap: when room runs out the oldest panel of an EARLIER sentence folds, never one of the sentence being spoken', async () => {
+  const { stageLayout } = await import('../../src/wallFacts.js');
+  const panels = Array.from({ length: 30 }, (_, i) => ({ key: `p${i}`, w: 300, h: 190, sent: Math.floor(i / 2) }));
+  const lay = stageLayout(panels, { width: 1440, height: 900 });
+  assert.equal(lay.length, 30, 'every panel has an entry; none is dropped');
+  const folded = lay.filter((l) => l.folded);
+  assert.ok(folded.length > 0, 'thirty panels cannot all stay up at 1440');
+  assert.equal(lay[lay.length - 1].folded, false, 'the newest panel is up');
+  // folds go oldest first, and a panel is folded by a later sentence's panel
+  const idx = (k) => Number(k.slice(1));
+  for (const f of folded) assert.ok(panels[idx(f.foldedBy)].sent > panels[idx(f.key)].sent, `${f.key} was folded by its own sentence`);
+  const firstUp = lay.findIndex((l) => !l.folded);
+  assert.ok(folded.every((f) => idx(f.key) < 30 - 2), 'the last sentence keeps both its panels');
+  assert.ok(firstUp > 0 && lay.slice(0, firstUp).every((l) => l.folded), 'the oldest fold first');
+  // what is up touches nothing
+  const up = lay.filter((l) => !l.folded && !l.forced);
+  const hit = (a, b) => a.x < b.x + b.w + 20 && a.x + a.w > b.x - 20 && a.y < b.y + b.h + 20 && a.y + a.h > b.y - 20;
+  for (let i = 0; i < up.length; i++) for (let j = i + 1; j < up.length; j++) assert.equal(hit(up[i], up[j]), false, `${up[i].key} and ${up[j].key} touch`);
+});
+
+test('the stage: an agent\'s panel lands by its agent, and a page with the rail keeps the rail clear', async () => {
+  const { stageLayout, STAGE } = await import('../../src/wallFacts.js');
+  const ring = [[490, 100, 950, 720]];
+  const lay = stageLayout([{ key: 'coach', w: 300, h: 150, sent: 0, anchor: [520, 220] }, { key: 'cfo', w: 300, h: 150, sent: 1, anchor: [930, 520] }], { core: [720, 400], keep: ring });
+  assert.equal(lay[0].side, 'left');
+  assert.equal(lay[1].side, 'right');
+  assert.ok(lay[0].x + lay[0].w <= 490 && lay[1].x >= 950, 'the ring of agents is kept clear');
+  const page = stageLayout([{ key: 'a', w: 300, h: 150, sent: 0 }, { key: 'b', w: 300, h: 150, sent: 0 }], { rail: true });
+  assert.ok(page.every((l) => l.x >= STAGE.railLeft));
+});
