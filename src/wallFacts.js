@@ -13,6 +13,7 @@
 // tidy, maximise and put away.
 
 import { MAX_DOCKED, COMPOSER } from './novaMacFacts.js';
+import { stageForm } from './stageFormFacts.js';
 
 // the wall's own grid, in the window's coordinates (less the title bar the
 // Mac draws itself: novaMacFacts TITLE_BAR)
@@ -232,7 +233,11 @@ export function stageLayout(panels, { width = 1440, height = 900, core = [width 
   const find = (p, i) => {
     const an = p.anchor || core;
     const L = live.filter((q) => (q.rect[0] + q.rect[2]) / 2 < cx).length; const R = live.length - L;
-    let best = null; let bs = Infinity; let n = 0;
+    // A TETHER NEVER CROSSES A PANEL (round two): a spot whose line would run
+    // through a panel, or that would sit on a panel's line, is taken only
+    // when no clean spot is left; crossing the caption still only costs more
+    let best = null; let bs = Infinity; let bestX = null; let bx = Infinity; let n = 0;
+    const lines = live.map((q) => { const a = q.anchor; return [a, [clampN(a[0], q.rect[0], q.rect[2]), clampN(a[1], q.rect[1], q.rect[3])]]; });
     for (let y = y0; y <= y1 - p.h; y += STAGE.step) {
       for (let x = x0; x <= x1 - p.w; x += STAGE.step) {
         n += 1;
@@ -240,17 +245,25 @@ export function stageLayout(panels, { width = 1440, height = 900, core = [width 
         if (keeps.some((k) => rectHit(r, k, 0)) || live.some((q) => rectHit(r, q.rect, STAGE.gap))) continue;
         const mx = x + p.w / 2; const my = y + p.h / 2;
         const tx = clampN(an[0], r[0], r[2]); const ty = clampN(an[1], r[1], r[3]);
-        let cross = 0;
-        for (let k = 2; k < 10 && !cross; k++) {
+        let cross = 0; let thru = 0;
+        for (let k = 2; k < 10; k++) {
           const px = an[0] + (tx - an[0]) * k / 10; const py = an[1] + (ty - an[1]) * k / 10; const pt = [px, py, px, py];
-          if ((cap && rectHit(pt, cap, 0)) || live.some((q) => rectHit(pt, q.rect, 4))) cross = 1;
+          if (cap && rectHit(pt, cap, 0)) cross = 1;
+          if (live.some((q) => rectHit(pt, q.rect, 4))) thru = 1;
+        }
+        if (!thru) {
+          for (const [a, b] of lines) {
+            for (let k = 1; k < 10 && !thru; k++) { const px = a[0] + (b[0] - a[0]) * k / 10; const py = a[1] + (b[1] - a[1]) * k / 10; if (rectHit([px, py, px, py], r, 4)) thru = 1; }
+            if (thru) break;
+          }
         }
         const jit = Math.abs(seeded(seed + i * 977 + n)) * STAGE.jitter;
         const s = Math.hypot((mx - an[0]) / STAGE.wide, my - an[1]) + jit + STAGE.sideCost * (mx < cx ? L : R) + STAGE.crossCost * cross;
-        if (s < bs) { bs = s; best = r; }
+        if (thru) { if (s < bx) { bx = s; bestX = r; } } else if (s < bs) { bs = s; best = r; }
       }
     }
-    return best;
+    if (!best && bestX) bestX.crossed = true;
+    return best || bestX;
   };
   panels.forEach((p, i) => {
     let r = find(p, i);
@@ -266,8 +279,9 @@ export function stageLayout(panels, { width = 1440, height = 900, core = [width 
     if (!r) r = [x0, y0, x0 + p.w, y0 + p.h];
     const entry = { key: p.key, x: r[0], y: r[1], w: p.w, h: p.h, side: (r[0] + r[2]) / 2 < cx ? 'left' : 'right', anchor: p.anchor || core, folded: false, foldedBy: null };
     if (forced) entry.forced = true;
+    if (r.crossed) entry.crossed = true;   // no clean spot was left: honestly marked
     out.push(entry);
-    live.push({ rect: r, sent: p.sent, entry });
+    live.push({ rect: r, sent: p.sent, entry, anchor: p.anchor || core });
   });
   return out;
 }
@@ -344,13 +358,17 @@ export function stageTether(core, rim, rect, caption = null) {
 // card carries a line of its own beyond its label. A page or a video draws
 // its own title; a panel code built names its kind and its source.
 const CODE_TAG = { sets: 'Sets', brief: 'Researcher', calendar: 'Calendar' };
-export function stageEyebrow(card) {
+export function stageEyebrow(card, opts = {}) {
   if (card?.macKind) return { tag: CODE_TAG[card.macKind] || 'Nova', meta: card.head?.sub || '', title: card.title || '' };
   const e = eyebrowOf(card);
-  if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: e.source, title: '' };
+  const f = stageForm(card, opts);
+  // the scope on the right is code's, from the card's own data, or blank
+  // (stageFormFacts); "Nova's own" is never a scope
+  if (card?.kind === 'proposal') return { tag: 'Proposal', meta: f.meta, title: f.title };
+  if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: f.meta, title: '' };
   const label = String(card?.label || '').replace(/\s+/g, ' ').trim();
   const title = String(card?.title || '').replace(/\s+/g, ' ').trim();
-  return { tag: label || e.kind, meta: e.source, title: title && title.toLowerCase() !== label.toLowerCase() ? title : '' };
+  return { tag: label || e.kind, meta: f.meta, title: f.title || (title && title.toLowerCase() !== label.toLowerCase() ? title : '') };
 }
 
 // a spoken card's own tone (server/lib/spokenCards.js: cy, gold, warn, good)
@@ -360,7 +378,16 @@ const TONE_HUE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-w
 export function stageHue(card, fallback = 'var(--nv-nova)') {
   if (card?.head?.hue) return card.head.hue;
   if (card?.hue) return card.hue;
-  return TONE_HUE[card?.tone] || fallback;
+  return stageForm(card).hue || TONE_HUE[card?.tone] || fallback;
+}
+
+/** The core's rect and the caption's, the caption holding the words' real
+ *  measured height (`capH`, from the top of the words under the core) and
+ *  never less than the mockup's own room. Pure. */
+export function stageKeepFor(core, frame, capH = 0) {
+  const [k0, c0] = stageKeep(core);
+  const foot = Math.max(c0[3], Math.ceil(core[1] + frame.off * frame.s + capH + 12));
+  return [k0, [c0[0], c0[1], c0[2], foot]];
 }
 
 // the core's rim at the stage's scale (mockup: R0 193.2 x the speaking body
@@ -374,13 +401,14 @@ export const STAGE_RIM = 193.2 * 0.8 * 0.5 + 8;
  * core when it sits far to one side, and its tether. `entries` are
  * [{ key, w, sent }] in arrival order; `heights` the measured heights. Pure.
  */
-export function stagePlan(entries, { width = 1440, height = 900 - STAGE_TITLE, heights = {}, assume = 190 } = {}) {
+export function stagePlan(entries, { width = 1440, height = 900 - STAGE_TITLE, heights = {}, assume = 190, capH = 0 } = {}) {
   const f = stageFrame(width, height);
   const core = [f.cx, f.cy];
   const chip = stageChip(width, height);
-  const cap = stageKeep(core)[1];
+  const keep = stageKeepFor(core, f, capH);
+  const cap = keep[1];
   const lay = stageLayout((entries || []).map((e) => ({ key: e.key, w: e.w, h: heights[e.key] || assume, sent: e.sent })),
-    { width, height, core, top: STAGE.top - STAGE_TITLE });
+    { width, height, core, keep, caption: cap, top: STAGE.top - STAGE_TITLE });
   return lay.map((l) => {
     const mx = l.x + l.w / 2; const my = l.y + l.h / 2;
     const d = Math.hypot(f.cx - mx, f.cy - my) || 1;
