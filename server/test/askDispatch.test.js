@@ -308,6 +308,23 @@ test('local first: when Claude cannot answer either, the error is Claude\'s with
   assert.equal(job.result, null);
 });
 
+// 9 Nov 2026: a spoken turn is Claude's even when the lane is local (16 s
+// median, 30 s p90 on this Mac against a bar of a second); typed stays local
+test('he chose the local model, but a turn he will HEAR goes to Claude', async () => {
+  await _reset({ file: true });
+  await setLanePref('ask-nova', { provider: 'local' });
+  const before = existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0;
+  const localBefore = seen.length;
+  const jobId = startAsk(vault, { question: 'what was my bench top set?', context: 'ctx', spoken: true });
+  const { job } = await watch(jobId);
+  assert.equal(job.status, 'ready', job.error);
+  assert.equal(job.result.text, 'Claude answered.');
+  assert.notEqual(job.result.provider, 'local', 'Claude\'s answer, not a stand-in');
+  assert.ok((existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0) > before, 'Claude was spawned');
+  assert.equal(seen.length, localBefore, 'the model on this Mac was not asked');
+  await resetLanePref('ask-nova');
+});
+
 test('local first: a local answer stays local, and Claude is never spawned', async () => {
   await setLocalPrefs({ first: true });
   const before = existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0;

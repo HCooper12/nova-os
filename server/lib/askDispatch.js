@@ -356,8 +356,19 @@ function startAskNow(cwd, opts = {}) {
   // his words alone: the bracketed screen block rides in `raw` and would make
   // every turn look like a long story
   const said = String(opts.raw || opts.question || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+  // HE IS LISTENING (9 Nov 2026). His 14:04 question that day ("my calories
+  // have gone down, when and why?") went to the model on this Mac: 30.5 s,
+  // 51k characters of context through a 4B model, an 11 s Coach consult
+  // inside it, and an answer with the logic backwards ("your body burns more
+  // than the plan assumed" about a scale that had not moved). Across the
+  // eleven local asks in the log the median was 16 s and the ninetieth
+  // percentile 30 s, against Siri answering inside a second in his own
+  // recording. A turn he is waiting to HEAR is Claude's from the start; the
+  // model on this Mac keeps the typed turns, every stand-in when Claude is
+  // out (holdForStandIn), and every lane his prefs give it.
   const routed = local
     ? needsClaude(opts.question)
+      || (opts.spoken ? 'he is listening for the answer' : null)
       || (thinkingAloud(said) ? 'he is thinking aloud' : null)
       || (glassQuestion(said) ? 'it is about what is on his screen' : null)
       // ten pages read for one answer is a synthesis; the small model answered
