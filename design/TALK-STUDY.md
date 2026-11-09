@@ -160,3 +160,55 @@ never advice; a lookup answers first and names its page in one clause. And
 one rule moved into code: `src/turnSense.js thinkingAloud` extends the mic's
 hold once more for a story that leans forward with nothing asked, so Nova no
 longer answers half a thought.
+
+## 9 Nov 2026 — his Siri recording as the bar: where the seconds and the "want the rest" went
+
+His words, with three screen recordings (two of Nova on his iPhone over AirPods, one of Siri):
+"sick of ... buggy, slow with transitioning ... not listening as coherently and fluidly as Claude or
+ChatGPT ... it still asked me the stupid question of 'want the rest'." Siri in his recording: press,
+listening at once, the weather card inside about a second of his last word.
+
+### What his own 14:04 turn measured (server/data/voice/turns.json + the live server log, 03:04–03:06 UTC)
+| step | measured | cause found |
+|---|---|---|
+| mic open, AirPods | 3.2 s, then 3.8 s and 4.1 s on the follow-on opens | `warmMic.warmDecision` released a Bluetooth mic every turn (`why: 'bluetooth'`), so every turn paid the hands-free route switch; `micReused` was false on 45 of 50 heard turns since 26 Oct |
+| hold after his last word | 2.0 s (Natural) + a 3.7 s page stall | `HOLD_PRESETS` natural 2000 ms; shipped assistants end a finished clause at 0.5–0.8 s |
+| the answer | 30.5 s on the model on this Mac, 51k chars of context, an 11 s Coach consult inside | `askDispatch.startAskNow`: the lane was local and nothing about a spoken turn routed it to Claude; eleven local asks in the log: p50 16.4 s, p90 30.5 s, max 147 s |
+| ack | heard at 8.4 s | unexplained from here: no /api/tts row for it in the log window; likely the output route flipping back from hands-free (also removed by holding the mic) — UNVERIFIED |
+| first sentence playing | 17.9 s after the ask left; 58 s turn | the sum of the above |
+| "Want the rest?" | appended by code | `src/turnFold.js budgetFold` closed every cut turn with it; the lens example and TURN_TAKING both taught the offer too |
+| the answer's sense | "your body burns more than the plan assumed" about a scale that had not moved; "the Researcher found" when only the Coach was asked; today's protein tacked on | the 4B model's reasoning, not the prompt |
+
+Baseline from the receipts, iPhone, 1–9 Nov (scripts/voice-latency.mjs): lane nova firstAudio p50 10.1 s,
+p95 20.7 s; lane coach p50 21.2 s, p95 153 s; 'continue' mic opens heard him 2 of 15 times.
+
+### What the research says (subagent report, sources in the session; vendor claims marked)
+Humans hand over a turn in 0–200 ms (Stivers 2009). Shipped voice products measured by Hume from one
+site: Sesame ~1.0 s, EVI 3 ~1.2 s, Gemini Live ~1.5 s, GPT-4o Realtime ~2.6 s end-of-speech to first
+audio; vendor "sub-300 ms" lines are best-case hardware. Endpointing: OpenAI server VAD example 500 ms
+silence, Hume default 800 ms (500–3000), Deepgram Flux two thresholds (eager 0.3–0.5 to start early,
+0.7 to confirm, `TurnResumed` to cancel); a VAD-plus-timer baseline scores 47 % on a turn-taking
+benchmark against 87–94 % for model-based detectors. Fillers only when the wait will pass ~1.5 s, 4–6
+variants, never on a fast reply (Agora, PolyAI); a preamble before tool use, none before a direct
+answer (OpenAI). Unclear audio gets a short clarifying question, never reasoning. No product publishes
+spoken-length or "want more?" data; the rule that a complete short answer is given whole is ours.
+
+### Changed this round (Nova; the first two ported to Wren)
+1. `budgetFold` appends nothing; a bare "yes" opens the rest only after a worded offer, never after a
+   question of Nova's own. TURN_TAKING: answer whole when the answer is short; hold detail silently;
+   never offer the rest. The lens example no longer ends in "Want the rest of it?".
+2. `warmDecision` holds a Bluetooth (and unnamed) mic between turns in a conversation
+   (`micKept: 'bluetooth-held'`): call-quality voice on the headset for the conversation, as ChatGPT
+   and Siri run on AirPods, in exchange for later turns opening at once.
+3. Holds: Quick 1.1 s, Natural 1.4 s, Patient 3.0 s (from 1.6 / 2.0 / 4.2); PEEK_LEAD 0.9 s. The
+   STILL TALKING? extension (+2.2 s, twice) still covers an unfinished sentence.
+4. A turn he will hear (`spoken`) is Claude's from the start even when the lane is local; typed turns,
+   stand-ins and every other lane stay as his prefs say.
+5. The listening receipt carries `tailMs` (his last sound → the recorder stopping); the instrument
+   prints HIS LAST WORD → NOVA'S FIRST WORD per turn and p50/p95 once receipts carry it.
+
+### Not changed, and why
+- The ack at 8.4 s: cause not proven from the log; re-read the first receipts on the new build.
+- The Coach lane (p50 21 s, p95 153 s): Opus at medium effort plus consult rounds; a separate round.
+- The 'continue' window (15 opens, 2 heard): costs a Groq call, not his wait; left.
+- Nothing here has been seen on his iPhone. Proof is the next spoken conversation's receipts.
