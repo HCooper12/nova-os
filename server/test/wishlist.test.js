@@ -337,6 +337,29 @@ test('his taps on the page: status, star and remove each ride the rails, and Und
   await assert.rejects(W.setStatus('r1', 'maybe'), /not a Wishlist status/);
 });
 
+test('editing in Nova: link, notes and price reach his row, the stars stay, and Undo puts the old values back', async () => {
+  const rows = [{ id: 'r1', created_time: '2026-10-01T00:00:00Z', properties: { Name: { title: t('⭐️⭐️Union Bomber Jacket') }, 'Item link': { rich_text: t('https://old.example.com/a') }, Notes: { rich_text: t('size M') }, Price: { number: 100 }, Status: { status: { name: 'Considering Purchase' } } } }];
+  const n = await fresh({ rows });
+  await W.readAll();
+  const e = await W.editItem('r1', { name: 'Union Jacket', link: 'https://new.example.com/b?utm_source=x', notes: 'size L', price: '$120.50' });
+  const body = n.calls.filter((c) => c.method === 'PATCH').pop().body.properties;
+  assert.equal(body.Name.title[0].text.content, '⭐️⭐️Union Jacket');
+  assert.equal(body['Item link'].rich_text[0].text.content, 'https://new.example.com/b');
+  assert.equal(body.Notes.rich_text[0].text.content, 'size L');
+  assert.equal(body.Price.number, 120.5);
+  const it = (await W.readItems()).items.find((i) => i.id === 'r1');
+  assert.equal(it.stars, 2);
+  assert.equal(it.store, 'new.example.com');
+  await undoRecord('/vault', e.recordId);
+  const back = n.calls.filter((c) => c.method === 'PATCH').pop().body.properties;
+  assert.equal(back.Name.title[0].text.content, '⭐️⭐️Union Bomber Jacket');
+  assert.equal(back['Item link'].rich_text[0].text.content, 'https://old.example.com/a');
+  assert.equal(back.Price.number, 100);
+  await assert.rejects(W.editItem('r1', { link: 'not a link' }), /https/);
+  await assert.rejects(W.editItem('r1', { name: '  ' }), /name/);
+  await assert.rejects(W.editItem('r1', {}), /nothing to change/);
+});
+
 // ---------------------------------------------------------------- the doors
 
 test('the doors: Quick Capture and his voice both reach the same add; nothing without the word wishlist', async () => {

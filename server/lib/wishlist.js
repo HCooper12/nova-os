@@ -748,6 +748,73 @@ export async function removeItem(pageId) {
   return { removed: true, recordId: rec.id };
 }
 
+// EDITING AN ITEM IN NOVA (10 Nov, his ask: he could only do this in Notion).
+// Name, link, notes, price and categories, each written to the same Notion
+// property the add path uses. Only the fields he sent change; an empty
+// string clears notes/link/price. The stars stay on the Name. The Undo puts
+// the prior values of exactly the fields that changed back.
+export async function editItem(pageId, fields = {}) {
+  const item = await itemFor(pageId);
+  if (!item) throw Object.assign(new Error('that item is not in the Wishlist Nova last read'), { status: 404 });
+  const st = await readState();
+  const props = {}; const prior = {}; const cache = {};
+  const has = (k) => Object.prototype.hasOwnProperty.call(fields, k) && fields[k] !== undefined;
+
+  if (has('name')) {
+    const base = String(fields.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!base) throw Object.assign(new Error('an item needs a name'), { status: 400 });
+    const raw = withStars(base, item.stars || 0);
+    props.Name = { title: rt(raw) };
+    prior.Name = { title: rt(item.rawName || item.name) };
+    Object.assign(cache, { rawName: raw, name: base });
+  }
+  if (has('link')) {
+    const t = String(fields.link ?? '').trim();
+    if (t && !/^https?:\/\/\S+\.\S+/i.test(t)) throw Object.assign(new Error('a link must start with https://'), { status: 400 });
+    const url = t ? cleanLink(t) : null;
+    props['Item link'] = { rich_text: url ? rt(url, url) : [] };
+    prior['Item link'] = { rich_text: item.link ? rt(item.link, item.link) : [] };
+    Object.assign(cache, { link: url, store: url ? hostOf(url) : null });
+  }
+  if (has('notes')) {
+    const t = String(fields.notes ?? '').trim().slice(0, 2000);
+    props.Notes = { rich_text: t ? rt(t) : [] };
+    prior.Notes = { rich_text: item.notes ? rt(item.notes) : [] };
+    cache.notes = t || null;
+  }
+  if (has('price')) {
+    const raw = fields.price;
+    let n = null;
+    if (raw !== null && String(raw).trim() !== '') {
+      n = Number(String(raw).replace(/[$,\s]/g, ''));
+      if (!Number.isFinite(n) || n < 0) throw Object.assign(new Error('the price must be a number'), { status: 400 });
+    }
+    props.Price = { number: n };
+    prior.Price = { number: typeof item.price === 'number' ? item.price : null };
+    cache.price = n;
+  }
+  if (has('categories')) {
+    const want = [...new Set((Array.isArray(fields.categories) ? fields.categories : []).map((c) => String(c).trim()).filter(Boolean))];
+    const unknown = want.filter((c) => !st.categories.some((x) => x.name === c));
+    if (unknown.length) throw Object.assign(new Error(`no such category: ${unknown.join(', ')}`), { status: 400 });
+    const idOf = (n) => st.categories.find((x) => x.name === n)?.id;
+    props.Categories = { relation: want.map((n) => ({ id: idOf(n) })) };
+    prior.Categories = { relation: (item.categories || []).map(idOf).filter(Boolean).map((id) => ({ id })) };
+    cache.categories = want;
+  }
+  const changed = Object.keys(props);
+  if (!changed.length) throw Object.assign(new Error('nothing to change'), { status: 400 });
+  await patchPage(pageId, { properties: props });
+  await patchCache(pageId, cache);
+  const rec = await fileRecord({
+    text: `Edited ${item.name}`,
+    destination: `Wishlist · edited (${changed.map((k) => k.toLowerCase()).join(', ')})`,
+    undoData: { kind: 'wishlist-edit', pageId, prior, cachePrior: Object.fromEntries(Object.keys(cache).map((k) => [k, item[k] ?? null])), name: item.name },
+  });
+  kickSync();
+  return { item: { id: pageId, ...cache }, changed, recordId: rec.id };
+}
+
 // THE UNDO (inbox.js undoFiling dispatches every `wishlist-*` kind here)
 export async function undoWishlist(undo) {
   const label = undo.name || 'it';
@@ -775,6 +842,12 @@ export async function undoWishlist(undo) {
     await patchCache(undo.pageId, { rawName: undo.prior, name: base, stars });
     kickSync();
     return `${label} has its name back as it was`;
+  }
+  if (undo.kind === 'wishlist-edit') {
+    await patchPage(undo.pageId, { properties: undo.prior });
+    await patchCache(undo.pageId, undo.cachePrior || {});
+    kickSync();
+    return `${label} is back as it was before the edit`;
   }
   throw new Error(`"${undo.kind}" is not a Wishlist undo`);
 }

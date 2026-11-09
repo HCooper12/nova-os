@@ -267,13 +267,55 @@ function Sheet({ label, onClose, children }) {
   );
 }
 
+// EDIT IN NOVA: every field of the row, written to his Notion row with Undo.
+// Only what he changed is sent. Prefilled from the card, so he types nothing
+// Nova already knows.
+function EditForm({ W, s, done }) {
+  const [f, setF] = useState({ name: s.name, link: s.link || '', notes: s.notes || '', price: s.priceRaw == null ? '' : String(s.priceRaw), categories: s.categories });
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const toggle = (c) => setF((x) => ({ ...x, categories: x.categories.includes(c) ? x.categories.filter((y) => y !== c) : [...x.categories, c] }));
+  const save = () => {
+    const fields = {};
+    if (f.name.trim() && f.name.trim() !== s.name) fields.name = f.name;
+    if (f.link.trim() !== (s.link || '')) fields.link = f.link;
+    if (f.notes.trim() !== (s.notes || '')) fields.notes = f.notes;
+    if (f.price.trim() !== (s.priceRaw == null ? '' : String(s.priceRaw))) fields.price = f.price;
+    if ([...f.categories].sort().join('|') !== [...s.categories].sort().join('|')) fields.categories = f.categories;
+    if (Object.keys(fields).length) W.edit(s, fields);
+    done();
+  };
+  return (
+    <div className="nv-wl-edit">
+      <label className="nv-wl-lab">Name<input value={f.name} onChange={set('name')} aria-label="Name" /></label>
+      <label className="nv-wl-lab">Link<input value={f.link} onChange={set('link')} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://" aria-label="Link" /></label>
+      <label className="nv-wl-lab">Price<input value={f.price} onChange={set('price')} inputMode="decimal" placeholder="No price" aria-label="Price" /></label>
+      <label className="nv-wl-lab">Notes<textarea value={f.notes} onChange={set('notes')} rows={3} placeholder="Size, colour, why" aria-label="Notes" /></label>
+      {s.allCategories.length > 0 && (
+        <div className="nv-wl-lab">Categories
+          <div className="nv-wl-cats">
+            {s.allCategories.map((c) => (
+              <Interactive key={c} as="button" type="button" aria-pressed={f.categories.includes(c)} className={f.categories.includes(c) ? 'on' : ''} onClick={() => toggle(c)} haptic="tick">{c}</Interactive>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="nv-wl-acts two">
+        <Interactive as="button" type="button" className="nv-wl-act" onClick={done} haptic="tick">Cancel</Interactive>
+        <Interactive as="button" type="button" className="nv-wl-act go" onClick={save} haptic="commit">Save</Interactive>
+      </div>
+    </div>
+  );
+}
+
 function CardSheet({ W, s }) {
   const ro = W.readOnly;
+  const [editing, setEditing] = useState(false);
   return (
     <Sheet label={s.name} onClose={W.close}>
       {() => (
         <>
           <Photo W={W} c={s} className="nv-wl-big" />
+          {editing ? <EditForm W={W} s={s} done={() => setEditing(false)} /> : (<>
           <h3 className="nv-wl-st">{s.name}</h3>
           <p className="nv-wl-ln">
             {s.priority && <span className="pill"><i className={`nv-wl-pr ${s.pri}`} aria-hidden="true" />{s.priority}</span>}
@@ -284,17 +326,19 @@ function CardSheet({ W, s }) {
           <div className="nv-wl-kv"><span>Link</span>{s.link ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={(e) => { e.preventDefault(); W.openLink(s.link); }}>{s.linkShown}</a> : <span className="none">No link on this row</span>}</div>
           <div className="nv-wl-kv"><span>Notes</span>{s.notes ? <span className="val">{s.notes}</span> : <span className="none">None yet</span>}</div>
           {s.size && <div className="nv-wl-kv"><span>Size</span><span className="val">{s.size.lines.join(' · ')}<small>{s.size.label}, from your Sizes</small></span></div>}
-          <div className="nv-wl-stars" role="radiogroup" aria-label="How much you want it">
+          <Interactive as="button" type="button" className="nv-wl-act ed" onClick={() => setEditing(true)} disabled={ro} haptic="tick">Edit details</Interactive>
+          </>)}
+          {!editing && <div className="nv-wl-stars" role="radiogroup" aria-label="How much you want it">
             {W.starLabels.map((label, n) => (
               <Interactive key={n} as="button" type="button" role="radio" aria-checked={s.stars === n} className={s.stars === n ? 'on' : ''}
                 onClick={() => W.star(s, n)} disabled={ro} haptic="tick">{label}</Interactive>
             ))}
-          </div>
-          <div className="nv-wl-acts">
+          </div>}
+          {!editing && <div className="nv-wl-acts">
             <Interactive as="button" type="button" className="nv-wl-act go" onClick={() => W.bought(s)} disabled={ro} haptic="commit">{s.bought ? 'Not bought' : 'Mark bought'}</Interactive>
             <Interactive as="button" type="button" className="nv-wl-act mo" onClick={() => W.thisMonth(s)} disabled={ro} haptic="tick">{s.thisMonth ? 'Not this month' : 'This month'}</Interactive>
             <Interactive as="button" type="button" className="nv-wl-act rm" onClick={() => W.remove(s)} disabled={ro} haptic="tick">Remove</Interactive>
-          </div>
+          </div>}
           <p className="nv-wl-undoline">{ro ? 'Offline: read only until your Mac is back.' : W.demo ? 'Demo: changes stay on this screen, with Undo.' : 'Each change is written to Notion, with Undo here and in the Inbox.'}</p>
         </>
       )}

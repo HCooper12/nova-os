@@ -70,6 +70,14 @@ export function wishlistRouter(vaultPath) {
     } catch (err) { fail(res, err); }
   });
 
+  // { name?, link?, notes?, price?, categories?: [names] }: only what is sent changes
+  router.post('/wishlist/:id/edit', async (req, res) => {
+    try {
+      const { editItem } = await import('../lib/wishlist.js');
+      res.json(await editItem(req.params.id, req.body || {}));
+    } catch (err) { fail(res, err); }
+  });
+
   router.post('/wishlist/:id/remove', async (req, res) => {
     try {
       const { removeItem } = await import('../lib/wishlist.js');

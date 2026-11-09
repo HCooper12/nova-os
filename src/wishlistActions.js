@@ -134,6 +134,20 @@ export function setStars(app, item, stars) {
     live: (conn) => api.wishlistStar(conn, item.id, n),
   });
 }
+// name / link / notes / price / categories: only the fields that changed
+export function editItem(app, item, fields) {
+  const patch = {};
+  if ('name' in fields) patch.name = String(fields.name).trim() || item.name;
+  if ('link' in fields) { const l = String(fields.link).trim(); patch.link = l || null; try { patch.store = l ? new URL(l).hostname.replace(/^www\./, '') : null; } catch { patch.store = null; } }
+  if ('notes' in fields) patch.notes = String(fields.notes).trim() || null;
+  if ('price' in fields) { const n = Number(String(fields.price).replace(/[$,\s]/g, '')); patch.price = String(fields.price).trim() === '' || !Number.isFinite(n) ? null : n; }
+  if ('categories' in fields) patch.categories = fields.categories;
+  return write(app, {
+    id: item.id, patch,
+    title: `Edited ${patch.name || item.name}`,
+    live: (conn) => api.wishlistEdit(conn, item.id, fields),
+  });
+}
 export function removeItem(app, item) {
   return write(app, {
     id: item.id, patch: null,

@@ -1,7 +1,7 @@
 import { buildWishlistView, sheetFor, STAR_LABELS } from '../wishlistModel.js';
 import {
   wishlistUi, setWishlistUi, wishlistSource, loadWishlist, openCard, openAdd, closeSheet,
-  setStatus, setStars, removeItem, addLink,
+  setStatus, setStars, removeItem, addLink, editItem,
 } from '../wishlistActions.js';
 import { wishlistAsk } from './quickCapture.js';
 import { getConnection, api } from '../api.js';
@@ -51,6 +51,7 @@ export function valsWishlist(app, ctx) {
       bought: (item) => { closeSheet(app); return setStatus(app, item, item.bought ? 'considering' : 'purchased'); },
       thisMonth: (item) => { closeSheet(app); return setStatus(app, item, item.thisMonth ? 'considering' : 'month'); },
       remove: (item) => { closeSheet(app); return removeItem(app, item); },
+      edit: (item, fields) => editItem(app, item, fields),
       star: (item, n) => { if (n !== item.stars) setStars(app, item, n); },
 
       // adding by link
