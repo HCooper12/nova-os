@@ -20,8 +20,14 @@ export const CARD_KINDS = ['metric', 'bars', 'list'];
 
 const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
-export function metricCard({ label, value, unit, caption, foot, tone }) {
+// `series` (optional): the figure's own recent history, [{ date, value }]
+// oldest first, real readings only, for the Mac stage's sparkline (mockup
+// 114). Fewer than three readings is no series.
+export function metricCard({ label, value, unit, caption, foot, tone, series }) {
   if (value == null || value === '') return null;
+  const pts = (Array.isArray(series) ? series : [])
+    .filter((p) => p && /^\d{4}-\d{2}-\d{2}$/.test(String(p.date)) && Number.isFinite(Number(p.value)))
+    .slice(-31).map((p) => ({ date: String(p.date), value: Number(p.value) }));
   return {
     kind: 'metric',
     label: clean(label).toUpperCase(),
@@ -30,21 +36,26 @@ export function metricCard({ label, value, unit, caption, foot, tone }) {
     caption: caption ? clean(caption) : null,
     foot: foot ? clean(foot) : null,
     tone: tone || 'cy',
+    ...(pts.length >= 3 ? { series: pts } : {}),
   };
 }
 
-export function barsCard({ label, bars, caption, foot }) {
+// `target` (optional): the one line every bar is judged against, stated by
+// the caller from his own targets; the scale holds it so the line is drawn
+export function barsCard({ label, bars, caption, foot, target }) {
   const rows = (bars || [])
     .filter((b) => b && b.value != null && Number.isFinite(Number(b.value)))
     .map((b) => ({ name: clean(b.name).slice(0, 18), value: Number(b.value), tone: b.tone || null }));
   if (rows.length < 2) return null; // one bar is a number, not a chart
-  const max = Math.max(...rows.map((r) => r.value), 0) || 1;
+  const t = Number.isFinite(Number(target)) && Number(target) > 0 ? Number(target) : null;
+  const max = Math.max(...rows.map((r) => r.value), t || 0, 0) || 1;
   return {
     kind: 'bars',
     label: clean(label).toUpperCase(),
     bars: rows.map((r) => ({ ...r, pct: Math.max(2, Math.round((r.value / max) * 100)) })),
     caption: caption ? clean(caption) : null,
     foot: foot ? clean(foot) : null,
+    ...(t ? { target: t, targetPct: Math.round((t / max) * 1000) / 10 } : {}),
   };
 }
 
@@ -52,7 +63,9 @@ export function listCard({ label, items, foot }) {
   const rows = (items || [])
     .filter((i) => i && clean(i.name))
     .slice(0, 5)
-    .map((i) => ({ name: clean(i.name).slice(0, 46), note: i.note ? clean(i.note).slice(0, 40) : null, tone: i.tone || null }));
+    // `id` (optional): the Inbox record a row stands for, so a tick or cross
+    // on it acts on that record and no other
+    .map((i) => ({ name: clean(i.name).slice(0, 46), note: i.note ? clean(i.note).slice(0, 40) : null, tone: i.tone || null, ...(i.id ? { id: String(i.id) } : {}) }));
   if (!rows.length) return null;
   return { kind: 'list', label: clean(label).toUpperCase(), items: rows, foot: foot ? clean(foot) : null };
 }

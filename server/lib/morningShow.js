@@ -569,7 +569,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     if (produced.length) {
       steps[steps.length - 1].card = listCard({
         label: evening ? 'THE FLEET, TODAY' : 'THE FLEET, OVERNIGHT',
-        items: produced.map((r) => ({ name: recordLabel(r), note: r.kind })),
+        items: produced.map((r) => ({ name: recordLabel(r), note: r.kind, id: r.id })),
         foot: `${produced.length} of ${pending.length} waiting on you`,
       });
     }

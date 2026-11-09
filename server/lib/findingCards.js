@@ -225,5 +225,8 @@ export function proteinWeekCard(week) {
     label: floor ? `Protein vs your ${Math.round(floor)}g floor` : floors.length ? "Protein vs each day's floor" : 'Protein this week',
     bars,
     foot: floors.length ? `${hit} of ${bars.length} days cleared it` : `${bars.length} days logged`,
+    // the line, only when every day shown was judged against the same floor
+    // (each day keeps its own: a changed goal never re-judges an old day)
+    target: floor || null,
   });
 }
