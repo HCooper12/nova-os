@@ -68,6 +68,8 @@ test('"go on" reveals the rest; a bare yes only after an offer and never over a 
   assert.equal(asksForRest('yes', line), true, 'the turn offered the rest');
   assert.equal(asksForRest('yes', line, { pending: true }), false, 'a draft is waiting: the yes is for it');
   assert.equal(asksForRest('yes', { text: 'Bench is up 5 kg.', more: 'x' }), false, 'no offer, no reveal on a bare yes');
+  // 9 Nov 2026: a question of Nova's own is not an offer of the rest
+  assert.equal(asksForRest('yes', { text: 'Bench is up 5 kg. Today\'s session, or Thursday\'s?', more: 'x' }), false, 'his yes answers her question, it does not open the rest');
   assert.equal(asksForRest('go on, what about squat', line), false, 'a new question goes to the model');
   assert.equal(asksForRest('go on', { ...line, moreSaid: true }), false, 'said once');
   assert.equal(asksForRest('go on', { text: 'x' }), false, 'nothing held');

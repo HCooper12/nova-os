@@ -52,10 +52,14 @@ test('the real reply: spoken turn is short, the receipt is said, the question en
   assert.match(f.held, /One catch/);
 });
 
-test('no question below the cut: the turn offers the rest', () => {
+// 9 Nov 2026, his words: "it still asked me the stupid question of 'want the
+// rest'". Code closed every cut turn with that line; it no longer closes with
+// anything he did not need. The held detail is on the line, and "go on" opens it.
+test('no question below the cut: the turn ends on its last said sentence, with no offer appended', () => {
   const long = Array.from({ length: 12 }, (_, i) => `Sentence number ${i + 1} carries a few words of detail.`).join(' ');
   const f = budgetFold(long);
-  assert.match(f.said, /Want the rest\?$/);
+  assert.doesNotMatch(f.said, /Want the rest\?/);
+  assert.match(f.said.trim(), /detail\.$/);
   assert.ok(f.held);
 });
 

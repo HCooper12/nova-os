@@ -222,8 +222,12 @@ export function budgetFold(text, budget = SPOKEN_WORDS) {
   if (said1.list) rest = `${said1.list}\n\n${rest}`;
   const held = rest.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || null;
   if (!held) return { said: whole, held: null };
-  const close = ask || (/\?\s*$/.test(before) ? '' : 'Want the rest?');
-  const turn = [before, said1.line, close].filter(Boolean).join('\n\n');
+  // NO OFFER (9 Nov 2026, his words: "it still asked me the stupid question
+  // of 'want the rest'"). Code used to close every cut turn with "Want the
+  // rest?"; a complete answer then ended on a question he never needed. The
+  // held detail is shown as "The rest" on the line and "go on" still reveals
+  // it. The only closing question is one the model itself asked him.
+  const turn = [before, said1.line, ask].filter(Boolean).join('\n\n');
   return { said: [turn, ...machine].join('\n'), held };
 }
 
@@ -241,8 +245,11 @@ export function cutHeld(partial) {
 // own, with an optional yes and an optional please. A closed set on purpose:
 // anything longer is a new question and goes to the model as one.
 const CONTINUE_RE = /^(?:(?:yes|yeah|yep|yup|sure|ok|okay|right)[,.! ]+)?(?:go on|carry on|keep going|go ahead|tell me more|more|say more|the rest|and the rest|give me the rest|tell me the rest|the rest of it|what else|continue|and)(?:[,. ]+please)?[.!?]*$/i;
-// a bare yes counts only when the turn ended by offering the rest
+// a bare yes counts only when the turn ended by OFFERING the rest, in words
+// that are an offer of more and not a question of his own ("Today's session,
+// or Thursday's?" takes a yes as its answer, never as "go on")
 const BARE_YES_RE = /^(?:yes|yeah|yep|yup|sure|ok|okay|please|yes please|go for it|do it)[.!]*$/i;
+const OFFER_RE = /\b(?:want|like|shall i|should i)\b[^.?!]{0,60}\b(?:rest|more|breakdown|detail|details|numbers|the lot)\b[^.?!]{0,20}\?\s*$/i;
 
 function plain(words) {
   return String(words ?? '').trim().toLowerCase().replace(/^(?:nova|sir|hey nova)[, ]+/, '').replace(/\s+/g, ' ');
@@ -259,7 +266,7 @@ export function asksForRest(words, line, { pending = false } = {}) {
   const w = plain(words);
   if (!w || w.length > 40) return false;
   if (CONTINUE_RE.test(w)) return true;
-  return !pending && BARE_YES_RE.test(w) && /\?\s*$/.test(String(line.text || '').trim());
+  return !pending && BARE_YES_RE.test(w) && OFFER_RE.test(String(line.text || '').trim());
 }
 
 /**
