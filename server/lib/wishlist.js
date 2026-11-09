@@ -73,18 +73,25 @@ export const deps = {
   cacheImage,
   backfillImages: true,
   proposePictures: true,
-  // up to four candidate pictures for a name, from an image search:
+  // up to four candidate pictures for a name: the web search Nova already
+  // trusts (junk results filtered), then each result page's own main picture.
   // [{ thumb, full, host }]. Proposals only; nothing is saved from them.
   searchPictures: async (query) => {
-    const B = await import('./browserResearch.js');
-    if (!B.browserAvailable()) return [];
-    return B.withSearchPage(async (page) => {
-      await page.goto(`https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`, { waitUntil: 'domcontentloaded', timeout: 25_000 });
-      await page.waitForSelector('a.iusc', { timeout: 8000 }).catch(() => {});
-      return page.evaluate(() => [...document.querySelectorAll('a.iusc')].slice(0, 12).map((a) => {
-        try { const m = JSON.parse(a.getAttribute('m')); return { thumb: m.turl, full: m.murl, host: new URL(m.purl).hostname.replace(/^www\./, '') }; } catch { return null; }
-      }).filter((x) => x && /^https:/.test(x.thumb || '') && /^https?:/.test(x.full || '')).slice(0, 4));
-    }).catch(() => []);
+    const L = await import('./localResearch.js');
+    const found = await L.webSearch(`${query} buy`, { max: 8 });
+    const out = []; const hosts = new Set();
+    for (const r of found.results || []) {
+      if (out.length >= 4) break;
+      let host = ''; try { host = new URL(r.url).hostname.replace(/^www\./, ''); } catch { continue; }
+      if (hosts.has(host)) continue;
+      const page = await fetchPage(r.url).catch(() => null);
+      const img = page?.state === 'ok' ? parsePage(page.html, r.url)?.images?.[0] : null;
+      // a shop's logo or placeholder is not the product
+      if (!img || !/^https:/i.test(img) || /logo|placeholder|default|favicon|sprite|brand|social-share|og-image/i.test(img)) continue;
+      hosts.add(host);
+      out.push({ thumb: img, full: img, host });
+    }
+    return out;
   },
   // the main picture of a product page, or null
   findImage: async (link) => {
