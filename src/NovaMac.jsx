@@ -997,7 +997,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
         </div>
         <div className="nv-mac-layer nv-mac-heard" aria-hidden={!(mstate === 'listen' || mstate === 'think')}>
           <small>{S.key === 'thinking' ? 'You asked' : 'Hearing you'}</small>
-          <span>{String(heard || '').replace(/[?]\s*$/, '')}</span>
+          <span>{stageLook ? String(heard || '') : String(heard || '').replace(/[?]\s*$/, '')}</span>
         </div>
         <section ref={plateRef} className={`nv-mac-layer nv-mac-plate${hasDock ? ' docked' : ''}`} aria-hidden={!plateOn} aria-label={`${speaker.name}, speaking`}
           style={{ '--mac-pmax': `${Math.max(120, view.h - COMPOSER.foot - COMPOSER.h - 24 - (frame.cy + frame.off * frame.s + 46) - 80)}px` }}>

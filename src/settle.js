@@ -32,7 +32,10 @@ const FALLBACK_EASE = 'cubic-bezier(.32,.72,0,1)';
 let lastInputAt = -Infinity;
 export function noteInput() { lastInputAt = typeof performance !== 'undefined' ? performance.now() : Date.now(); }
 
-const quiet = () => reducedMotion() || (typeof document !== 'undefined' && document.documentElement.getAttribute('data-nv-calm') === '1');
+// the Nova page on the Mac directs its own motion (src/NovaMac.jsx marks the
+// root while it is up): its layers are a stage, not page blocks, and a settle
+// there faded the hidden panel column in on every beat (10 Nov 2026)
+const quiet = () => reducedMotion() || (typeof document !== 'undefined' && (document.documentElement.getAttribute('data-nv-calm') === '1' || document.documentElement.hasAttribute('data-nova-mac')));
 
 // before the commit: where each block is, or null when this commit should not settle
 export function measure(now = (typeof performance !== 'undefined' ? performance.now() : Date.now())) {
