@@ -524,7 +524,7 @@ export async function coachLiveLine(vaultPath) {
   } catch { bits.push('his plans FAILED to load this turn'); }
   try {
     const { listRecords } = await import('./inboxStore.js');
-    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'schedule-edit', 'train-today', 'exercise-audit']);
+    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'exercise-rename', 'schedule-edit', 'train-today', 'exercise-audit']);
     const cutoff = Date.now() - 7 * 86400000;
     const recent = (await listRecords()).filter((r) => COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);
     if (recent.length) {
@@ -956,7 +956,7 @@ export function parseCoachProposals(text) {
   return { cleanText: cleanText.replace(/\n{3,}/g, '\n\n').trim(), proposals, parseErrors, badLines };
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule', 'move', 'create', 'today'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'rename', 'reorder', 'schedule', 'move', 'create', 'today'];
 
 // THE FIELDS COACH ACTUALLY WRITES (25 Sep 2026). Between 11:01 and 11:26 that
 // morning six of his twelve PROPOSE lines were refused and never became cards:
@@ -967,7 +967,7 @@ const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goa
 // the field it reached for is accepted, the same stance the glass takes
 // (src/visualBeats.js normaliseSpec). Nothing is guessed: a name still has to
 // match his library or routine exactly, or loosely and uniquely.
-const ACTION_ALIASES = { 'today-only': 'today', 'today only': 'today', session: 'today', drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap', 'new-routine': 'create', 'create-routine': 'create', 'add-routine': 'create', 'new routine': 'create' };
+const ACTION_ALIASES = { 'today-only': 'today', 'today only': 'today', session: 'today', drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap', relabel: 'rename', retitle: 'rename', 'new-routine': 'create', 'create-routine': 'create', 'add-routine': 'create', 'new routine': 'create' };
 export function normaliseProposal(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
   const p = { ...raw };
@@ -981,6 +981,10 @@ export function normaliseProposal(raw) {
     p.add = first('add', 'with', 'replacement', 'in');
   }
   if (['remove', 'targets', 'reorder', 'tune', 'resource', 'remap'].includes(p.action) && !str(p.exercise)) p.exercise = first('remove', 'name', 'exerciseName');
+  if (p.action === 'rename') {
+    p.exercise = first('exercise', 'from', 'remove', 'name', 'exerciseName');
+    p.to = first('to', 'newName', 'rename', 'as', 'add', 'with');
+  }
   if (p.action === 'create') p.routine = first('routine', 'name', 'routineName', 'to');
   if (p.action === 'move') {
     p.exercise = first('exercise', 'name', 'exerciseName', 'remove', 'add');
@@ -1143,7 +1147,7 @@ const targetsPhrase = (p) => {
 // thinks was lost; he should not be pushed twice for it.
 export function proposalKey(route, p = {}) {
   return [route, p.action, p.routineId, p.fromRoutineId, p.removeExerciseId, p.addExerciseId || nameKey(p.addName), p.position,
-    p.day, p.exerciseId, p.muscleGroup, p.targetSets, p.targetRepsLow, p.targetRepsHigh, p.area, p.metric, p.insight, p.url].map((x) => (x == null ? '' : String(x))).join('|');
+    p.day, p.exerciseId, p.muscleGroup, p.targetSets, p.targetRepsLow, p.targetRepsHigh, p.area, p.metric, p.insight, p.url, p.newName].map((x) => (x == null ? '' : String(x))).join('|');
 }
 
 // HOW COACH'S EDITS FILE. `direct: true` — his standing grant, given more
@@ -1262,6 +1266,23 @@ export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planne
     return {
       payload: { action, exerciseId: ex.id, exerciseName: ex.name, muscleGroup: group, before, ...(secondary ? { secondary } : {}), reason: String(raw.reason || '').slice(0, 300) },
       title: `Coach: re-file ${ex.name} under ${group} (was ${before})`,
+    };
+  }
+
+  // "rename" gives ONE library exercise a new name. Its id stays, so every
+  // routine, logged set, audit and clip follows; only the label changes.
+  if (action === 'rename') {
+    const name = String(raw.exercise || '').trim();
+    const lib = pickNamed(exercises, name, (e) => e.name, 'his exercise library');
+    if (!lib) throw refuse(name ? `no exercise called "${name}" in his library` : 'a rename names the exercise in "exercise" and its new name in "to"');
+    const newName = String(raw.to || '').replace(/\s+/g, ' ').trim();
+    if (newName.length < 2 || newName.length > 80) throw refuse('a rename puts the new name in "to" (2 to 80 characters)');
+    if (newName === lib.name) throw refuse(`${lib.name} already has that name`, 'substance');
+    const clash = exercises.find((e) => e.id !== lib.id && nameKey(e.name) === nameKey(newName));
+    if (clash) throw refuse(`"${clash.name}" already exists in his library; renaming ${lib.name} to it would make two of the same`, 'substance');
+    return {
+      payload: { action, exerciseId: lib.id, exerciseName: lib.name, newName, reason: String(raw.reason || '').slice(0, 300) },
+      title: `Coach: rename ${lib.name} to ${newName}`,
     };
   }
 
@@ -1595,6 +1616,7 @@ export function hisWordsOf(question) {
 export function routeForAction(action) {
   return action === 'today' ? 'train-today'
     : action === 'remap' ? 'exercise-remap'
+    : action === 'rename' ? 'exercise-rename'
     : action === 'tune' ? 'progression-tune'
       : action === 'injury' ? 'injury-log'
         : action === 'goal' ? 'goal-target'
@@ -1652,7 +1674,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
 // coach that never learns whether its advice landed can't improve.
 export async function adviceContext(days = 14) {
   const { listRecords } = await import('./inboxStore.js');
-  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit', 'train-today', 'exercise-audit']);
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit', 'train-today', 'exercise-audit', 'exercise-rename']);
   const cutoff = Date.now() - days * 86400000;
   // fuel-cross findings are kind-based (no route — approving files nothing) and
   // his reasoned "no" to one belongs in front of the Coach exactly like a
