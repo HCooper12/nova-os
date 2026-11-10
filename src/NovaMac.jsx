@@ -396,11 +396,14 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
     }
     wasSpeaking.current = speaking;
   }, [speaking, lastNova]);
-  // a new turn clears the glass (pinned panels stay)
+  // a new turn clears the glass (pinned panels stay), once he has actually
+  // asked something: the reply window that opens the microphone after Nova
+  // speaks is listening, not a new turn, and clearing there threw the held
+  // panels away the moment he stopped (found on his real data, 10 Nov)
   const wasTurn = useRef(S.key);
   useEffect(() => {
     const k = S.key;
-    if ((k === 'listening' || k === 'thinking') && wasTurn.current !== 'listening' && wasTurn.current !== 'thinking') {
+    if (k === 'thinking' && wasTurn.current !== 'thinking') {
       // WHAT HE PUT AWAY STAYS AWAY (the reel test, 8 Nov 2026): `gone` is
       // not reset here or when speaking starts; the receipt of "clear them,
       // all but the Wired page" is itself spoken, and that reset brought

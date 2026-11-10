@@ -259,6 +259,7 @@ test('the Mac stage eyebrow: the subject on the left, the source on the right, a
   const code = stageEyebrow({ macKind: 'brief', title: 'Lateral raise volume', head: { sub: 'brief, 9 Nov' } });
   assert.deepEqual(code, { tag: 'Researcher', meta: 'brief, 9 Nov', title: 'Lateral raise volume' });
   assert.equal(stageEyebrow({ kind: 'list' }).tag, 'List', 'no label: the kind in words, never blank');
+  assert.equal(stageEyebrow({ kind: 'instrument', instrument: 'body', data: {} }).tag, 'Train', 'an instrument by its name');
 });
 
 test('the Mac stage hue: a code panel\'s head, a data panel\'s finder, a spoken card\'s tone, else Nova', async () => {

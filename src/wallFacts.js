@@ -371,6 +371,7 @@ export function stageTether(core, rim, rect, caption = null) {
 // card carries a line of its own beyond its label. A page or a video draws
 // its own title; a panel code built names its kind and its source.
 const CODE_TAG = { sets: 'Sets', brief: 'Researcher', calendar: 'Calendar' };
+const INSTRUMENT_TAG = { body: 'Train', week: 'This week', fuel: 'Fuel', day: 'Your day', vitals: 'Vitals' };
 export function stageEyebrow(card, opts = {}) {
   if (card?.macKind) return { tag: CODE_TAG[card.macKind] || 'Nova', meta: card.head?.sub || '', title: card.title || '' };
   const e = eyebrowOf(card);
@@ -378,6 +379,8 @@ export function stageEyebrow(card, opts = {}) {
   // the scope on the right is code's, from the card's own data, or blank
   // (stageFormFacts); "Nova's own" is never a scope
   if (card?.kind === 'proposal') return { tag: 'Proposal', meta: f.meta, title: f.title };
+  // an instrument is named by which one it is, never the generic kind
+  if (card?.kind === 'instrument') return { tag: INSTRUMENT_TAG[card.instrument] || e.kind, meta: '', title: '' };
   if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: f.meta, title: '' };
   // the subject only: "Protein vs your 140g floor" is tagged Protein (the
   // target it names is drawn as the dashed line)
