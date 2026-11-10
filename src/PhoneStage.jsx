@@ -456,11 +456,11 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
       {typeof document !== 'undefined' && createPortal(
         <div className={`nv-ph-top${all ? ' all' : ''}${openKey ? ' opened' : ''}${closing ? ' closing' : ''}`} style={{ '--ph-openw': `${g.openW}px` }}>
           {hero && <span key={heroKey} className="nv-ph-spark go" style={{ '--h': stageHue(hero.card, panelHead(hero.card).hue) }} aria-hidden="true" />}
-          <div className="nv-ph-scrim" onClick={closeOpen} aria-hidden="true" />
+          <div className="nv-ph-scrim" onClick={closeOpen} aria-hidden="true" data-sheet-close="" />
           {openP && (
-        <div ref={openRef} className="nv-ph-open" role="dialog" aria-modal="true" aria-label={stageEyebrow(openP.card, { today: todayIso() }).tag} style={{ '--h': stageHue(openP.card, panelHead(openP.card).hue) }}>
+        <div ref={openRef} className="nv-ph-open" role="dialog" aria-modal="true" data-sheet="root" aria-label={stageEyebrow(openP.card, { today: todayIso() }).tag} style={{ '--h': stageHue(openP.card, panelHead(openP.card).hue) }}>
           <PhonePanel card={openP.card} open decide={decideOf(openP.card)} T={T} onDiscuss={() => { closeOpen(); }} />
-          <button type="button" className="nv-ph-x" aria-label="Close" onClick={closeOpen}><Gl d={X_D} /></button>
+          <button type="button" className="nv-ph-x" aria-label="Close" onClick={closeOpen} data-sheet-close=""><Gl d={X_D} /></button>
         </div>
           )}
         </div>,
