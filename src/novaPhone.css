@@ -91,7 +91,7 @@
 .nv-ph-heroin { cursor: pointer; -webkit-tap-highlight-color: transparent; transform-origin: 50% 50%; animation: nvPhHeroIn .7s var(--nv-spring-bouncy) both; }
 .nv-ph-heroin:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 2px; border-radius: var(--ph-radius); }
 .nv-ph-hero .nv-ph-pnl::before, .nv-ph-hero .nv-ph-pnl::after { opacity: .9; }
-.nv-ph-fit { transform-origin: 50% 50%; }
+.nv-ph-fit.cut { overflow: hidden; border-radius: var(--ph-radius); -webkit-mask-image: linear-gradient(#000 calc(100% - 34px), transparent); mask-image: linear-gradient(#000 calc(100% - 34px), transparent); }
 @keyframes nvPhHeroIn { from { opacity: 0; transform: translate3d(0, -300px, 0) scale(.14); filter: blur(10px); } }
 .nv-ph-spark { position: fixed; left: calc(50% - 45px); top: 88px; width: 90px; height: 90px; border-radius: 50%; border: 2px solid var(--h, var(--nv-cy)); opacity: 0; pointer-events: none; z-index: 16; }
 .nv-ph-spark.go { animation: nvPhSpark .7s var(--nv-ease) both; }

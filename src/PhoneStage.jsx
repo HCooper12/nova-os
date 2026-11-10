@@ -158,30 +158,32 @@ function PhonePanel({ card, still = false, open = false, decide = null, T = null
   );
 }
 
-// THE HERO, WHOLE IN ITS ROOM (his real Pull A has eight lifts; the
-// mockup's has four): a panel taller than the room between the caption and
-// the count row is drawn smaller until it fits, never cut, down to 0.7; past
-// that it keeps 0.7 and the rest is one tap away, opened full size
+// THE HERO IN ITS ROOM (his real Pull A has eight lifts; the mockup's has
+// four): a panel taller than the room between the caption and the count row
+// keeps the mockup's full width and is cut at the room's foot under a fade,
+// the way the rail's small copies end; the whole of it is one tap away,
+// opened full size
 function HeroFit({ children }) {
   const ref = useRef(null);
-  const [k, setK] = useState(1);
+  const [room, setRoom] = useState(0);
   useLayoutEffect(() => {
     const el = ref.current;
-    const room = el?.parentElement?.parentElement;
-    if (!el || !room) return undefined;
+    const box = el?.parentElement?.parentElement;
+    if (!el || !box) return undefined;
     const run = () => {
-      const h = el.offsetHeight;
-      const r = room.clientHeight;
-      const next = h > r && h > 0 ? Math.max(0.7, r / h) : 1;
-      setK((x) => (Math.abs(x - next) < 0.005 ? x : next));
+      const inner = el.firstElementChild;
+      const h = inner ? inner.offsetHeight : 0;
+      const r = box.clientHeight;
+      const next = h > r && r > 0 ? r : 0;
+      setRoom((x) => (x === next ? x : next));
     };
     run();
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(run);
-    ro?.observe(el);
-    ro?.observe(room);
+    ro?.observe(el.firstElementChild || el);
+    ro?.observe(box);
     return () => ro?.disconnect();
   }, []);
-  return <div ref={ref} className="nv-ph-fit" style={k < 1 ? { transform: `scale(${k.toFixed(4)})` } : undefined}>{children}</div>;
+  return <div ref={ref} className={`nv-ph-fit${room ? ' cut' : ''}`} style={room ? { maxHeight: room } : undefined}>{children}</div>;
 }
 
 const dateLine = (d) => `${d.toLocaleDateString('en-AU', { weekday: 'long' })} ${d.getDate()} ${d.toLocaleDateString('en-AU', { month: 'long' })}`;
