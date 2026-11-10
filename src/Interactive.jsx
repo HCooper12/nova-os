@@ -55,12 +55,23 @@ const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset
 // travels past the slop radius: past that point the gesture is a scroll, and a
 // scroll must reach the scroller untouched. Re-armed on the next press.
 const SWITCH_SLOP_PX = 10;
+// how long a press stays down at the least, so a quick tap is still seen
+const PRESS_MIN_MS = 90;
+const REDUCED = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, onHoldPhase, haptic: hapticWord, children, ...rest }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focus, setFocus] = useState(false);
   const pressAt = useRef(null);
+  const pressT = useRef(0);
+  const releaseTimer = useRef(0);
+  const release = () => {
+    clearTimeout(releaseTimer.current);
+    const left = PRESS_MIN_MS - (performance.now() - pressT.current);
+    if (left > 0) releaseTimer.current = setTimeout(() => setActive(false), left);
+    else setActive(false);
+  };
   // spec #13: hold (or right-click) any Interactive for its secondary
   // actions — the hook composes with the pressed-state handlers below
   // (onHoldPhase only watches the hold: the Nova icon's ring, motion/holdToTalk.js)
@@ -103,8 +114,21 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
   //
   // This is ~329 call sites, so it also gives back 329 permanent compositing
   // layers the app was holding for no reason.
+  //
+  // THE TOUCHDOWN (10 Nov 2026, his "why iPhone feels so smooth" reel, details
+  // one and two). Down and up are different moves and used to share one
+  // 160 ms curve. Down is the answer to his finger, so it is short and starts
+  // at once; up is the surface letting go, so it is the snappy spring and
+  // settles a hair past rest. The press is also HELD for PRESS_MIN_MS: a quick
+  // tap is over in ~50 ms, and without the hold its dip was cut off at a third
+  // of the way and read as nothing happening.
   const motion = springs
-    ? { transform: active ? 'scale(.978)' : 'none', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }
+    ? {
+        transform: active ? 'scale(.97)' : 'none',
+        transition: active
+          ? 'transform 90ms cubic-bezier(.2,.8,.2,1)'
+          : (REDUCED() ? 'transform .16s ease' : 'transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy)'),
+      }
     : {};
   // the overlay is absolutely positioned, so the element has to be its
   // containing block — applied ONLY when a haptic word was asked for
@@ -137,6 +161,8 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
     onClickCapture: lp.onClickCapture,
     onContextMenu: lp.onContextMenu,
     onPointerDown: (e) => {
+      clearTimeout(releaseTimer.current);
+      pressT.current = performance.now();
       setActive(true);
       pressAt.current = { x: e.clientX, y: e.clientY };
       armSwitch(e.currentTarget, true);
@@ -151,11 +177,11 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
       }
       lp.onPointerMove?.(e);
     },
-    onPointerUp: (e) => { setActive(false); pressAt.current = null; lp.onPointerUp?.(e); onPointerUp?.(e); },
-    onPointerCancel: (e) => { setActive(false); pressAt.current = null; armSwitch(e.currentTarget, false); lp.onPointerCancel?.(e); onPointerCancel?.(e); },
+    onPointerUp: (e) => { release(); pressAt.current = null; lp.onPointerUp?.(e); onPointerUp?.(e); },
+    onPointerCancel: (e) => { release(); pressAt.current = null; armSwitch(e.currentTarget, false); lp.onPointerCancel?.(e); onPointerCancel?.(e); },
     // hover is a mouse-only affordance — never let touch set it (that's what stuck)
     onPointerEnter: (e) => { if (e.pointerType === 'mouse') setHover(true); onPointerEnter?.(e); },
-    onPointerLeave: (e) => { setHover(false); setActive(false); lp.onPointerLeave?.(e); onPointerLeave?.(e); },
+    onPointerLeave: (e) => { setHover(false); release(); lp.onPointerLeave?.(e); onPointerLeave?.(e); },
     onFocus: (e) => { setFocus(true); onFocus?.(e); },
     onBlur: (e) => { setFocus(false); onBlur?.(e); },
     ...a11y,

@@ -78,9 +78,12 @@ test('NO CLICKABLE HOLDS A TRANSFORM AT REST', () => {
   // promoted layer full of text rasterises soft. It is why he reported the top
   // bar blurred four times — once the chrome became Interactive for haptics,
   // every item in it was its own layer. ~329 call sites carry this.
-  assert.match(SRC, /transform: active \? 'scale\(\.978\)' : 'none'/,
+  assert.match(SRC, /transform: active \? 'scale\(\.9\d+\)' : 'none'/,
     'a resting transform promotes every clickable in the app');
   assert.ok(!/: 'scale\(1\)'/.test(SRC), 'scale(1) is not a no-op — it is a layer');
   // the press must still spring: none interpolates as the identity matrix
-  assert.match(SRC, /transition: 'transform \.16s cubic-bezier\(\.32,\.72,0,1\)'/);
+  // (10 Nov 2026: down is a short curve, up is the snappy spring; both still
+  // move transform only, so the same interpolation holds)
+  assert.match(SRC, /'transform 90ms cubic-bezier\(\.2,\.8,\.2,1\)'/);
+  assert.match(SRC, /'transform var\(--nv-spring-snappy-ms\) var\(--nv-spring-snappy\)'/);
 });
