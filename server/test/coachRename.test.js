@@ -54,3 +54,13 @@ test('rename refuses what would be wrong, and accepts the model\'s other spellin
   const rec = await createCoachEditRecord(vault, { question: 'rename it', proposal });
   assert.equal(rec.decision.route, 'exercise-rename');
 });
+
+test('the live session names the lift open on his screen, so "this exercise" cannot mean another row', async () => {
+  const { liveSessionContext } = await import('../lib/coach.js');
+  const ex = (name) => ({ name, sets: [{ weight: 50, reps: 8, done: false }] });
+  const session = { routineName: 'Pull A', viewing: 1, exercises: [ex('Lying T Bar Close Grip Row'), ex('Reverse Single Arm Pec Deck')] };
+  const text = liveSessionContext(session);
+  assert.match(text, /OPEN ON HIS SCREEN RIGHT NOW: Reverse Single Arm Pec Deck \(2 of 2\)/);
+  assert.ok(text.indexOf('OPEN ON HIS SCREEN') < text.indexOf('- Lying T Bar'), 'said before the list');
+  assert.doesNotMatch(liveSessionContext({ ...session, viewing: undefined }), /OPEN ON HIS SCREEN/, 'no claim when nothing is known');
+});

@@ -890,8 +890,15 @@ export function liveSessionContext(session) {
       : 'not started';
     return `- ${e.name}: ${status}`;
   });
+  // THE LIFT ON HIS SCREEN (10 Nov 2026): he opened Coach from the reverse pec
+  // deck and said "rename the single arm reverse pec deck"; with only a list
+  // of lifts, Coach took "this" for a different row. Said first, so "this",
+  // "it" and "this exercise" mean the open card.
+  const vi = Number.isInteger(session.viewing) ? session.viewing : -1;
+  const open = session.exercises[vi];
+  const viewLine = open?.name ? `THE LIFT OPEN ON HIS SCREEN RIGHT NOW: ${open.name} (${vi + 1} of ${session.exercises.length}). "This exercise", "this lift", "it" and "this one" mean ${open.name}, never another row in the list, unless he names a different one.\n` : '';
   const doneSets = session.exercises.reduce((n, e) => n + (e.sets || []).filter((s) => s.done).length, 0);
-  return `LIVE SESSION IN PROGRESS — ${session.routineName || 'Session'}, ${doneSets} sets logged so far. He is asking you MID-WORKOUT, so answer for the gym floor: short, decisive, about what to do in the next few minutes. Current state:\n${lines.join('\n')}`;
+  return `LIVE SESSION IN PROGRESS — ${session.routineName || 'Session'}, ${doneSets} sets logged so far. He is asking you MID-WORKOUT, so answer for the gym floor: short, decisive, about what to do in the next few minutes. Current state:\n${viewLine}${lines.join('\n')}`;
 }
 
 /* --------------- Coach program edits (proposed, never direct) ------------ */
