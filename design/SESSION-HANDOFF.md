@@ -11,7 +11,7 @@ the session log at the foot is append-only.
 
 ---
 
-## 10 Nov (late night, Fable 5.2): FELT SPEED LIVE (2acbe84e). PHONE STAGE round two done on branch `phone-stage`, NOT merged, waiting on his pick of look
+## 10 Nov (late night, Fable 5.2): FELT SPEED LIVE (2acbe84e). PHONE STAGE round two done on branch `phone-stage`, NOT merged, his pick: MOCKUP LOOK (Mac pinned too, 837eef3c; end frame checked beside 114 at 1440x900 on a scratch server). Still unmerged: the listening-start pause decision is open
 
 - **Felt speed shipped:** merged with main, gates green (5447 tests, 0 fail), pushed as 2acbe84e, deploy run green, served bundle `index-D7MroqHi.js` contains the new press. Includes the wrong-way rubber band in `src/dismissSwipe.js` (000453dd). No server code changed, no reload. Touch feel on his iPhone: NOT confirmed.
 - **His answers (10 Nov):** the + stays in the composer; "What needs my word" opens the Inbox; frame drops fixed before the phone stage ships; he asked for a look comparison (sent: `tmp-stage/style-compare-390.png`, mockup look vs his Summary style). **His pick is OPEN.** If he keeps the mockup look, the Mac stage needs the same pin (it currently follows Summary tokens).
