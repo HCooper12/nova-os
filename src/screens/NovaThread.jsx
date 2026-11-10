@@ -14,6 +14,7 @@ import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
 import { stateOf, threadRows, clock, failedLast } from '../novaThreadFacts.js';
 import { Ico, Glyph, Stage, Settled, KeptTake, Proposal } from '../NovaThreadParts.jsx';
 import { NovaStage } from '../NovaStage.jsx';
+import { LazyMount } from '../LazyMount.jsx';
 import { NovaMac } from '../NovaMac.jsx';
 import { ONE_NOVA_CHROME } from '../novaStageFacts.js';
 import { audioLevel } from '../audioLevel.js';
@@ -487,8 +488,13 @@ export function Line({ i, m, fresh, onHold, onOpen, onReplay, settledAs = null }
         <div className="nv-nt-say"><TypeText text={m.text} active={m.typing} /></div>
       </div>
       {meta && !m.streaming && <span className="nv-nt-meta">{meta}</span>}
-      {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><div className="nv-nt-vpanel"><VoicePanel panel={m.panel} /></div></SafeVisual>}
-      {settledAs ? ((m.settled || m.macPanels) && settledAs(m.settled, m)) : (m.settled && <Settled st={m.settled} time={m.time} onOpen={onOpen} onReplay={() => onReplay(m.settled.panels)} />)}
+      {/* the phone's history waits to draw a line's heavy parts until he
+          scrolls near them (src/LazyMount.jsx): the brief's real instruments
+          mounting out of sight dropped frames on the stage (10 Nov) */}
+      {m.panel && (settledAs
+        ? <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><div className="nv-nt-vpanel"><VoicePanel panel={m.panel} /></div></SafeVisual>
+        : <LazyMount id={`p:${m.at}`} at={m.at}><SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><div className="nv-nt-vpanel"><VoicePanel panel={m.panel} /></div></SafeVisual></LazyMount>)}
+      {settledAs ? ((m.settled || m.macPanels) && settledAs(m.settled, m)) : (m.settled && <LazyMount id={`s:${m.at}`} at={m.at}><Settled st={m.settled} time={m.time} onOpen={onOpen} onReplay={() => onReplay(m.settled.panels)} /></LazyMount>)}
       {m.notice && (
         <p className="nv-nt-routed">Started as {m.notice.label.toLowerCase()}: {m.notice.why}
           <button type="button" onClick={m.notice.undo}>Just answer it</button></p>

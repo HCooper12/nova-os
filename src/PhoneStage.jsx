@@ -11,6 +11,7 @@ import { codePanels, sentencesOf, coveredByCode, dockOrder, liveDock, panelHead 
 import { clockNow } from './speechClock.js';
 import { islandShown, subscribeIslandShown, dismissIsland } from './island.js';
 import { AlertCard } from './AlertCard.jsx';
+import { holdLazy } from './lazyHold.js';
 import { PH, phoneGeometry, phoneOrder, railX, phoneColumns, openTop, capSentence, phoneFace, countWords } from './phoneStageFacts.js';
 import './novaPhone.css';
 
@@ -218,6 +219,11 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
     return () => window.removeEventListener('resize', on);
   }, []);
   const g = phoneGeometry(view.w, view.h);
+
+  // while he is spoken to, the history above waits to draw its heavy parts
+  // (src/LazyMount.jsx): they cost the stage its frames
+  useEffect(() => { holdLazy(turning); }, [turning]);
+  useEffect(() => () => holdLazy(false), []);
 
   // the voice has stopped long enough: everything deals out (mockup: 600 ms)
   const [held, setHeld] = useState(false);
