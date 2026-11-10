@@ -35,6 +35,12 @@ const OUT = path.resolve(opt('out', `tmp-stage/live-${W}`));
 const STYLE = opt('style', 'summary');
 const video = argv.includes('--video');
 const reduced = argv.includes('--reduced');
+// --unpin: the stage drawn in HIS style's own tokens (Summary: 20 px corners,
+// white glass, flat sky) in place of the mockup's pinned Command material, by
+// a style injected at run time; nothing committed changes
+const unpin = argv.includes('--unpin');
+// --stop-after <state>: end the run after that screenshot (rest|first|mid|end)
+const stopAfter = opt('stop-after', null);
 if (/:4173\b/.test(SERVER) || /:4173\b/.test(APP)) { console.error('refusing: 4173 is his live server'); process.exit(1); }
 
 const { webkit } = require(PW);
@@ -50,7 +56,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     reducedMotion: reduced ? 'reduce' : 'no-preference',
     ...(video ? { recordVideo: { dir: OUT, size: { width: W, height: H } } } : {}),
   });
-  await ctx.addInitScript(({ server, token, style }) => {
+  await ctx.addInitScript(({ server, token, style, unpin }) => {
     try {
       localStorage.setItem('novaos.connection', JSON.stringify({ baseUrl: server, token }));
       // his style (his own correction, 18 Oct): Summary. Theme, material and
@@ -62,7 +68,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     let last = 0;
     const tick = (t) => { if (last) window.__gaps.push([t, t - last]); last = t; requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
-  }, { server: SERVER, token, style: STYLE });
+    if (unpin) document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '.nv-nt.mob, .nv-ph-top { --ph-radius: var(--nv-radius) !important; --ph-glass: var(--nv-glass) !important; --ph-edge: var(--nv-edge) !important; --ph-sky: var(--nv-bg2) !important; }';
+      document.head.appendChild(st);
+    });
+  }, { server: SERVER, token, style: STYLE, unpin });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
@@ -70,7 +81,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.goto(`${APP}#/voice`);
   await page.waitForSelector('.nv-ph', { timeout: 30000 });
   await sleep(3500);
-  const shot = (name) => page.screenshot({ path: path.join(OUT, `${name}-${W}x${H}.png`) });
+  const shot = async (name) => {
+    await page.screenshot({ path: path.join(OUT, `${name}-${W}x${H}.png`) });
+    if (stopAfter === name) { await ctx.close(); await browser.close(); console.log(JSON.stringify({ stopped: name, out: OUT })); process.exit(0); }
+  };
   const state = () => page.evaluate(() => {
     const ph = document.querySelector('.nv-ph');
     return { s: ph?.dataset.s, st: ph?.dataset.key, all: ph?.dataset.face === 'all', face: ph?.dataset.face, hero: !!document.querySelector('.nv-ph-hero .nv-ph-pnl'), rail: document.querySelectorAll('.nv-ph-mini.in').length, cells: document.querySelectorAll('.nv-ph-c.in').length };
