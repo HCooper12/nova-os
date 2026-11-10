@@ -28,6 +28,26 @@ test('unusualEvents: only what is absent from the trailing fortnight', () => {
   assert.deepEqual(unusualEvents(today, []).length, 3, 'no history means everything is new');
 });
 
+test('the fleet and the Waiting beat name one count: every pending Inbox record, in the same words', async () => {
+  const now = new Date();
+  const recent = new Date(now.getTime() - 2 * 3600e3).toISOString();
+  const old = new Date(now.getTime() - 5 * 86_400_000).toISOString();
+  const records = [
+    { id: 'r1', kind: 'research', status: 'pending', createdAt: recent, decision: { title: 'Sleep debt and strength' } },
+    { id: 'r2', kind: 'coach-program', status: 'pending', createdAt: old, decision: { title: 'Move legs' } },
+    { id: 'r3', kind: 'distill', status: 'pending', createdAt: old, decision: { title: 'Merged notes' } },
+    { id: 'r4', kind: 'research', status: 'filed', createdAt: recent, decision: { title: 'Done already' } },
+  ];
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning' }, { ...baseDeps, records: async () => records });
+  const fleet = steps.map((s) => s.card).find((c) => c?.label === 'THE FLEET, OVERNIGHT');
+  const waiting = steps.map((s) => s.card).find((c) => c?.label === 'WAITING ON YOU');
+  assert.ok(fleet && waiting, 'both beats are there');
+  assert.equal(waiting.value, '3');
+  assert.match(fleet.foot, /^1 of the 3 waiting in your Inbox$/);
+  assert.equal(waiting.caption, 'WAITING IN YOUR INBOX');
+  assert.equal(fleet.items[0].id, 'r1', 'the draft row carries its record');
+});
+
 test('an open injury raises a beat that ASKS about it', async () => {
   const deps = {
     ...baseDeps,

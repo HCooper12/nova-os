@@ -209,3 +209,10 @@ test('a line keeps its code panels as kind, title and source only; the record ne
   assert.doesNotMatch(sync, /macPanels|briefIds/, 'the record is built field by field and never carries them');
   assert.match(read('src/NovaMac.jsx'), /rebuildCode[\s\S]*codePanels\(\{[^}]*week: T\.week/, 'replay rebuilds from the current week');
 });
+
+test('each instrument the briefing raises is its own panel, never one relit four times', () => {
+  const ins = ['vitals', 'week', 'fuel', 'body'].map((instrument) => ({ kind: 'instrument', instrument, data: {} }));
+  assert.equal(new Set(ins.map(panelKey)).size, 4);
+  assert.equal(dockOrder(ins, Infinity).length, 4);
+  assert.equal(panelKey({ kind: 'instrument', instrument: 'week', data: { a: 1 } }), panelKey(ins[1]), 'the same instrument relit keeps its panel');
+});

@@ -119,7 +119,10 @@ const CODE_READ = new Set(['calendar', 'cfo', 'stash']);
 export function panelKey(card) {
   if (!card) return '';
   if (card.macKind) return card.key;
-  return card.hostKey || `${card.kind}:${String(card.label || card.title || card.caption || '').slice(0, 60)}`;
+  // an instrument has no label of its own: it is keyed by which instrument
+  // it is, or the briefing's vitals, week, fuel and body became one panel
+  // relit four times (found on his real brief, 10 Nov 2026)
+  return card.hostKey || `${card.kind}:${card.kind === 'instrument' && card.instrument ? `${card.instrument}:` : ''}${String(card.label || card.title || card.caption || '').slice(0, 60)}`;
 }
 
 // The newest three, in the order they arrived (the mockup's three slots;

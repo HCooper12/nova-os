@@ -743,8 +743,13 @@ export async function tryReflex(question, deps = defaultDeps) {
     // not a weigh-in, and saying "logged today" about one would be a lie
     const on = d.weightMeasuredOn || d.date;
     const dated = on === today ? '' : ` (last weighed ${on === yesterday ? 'yesterday' : on})`;
+    // his real weigh-ins of the last fortnight, one per day he stood on the
+    // scale (a repeated push of an old number is not a reading)
+    const seen = new Set();
+    const series = days.filter((x) => x.weightKg != null).map((x) => ({ date: x.weightMeasuredOn || x.date, value: x.weightKg }))
+      .filter((p) => (seen.has(p.date) ? false : (seen.add(p.date), true))).sort((a, b) => (a.date < b.date ? -1 : 1)).slice(-14);
     return { matched: 'weight', text: `${d.weightKg} kilograms${dated}.`,
-      card: await card({ label: 'Weight', value: d.weightKg, unit: 'kg', caption: on === today ? 'WEIGHED TODAY' : `LAST WEIGHED ${on === yesterday ? 'YESTERDAY' : on}`, tone: 'gold' }) };
+      card: await card({ label: 'Weight', value: d.weightKg, unit: 'kg', caption: on === today ? 'WEIGHED TODAY' : `LAST WEIGHED ${on === yesterday ? 'YESTERDAY' : on}`, tone: 'gold', series }) };
   }
 
   // ---- fuel today: protein / calories ----

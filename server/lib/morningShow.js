@@ -569,8 +569,9 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     if (produced.length) {
       steps[steps.length - 1].card = listCard({
         label: evening ? 'THE FLEET, TODAY' : 'THE FLEET, OVERNIGHT',
-        items: produced.map((r) => ({ name: recordLabel(r), note: r.kind })),
-        foot: `${produced.length} of ${pending.length} waiting on you`,
+        items: produced.map((r) => ({ name: recordLabel(r), note: r.kind, id: r.id })),
+        // the same count as the Waiting beat below: every pending Inbox record
+        foot: `${produced.length} of the ${pending.length} waiting in your Inbox`,
       });
     }
   }
@@ -586,7 +587,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     const rest = pending.length - 1;
     steps.push({
       say: `${pending.length === 1 ? 'One draft waits' : `${pending.length} drafts wait`} in your Inbox — nearest is “${approve.title}”. Say the word and I'll file it${rest > 0 ? '; the rest can hold' : ''}.`,
-      card: metricCard({ label: 'Waiting on you', value: String(pending.length), caption: 'DRAFTS IN THE INBOX', foot: approve.title, tone: pending.length > 12 ? 'warn' : 'cy' }),
+      card: metricCard({ label: 'Waiting on you', value: String(pending.length), caption: 'WAITING IN YOUR INBOX', foot: approve.title, tone: pending.length > 12 ? 'warn' : 'cy' }),
     });
   }
 

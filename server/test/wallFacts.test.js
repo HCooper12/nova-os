@@ -198,3 +198,125 @@ test('the stage: an agent\'s panel lands by its agent, and a page with the rail 
   const page = stageLayout([{ key: 'a', w: 300, h: 150, sent: 0 }, { key: 'b', w: 300, h: 150, sent: 0 }], { rail: true });
   assert.ok(page.every((l) => l.x >= STAGE.railLeft));
 });
+
+test('the Mac stage (phase 2): the core at the mockup\'s spot less the title bar, the chip beside the composer', async () => {
+  const { stageFrame, stageChip, stageWidth, STAGE_TITLE } = await import('../../src/wallFacts.js');
+  const f = stageFrame(1440, 900 - STAGE_TITLE);
+  assert.deepEqual([f.cx, f.cy, f.s], [720, 318 - STAGE_TITLE, 0.5], 'mockup 114 sc.core 720, 318 at half size');
+  assert.equal(f.cy + f.off * f.s, 424 - STAGE_TITLE, 'the words start where the mockup\'s do (318 + 204 x 0.5 + 4)');
+  const c = stageChip(1440, 872);
+  assert.equal(c.left, 1076, 'mockup .earlier left 1076');
+  assert.deepEqual([c.cx, c.cy], [1126, 846 - STAGE_TITLE], 'mockup CHIP 1126, 846');
+  assert.equal(stageWidth({ kind: 'metric' }), 250);
+  assert.equal(stageWidth({ kind: 'list', macKind: 'calendar' }), 360, 'a code panel goes by its macKind');
+  assert.equal(stageWidth({ kind: 'something-new' }), 300);
+});
+
+test('the Mac stage: arrival keeps every panel\'s place and beat; only new keys join, at the end', async () => {
+  const { stageArrive } = await import('../../src/wallFacts.js');
+  const a = stageArrive([], ['x', 'y'], 0);
+  assert.deepEqual(a, [{ key: 'x', sent: 0 }, { key: 'y', sent: 1 }], 'two landing in one render are two beats');
+  const b = stageArrive(a, ['y', 'x', 'z'], 2);
+  assert.deepEqual(b, [{ key: 'x', sent: 0 }, { key: 'y', sent: 1 }, { key: 'z', sent: 2 }]);
+  const g = stageArrive([], ['c1', 'c2', 'm'], 0, (k) => (k.startsWith('c') ? 'sentence-3' : null));
+  assert.deepEqual(g.map((e) => e.sent), [0, 0, 1], 'code panels of one sentence share its beat');
+  assert.equal(stageArrive(b, ['x', 'z'], 3), b, 'nothing new: the same array, so React keeps it');
+  assert.equal(stageArrive(b, [], 4), b, 'a panel put away keeps its spot, so nothing after it moves');
+});
+
+test('the Mac stage plan: no cap, nothing on the core or the caption, each panel arrives from the core and folds to the chip', async () => {
+  const { stagePlan, stageFrame, stageChip, stageKeep, STAGE_RIM } = await import('../../src/wallFacts.js');
+  const entries = Array.from({ length: 24 }, (_, i) => ({ key: `p${i}`, w: [250, 340, 320, 360][i % 4], sent: i }));
+  const heights = Object.fromEntries(entries.map((e, i) => [e.key, [150, 200, 170, 230][i % 4]]));
+  const plan = stagePlan(entries, { width: 1440, height: 872, heights });
+  assert.equal(plan.length, 24, 'every panel has a place; none is dropped by a cap');
+  assert.ok(plan.some((p) => p.folded), 'twenty-four cannot all stay up');
+  assert.equal(plan[23].folded, false, 'the newest is up');
+  const f = stageFrame(1440, 872);
+  const chip = stageChip(1440, 872);
+  const hit = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+  for (const p of plan.filter((q) => !q.folded && !q.forced)) {
+    for (const k of stageKeep([f.cx, f.cy])) assert.equal(hit([p.x, p.y, p.x + p.w, p.y + p.h], k), false, `${p.key} sits on the core or the caption`);
+    assert.ok(p.y >= 16 && p.y + p.h <= 872 - 108, `${p.key} is off the stage`);
+    const mx = p.x + p.w / 2; const my = p.y + p.h / 2;
+    // it arrives from the core's side, 28 px out, and folds to the chip
+    assert.ok(Math.abs(Math.hypot(p.ex, p.ey) - 28) < 0.2);
+    assert.equal(p.fx, Math.round(chip.cx - mx));
+    assert.equal(p.fy, Math.round(chip.cy - my));
+    // the tether leaves the core's rim, or hangs from the caption's foot
+    const [sx, sy] = p.tether.slice(1).split(' Q')[0].split(' ').map(Number);
+    const r = Math.hypot(sx - f.cx, sy - f.cy);
+    assert.ok(Math.abs(r - STAGE_RIM) < 0.5 || sy > f.cy + 200, `${p.key}'s tether starts ${r.toFixed(1)} from the core`);
+  }
+});
+
+test('the Mac stage eyebrow: the subject on the left, the source on the right, a title only when the card has its own line', async () => {
+  const { stageEyebrow } = await import('../../src/wallFacts.js');
+  assert.deepEqual(stageEyebrow({ kind: 'metric', label: 'STEPS', value: '4' }), { tag: 'STEPS', meta: '', title: '' }, 'no scope in the data: blank, never "Nova\'s own"');
+  assert.deepEqual(stageEyebrow({ kind: 'metric', label: 'STEPS', value: '4', unit: 'of 7', caption: 'DAYS ON TARGET' }).meta, '7 days');
+  assert.deepEqual(stageEyebrow({ kind: 'note', label: 'Proposal', title: 'Add four sets on Saturday', by: 'coach' }).title, 'Add four sets on Saturday');
+  assert.deepEqual(stageEyebrow({ kind: 'page', host: 'www.example.org', title: 'A review' }), { tag: 'Page', meta: '', title: '' });
+  const code = stageEyebrow({ macKind: 'brief', title: 'Lateral raise volume', head: { sub: 'brief, 9 Nov' } });
+  assert.deepEqual(code, { tag: 'Researcher', meta: 'brief, 9 Nov', title: 'Lateral raise volume' });
+  assert.equal(stageEyebrow({ kind: 'list' }).tag, 'List', 'no label: the kind in words, never blank');
+  assert.equal(stageEyebrow({ kind: 'instrument', instrument: 'body', data: {} }).tag, 'Train', 'an instrument by its name');
+});
+
+test('the Mac stage hue: a code panel\'s head, a data panel\'s finder, a spoken card\'s tone, else Nova', async () => {
+  const { stageHue } = await import('../../src/wallFacts.js');
+  assert.equal(stageHue({ macKind: 'brief', head: { hue: 'var(--nv-m-quads)' } }), 'var(--nv-m-quads)');
+  assert.equal(stageHue({ kind: 'bars', hue: 'var(--nv-m-back)', tone: 'cy' }), 'var(--nv-m-back)');
+  assert.equal(stageHue({ kind: 'metric', tone: 'warn' }), 'var(--nv-warn)');
+  assert.equal(stageHue({ kind: 'list' }), 'var(--nv-nova)');
+  assert.equal(stageHue({ kind: 'list', tone: 'nonsense' }, 'var(--nv-cy)'), 'var(--nv-cy)', 'an unknown tone is no colour of its own');
+});
+
+test('the Mac stage: the caption keeps its real measured height, so no panel ever sits on the words', async () => {
+  const { stagePlan, stageFrame, stageKeepFor } = await import('../../src/wallFacts.js');
+  const f = stageFrame(1440, 872);
+  const core = [f.cx, f.cy];
+  assert.equal(stageKeepFor(core, f, 40)[1][3], f.cy + 225, 'a short caption keeps the mockup\'s room');
+  const tall = stageKeepFor(core, f, 200)[1];
+  assert.equal(tall[3], Math.ceil(f.cy + 106 + 200 + 12));
+  const entries = Array.from({ length: 8 }, (_, i) => ({ key: `p${i}`, w: 320, sent: i }));
+  const heights = Object.fromEntries(entries.map((e) => [e.key, 150]));
+  for (const p of stagePlan(entries, { width: 1440, height: 872, heights, capH: 200 }).filter((q) => !q.folded && !q.forced)) {
+    const hit = p.x < tall[2] && p.x + p.w > tall[0] && p.y < tall[3] && p.y + p.h > tall[1];
+    assert.equal(hit, false, `${p.key} sits on a caption 200 px tall`);
+  }
+});
+
+test('a tether never crosses a panel while a clean spot exists, and no panel lands on another\'s tether', async () => {
+  const { stageLayout } = await import('../../src/wallFacts.js');
+  const core = [720, 290];
+  const panels = Array.from({ length: 9 }, (_, i) => ({ key: `p${i}`, w: [250, 340, 320, 300][i % 4], h: [150, 200, 140, 170][i % 4], sent: i }));
+  const lay = stageLayout(panels, { width: 1440, height: 872, core, top: 16 });
+  const up = lay.filter((l) => !l.folded && !l.forced);
+  assert.ok(up.filter((l) => !l.crossed).length >= 6, 'most find a clean spot');
+  const rect = (l) => [l.x, l.y, l.x + l.w, l.y + l.h];
+  const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+  const inR = (px, py, r) => px > r[0] - 4 && px < r[2] + 4 && py > r[1] - 4 && py < r[3] + 4;
+  // when the later of two panels was placed clean, neither's tether runs
+  // through the other
+  for (const a of up) {
+    const r = rect(a);
+    const end = [clampN(core[0], r[0], r[2]), clampN(core[1], r[1], r[3])];
+    for (const b of up) {
+      if (b === a || (up.indexOf(a) > up.indexOf(b) ? a : b).crossed) continue;
+      for (let k = 2; k < 10; k++) {
+        const px = core[0] + (end[0] - core[0]) * k / 10; const py = core[1] + (end[1] - core[1]) * k / 10;
+        assert.equal(inR(px, py, rect(b)), false, `${a.key}'s tether runs through ${b.key}`);
+      }
+    }
+  }
+});
+
+test('the Mac stage tether: a panel under the caption hangs from the caption\'s foot, never through the words', async () => {
+  const { stageTether, stageKeep } = await import('../../src/wallFacts.js');
+  const core = [720, 290];
+  const cap = stageKeep(core)[1];
+  const under = stageTether(core, 85, [600, 560, 900, 700], cap);
+  assert.ok(under.startsWith(`M720.0 ${(cap[3] + 2).toFixed(1)} Q720.0 `), under);
+  const side = stageTether(core, 85, [900, 200, 1200, 360], cap);
+  assert.ok(side.startsWith('M805.0 290.0 Q'), side);
+});
