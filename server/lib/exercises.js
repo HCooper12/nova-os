@@ -221,6 +221,27 @@ export function setMuscleGroupIn(exercises, id, muscleGroup, { secondary } = {})
   return { exercises: next, exercise: next[idx], before, prior, unchanged: false };
 }
 
+// A RENAME CHANGES THE NAME AND NOTHING ELSE (10 Nov 2026). Coach told him it
+// could not rename a lift ("I cannot rename exercises in your training log")
+// because the only edit it had refused a bracketed name as the same lift. The
+// id is what routines, logged sessions, audits, cues and clips point at, so
+// keeping it keeps all of them: history, best, filing, form clip. `prior` is
+// the entry as stored, for an undo that puts the old name back.
+export function renameExerciseIn(exercises, id, newName) {
+  const idx = exercises.findIndex((e) => e.id === id);
+  if (idx === -1) throw new Error('no such exercise');
+  const name = String(newName || '').replace(/\s+/g, ' ').trim();
+  if (name.length < 2 || name.length > 80) throw new Error('a name is 2 to 80 characters');
+  if (name === exercises[idx].name) return { exercises, exercise: exercises[idx], before: exercises[idx].name, prior: storedForm(exercises[idx]), unchanged: true };
+  const key = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const clash = exercises.find((e) => e.id !== id && key(e.name) === key(name));
+  if (clash) throw new Error(`"${clash.name}" is already in the library under that name`);
+  const prior = storedForm(exercises[idx]);
+  const next = [...exercises];
+  next[idx] = { ...prior, name };
+  return { exercises: next, exercise: next[idx], before: exercises[idx].name, prior, unchanged: false };
+}
+
 // HIS YES TO AN AUDIT CARD (lib/exerciseAudit.js): the approved primary and
 // secondaries written onto the entry as his override, from then on counted
 // like any audited lift. Pure; the writer below takes the lock.
@@ -296,6 +317,14 @@ export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup, opts = 
     if (!result.unchanged) await persist(vaultPath, result.exercises);
     const { exercise, before, unchanged, prior } = result;
     return { exercise, before, unchanged, prior };
+  });
+}
+
+export async function renameExercise(vaultPath, id, newName) {
+  return withWriteLock(async () => {
+    const r = renameExerciseIn(await getExercises(vaultPath), id, newName);
+    if (!r.unchanged) await persist(vaultPath, r.exercises);
+    return { exercise: resolveLibraryEntry(r.exercise), before: r.before, prior: r.prior, unchanged: r.unchanged };
   });
 }
 
