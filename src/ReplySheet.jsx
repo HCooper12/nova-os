@@ -3,6 +3,7 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { LocalInput } from './LocalInput.jsx';
 import { useDictation } from './useDictation.js';
+import { useExit } from './useExit.js';
 import { Eyebrow, TextAction, Button, Meta } from './Controls.jsx';
 
 // REPLY IN PLACE — his ask, 21 Sep 2026.
@@ -26,6 +27,7 @@ import { Eyebrow, TextAction, Button, Meta } from './Controls.jsx';
 // banner's context pre-loaded. One composer; this is one of its modes.
 export function ReplySheet({ v }) {
   const r = v.replyTo;
+  const exit = useExit(r?.close);
   const inputRef = useRef('');
   const sendRef = useRef(null);
   sendRef.current = (text) => {
@@ -63,7 +65,7 @@ export function ReplySheet({ v }) {
   return (
     <div role="dialog" aria-modal="false" aria-label="Reply to Nova" data-sheet-float=""
       style={css('position:fixed;left:0;right:0;bottom:max(calc(96px + env(safe-area-inset-bottom)), calc(var(--nv-kb, 0px) + 8px));z-index:115;display:flex;justify-content:center;padding:0 12px;pointer-events:none')}>
-      <div data-sheet="" style={css(`pointer-events:auto;width:min(560px,100%);border-radius:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent);background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 07%, transparent),color-mix(in srgb, var(--nv-void) 90%, transparent));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 24%, transparent),0 0 30px -8px color-mix(in srgb, var(--nv-cy) 40%, transparent),0 24px 60px -20px rgba(0,0,0,.85);animation:nvGlassIn var(--nv-dur-base) var(--nv-ease) both`)}>
+      <div ref={exit.panelRef} data-sheet="" style={css(`pointer-events:auto;width:min(560px,100%);border-radius:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent);background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 07%, transparent),color-mix(in srgb, var(--nv-void) 90%, transparent));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 24%, transparent),0 0 30px -8px color-mix(in srgb, var(--nv-cy) 40%, transparent),0 24px 60px -20px rgba(0,0,0,.85);animation:nvGlassIn var(--nv-dur-base) var(--nv-ease) both`)}>
         {/* what he is answering — Nova's own words, held in the serif so
             they read as his and not as a form label */}
         <div style={css('display:flex;align-items:flex-start;gap:10px;padding:12px 14px 10px')}>
@@ -72,7 +74,7 @@ export function ReplySheet({ v }) {
             <div style={{ marginTop: '5px', font: '400 13.5px/1.5 var(--nv-font-serif)', fontStyle: 'italic', color: 'color-mix(in srgb, var(--nv-ink) 88%, transparent)',
               display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.text}</div>
           </div>
-          <Interactive as="span" onClick={r.close} data-sheet-close="" aria-label="Close"
+          <Interactive as="span" onClick={exit.close} data-sheet-close="" aria-label="Close"
             base={css('cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;margin:-6px -6px 0 0;border-radius:50%;font-size:16px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)')}
             hoverStyle={{ color: 'var(--nv-ink)', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>×</Interactive>
         </div>

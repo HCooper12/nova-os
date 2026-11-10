@@ -21,6 +21,12 @@ applyGlow(glow, getGlowQuiet())
 // read — refreshes itself every 15 minutes and on visibilitychange.
 startHourClock()
 
+// iOS only paints `:active` on an element while some touchstart listener is
+// installed above it. Nova had three, each mounted by a feature (edge back,
+// sheet drag, local input), so the pressed state of a plain button depended on
+// which of them happened to be on the page. One that is always there.
+document.addEventListener('touchstart', () => {}, { passive: true })
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

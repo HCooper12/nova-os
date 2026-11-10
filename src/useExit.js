@@ -29,6 +29,26 @@ const EXIT_MS = 170;
 const reducedMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Play the exit from the element's live opacity and transform. False when the
+// engine cannot (no WAAPI, an easing it will not parse), so the caller falls
+// back to the keyframe.
+function leaveFromHere(el, ms, falls) {
+  if (!el || typeof el.animate !== 'function') return false;
+  try {
+    const cs = getComputedStyle(el);
+    const here = { opacity: cs.opacity || 1, transform: cs.transform && cs.transform !== 'none' ? cs.transform : 'none' };
+    const rise = cs.getPropertyValue('--nv-rise').trim() || '12px';
+    const ease = cs.getPropertyValue('--nv-ease-exit').trim() || 'cubic-bezier(.4,0,1,1)';
+    const gone = falls ? { opacity: 0, transform: `translateY(${rise})` } : { opacity: 0, transform: here.transform };
+    // made first, so a refused easing throws before anything on screen changes
+    const fx = new KeyframeEffect(el, [here, gone], { duration: ms, easing: ease, fill: 'both' });
+    el.getAnimations?.().forEach((a) => a.cancel());
+    el.style.animation = 'none';
+    new Animation(fx, document.timeline).play();
+    return true;
+  } catch { return false; }
+}
+
 export function useExit(onClose, { ms = EXIT_MS } = {}) {
   const scrimRef = useRef(null);
   const panelRef = useRef(null);
@@ -48,8 +68,13 @@ export function useExit(onClose, { ms = EXIT_MS } = {}) {
     closing.current = true;
     // The panel falls back down the path it rose along (nvFall mirrors fadeUp
     // exactly), and the scrim releases its dim underneath it.
-    if (panel) panel.style.animation = `nvFall ${ms}ms var(--nv-ease-exit) both`;
-    if (scrim) scrim.style.animation = `nvFadeOut ${ms}ms var(--nv-ease-exit) both`;
+    //
+    // FROM WHERE IT IS (10 Nov 2026, the "why iPhone feels so smooth" reel,
+    // detail five). Swapping the entrance keyframe for nvFall restarted the
+    // panel at full opacity and rest, so a close tapped mid-rise jumped up
+    // before it fell. The exit now starts at whatever is on screen this frame.
+    if (!leaveFromHere(panel, ms, true)) { if (panel) panel.style.animation = `nvFall ${ms}ms var(--nv-ease-exit) both`; }
+    if (!leaveFromHere(scrim, ms, false)) { if (scrim) scrim.style.animation = `nvFadeOut ${ms}ms var(--nv-ease-exit) both`; }
     // setTimeout rather than animationend: if the element is removed or the
     // animation is interrupted, animationend never fires and the overlay is
     // stuck open forever. A timer always lands.

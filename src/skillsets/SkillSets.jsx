@@ -129,7 +129,7 @@ canvas.nv-skl-chr{position:absolute;pointer-events:none;z-index:2;transform-orig
 .nv-skl-sug .ev{font:italic 13.5px/1.35 var(--nv-font-serif);color:var(--nv-ink60);flex:1;min-width:0;overflow-wrap:anywhere}
 .nv-skl-kind{display:inline-flex;align-items:center;gap:5px;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--nv-gold)}
 .nv-skl-ans{display:flex;gap:8px;margin-top:8px;align-items:center;justify-content:flex-end}
-.nv-skl-ans button{width:44px;height:44px;border-radius:50%;border:1px solid var(--nv-edge);background:var(--nv-glass);display:grid;place-items:center;cursor:pointer;transition:transform 120ms}
+.nv-skl-ans button{width:44px;height:44px;border-radius:50%;border:1px solid var(--nv-edge);background:var(--nv-glass);display:grid;place-items:center;cursor:pointer;transition:transform 120ms var(--nv-ease)}
 .nv-skl-ans button:active{transform:scale(.94)}
 .nv-skl-ans svg{width:18px;height:18px;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .nv-skl-ans .yes svg{stroke:var(--nv-good)} .nv-skl-ans .no svg{stroke:var(--nv-ink60)}

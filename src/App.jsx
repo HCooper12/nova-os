@@ -14307,8 +14307,15 @@ export default class App extends Component {
       // a live session travels with the question — the Coach answers for the
       // gym floor when one is in progress (never for a history edit)
       const ws = this.state.workoutSession;
+      // WHICH LIFT IS OPEN: the card he is looking at (the same choice the
+      // session screen makes, valsSessionSummary), so "this exercise" means it
+      const okIdx = (i) => Number.isInteger(i) && i >= 0 && i < (ws?.exercises?.length || 0);
+      const sumKey = ws ? String(ws.startedAt ?? `${ws.routineId}:${ws.routineName}`) : null;
+      const viewing = !ws ? null
+        : this.state.sessionSumKey === sumKey && okIdx(this.state.sessionSumLift) ? this.state.sessionSumLift
+          : okIdx(ws.voiceCursor) && !ws.exercises[ws.voiceCursor].skipped ? ws.voiceCursor : null;
       const liveSession = ws && !this.state.editingSessionId
-        ? { routineName: ws.routineName, exercises: ws.exercises.map((e) => ({ name: e.name, skipped: !!e.skipped, sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe || null, done: !!s.done })) })) }
+        ? { routineName: ws.routineName, ...(viewing != null ? { viewing } : {}), exercises: ws.exercises.map((e) => ({ name: e.name, skipped: !!e.skipped, sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe || null, done: !!s.done })) })) }
         : null;
       // a trailing PROPOSE line is a typed directive for the server, not
       // prose — keep it out of the streamed render

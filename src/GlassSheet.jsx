@@ -70,6 +70,14 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
     closing.current = true;
     const el = drag.sheetRef.current;
     if (!el) { onClose(); return; }
+    // WHERE IT IS, NOT WHERE IT WAS GOING (10 Nov 2026, the "why iPhone feels
+    // so smooth" reel, detail five). A close tapped while the sheet was still
+    // growing used to start from the finished box: the sheet jumped to full
+    // size and then shrank. Read what is on screen, drop the grow, and leave
+    // from there.
+    const cs = getComputedStyle(el);
+    const here = { transform: cs.transform && cs.transform !== 'none' ? cs.transform : 'none', opacity: cs.opacity || 1 };
+    el.getAnimations?.().forEach((a) => a.cancel());
     if (reducedMotion()) {
       el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: 'ease-out' }).finished.catch(() => {}).then(onClose);
       return;
@@ -78,14 +86,14 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
     if (!first) {
       // a UI exit eases out, quick (never ease-in: it holds the sheet still
       // for the first beat of a dismiss he asked for; fluidity audit, 2 Nov)
-      el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'cubic-bezier(.23,1,.32,1)' }).finished.catch(() => {}).then(onClose);
+      el.animate([here, { transform: here.transform, opacity: 0 }], { duration: 160, easing: 'cubic-bezier(.23,1,.32,1)' }).finished.catch(() => {}).then(onClose);
       return;
     }
     const last = el.getBoundingClientRect();
     const dx = first.left - last.left, dy = first.top - last.top;
     const sx = first.width / last.width, sy = first.height / last.height;
     el.animate(
-      [{ transform: 'none', opacity: 1 },
+      [here,
        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.4 }],
       { duration: 300, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' },
     ).finished.catch(() => {}).then(onClose);

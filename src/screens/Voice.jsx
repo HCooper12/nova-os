@@ -79,7 +79,7 @@ function RailRow({ label, value, tone, barPct }) {
         <span style={css('white-space:nowrap')}>{label}</span><span style={{ color: tone || 'color-mix(in srgb, var(--nv-ink) 85%, transparent)', whiteSpace: 'nowrap' }}>{value}</span>
       </div>
       <div style={css("margin-top:6px;height:2px;background:color-mix(in srgb, var(--nv-cy) 14%, transparent)")}>
-        <div style={{ width: `${barPct}%`, height: '100%', background: 'var(--nv-cy)', transition: 'width .4s' }}></div>
+        <div style={{ width: `${barPct}%`, height: '100%', background: 'var(--nv-cy)', transition: 'width .4s var(--nv-ease)' }}></div>
       </div>
     </div>
   );

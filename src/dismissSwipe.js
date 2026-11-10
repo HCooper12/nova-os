@@ -21,6 +21,8 @@
 
 import { useRef } from 'react';
 import { decideDirection, startsInEdgeGuard } from './swipeCore.js';
+import { velocityFrom, rubberband } from './sheetPhysics.js';
+import { settleTo, catchSettle, liveOffset } from './settleSpring.js';
 
 // A share of the card's own width, so a narrow phone and a wide desktop ask
 // for the same GESTURE rather than the same number of pixels.
@@ -66,7 +68,10 @@ export function dismissStyle(dx, dy, locked, width = 360) {
   const need = dismissDistance(width);
   if (locked === 'v') {
     const p = Math.min(1, Math.max(0, -dy) / UP_DISMISS_PX);
-    return { x: 0, y: Math.min(0, dy), opacity: 1 - p * 0.75 };
+    // pulled DOWN, the wrong way for a dismiss: it gives a little and resists
+    // (the reel's rubber band, his yes 10 Nov 2026) rather than sitting dead
+    const y = dy > 0 ? rubberband(dy, UP_DISMISS_PX) : dy;
+    return { x: 0, y, opacity: 1 - p * 0.75 };
   }
   const p = Math.min(1, Math.abs(dx) / need);
   return { x: dx, y: 0, opacity: 1 - p * 0.55 };
@@ -89,7 +94,7 @@ const reduced = () => typeof matchMedia === 'function'
  */
 export function useDismissSwipe({ onDismiss, enabled = true }) {
   const ref = useRef(null);
-  const s = useRef({ id: null, x0: 0, y0: 0, t0: 0, locked: null, gone: false }).current;
+  const s = useRef({ id: null, x0: 0, y0: 0, t0: 0, locked: null, gone: false, samples: [] }).current;
 
   const paint = (style, animate) => {
     const el = ref.current;
@@ -102,6 +107,29 @@ export function useDismissSwipe({ onDismiss, enabled = true }) {
   };
 
   const reset = () => { s.id = null; s.locked = null; };
+
+  // SHORT OF IT, IT SPRINGS BACK at the speed the finger let go with
+  // (settleSpring.js): only the axis it was locked to moved, so only that
+  // one springs. The fade comes back on the old transition, and the card
+  // rests with the styles the old return left it in.
+  const back = (e) => {
+    const el = ref.current;
+    const locked = s.locked;
+    reset();
+    if (!el) return;
+    const axis = locked === 'v' ? 'y' : 'x';
+    const from = liveOffset(el, axis);
+    if (reduced() || !from) { paint({ x: 0, y: 0, opacity: 1 }, !reduced()); return; }
+    const now = performance.now();
+    if (e && e.clientX != null) s.samples.push({ t: now, x: e.clientX, y: e.clientY });
+    const v = velocityFrom(s.samples.map((p) => ({ t: p.t, v: axis === 'y' ? p.y : p.x })), now);
+    el.style.transition = 'opacity .28s ease';
+    el.style.opacity = '1';
+    settleTo(el, {
+      axis, from, to: 0, velocity: v, dampingRatio: 0.86,
+      onRest: () => paint({ x: 0, y: 0, opacity: 1 }, true),
+    });
+  };
 
   const settle = (dx, dy) => {
     const el = ref.current;
@@ -127,16 +155,25 @@ export function useDismissSwipe({ onDismiss, enabled = true }) {
         if (startsInEdgeGuard(e.clientX)) return;
         s.id = e.pointerId; s.locked = null;
         s.x0 = e.clientX; s.y0 = e.clientY; s.t0 = performance.now();
+        s.samples = [{ t: s.t0, x: e.clientX, y: e.clientY }];
         const el = ref.current;
+        // a finger landing on a card still springing back takes it where it
+        // IS: the drag carries on from that offset rather than jumping home
+        const caught = catchSettle(el);
+        if (caught) {
+          if (caught.axis === 'y') s.y0 -= caught.p; else s.x0 -= caught.p;
+        }
         if (el) el.style.transition = '';
       },
       onPointerMove: (e) => {
         if (s.id === null || e.pointerId !== s.id || s.gone) return;
         const dx = e.clientX - s.x0;
         const dy = e.clientY - s.y0;
+        s.samples.push({ t: performance.now(), x: e.clientX, y: e.clientY });
+        if (s.samples.length > 12) s.samples.shift();
         const w = ref.current?.offsetWidth || 360;
         const call = dismissDecision({ dx, dy, dt: performance.now() - s.t0, width: w, locked: s.locked });
-        if (call === 'cancel') { reset(); paint({ x: 0, y: 0, opacity: 1 }, true); return; }
+        if (call === 'cancel') { back(null); return; }
         if (call === 'waiting') return;
         if (call === 'lock-h') s.locked = 'h';
         if (call === 'lock-v') s.locked = 'v';
@@ -152,10 +189,9 @@ export function useDismissSwipe({ onDismiss, enabled = true }) {
         const w = ref.current?.offsetWidth || 360;
         const call = dismissDecision({ dx, dy, dt: performance.now() - s.t0, width: w, locked: s.locked });
         if (call === 'dismiss') { settle(dx, dy); return; }
-        reset();
-        paint({ x: 0, y: 0, opacity: 1 }, true);
+        back(e);
       },
-      onPointerCancel: () => { reset(); paint({ x: 0, y: 0, opacity: 1 }, true); },
+      onPointerCancel: () => back(null),
     },
   };
 }

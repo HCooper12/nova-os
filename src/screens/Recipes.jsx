@@ -124,7 +124,7 @@ function RotationCard({ s }) {
                 <span style={css("display:flex;gap:5px;flex:1;justify-content:center")}>
                   {s.options.map((o, i) => (
                     <Interactive key={o.id} as="span" onClick={o.focusIt} aria-label={`Focus ${o.name}`} title={o.name}
-                      base={{ cursor: 'pointer', width: '8px', height: '8px', borderRadius: '50%', transition: 'all .2s',
+                      base={{ cursor: 'pointer', width: '8px', height: '8px', borderRadius: '50%', transition: 'background .2s ease, box-shadow .2s ease',
                         background: i === s.focusIndex ? 'var(--nv-acc)' : o.eaten ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
                         boxShadow: i === s.focusIndex ? '0 0 8px -1px var(--nv-acc)' : 'none' }} />
                   ))}
@@ -147,7 +147,7 @@ function RotationCard({ s }) {
             <span style={{ width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: s.consumed ? '1.5px solid var(--nv-good)' : '1.5px solid var(--nv-edge)',
               background: s.consumed ? 'color-mix(in srgb, var(--nv-good) 15%, transparent)' : 'transparent',
-              boxShadow: s.consumed ? '0 0 12px -2px color-mix(in srgb, var(--nv-good) 70%, transparent)' : 'none', transition: 'all .2s' }}>
+              boxShadow: s.consumed ? '0 0 12px -2px color-mix(in srgb, var(--nv-good) 70%, transparent)' : 'none', transition: 'border-color .2s ease, background .2s ease, box-shadow .2s ease' }}>
               {s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}
             </span>
           </Interactive>
@@ -162,7 +162,7 @@ function RotationCard({ s }) {
                     base={{ cursor: 'pointer', width: '28px', height: '28px', marginLeft: '-6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
                     <span style={{ width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       border: o.eaten ? '1.5px solid var(--nv-good)' : '1.5px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)',
-                      background: o.eaten ? 'color-mix(in srgb, var(--nv-good) 18%, transparent)' : 'transparent', transition: 'all .2s' }}>
+                      background: o.eaten ? 'color-mix(in srgb, var(--nv-good) 18%, transparent)' : 'transparent', transition: 'border-color .2s ease, background .2s ease' }}>
                       {o.eaten ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg> : null}
                     </span>
                   </Interactive>

@@ -461,6 +461,17 @@ async function fileRoute(vaultPath, decision, { source = 'inbox' } = {}) {
     };
   }
 
+  // Coach's rename: the library's label only, the id (and so every set, best,
+  // routine slot and clip) stays; undo puts the entry back as stored
+  if (route === 'exercise-rename') {
+    const { renameExercise } = await import('./exercises.js');
+    const { exercise, before, prior, unchanged } = await renameExercise(vaultPath, payload.exerciseId, payload.newName);
+    return {
+      destination: unchanged ? `Exercise library — ${exercise.name} already had that name` : `Exercise library — ${before} is now ${exercise.name}; its history and routines stayed on it`,
+      undo: { kind: 'exercise-rename', exerciseId: payload.exerciseId, before, ...(prior ? { prior } : {}) },
+    };
+  }
+
   // HIS YES TO AN AUDIT CARD (lib/exerciseAudit.js): the proposed mapping is
   // written onto the lift as his own, and its sets count from now on
   if (route === 'exercise-audit') {
@@ -1339,6 +1350,11 @@ async function undoRoute(vaultPath, undo) {
   if (undo.kind === 'exercise-research') {
     const { undoResearch } = await import('./exerciseResearch.js');
     return undoResearch(vaultPath, undo);
+  }
+  if (undo.kind === 'exercise-rename') {
+    const { restoreExerciseRecords } = await import('./exercises.js');
+    await restoreExerciseRecords(vaultPath, { priors: { [undo.exerciseId]: undo.prior } });
+    return `${undo.before} has its name back`;
   }
   // put an exercise back where it was — the volume bars follow it back, since
   // they read the library at query time

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { NovaCore } from '../NovaCore.jsx';
 import { agoWords } from '../vals/valsWall.js';
 import { CountUp } from '../CountUp.jsx';
+import { rubberband, velocityFrom } from '../sheetPhysics.js';
+import { settleTo, catchSettle } from '../settleSpring.js';
 
 // THE WALL (mockup 86, blend 1 "Hands up", his pick of 9 Oct 2026: "I like
 // option 1"). A phone on a stand, or the Mac: StandBy's glance. At rest it
@@ -281,7 +283,10 @@ function Sheet({ w, open, shape, onClose, onAsk, onInbox, onTalk }) {
   const picked = pick ? w.all.find((b) => b.id === pick) : null;
   const down = (e) => {
     if (shape !== 'P' || e.target.closest('button')) return;
-    drag.current = { y: e.clientY, t: performance.now(), dy: 0 };
+    const t = performance.now();
+    // a finger landing on a sheet still springing back takes it where it IS
+    const caught = catchSettle(ref.current);
+    drag.current = { y: e.clientY - (caught ? caught.p : 0), t, dy: caught ? caught.p : 0, s: [{ t, v: e.clientY }] };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* fine */ }
     ref.current.classList.add('drag');
   };
@@ -289,16 +294,38 @@ function Sheet({ w, open, shape, onClose, onAsk, onInbox, onTalk }) {
     const g = drag.current;
     if (!g) return;
     g.dy = e.clientY - g.y;
-    ref.current.style.transform = `translateY(${g.dy < 0 ? g.dy * 0.2 : g.dy}px)`;
+    g.s.push({ t: performance.now(), v: e.clientY });
+    if (g.s.length > 12) g.s.shift();
+    // up past its open height it gives less the further it is pulled (the
+    // same 0.2 at first), never a hard stop
+    ref.current.style.transform = `translateY(${g.dy < 0 ? rubberband(g.dy, ref.current.offsetHeight || 600, 0.2) : g.dy}px)`;
   };
   const up = () => {
     const g = drag.current;
     drag.current = null;
     if (!g) return;
-    ref.current.classList.remove('drag');
-    ref.current.style.transform = '';
-    const vel = g.dy / Math.max(1, performance.now() - g.t);
-    if (g.dy > 90 || vel > 0.5) onClose();
+    const el = ref.current;
+    const now = performance.now();
+    const vel = g.dy / Math.max(1, now - g.t);
+    const close = g.dy > 90 || vel > 0.5;
+    // the resting style the drag found it in; the sheet's own CSS then holds it open or closed
+    const rest = () => { el.classList.remove('drag'); el.style.transform = ''; el.style.visibility = ''; };
+    if (reduced()) { rest(); if (close) onClose(); return; }
+    // the release carries on at the finger's speed (settleSpring.js): down
+    // and off when it closes, back up when it stays. `.drag` keeps the CSS
+    // transition off while the spring runs
+    const h = el.offsetHeight || 600;
+    const from = g.dy < 0 ? rubberband(g.dy, h, 0.2) : g.dy;
+    const v = velocityFrom(g.s, now);
+    if (close) {
+      // closed, the sheet is hidden at once by its CSS; it stays visible for
+      // the length of its own exit, which the CSS slide used to be
+      el.style.visibility = 'visible';
+      settleTo(el, { axis: 'y', from, to: h * 1.02, velocity: Math.max(v, 0.3), response: 0.3, onRest: rest });
+      onClose();
+    } else {
+      settleTo(el, { axis: 'y', from, to: 0, velocity: v, dampingRatio: 0.86, onRest: rest });
+    }
   };
   return (
     <div ref={ref} className="sheet" data-sheet="root" role="dialog" aria-modal="true" aria-label="Your agents" aria-hidden={!open} inert={!open ? true : undefined}>
@@ -410,14 +437,36 @@ export function Ambient({ v }) {
   }, []);
 
   // the glance and Lately swipe sideways; a swipe down leaves (upright)
+  // the release of a sideways swipe: a spring from where the track is to
+  // page j at the finger's speed (settleSpring.js), then the resting style
+  // React itself writes for page j
+  const settlePage = (from, j, vel) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rest = () => { el.style.transition = ''; el.style.transform = `translateX(${-j * 100}%)`; };
+    if (reduced()) { rest(); return; }
+    el.style.transition = 'none';
+    settleTo(el, { from, to: -j * (rootRef.current?.clientWidth || 0), velocity: vel, response: 0.4, onRest: rest });
+  };
+  // a dot pressed while a swipe is still settling turns it from where it is
+  const turnTo = (j) => {
+    const caught = catchSettle(trackRef.current);
+    setPage(j);
+    if (caught) settlePage(caught.p, j, 0);
+  };
   const down = (e) => {
     if (sheet) return;
-    gest.current = { x: e.clientX, y: e.clientY, t: performance.now(), dx: 0, dy: 0, axis: null };
+    const t = performance.now();
+    // a finger landing mid-settle takes the track where it IS on screen
+    const caught = catchSettle(trackRef.current);
+    gest.current = { x: e.clientX, y: e.clientY, t, dx: 0, dy: 0, axis: null, base: caught ? caught.p : null, p: null, s: [{ t, v: e.clientX }] };
   };
   const move = (e) => {
     const g = gest.current;
     if (!g) return;
     g.dx = e.clientX - g.x; g.dy = e.clientY - g.y;
+    g.s.push({ t: performance.now(), v: e.clientX });
+    if (g.s.length > 12) g.s.shift();
     if (!g.axis && Math.hypot(g.dx, g.dy) > 10) {
       g.axis = Math.abs(g.dx) > Math.abs(g.dy) ? 'x' : 'y';
       if (g.axis === 'x' && pages > 1) {
@@ -427,19 +476,29 @@ export function Ambient({ v }) {
     }
     if (g.axis === 'x' && pages > 1) {
       const W = rootRef.current.clientWidth;
-      const edge = (page === 0 && g.dx > 0) || (page === pages - 1 && g.dx < 0);
-      trackRef.current.style.transform = `translateX(${-page * W + (edge ? g.dx * 0.3 : g.dx)}px)`;
+      const min = -(pages - 1) * W;
+      let p = (g.base ?? -page * W) + g.dx;
+      // past the first or last page it gives less the further it is pulled
+      // (the same 0.3 at first), never a hard stop
+      if (p > 0) p = rubberband(p, W, 0.3);
+      else if (p < min) p = min + rubberband(p - min, W, 0.3);
+      g.p = p;
+      trackRef.current.style.transform = `translateX(${p}px)`;
     }
   };
   const up = () => {
     const g = gest.current;
     gest.current = null;
-    if (!g?.axis) return;
-    const vel = Math.hypot(g.dx, g.dy) / Math.max(1, performance.now() - g.t);
+    if (!g) return;
+    // caught mid-settle and let go without a swipe: it finishes where it was going
+    if (g.base != null && !(g.axis === 'x' && pages > 1)) settlePage(g.base, page, 0);
+    if (!g.axis) return;
+    const now = performance.now();
+    const vel = Math.hypot(g.dx, g.dy) / Math.max(1, now - g.t);
     if (g.axis === 'x' && pages > 1) {
-      trackRef.current.style.transition = '';
-      trackRef.current.style.transform = '';
-      if (Math.abs(g.dx) > 60 || vel > 0.35) setPage(Math.max(0, Math.min(pages - 1, page + (g.dx < 0 ? 1 : -1))));
+      let j = page;
+      if (Math.abs(g.dx) > 60 || vel > 0.35) { j = Math.max(0, Math.min(pages - 1, page + (g.dx < 0 ? 1 : -1))); setPage(j); }
+      settlePage(g.p ?? -page * rootRef.current.clientWidth, j, velocityFrom(g.s, now));
     } else if (g.axis === 'y' && shape === 'P' && g.dy > 90) {
       leave();
     }
@@ -540,7 +599,7 @@ export function Ambient({ v }) {
         <div className="foot">
           <div className="pd" role="group" aria-label="Pages">
             {['The glance', 'Lately'].map((n, i) => (
-              <button key={n} type="button" aria-label={n} aria-current={page === i} onClick={(e) => { e.stopPropagation(); setPage(i); }}><i /></button>
+              <button key={n} type="button" aria-label={n} aria-current={page === i} onClick={(e) => { e.stopPropagation(); turnTo(i); }}><i /></button>
             ))}
           </div>
           {sync && <span className="sync" style={shape === 'L' ? { alignSelf: 'center' } : undefined}>{sync}</span>}

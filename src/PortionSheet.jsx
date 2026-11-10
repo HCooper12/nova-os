@@ -1,6 +1,7 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useSheetDrag } from './useSheetDrag.js';
+import { useExit } from './useExit.js';
 import { Eyebrow, Button } from './Controls.jsx';
 
 // LOG ANY MEAL — one sheet, callable from anywhere.
@@ -17,10 +18,11 @@ const M = 'var(--nv-font-mono)';
 export function PortionSheet({ p }) {
   // drag the handle down to dismiss — the same gesture as the exercise sheet
   const drag = useSheetDrag(p.cancel);
+  const exit = useExit(p.cancel);
   return (
-    <div role="dialog" aria-modal="true" aria-label={`Log ${p.name}`} onClick={p.cancel}
+    <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={`Log ${p.name}`} onClick={exit.close}
       style={css('position:fixed;inset:0;z-index:130;display:flex;align-items:flex-end;justify-content:center;background:rgba(8,5,12,.7);backdrop-filter:blur(6px)')}>
-      <div ref={drag.sheetRef} data-sheet="" onClick={(e) => e.stopPropagation()}
+      <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; }} data-sheet="" onClick={(e) => e.stopPropagation()}
         style={css('width:520px;max-width:100vw;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);border-radius:18px 18px 0 0;background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 -20px 60px -20px rgba(0,0,0,.9);padding:8px 20px calc(20px + env(safe-area-inset-bottom));animation:sheetUp var(--nv-dur-base) var(--nv-ease)')}>
         <div {...drag.handleProps} style={{ ...drag.handleProps.style, display: 'flex', justifyContent: 'center', padding: '6px 0 12px' }}>
           <span aria-hidden="true" style={css('width:36px;height:5px;border-radius:3px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent)')} />
@@ -53,7 +55,7 @@ export function PortionSheet({ p }) {
             <div style={css('font-size:13px')}>{p.loggedName || p.name}</div>
             <div style={{ marginTop: '3px', font: 'var(--nv-micro-l)', color: p.valid ? 'var(--nv-good)' : '#e08f6f' }}>{p.preview}</div>
           </div>
-          <Interactive as="span" onClick={p.cancel}
+          <Interactive as="span" onClick={exit.close}
             base={`cursor:pointer;font:var(--nv-micro-m);padding:11px 15px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`}
             hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
           <Button onClick={p.confirm} disabled={!p.valid} tone="good">LOG IT</Button>

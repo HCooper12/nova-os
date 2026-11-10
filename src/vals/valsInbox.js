@@ -119,6 +119,7 @@ export const ROUTE_META = {
   'progression-tune': { label: 'COACH TUNE', hue: '224,178,106' },
   'train-today': { label: 'TODAY ONLY', hue: '224,178,106' },
   'exercise-remap': { label: 'RE-FILED', hue: '89,230,255' },
+  'exercise-rename': { label: 'RENAMED', hue: '89,230,255' },
   // a new lift's drafted muscle mapping: gold, because it waits on his check
   'exercise-audit': { label: 'MUSCLE AUDIT', hue: '224,178,106' },
   reminder: { label: 'REMINDER', hue: '89,230,255' },
