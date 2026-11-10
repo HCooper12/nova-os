@@ -11,6 +11,18 @@ the session log at the foot is append-only.
 
 ---
 
+## 10 Nov (night, Fable 5.2): MAC STAGE SHIPPED (c8387a44). FELT SPEED built on branch `felt-speed`, NOT merged, NOT pushed. Phone stage in progress
+- MAC STAGE: his "1. Now". Merged and pushed as c8387a44, deploy checked down to the served bundle, server reloaded with the script. NOT CONFIRMED on his Mac: he has to open or reload Nova there.
+- FELT SPEED (his reel, @motion_ui_interface "Why iPhone feels so smooth", "build in these"): six commits on `felt-speed` (worktree .claude/worktrees/felt-speed, off c8387a44): cbb7283b press on touchdown held 90 ms, springs back (Interactive.jsx); 7ee4f047 the same press for every plain button (index.css, main.jsx); 4eb36909 + 51b0f7c9 a sheet closed mid-rise leaves from where it is (useExit.js `leaveFromHere`, GlassSheet, Portion/Exercise/Reply sheets); e8cbd96b easing tokens in place of stock curves; 2bf8a51c a flick carries its speed into the settle and edges rubber-band (settleSpring.js, YourDay pager, Ambient, RailCard, dismissSwipe).
+- VERIFIED (WebKit 390 px, second server on scratch copies): press on Home and Train; day pager flick, catch mid-settle with no jump, 220 px pull gives 54.9 px; ReplySheet and the Fuel week GlassSheet closed mid-rise continue from live values. Gates: lint 0 errors, build green, server suite 5441 pass, 0 fail.
+- NOT VERIFIED: Ambient, RailCard and dismissSwipe spring-back, Portion and Exercise sheet exits on screen, the easing sweep by eye, the recordings (made, not watched), and all touch feel on his iPhone.
+- NOT POSSIBLE: the reel's continuous corners. WebKit 26 has no `corner-shape`.
+- SEEN, LEFT ALONE: GlassSheet's morph back ends at opacity 0.4 then unmounts and its scrim does not fade; ReplySheet's scrim has no fade.
+- PHONE STAGE: an opus agent is building it in .claude/worktrees/phone-stage (its own server on 4175). On its report: read `git log -p`, compare shots and recordings to 114, run the gates, before any merge.
+- WAITING ON HIM: merge and push felt-speed; whether a card dragged the wrong way in dismissSwipe should rubber-band (changes server/test/dismissSwipe.test.js:74).
+- PEER: `stash@{0}` is a peer's and holds a copy of my Interactive edit. Never pop or drop it. If main shows an uncommitted src/Interactive.jsx after felt-speed merges, it is that duplicate.
+- NEXT: the phone stage, then the characters with the lag fixed, then Train and Fuel as panels with the Settings switch back. After the stage: Chef and Coach, then the 17 exercises.
+
 ## 10 Nov (evening, Fable 5.2): 114 APPROVED, all three. THE BUILD HAS STARTED: phase 1 done (26a060d9, local, not pushed)
 - HIS ANSWERS to 114: (1) agents are the CHARACTERS, but his iPhone recording of the mockup lagged "quite a lot", so "this needs to be fixed in the actual build"; (2) the phone: "Yes, it looks excellent"; (3) pages as panels: yes to trying it, WITH a Settings switch back to the current Fuel and Train views "just in case I change my mind".
 - THE LAG, MEASURED from his recording (ScreenRecording_11-10-2026_09-45-28, 12.2 s, the agents scene in the in-app page viewer): 29 to 54 frames a second, gaps of 67 to 103 ms in every second. Cause in the mockup: five three.js characters drawn every frame on BOTH the Mac stage and the phone stage on one page, plus a snapshot of each into a 2D canvas for the phone portraits. BUILD RULE: one stage on screen; one shared renderer; draw a character only while it moves, hold a still otherwise; small portraits are stills; pixel ratio capped; measured on his iPhone in WebKit before it is called done. ACCEPTANCE: no dropped frames he can see in a recording of the agents scene on his phone.
