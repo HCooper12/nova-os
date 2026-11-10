@@ -24,6 +24,25 @@ html, body { overscroll-behavior: none; }
   overscroll-behavior: contain;
 }
 button, a, label, select, input, textarea, [role="button"] { touch-action: manipulation; }
+/* THE TOUCHDOWN, for every button that is not an Interactive (10 Nov 2026, his
+   "why iPhone feels so smooth" reel, details one and two). About 490 plain
+   <button>s had no pressed state at all unless their page drew one: a tap
+   showed nothing until the release did its work. Now a finger landing dips
+   the control at once, and letting go springs it back.
+   :where() carries no specificity, so any page that draws its own press, and
+   every Interactive (which sets transform inline), still wins. The transition
+   skips an element whose transform is being written inline, so a button that
+   is dragged or FLIPped is never put on a spring it did not ask for. */
+:where(button, [role="button"]):where(:not(:disabled, [aria-disabled="true"], [style*="transform"])) {
+  transition: transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy);
+}
+:where(button, [role="button"]):where(:not(:disabled, [aria-disabled="true"])):active {
+  transform: scale(.97);
+  transition: transform 90ms cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"]):where(:not(:disabled, [aria-disabled="true"], [style*="transform"])) { transition: transform .12s ease; }
+}
 /* A held finger on a CONTROL must not select its label or raise the iOS
    copy/share callout — native controls never do. Long-press is a real Nova
    gesture (longPress.js, 480ms), so the two were fighting for the same hold
