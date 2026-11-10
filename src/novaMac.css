@@ -10,6 +10,16 @@
   font: 15px/1.45 var(--nv-font-ui); -webkit-font-smoothing: antialiased;
   background: radial-gradient(ellipse 60% 55% at 12% 0%, var(--nv-aur1), transparent 70%), radial-gradient(ellipse 55% 60% at 92% 96%, var(--nv-aur2), transparent 70%), var(--nv-void);
   --fx-ink: var(--nv-ink); --fx-ink3: var(--nv-ink40); --fx-quiet: color-mix(in srgb, var(--nv-ink) 7%, transparent);
+  /* THE MOCKUP'S LOOK, PINNED (his pick, 10 Nov 2026: "Go mockup look").
+     Mockup 114 is drawn in the command tokens; his Summary style turns the
+     same tokens into white-tinted glass at a 22 px corner with the brackets
+     off. The stage wears 114's surfaces in every style, as the phone stage
+     does (novaPhone.css, --ph-*). Type and accent hues stay the app's. */
+  --nv-void: #06070d; --nv-bg1: #0a0f1e; --nv-bg2: #111a32;
+  --nv-glass: rgba(16, 20, 36, .62); --nv-glass2: rgba(26, 32, 54, .8); --nv-well: rgba(0, 0, 0, .3);
+  --nv-edge: rgba(130, 175, 255, .24); --nv-spec: rgba(190, 225, 255, .45);
+  --nv-radius: 10px; --nv-bracket: rgba(89, 230, 255, .55);
+  --nv-gridline: rgba(130, 175, 255, .045); --nv-aur1: rgba(89, 230, 255, .12); --nv-aur2: rgba(143, 123, 255, .14);
 }
 .nv-mac::before {
   content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
