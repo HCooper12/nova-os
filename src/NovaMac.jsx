@@ -15,7 +15,7 @@ import { clockNow } from './speechClock.js';
 import { TOKEN_RE } from './artifactBlocks.js';
 import { CountUp } from './CountUp.jsx';
 import { StageForm } from './StageForms.jsx';
-import { stageForm, cardDrawable, proposalCard } from './stageFormFacts.js';
+import { stageForm, cardDrawable, proposalCard, cardLineKey } from './stageFormFacts.js';
 import { consultOf, subscribeConsult } from './motion/consultFeed.js';
 import {
   frameFor, macCoreScale, macState, satellitesOf, thinkingLine, SAT_SLOTS, SAT_SLOTS_DOCKED,
@@ -101,6 +101,7 @@ const G = {
   doc: <path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20zM14 3.5V8h4M9.5 12.5h5M9.5 16h5" />,
 };
 const Gl = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">{G[n]}</svg>;
+const todayIso = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 const minutesNow = () => { const t = new Date(); return t.getHours() * 60 + t.getMinutes(); };
 const Kbd = ({ children }) => <kbd className="nv-mac-kbd">{children}</kbd>;
 
@@ -442,7 +443,17 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const wallAll = (() => {
     const seen = new Set();
     const out = [];
-    const add = (key, card, extra = {}) => { if (!key || !card || seen.has(key) || gone.has(key) || !cardDrawable(card)) return; seen.add(key); out.push({ key, card, ...extra }); };
+    // ONE THING SAID IS ONE PANEL: a later beat or record that says what an
+    // earlier panel already says (its first row or line) joins it, never a
+    // second copy (his real brief: the Coach line twice)
+    const said = new Set();
+    const add = (key, card, extra = {}) => {
+      if (!key || !card || seen.has(key) || gone.has(key) || !cardDrawable(card)) return;
+      const line = cardLineKey(card);
+      if (line && said.has(line)) return;
+      if (line) said.add(line);
+      seen.add(key); out.push({ key, card, ...extra });
+    };
     for (const [key, card] of pinned) add(key, card, { pinned: true });
     for (const [key, card] of brought) add(key, card, { brought: true });
     for (const l of lookupCards) add(l.key, l.card);
@@ -1062,7 +1073,7 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
               <div key={d.key} className={`nv-mac-sslot${isIn ? ' in' : ''}${l.folded ? ' fold' : ''}${lit ? ' lit' : ''}${isOpen ? ' open' : ''}`}
                 style={{ left: l.x, top: l.y, width: l.w, '--ex': `${l.ex}px`, '--ey': `${l.ey}px`, '--fx': `${l.fx}px`, '--fy': `${l.fy}px`, '--ry': `${l.ry}deg` }}
                 aria-hidden={l.folded || undefined}>
-                <MacPanel d={d} wall stage={stageEyebrow(d.card)} openRect={wallOpenRect(view.w, view.h)} arriving={!speaking && !!d.card.lookup && !(T.lookup?.done ?? true)}
+                <MacPanel d={d} wall stage={stageEyebrow(d.card, { today: todayIso() })} openRect={wallOpenRect(view.w, view.h)} arriving={!speaking && !!d.card.lookup && !(T.lookup?.done ?? true)}
                   refFn={(el) => { if (el) panelRefs.current.set(d.key, el); else panelRefs.current.delete(d.key); }}
                   lit={lit} held={!lit} open={isOpen} dim={!!openKey && openKey !== d.key} hover={hoverKey === d.key} pinned={!!d.pinned} out={false} view={view}
                   onHover={(on) => setHoverKey(on ? d.key : (k) => (k === d.key ? null : k))}
@@ -1276,7 +1287,7 @@ function StageSheet({ panels, folded, heights = {}, onClose, onRecord }) {
           {cols.map((c, ci) => (
             <div key={ci} className="col">
               {c.map((d) => {
-                const e = stageEyebrow(d.card);
+                const e = stageEyebrow(d.card, { today: todayIso() });
                 const hue = stageHue(d.card, panelHead(d.card).hue);
                 return (
                   <div key={d.key} className="nv-mac-pnl in" style={{ '--h': hue }}>

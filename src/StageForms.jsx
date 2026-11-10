@@ -28,7 +28,7 @@ function formBody(f, decide, onDiscuss, records, onRecordAct) {
       return (
         <div className="ringrow">
           <svg className="ring" viewBox="0 0 100 100" aria-hidden="true"><circle className="tr" cx="50" cy="50" r="42" pathLength="100" /><circle className="fg" cx="50" cy="50" r="42" pathLength="100" style={{ '--v': f.pct }} /></svg>
-          <div className="fig"><b><Num value={f.value} /><span className="u">of {f.of}</span></b>{f.small && <small>{f.small}</small>}</div>
+          <div className="fig"><b><Num value={f.value} /><span className="u">of {f.of}{f.unit ? ` ${f.unit}` : ''}</span></b>{f.small && <small>{f.small}</small>}</div>
         </div>
       );
     case 'fig':
@@ -42,14 +42,14 @@ function formBody(f, decide, onDiscuss, records, onRecordAct) {
       return (
         <>
           <div className={`bars${f.target != null ? ' tgt' : ''}`} style={f.target != null ? { '--t': `${f.target}%` } : undefined}>
-            {f.rows.map((r, i) => <i key={i} className={r.low ? 'low' : undefined} style={{ '--v': `${r.pct}%`, '--i': i }} />)}
+            {f.rows.map((r, i) => <i key={i} className={r.low ? 'low' : undefined} style={{ '--v': `${r.pct}%`, '--i': i, ...(r.hue ? { '--c': r.hue } : {}) }} />)}
           </div>
           <div className="barl">{f.rows.map((r, i) => <span key={i}>{r.name}</span>)}</div>
           {(f.legend || f.foot) && <div className="pfoot">{f.legend || f.foot}</div>}
         </>
       );
     case 'rows':
-      return <><ul className="rows">{f.items.map((it, i) => <li key={i}><i />{it.name}<span>{it.note}</span></li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
+      return <><ul className="rows">{f.items.map((it, i) => <li key={i}><i style={it.hue ? { '--c': it.hue } : undefined} />{it.name}{it.note && <span>{it.note}</span>}</li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
     case 'timeline':
       return <><ul className="tl">{f.items.map((it, i) => <li key={i} className={it.now ? 'now' : it.past ? 'past' : undefined}><time>{it.time}</time>{it.name}</li>)}</ul>{f.foot && <div className="pfoot">{f.foot}</div>}</>;
     case 'dots':

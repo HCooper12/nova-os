@@ -10,6 +10,8 @@
 // the plain form (null) and a blank scope. Tested in
 // server/test/stageFormFacts.test.js.
 
+import { MUSCLE_TOKEN } from './muscleHue.js';
+
 // what a card needs before anything is drawn for it (the rules StageCard has
 // always applied, lifted out so the stage never draws an empty frame)
 const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program', 'session', 'sources', 'page', 'video', 'figure', 'quote', 'entity', 'note', 'map']);
@@ -17,7 +19,9 @@ export function cardDrawable(card) {
   if (!card) return false;
   if (card.macKind) return true;
   if (card.kind === 'proposal') return !!card.title;
-  if (card.kind === 'instrument') return !!card.data;
+  // on the stage an instrument is drawn only in a mockup form, from its own
+  // data: never the instrument component, and never its 3D figure
+  if (card.kind === 'instrument') return !!card.data && !!instrumentForm(card).form;
   if (!DRAWABLE.has(card.kind)) return false;
   if (card.state === 'dropped') return false;
   const has = (a) => Array.isArray(a) && a.length > 0;
@@ -79,6 +83,122 @@ export function sparkPath(values, { w = 280, h = 84, pad = 6 } = {}) {
   return { d: pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '), end: pts[pts.length - 1] };
 }
 
+/** A row cut by its builder at a fixed length (listCard: 46) breaks at a
+ *  word with an ellipsis instead of mid-word. Pure. */
+export function wordCut(text, max = 46) {
+  const t = String(text || '').trim();
+  if (t.length < max) return t;
+  const cut = t.slice(0, max).replace(/\s+\S*$/, '').replace(/[\s,;:.\-–—]+$/, '');
+  return `${cut || t.slice(0, max)}…`;
+}
+
+const hhmmOf = (h) => { const m = Math.round(h * 60); return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+const hueOfMuscle = (m) => (MUSCLE_TOKEN[m] ? `var(${MUSCLE_TOKEN[m]})` : null);
+
+/**
+ * THE BRIEFING'S INSTRUMENTS IN THE MOCKUP'S FORMS (round four). Each from
+ * the instrument's own payload (server/lib/instruments.js), and only what
+ * it holds:
+ *   week   his steps per day against the streak's floor: the STEPS ring,
+ *          days on target of the days shown
+ *   vitals HRV against his own band: one number, its verdict as the claim
+ *   fuel   today's protein against his floor: one number on a ring, behind
+ *          pace as the claim (the payload holds no week series)
+ *   body   the session and its lifts as his program states them: TRAIN rows
+ *   day    the timed blocks of today's calendar: the YOUR DAY timeline
+ * { form: null } when the payload cannot carry its form. Pure.
+ */
+export function instrumentForm(card, { now = null } = {}) {
+  const none = { form: null, meta: '', title: '', hue: null, tag: '' };
+  const d = card?.data;
+  if (!d || d.ok === false) return none;
+  switch (card.instrument) {
+    case 'week': {
+      const known = (d.series || []).filter((x) => x && x.steps != null);
+      if (!known.length) return none;
+      const floor = Number(d.floor) > 0 ? Number(d.floor) : null;
+      if (!floor) return { ...none, form: 'fig', tag: 'Steps', value: String(d.total ?? known.reduce((a, x) => a + x.steps, 0)), unit: 'steps', small: 'this week', meta: `${(d.series || []).length} days`, hue: 'var(--nv-cy)' };
+      const on = known.filter((x) => x.steps >= floor).length;
+      const of = (d.series || []).length;
+      return { ...none, form: 'ring', tag: 'Steps', value: String(on), of, pct: Math.round((on / of) * 100), small: 'days on target', meta: `${of} days`, hue: 'var(--nv-cy)' };
+    }
+    case 'vitals': {
+      if (d.hrv == null) return none;
+      const bits = [];
+      if (d.restingHr != null) bits.push(`resting heart ${d.restingHr} bpm`);
+      if (d.stale && d.date) bits.push(`from ${d.date}`);
+      const title = d.band && d.delta != null
+        ? (d.delta >= 5 ? `${d.delta}% above your usual` : d.delta <= -5 ? `${Math.abs(d.delta)}% below your usual` : 'Inside your usual range')
+        : '';
+      return { ...none, form: 'fig', tag: 'HRV', value: String(d.hrv), unit: 'ms', small: bits.join(' · '), title, meta: d.band ? `vs ${d.band.n} days` : '', hue: 'var(--nv-vi)' };
+    }
+    case 'fuel': {
+      const floor = Number(d.floor) > 0 ? Number(d.floor) : null;
+      if (d.eaten == null || !floor) return none;
+      const small = [d.behind > 0 ? `${d.behind} g behind pace` : null, d.planned ? `${d.planned} g planned` : null].filter(Boolean).join(' · ');
+      return { ...none, form: 'ring', tag: 'Protein', value: String(d.eaten), of: floor, unit: 'g', pct: Math.min(100, Math.round((d.eaten / floor) * 100)), small,
+        title: d.behind > 0 ? `Behind pace by ${d.behind} g` : d.pace != null ? 'On pace for your floor' : '', meta: 'today', hue: 'var(--nv-gold)' };
+    }
+    case 'body': {
+      const lifts = (d.lifts || []).filter((l) => l && l.name);
+      if (!d.session) return none;
+      if (!lifts.length) return { ...none, form: 'fig', tag: 'Train', value: String(d.exercises || 0), unit: 'lifts', small: 'in today’s session', title: d.session, hue: 'var(--nv-m-back)' };
+      const reps = (l) => (l.repsLow && l.repsHigh && l.repsHigh !== l.repsLow ? `${l.repsLow}-${l.repsHigh}` : l.repsLow || l.repsHigh || null);
+      const items = lifts.map((l) => ({ name: l.name, note: l.sets && reps(l) ? `${l.sets} × ${reps(l)}` : l.sets ? `${l.sets} sets` : '', hue: hueOfMuscle(l.muscle) }));
+      return { ...none, form: 'rows', tag: 'Train', title: `${d.session}, ${lifts[0].name.toLowerCase()} first`, items, meta: `${lifts.length} lifts`, hue: 'var(--nv-m-back)' };
+    }
+    case 'day': {
+      const blocks = (d.blocks || []).filter((b) => b && Number.isFinite(b.t));
+      if (!blocks.length) return none;
+      const nowH = now != null ? now / 60 : Number(d.now);
+      const next = Number.isFinite(nowH) ? blocks.findIndex((b) => b.t >= nowH) : -1;
+      return { ...none, form: 'timeline', tag: 'Your day', items: blocks.map((b, i) => ({ name: b.label, time: hhmmOf(b.t), now: i === next, past: Number.isFinite(nowH) && b.t + (b.len || 0) <= nowH })), meta: `${blocks.length} fixed`, hue: 'var(--nv-nova)' };
+    }
+    default: return none;
+  }
+}
+
+/** THE SHORT SUBJECT (mockup 114's eyebrow): a briefing label's subject,
+ *  with its detail moved to the scope when it is short and to the claim
+ *  title when it is a phrase. "WEEK OF <this week's Monday>" reads "this
+ *  week". `today` is YYYY-MM-DD. Pure. */
+const SUBJECT = [
+  [/^worth keeping in mind$/i, 'Keep in mind'],
+  [/^waiting on you$/i, 'Needs your word'],
+  [/^the fleet, (overnight|today)$/i, 'Overnight'],
+  [/^today[’']s technique$/i, 'Technique'],
+  [/^today[’']s session$/i, 'Train'],
+  [/^(today|tomorrow)$/i, 'Your day'],
+];
+export function stageTag(label, { today = null } = {}) {
+  const raw = String(label || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return { tag: '', scope: '', title: '' };
+  const [head, ...rest] = raw.split(/\s+·\s+/);
+  let detail = rest.join(' · ');
+  let tag = head.split(/\s+vs\.?\s+/i)[0];
+  for (const [re, short] of SUBJECT) if (re.test(tag)) { tag = short; break; }
+  if (/^the fleet, today$/i.test(head)) detail = detail || 'today';
+  if (/^\d+ on the calendar$/i.test(detail)) detail = '';
+  const week = detail.match(/^week of (\d{4}-\d{2}-\d{2})$/i);
+  if (week) {
+    const monday = (() => { if (!today) return null; const t = new Date(`${today}T12:00:00`); const dow = (t.getDay() + 6) % 7; t.setDate(t.getDate() - dow); return t.toISOString().slice(0, 10); })();
+    const at = new Date(`${week[1]}T12:00:00`);
+    detail = monday === week[1] ? 'this week' : `week of ${at.getDate()} ${at.toLocaleDateString('en-AU', { month: 'short' })}`;
+  }
+  const lower = detail.toLowerCase();
+  const short = lower.length <= 16;
+  return { tag, scope: detail && short ? lower : '', title: detail && !short ? `${lower[0].toUpperCase()}${lower.slice(1)}` : '' };
+}
+
+/** What a card SAYS, for telling two panels apart: its first row or line,
+ *  without punctuation or case. Two cards that say the same first thing are
+ *  one panel on the stage. Pure. */
+export function cardLineKey(card) {
+  const first = card?.items?.[0]?.name || card?.lines?.[0] || card?.caption || card?.text || '';
+  const k = String(first).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().slice(0, 32);
+  return k.length >= 12 ? k : '';
+}
+
 /**
  * The form one card takes on the Mac stage. Returns { form, meta, title,
  * hue, ...the form's own data }, or { form: null, meta: '', title: '' }
@@ -90,6 +210,7 @@ export function stageForm(card, { now = null } = {}) {
   const none = { form: null, meta: '', title: '', hue: null };
   if (!card || card.macKind) return none;
   const k = card.kind;
+  if (k === 'instrument') { const f = instrumentForm(card, { now }); return f.form ? f : none; }
 
   if (k === 'proposal') {
     return { ...none, form: 'proposal', title: card.title || '', body: card.body || '', meta: card.who || '', hue: 'var(--nv-good)', status: card.status || 'pending' };
@@ -121,7 +242,10 @@ export function stageForm(card, { now = null } = {}) {
     const ref = bars.reduce((a, b) => (Number(b.pct) > Number(a.pct) ? b : a), bars[0]);
     const max = Number(ref.pct) > 0 ? (Number(ref.value) * 100) / Number(ref.pct) : null;
     const tPct = num(card.targetPct) ?? (target != null && max ? Math.max(0, Math.min(100, (target / max) * 100)) : null);
-    const rows = bars.map((b) => ({ name: b.name, pct: Math.max(2, Math.min(100, Number(b.pct) || 0)), low: tPct != null ? Number(b.value) < target : b.tone === 'warn' }));
+    // each bar wears its own tone when the card gives one (the program audit:
+    // decide warn, clean good, not yet cy), never a grey block
+    const BAR_TONE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-warn)', good: 'var(--nv-good)', vi: 'var(--nv-vi)' };
+    const rows = bars.map((b) => ({ name: b.name, pct: Math.max(2, Math.min(100, Number(b.pct) || 0)), low: tPct != null ? Number(b.value) < target : false, hue: !fuel && BAR_TONE[b.tone] ? BAR_TONE[b.tone] : null }));
     const under = tPct != null ? rows.filter((r) => r.low).length : null;
     const names = bars.map((b) => String(b.name || '').trim());
     const weekdays = names.length === 7 && names.every((x) => /^[MTWFS]$/.test(x));
@@ -136,7 +260,8 @@ export function stageForm(card, { now = null } = {}) {
   }
 
   if (k === 'list') {
-    const items = (card.items || []).filter((i) => i && i.name);
+    // a row its builder cut mid-word breaks at a word on the stage
+    const items = (card.items || []).filter((i) => i && i.name).map((i) => ({ ...i, name: wordCut(i.name) }));
     if (!items.length) return none;
     const label = String(card.label || '');
     const notes = items.map((i) => String(i.note || '').trim());

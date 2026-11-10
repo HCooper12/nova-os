@@ -13,7 +13,7 @@
 // tidy, maximise and put away.
 
 import { MAX_DOCKED, COMPOSER } from './novaMacFacts.js';
-import { stageForm } from './stageFormFacts.js';
+import { stageForm, stageTag } from './stageFormFacts.js';
 
 // the wall's own grid, in the window's coordinates (less the title bar the
 // Mac draws itself: novaMacFacts TITLE_BAR)
@@ -379,15 +379,14 @@ export function stageEyebrow(card, opts = {}) {
   // the scope on the right is code's, from the card's own data, or blank
   // (stageFormFacts); "Nova's own" is never a scope
   if (card?.kind === 'proposal') return { tag: 'Proposal', meta: f.meta, title: f.title };
-  // an instrument is named by which one it is, never the generic kind
-  if (card?.kind === 'instrument') return { tag: INSTRUMENT_TAG[card.instrument] || e.kind, meta: '', title: '' };
+  // an instrument is named by its subject (the form's), never the generic kind
+  if (card?.kind === 'instrument') return { tag: f.tag || INSTRUMENT_TAG[card.instrument] || e.kind, meta: f.meta, title: f.title };
   if (card?.brief || card?.kind === 'page' || card?.kind === 'video') return { tag: e.kind, meta: f.meta, title: '' };
-  // the subject only: "Protein vs your 140g floor" is tagged Protein (the
-  // target it names is drawn as the dashed line)
-  // and a count the scope already carries ("TODAY · 3 ON THE CALENDAR") is dropped
-  const label = String(card?.label || '').replace(/\s+/g, ' ').trim().split(/\s+vs\.?\s+/i)[0].replace(/\s*·\s*\d+ on the calendar$/i, '');
+  // the short subject (stageTag): the label's detail goes to the scope when
+  // short ("asked 3×", "this week") or to the claim title when a phrase
+  const t = stageTag(card?.label, opts);
   const title = String(card?.title || '').replace(/\s+/g, ' ').trim();
-  return { tag: label || e.kind, meta: f.meta, title: f.title || (title && title.toLowerCase() !== label.toLowerCase() ? title : '') };
+  return { tag: t.tag || e.kind, meta: t.scope || f.meta, title: f.title || t.title || (title && title.toLowerCase() !== String(card?.label || '').toLowerCase() ? title : '') };
 }
 
 // a spoken card's own tone (server/lib/spokenCards.js: cy, gold, warn, good)
