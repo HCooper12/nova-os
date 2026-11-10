@@ -158,6 +158,32 @@ function PhonePanel({ card, still = false, open = false, decide = null, T = null
   );
 }
 
+// THE HERO, WHOLE IN ITS ROOM (his real Pull A has eight lifts; the
+// mockup's has four): a panel taller than the room between the caption and
+// the count row is drawn smaller until it fits, never cut, down to 0.7; past
+// that it keeps 0.7 and the rest is one tap away, opened full size
+function HeroFit({ children }) {
+  const ref = useRef(null);
+  const [k, setK] = useState(1);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const room = el?.parentElement?.parentElement;
+    if (!el || !room) return undefined;
+    const run = () => {
+      const h = el.offsetHeight;
+      const r = room.clientHeight;
+      const next = h > r && h > 0 ? Math.max(0.7, r / h) : 1;
+      setK((x) => (Math.abs(x - next) < 0.005 ? x : next));
+    };
+    run();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(run);
+    ro?.observe(el);
+    ro?.observe(room);
+    return () => ro?.disconnect();
+  }, []);
+  return <div ref={ref} className="nv-ph-fit" style={k < 1 ? { transform: `scale(${k.toFixed(4)})` } : undefined}>{children}</div>;
+}
+
 const dateLine = (d) => `${d.toLocaleDateString('en-AU', { weekday: 'long' })} ${d.getDate()} ${d.toLocaleDateString('en-AU', { month: 'long' })}`;
 function useMinute() {
   const [now, setNow] = useState(() => new Date());
@@ -233,7 +259,9 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
   useEffect(() => { lastCap.current = null; }, [turnId]);
   const yours = [...T.lines].reverse().find((m) => m.who === 'you')?.text || '';
   const heard = S.key === 'listening' ? (T.composer?.value || '') : S.key === 'thinking' ? yours : '';
-  const cap = S.key === 'listening' || S.key === 'thinking' ? null : capNow || (shown ? lastCap.current : null);
+  // his words, once there are any, take the line; until then (the reply
+  // window after a brief) the last sentence stays, as the mockup's held frame
+  const cap = heard ? null : capNow || (shown ? lastCap.current : null);
 
   // ---- See all: each panel measured at the panel width, then two columns
   const measureRefs = useRef(new Map());
@@ -348,7 +376,7 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
   const rest = face === 'rest';
 
   return (
-    <div className={`nv-ph${all ? ' all' : ''}`} data-s={rest ? 'rest' : 'on'} data-st={st.tone} data-face={face}
+    <div className={`nv-ph${all ? ' all' : ''}`} data-s={rest ? 'rest' : 'on'} data-st={st.tone} data-face={face} data-key={S.key}
       style={{ '--ph-vh': `${view.h}px`, '--ph-col': `${g.col}px`, '--ph-colk': g.colScale.toFixed(4), '--ph-minik': g.miniScale.toFixed(4), '--ph-count-dy': `${g.countAllDy}px`, '--ph-openw': `${g.openW}px` }}>
 
       <p className="nv-ph-st" role="status"><i className="sd" data-tone={st.tone} aria-hidden="true" /><b>{st.word}</b></p>
@@ -372,7 +400,7 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
           <div key={heroKey} className="nv-ph-heroin" role="button" tabIndex={0} aria-label={`${stageEyebrow(hero.card, { today: todayIso() }).tag}. Tap to open`}
             onClick={(e) => { if (e.target.closest('button, a, input, label')) return; openIt(hero.key, e.currentTarget); }}
             onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openIt(hero.key, e.currentTarget); } }}>
-            <PhonePanel card={hero.card} decide={decideOf(hero.card)} T={T} />
+            <HeroFit><PhonePanel card={hero.card} decide={decideOf(hero.card)} T={T} /></HeroFit>
           </div>
         )}
       </div>

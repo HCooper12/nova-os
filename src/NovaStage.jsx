@@ -237,7 +237,12 @@ export function NovaStage({ T, S, dict, onTalk, onStatus, close = null, apiRef =
     sec.toggleAttribute('data-crowded', !!exb && exb.height > 0 && exb.bottom + sy + off > ctop - 66 - 8);
     d.g = {
       fx: mr.left + mr.width / 2,
-      fy: top + PH.coreY,
+      // THE STAGE'S TOP AT THE FOOT IS THE PAGE'S TOP (the section is one
+      // screen tall less the composer's foot, so at the foot it starts where
+      // <main> does). Taken from <main>, which never moves, not from the
+      // section, whose rect read mid-growth left the core up to 500 px above
+      // its place for whole beats of his real brief (10 Nov, WebKit)
+      fy: mr.top + PH.coreY,
       px: mr.left + Math.max(0, (mr.width - 560) / 2) + PRESENTER.x,
       py: mr.top + PRESENTER.y,
     };

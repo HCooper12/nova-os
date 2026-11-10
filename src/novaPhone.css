@@ -36,6 +36,10 @@
 .nv-nt.mob .nv-nt-composer .nv-nt-mic, .nv-nt.mob .nv-nt-composer .nv-nt-send { width: 42px; height: 42px; border-radius: 21px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-cy) 50%, transparent); }
 .nv-nt.mob .nv-nt-composer .nv-nt-type, .nv-nt.mob .nv-nt-composer .nv-nt-stop { height: 42px; }
 .nv-nt.mob .nv-nt-composer .nv-nt-wave { height: 42px; }
+/* listening: the bar is the composer's only laid-out child (the note above it
+   is absolute), so the old three-column grid put it in an auto column as wide
+   as its content and "Send now" ran past the pill's edge (WebKit, 10 Nov) */
+.nv-nt.mob .nv-nt-composer.listening { display: block; }
 
 /* ---- the layer: one screen tall from the top of the stage ---- */
 .nv-ph { position: absolute; left: 0; top: 0; width: 100%; height: var(--ph-vh, 100dvh); pointer-events: none; --sc: var(--nv-nova); }
@@ -87,6 +91,7 @@
 .nv-ph-heroin { cursor: pointer; -webkit-tap-highlight-color: transparent; transform-origin: 50% 50%; animation: nvPhHeroIn .7s var(--nv-spring-bouncy) both; }
 .nv-ph-heroin:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 2px; border-radius: var(--ph-radius); }
 .nv-ph-hero .nv-ph-pnl::before, .nv-ph-hero .nv-ph-pnl::after { opacity: .9; }
+.nv-ph-fit { transform-origin: 50% 50%; }
 @keyframes nvPhHeroIn { from { opacity: 0; transform: translate3d(0, -300px, 0) scale(.14); filter: blur(10px); } }
 .nv-ph-spark { position: fixed; left: calc(50% - 45px); top: 88px; width: 90px; height: 90px; border-radius: 50%; border: 2px solid var(--h, var(--nv-cy)); opacity: 0; pointer-events: none; z-index: 16; }
 .nv-ph-spark.go { animation: nvPhSpark .7s var(--nv-ease) both; }
