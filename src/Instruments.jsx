@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { css } from './css.js';
 import { Meta } from './Controls.jsx';
 import { muscleVar } from './muscleHue.js';
+import { rubberband, velocityFrom } from './sheetPhysics.js';
+import { settleTo, catchSettle, reducedMotion } from './settleSpring.js';
 
 // THE INSTRUMENTS — the morning brief drawn instead of said.
 //
@@ -605,7 +607,25 @@ export function YourDay({ data, loading, error, onRefresh, onSeen, foot, head = 
   const pagerRef = useRef(null);
   const drag = useRef(null);
   const N = DAY_INS.length;
-  const go = (j) => setI(Math.max(0, Math.min(N - 1, j)));
+  // the release: a spring from where the track is to page j, leaving at the
+  // finger's speed (settleSpring.js), then the resting style React itself
+  // writes for page j
+  const settle = (from, j, v) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rest = () => { el.style.transition = ''; el.style.transform = `translateX(${-j * 100}%)`; };
+    if (reducedMotion()) { rest(); return; }
+    el.style.transition = 'none';
+    settleTo(el, { from, to: -j * (pagerRef.current?.clientWidth || 0), velocity: v, response: 0.4, onRest: rest });
+  };
+  const go = (j) => {
+    const k = Math.max(0, Math.min(N - 1, j));
+    // a chevron or dot pressed while a throw is still settling turns it
+    // toward the new page from where it is, rather than landing on the old one
+    const caught = catchSettle(trackRef.current);
+    setI(k);
+    if (caught) settle(caught.p, k, 0);
+  };
   useEffect(() => {
     if (!data) return;
     onSeen?.(DAY_INS[i].key);
@@ -618,11 +638,18 @@ export function YourDay({ data, loading, error, onRefresh, onSeen, foot, head = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i, data]);
 
-  const down = (e) => { drag.current = { x: e.clientX, y: e.clientY, t: performance.now(), dx: 0, on: false }; };
+  const down = (e) => {
+    const t = performance.now();
+    // a finger landing mid-settle takes the track where it IS on screen
+    const caught = catchSettle(trackRef.current);
+    drag.current = { x: e.clientX, y: e.clientY, t, dx: 0, on: false, base: caught ? caught.p : null, p: null, s: [{ t, v: e.clientX }] };
+  };
   const move = (e) => {
     const g = drag.current;
     if (!g) return;
     g.dx = e.clientX - g.x;
+    g.s.push({ t: performance.now(), v: e.clientX });
+    if (g.s.length > 12) g.s.shift();
     if (!g.on && Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(e.clientY - g.y)) {
       g.on = true;
       try { pagerRef.current.setPointerCapture(e.pointerId); } catch { /* fine */ }
@@ -630,18 +657,27 @@ export function YourDay({ data, loading, error, onRefresh, onSeen, foot, head = 
     }
     if (g.on) {
       const w = pagerRef.current.clientWidth;
-      const edge = (i === 0 && g.dx > 0) || (i === N - 1 && g.dx < 0);
-      trackRef.current.style.transform = `translateX(${-i * w + (edge ? g.dx * 0.3 : g.dx)}px)`;
+      const min = -(N - 1) * w;
+      let p = (g.base ?? -i * w) + g.dx;
+      // past the first or last instrument it gives less the further it is
+      // pulled, the same 0.3 at first, so a thumb feels the end coming
+      if (p > 0) p = rubberband(p, w, 0.3);
+      else if (p < min) p = min + rubberband(p - min, w, 0.3);
+      g.p = p;
+      trackRef.current.style.transform = `translateX(${p}px)`;
     }
   };
   const up = () => {
     const g = drag.current;
     drag.current = null;
-    if (!g?.on) return;
-    trackRef.current.style.transition = '';
-    trackRef.current.style.transform = '';
-    const v = Math.abs(g.dx) / Math.max(1, performance.now() - g.t);
-    if (Math.abs(g.dx) > 60 || v > 0.35) go(i + (g.dx < 0 ? 1 : -1));
+    if (!g) return;
+    // a tap that caught a settling track lets it finish where it was going
+    if (!g.on) { if (g.base != null) settle(g.base, i, 0); return; }
+    const now = performance.now();
+    const v = Math.abs(g.dx) / Math.max(1, now - g.t);
+    let j = i;
+    if (Math.abs(g.dx) > 60 || v > 0.35) { j = Math.max(0, Math.min(N - 1, i + (g.dx < 0 ? 1 : -1))); go(j); }
+    settle(g.p ?? -i * pagerRef.current.clientWidth, j, velocityFrom(g.s, now));
   };
 
   const again = onRefresh ? (

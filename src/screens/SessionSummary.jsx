@@ -21,6 +21,8 @@ import { RecordBanner } from '../motion/RecordBanner.jsx';
 import { WeekSetsSheet } from '../WeekSets.jsx';
 import { weekTrayOf } from '../muscleWeekView.js';
 import { muscleVar } from '../muscleHue.js';
+import { rubberband, velocityFrom } from '../sheetPhysics.js';
+import { settleTo, catchSettle, reducedMotion } from '../settleSpring.js';
 
 // THE LIVE SESSION, SUMMARY — Train round B (28 Sep 2026), drawn from
 // design/mockups/61-redesign-train-session-r2.html and approved with his
@@ -285,34 +287,58 @@ function RailCard({ S }) {
   const drag = useRef(null);
   const [dir, setDir] = useState(0);
   const go = (to, d) => { if (!to) return; setDir(d); to.go(); };
+  // the card goes home on a spring that leaves at the finger's speed
+  // (settleSpring.js), then rests as the old transition left it
+  const home = (el, from, vel) => {
+    const rest = () => { el.style.transition = ''; el.style.transform = 'none'; };
+    if (reducedMotion()) { rest(); return; }
+    el.style.transition = 'none';
+    settleTo(el, { from, to: 0, velocity: vel, dampingRatio: 0.86, onRest: rest });
+  };
   const onDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    drag.current = { x: e.clientX, y: e.clientY, dx: 0, on: false, t: performance.now() };
+    const t = performance.now();
+    // a finger landing on a card still springing home takes it where it IS
+    const caught = catchSettle(cardRef.current);
+    drag.current = { x: e.clientX, y: e.clientY, dx: 0, on: false, t, base: caught ? caught.p : null, shown: 0, s: [{ t, v: e.clientX }] };
   };
   const onMove = (e) => {
     const d = drag.current;
     if (!d) return;
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
+    d.s.push({ t: performance.now(), v: e.clientX });
+    if (d.s.length > 12) d.s.shift();
     if (!d.on) {
-      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) { if (Math.abs(dy) > 10) drag.current = null; return; }
+      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) {
+        if (Math.abs(dy) > 10) {
+          drag.current = null;
+          // a scroll that began on a caught card lets it finish going home
+          if (d.base != null && cardRef.current) home(cardRef.current, d.base, 0);
+        }
+        return;
+      }
       d.on = true;
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* fine without */ }
     }
     d.dx = dx;
     // past the first or last lift the card resists instead of stopping dead
-    const edge = (dx > 0 && !R.prev) || (dx < 0 && !R.next);
-    const shown = edge ? (dx * 0.55 * 120) / (120 + 0.55 * Math.abs(dx)) : dx;
+    const at = (d.base || 0) + dx;
+    const edge = (at > 0 && !R.prev) || (at < 0 && !R.next);
+    const shown = edge ? rubberband(at, 120) : at;
+    d.shown = shown;
     if (cardRef.current) cardRef.current.style.transform = `translateX(${shown}px)`;
   };
   const onUp = () => {
     const d = drag.current;
     drag.current = null;
-    if (!d || !d.on) return;
+    if (!d) return;
+    if (!d.on) { if (d.base != null && cardRef.current) home(cardRef.current, d.base, 0); return; }
     const el = cardRef.current;
-    const v = Math.abs(d.dx) / Math.max(1, performance.now() - d.t);
+    const now = performance.now();
+    const v = Math.abs(d.dx) / Math.max(1, now - d.t);
     const far = Math.abs(d.dx) > 60 || v > 0.5;
-    if (el) { el.style.transition = 'transform .28s cubic-bezier(.32,.72,0,1)'; el.style.transform = 'none'; setTimeout(() => { if (el) el.style.transition = ''; }, 300); }
+    if (el) home(el, d.shown, velocityFrom(d.s, now));
     if (far && d.dx < 0 && R.next) go(R.next, 1);
     else if (far && d.dx > 0 && R.prev) go(R.prev, -1);
     // the tap that ended a swipe is not a tap
