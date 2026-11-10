@@ -72,6 +72,20 @@
 .nv-ph-chip:active { transform: scale(.96); }
 .nv-ph-close { margin: 20px 16px 0; text-align: left; }
 
+/* the island's notice as content at rest, in the free space under the core
+   (the island's own drop stays off this page while it is at rest) */
+html[data-island-feed] [data-island-card], html[data-island-feed] [data-island-root] svg { opacity: 0 !important; pointer-events: none !important; }
+.nv-ph-feed { position: absolute; left: 16px; right: 16px; top: 232px; max-height: 92px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 10px 14px;
+  border-radius: var(--ph-radius); background: var(--ph-glass); box-shadow: inset 0 0 0 1px var(--ph-edge); text-align: left;
+  font: 500 14px/1.35 var(--nv-font-ui); color: var(--nv-ink); animation: nvPhFeedIn .5s var(--nv-spring-smooth) both; }
+.nv-ph-feed b { font: 600 12.5px var(--nv-font-ui); letter-spacing: .01em; color: var(--nv-gold); }
+.nv-ph-feed > span:not(.acts) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--nv-ink60); }
+.nv-ph-feed .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.nv-ph-feed .acts button { min-height: 32px; padding: 6px 13px; border: 0; border-radius: 999px; font: 600 12.5px var(--nv-font-ui); color: var(--nv-ink); background: rgba(255, 255, 255, .08); cursor: pointer; }
+.nv-ph-feed .acts button.y { color: var(--nv-gold); background: color-mix(in srgb, var(--nv-gold) 16%, transparent); }
+.nv-ph-feed .acts button:active { transform: scale(.96); }
+@keyframes nvPhFeedIn { from { opacity: 0; transform: translate3d(0, -10px, 0); } }
+
 /* ---- a panel, the mockup's .pnl ---- */
 .nv-ph-pnl { position: relative; padding: 14px 16px 16px; border-radius: var(--ph-radius); text-align: left; color: var(--nv-ink);
   background: var(--ph-glass); -webkit-backdrop-filter: blur(26px) saturate(1.5); backdrop-filter: blur(26px) saturate(1.5);
@@ -161,7 +175,7 @@
 
 /* ---- reduced motion: every move becomes a short fade ---- */
 @media (prefers-reduced-motion: reduce) {
-  .nv-ph-heroin, .nv-ph-mini.in .mi { animation: nvPhFade .2s linear both; }
+  .nv-ph-heroin, .nv-ph-mini.in .mi, .nv-ph-feed { animation: nvPhFade .2s linear both; }
   .nv-ph-spark { display: none; }
   .nv-ph-c, .nv-ph.all .nv-ph-c.in { transform: none !important; }
   .nv-ph *, .nv-ph-top *, .nv-nt-ocore .nv-fx-corehit { transition-duration: .2s !important; transition-delay: 0s !important; transition-timing-function: linear !important; }

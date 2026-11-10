@@ -9,6 +9,8 @@ import { stagePanels } from './stagePanels.js';
 import { stageArrive, stageEyebrow, stageHue } from './wallFacts.js';
 import { codePanels, sentencesOf, coveredByCode, dockOrder, liveDock, panelHead } from './novaMacFacts.js';
 import { clockNow } from './speechClock.js';
+import { islandShown, subscribeIslandShown, dismissIsland } from './island.js';
+import { AlertCard } from './AlertCard.jsx';
 import { PH, phoneGeometry, phoneOrder, railX, phoneColumns, openTop, capSentence, phoneFace, countWords } from './phoneStageFacts.js';
 import './novaPhone.css';
 
@@ -366,6 +368,22 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
     return () => { glassRef.current = null; };
   }, [glassRef, outerGlass]);
 
+  // NOTHING COVERS THE CORE AT REST (10 Nov, his catch in the WebKit proof:
+  // a "Steps behind" nudge dropped over Nova). While the stage is at rest the
+  // island's drop stays off this page and the same notice stands as content
+  // in the free space under the core: its words and its own actions, gone
+  // when the island would have let it go (the content feed, the banner-
+  // blindness law). The island still owns it: timing, queue, every other page.
+  const [islandN, setIslandN] = useState(islandShown);
+  useEffect(() => subscribeIslandShown(setIslandN), []);
+  const restNow = face === 'rest';
+  useEffect(() => {
+    const r = document.documentElement;
+    if (restNow) r.setAttribute('data-island-feed', '1'); else r.removeAttribute('data-island-feed');
+    return () => r.removeAttribute('data-island-feed');
+  }, [restNow]);
+  const feedDone = (fn) => { try { fn?.(); } finally { if (islandN) dismissIsland(islandN.id); } };
+
   const now = useMinute();
   const chips = [
     ...asks.map((a) => ({ key: a.key, label: a.label, hue: 'var(--nv-cy)', run: a.run })),
@@ -386,6 +404,19 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
         {heard ? heard : cap ? <><span className="s">{cap.lit}</span>{cap.rest ? <span>{cap.rest.startsWith(' ') ? cap.rest : ` ${cap.rest}`}</span> : null}</> : null}
       </p>
 
+      {rest && islandN && (
+        <div key={islandN.id} className="nv-ph-feed" role="status" onClick={islandN.onPress ? () => feedDone(islandN.onPress) : undefined}>
+          {islandN.card ? <AlertCard card={islandN.card} onAction={(a) => feedDone(() => islandN.card.onAction?.(a))} /> : (
+            <>
+              <b>{islandN.title}</b>
+              {islandN.message ? <span>{islandN.message}</span> : null}
+              {islandN.actions?.length > 0 && (
+                <span className="acts">{islandN.actions.map((a, i) => <button key={a.label + i} type="button" className={i === 0 ? 'y' : undefined} onClick={(e) => { e.stopPropagation(); feedDone(a.run); }}>{a.label}</button>)}</span>
+              )}
+            </>
+          )}
+        </div>
+      )}
       <div className="nv-ph-rest" aria-hidden={!rest}>
         <div className="nv-ph-clock">{now.getHours()}<i>:</i>{String(now.getMinutes()).padStart(2, '0')}</div>
         <div className="nv-ph-date">{dateLine(now)}</div>
