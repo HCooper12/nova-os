@@ -9,32 +9,36 @@ import { MediaImg } from './MediaImg.jsx';
 // nothing animates on a timer and reduced motion simply shows the end state.
 
 const decimals = (s) => (String(s).split('.')[1] || '').length;
-const Num = ({ value }) => {
+// `still`: the figure as it stands, no arrival count (the phone's small
+// copies and its See-all grid show the panel finished, as mockup 114 does)
+const Num = ({ value, still = false }) => {
   const n = Number(String(value).replace(/,/g, ''));
   if (!Number.isFinite(n)) return <>{value}</>;
   const d = decimals(value);
-  return <CountUp value={n} fromZero format={(x) => x.toLocaleString('en-AU', { minimumFractionDigits: d, maximumFractionDigits: d })} />;
+  const fmt = (x) => x.toLocaleString('en-AU', { minimumFractionDigits: d, maximumFractionDigits: d });
+  if (still) return <>{fmt(n)}</>;
+  return <CountUp value={n} fromZero format={fmt} />;
 };
 const Ic = ({ d }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg>;
 
-export function StageForm({ f, decide = null, onDiscuss = null, records = null, onRecordAct = null }) {
-  const body = formBody(f, decide, onDiscuss, records, onRecordAct);
+export function StageForm({ f, decide = null, onDiscuss = null, records = null, onRecordAct = null, still = false }) {
+  const body = formBody(f, decide, onDiscuss, records, onRecordAct, still);
   return body ? <div className="nv-mac-sform" data-form={f.form}>{body}</div> : null;
 }
 
-function formBody(f, decide, onDiscuss, records, onRecordAct) {
+function formBody(f, decide, onDiscuss, records, onRecordAct, still) {
   switch (f.form) {
     case 'ring':
       return (
         <div className="ringrow">
           <svg className="ring" viewBox="0 0 100 100" aria-hidden="true"><circle className="tr" cx="50" cy="50" r="42" pathLength="100" /><circle className="fg" cx="50" cy="50" r="42" pathLength="100" style={{ '--v': f.pct }} /></svg>
-          <div className="fig"><b><Num value={f.value} /><span className="u">of {f.of}{f.unit ? ` ${f.unit}` : ''}</span></b>{f.small && <small>{f.small}</small>}</div>
+          <div className="fig"><b><Num value={f.value} still={still} /><span className="u">of {f.of}{f.unit ? ` ${f.unit}` : ''}</span></b>{f.small && <small>{f.small}</small>}</div>
         </div>
       );
     case 'fig':
       return (
         <>
-          <div className="fig"><b><Num value={f.value} />{f.unit && <span className="u">{f.unit}</span>}</b>{f.small && <small>{f.small}</small>}</div>
+          <div className="fig"><b><Num value={f.value} still={still} />{f.unit && <span className="u">{f.unit}</span>}</b>{f.small && <small>{f.small}</small>}</div>
           {f.spark && <svg className="trend" viewBox="0 0 280 84" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d={f.spark.d} /><circle cx={f.spark.end[0]} cy={f.spark.end[1]} r="4" /></svg>}
         </>
       );

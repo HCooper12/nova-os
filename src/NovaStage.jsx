@@ -1,14 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CoreFace, Ico } from './NovaThreadParts.jsx';
-import { StageCard } from './StageCard.jsx';
 import { ArtifactCard } from './ArtifactCard.jsx';
-import { SafeVisual } from './SafeVisual.jsx';
 import { audioLevel } from './audioLevel.js';
 import { onSpeech, spokenSentences } from './speechClock.js';
-import { Captions } from './NovaFocus.jsx';
-import { speakerOf, focusAsks, focusPours, lastYours, WORD_LOOK } from './novaFocusFacts.js';
-import { lastExchange, canvasProgress, stageState, stageScale, panelFit, cleanCuts, TRAVEL_PX, STAGE, PRESENTER, PRESENTER_RATIO, ONE_NOVA_CHROME, STAGE_SPEAK, STAGE_SPEAK_VAR } from './novaStageFacts.js';
-import { eyebrowOf, railCardWidth } from './wallFacts.js';
+import { speakerOf, focusAsks, focusPours } from './novaFocusFacts.js';
+import { lastExchange, canvasProgress, stageState, TRAVEL_PX, PRESENTER, PRESENTER_RATIO, ONE_NOVA_CHROME, STAGE_SPEAK, STAGE_SPEAK_VAR } from './novaStageFacts.js';
+import { PH, PHONE_CORE_SCALE } from './phoneStageFacts.js';
+import { PhoneStage } from './PhoneStage.jsx';
 import { createPeer } from './cameraPeer.js';
 
 // ONE NOVA, ONE CANVAS (29 Oct 2026) — design/mockups/106-one-nova.html,
@@ -73,8 +71,6 @@ const seeded = (seed) => { let x = seed; return () => (x = (x * 16807) % 2147483
 // the embers' hue follows the core's (the mockup: its hue less 0.4 of its
 // depth spread): blue at rest, violet listening, cyan thinking, gold speaking
 const EMBER_HUE = { turn: 209.6, listening: 257.6, thinking: 192, speaking: STAGE_SPEAK === 'gold' ? 398 : 156 };
-// the phone remembers whether he opened the words (a per-device convenience)
-const STAGE_WORDS_KEY = 'novaos.stageWords';
 
 // FINE EMBERS DRIFTING UP THE SKY (mockup 106 makeEmbers, its numbers): 80
 // motes from one seed, rising and drifting, twinkling, quicker with the
@@ -136,18 +132,6 @@ function useStageEmbers(canvasRef, live) {
   }, [canvasRef, live]);
 }
 
-// true while `on`, and for `ms` after it goes off (a layer fading out keeps
-// what it showed until it has gone)
-function useLinger(on, ms) {
-  const [held, setHeld] = useState(on);
-  useEffect(() => {
-    if (on) { setHeld(true); return undefined; }
-    const id = setTimeout(() => setHeld(false), reducedMotion() ? 0 : ms);
-    return () => clearTimeout(id);
-  }, [on, ms]);
-  return on || held;
-}
-
 // HIS WORDS UNDER "HEARING YOU": each word rises in as it arrives (the
 // mockup's .hw, 280 ms); once the turn is his finished words, they stand
 export function HeardWords({ text, live }) {
@@ -161,113 +145,7 @@ export function HeardWords({ text, live }) {
   );
 }
 
-// THE PANEL ON THE PLATE, WHOLE (1 Nov 2026, his recording: the body panel
-// was a sliver of its figure, a program's rows were cut mid-row). The plate
-// keeps two lines for Nova's words first; the panel takes what is left, and
-// what it shows of its card is whole (src/novaStageFacts.js panelFit): the
-// card entire, or its first whole rows with the rest in the sheet a tap
-// opens, or the card entire drawn smaller. A figure is drawn at its compact
-// size here (the sheet has the large one). Measured on layout and whenever
-// the card or the plate changes size, never per frame.
-const UNCUT = new Set(['IMG', 'CANVAS', 'SVG', 'VIDEO', 'PICTURE']);
-function piecesOf(inner) {
-  // LAYOUT boxes (offsets, never the painted rects): the dock's entrance and
-  // each row's own arrival move them by transform while this measures
-  const out = [];
-  for (const el of inner.querySelectorAll('*')) {
-    if (!(el instanceof HTMLElement) || el.offsetHeight <= 0) continue;
-    let top = 0;
-    let p = el;
-    while (p && p !== inner) { top += p.offsetTop; p = p.offsetParent; }
-    if (p !== inner) continue;
-    const cs = getComputedStyle(el);
-    const filled = (cs.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor)) || cs.backgroundImage !== 'none' || cs.boxShadow !== 'none';
-    out.push({ top, bottom: top + el.offsetHeight, leaf: el.children.length === 0 || UNCUT.has(el.tagName.toUpperCase()) || !!el.querySelector('canvas,svg,img,video') || filled });
-  }
-  return out;
-}
-// THE RAIL (7 Nov 2026, design/ROSE-STUDY.md phase 3): the phone's wall.
-// Under the hero, the pages and clips the lookup put up and the panels
-// already said, sideways, a third of the next card showing past the edge
-// (the closure law). A tap opens the card full width, as the hero's does.
-// Nothing here is new data: every card is one the Mac wall holds too.
-function StageRail({ cards, onOpen, width, label = null }) {
-  if (!cards?.length) return null;
-  const w = railCardWidth(width || 402);
-  return (
-    <div className="nv-fx-rail" role="list" aria-label={label || 'More references'}>
-      {label && <span className="nv-fx-raillbl">{label}</span>}
-      <div className="nv-fx-railrow">
-        {cards.map((c) => {
-          const eb = eyebrowOf(c.card);
-          return (
-            <button key={c.key} type="button" role="listitem" className={`nv-fx-railcard${c.lit ? ' lit' : ''}`} style={{ width: w }} onClick={(e) => onOpen?.(c.card, e.currentTarget)}
-              aria-label={`${eb.kind}, ${eb.source}. Tap to open full width`}>
-              <span className="nv-fx-raileye"><em>{eb.kind}</em><i>//</i>{eb.source}</span>
-              <span className="nv-fx-railin"><SafeVisual what="nova-stage-rail" resetKey={c.key}><StageCard card={{ ...c.card, label: '' }} face="summary" size="mini" /></SafeVisual></span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function PlatePanel({ dock, live, onOpen }) {
-  const boxRef = useRef(null);
-  const innerRef = useRef(null);
-  const [fit, setFit] = useState(null);
-  useLayoutEffect(() => {
-    const box = boxRef.current;
-    const inner = innerRef.current;
-    const plate = box?.closest('.nv-nt-stplate');
-    const dockEl = box?.closest('.nv-fx-dock');
-    const panel = box?.closest('.nv-fx-panel');
-    if (!box || !inner || !plate || !dockEl || !panel) return undefined;
-    const px = (v) => parseFloat(v) || 0;
-    const run = () => {
-      const ps = getComputedStyle(plate);
-      let used = px(ps.paddingTop) + px(ps.paddingBottom);
-      for (const ch of plate.children) {
-        if (ch === dockEl) continue;
-        const cs = getComputedStyle(ch);
-        used += (ch.classList.contains('nv-fx-pbody') ? px(cs.minHeight) : ch.offsetHeight) + px(cs.marginTop) + px(cs.marginBottom);
-      }
-      const ds = getComputedStyle(dockEl);
-      const chrome = panel.offsetHeight - box.offsetHeight;
-      const room = Math.floor(plate.clientHeight - used - px(ds.marginTop) - px(ds.marginBottom) - chrome);
-      const natural = inner.offsetHeight;
-      const next = panelFit({ natural, room, cuts: cleanCuts(piecesOf(inner)) });
-      setFit((f) => (f && f.mode === next.mode && Math.abs(f.height - next.height) < 1 && Math.abs(f.scale - next.scale) < 0.005 ? f : next));
-    };
-    run();
-    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(run);
-    ro?.observe(inner);
-    ro?.observe(plate);
-    return () => ro?.disconnect();
-  }, []);
-  const hero = dock.hero;
-  const counted = dock.total > 1 && dock.n > 0;
-  return (
-    <div className={`nv-fx-dock${live ? '' : ' out'}`} aria-hidden={live ? undefined : true}>
-      <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(hero, e.currentTarget)} tabIndex={live ? 0 : -1}
-        aria-label={`${dock.mark?.name || hero.label || 'This panel'}${counted ? `, ${dock.n} of ${dock.total}` : ''}. Tap to open full width`}>
-        <span className="nv-fx-ptag">
-          <Ico name="stage" />{dock.finder ? <b className="nv-fx-finder" style={{ '--h': dock.finder.hue }}>{dock.finder.words}</b> : 'Showing now'}
-          {dock.mark && <b className="nv-fx-litname" style={{ '--h': dock.mark.hue }}>{dock.mark.name}</b>}
-          {counted ? <span>{dock.n} of {dock.total}</span> : null}
-        </span>
-        <span ref={boxRef} className="nv-fx-card" data-fit={fit?.mode || 'whole'} style={fit && fit.mode !== 'whole' ? { height: `${fit.height}px` } : undefined}>
-          <span ref={innerRef} className="nv-fx-cardin" style={fit?.mode === 'scale' ? { transform: `scale(${fit.scale.toFixed(4)})` } : undefined}>
-            <SafeVisual what="nova-stage-panel" resetKey={dock.key}><StageCard card={{ ...hero, compact: true }} face="summary" size={hero.kind === 'body' ? 'mini' : 'full'} /></SafeVisual>
-          </span>
-        </span>
-      </button>
-    </div>
-  );
-}
-
-export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, close = null, apiRef = null, chrome = ONE_NOVA_CHROME, glassRef = null }) {
+export function NovaStage({ T, S, dict, onTalk, onStatus, close = null, apiRef = null, chrome = ONE_NOVA_CHROME, glassRef = null }) {
   const secRef = useRef(null);
   const coreRef = useRef(null);
   const groundRef = useRef(null);
@@ -278,8 +156,6 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
   const backRef = useRef(null);
   const moreRef = useRef(null);
   const pourCanvasRef = useRef(null);
-  const pourRef = useRef([]);
-  const pour = useMemo(() => ({ jobs: pourRef, canvas: pourCanvasRef, core: coreRef, gold: STAGE_SPEAK === 'gold' }), []);
   const contest = S.key === 'speaking' && !!T.contest;
   const st = stageState(S.key, { contest });
   const live = useRef({ key: S.key });
@@ -289,7 +165,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
 
   // ---- the driver: the scroll and the state's size, written straight onto
   // the fixed layers (never React state, never an inherited variable)
-  const drive = useRef({ main: null, max: 0, sp: 0, g: null, placed: -1, raf: 0, kr: 0, k: stageScale(S.key), kTo: stageScale(S.key), pinned: true, seeking: false, snap: 0 });
+  const drive = useRef({ main: null, max: 0, sp: 0, g: null, placed: -1, raf: 0, kr: 0, k: PHONE_CORE_SCALE, kTo: PHONE_CORE_SCALE, pinned: true, seeking: false, snap: 0 });
   const apply = () => {
     const d = drive.current;
     const g = d.g;
@@ -361,7 +237,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     sec.toggleAttribute('data-crowded', !!exb && exb.height > 0 && exb.bottom + sy + off > ctop - 66 - 8);
     d.g = {
       fx: mr.left + mr.width / 2,
-      fy: top + STAGE.coreY,
+      fy: top + PH.coreY,
       px: mr.left + Math.max(0, (mr.width - 560) / 2) + PRESENTER.x,
       py: mr.top + PRESENTER.y,
     };
@@ -395,7 +271,14 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
       d.raf = 0;
       d.max = Math.max(0, main.scrollHeight - main.clientHeight);
       d.sp = canvasProgress(main.scrollTop, d.max, TRAVEL_PX);
-      d.pinned = d.sp < 0.02;
+      // AT THE STAGE IT STAYS AT THE STAGE until HIS finger moves it (10 Nov,
+      // the real brief in WebKit): the brief's lines and their cards land in
+      // the history above all at once, the scroll fell behind the growth by
+      // a frame, and the stage was left 300 px down the page for the whole
+      // brief. Only his own touch or wheel lets go of the stage.
+      d.pinned = d.sp < 0.02 || (d.pinned && !d.mine);
+      if (d.sp < 0.02) d.mine = false;
+      if (d.pinned && d.sp >= 0.02) { main.scrollTop = main.scrollHeight; d.max = Math.max(0, main.scrollHeight - main.clientHeight); d.sp = canvasProgress(main.scrollTop, d.max, TRAVEL_PX); }
       if (d.pinned) d.seeking = false;
       applyRef.current();
     };
@@ -409,7 +292,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
     };
     main.addEventListener('scroll', onScroll, { passive: true });
     // his own finger or wheel takes over from any trip to the stage
-    const mine = () => { d.seeking = false; };
+    const mine = () => { d.seeking = false; d.mine = true; };
     main.addEventListener('touchstart', mine, { passive: true });
     main.addEventListener('wheel', mine, { passive: true });
     // the history grows above the stage (a reply streaming in, a card
@@ -470,7 +353,9 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
   // (listening the largest), easing from wherever it is; it never moves
   useEffect(() => {
     const d = drive.current;
-    d.kTo = stageScale(S.key);
+    // mockup 114's phone: the core keeps one size in every state (its body
+    // grows inside it); it shrinks only while everything is dealt out
+    d.kTo = PHONE_CORE_SCALE;
     cancelAnimationFrame(d.kr);
     if (reducedMotion()) { d.k = d.kTo; applyRef.current(); return undefined; }
     let last = 0;
@@ -508,57 +393,9 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
 
   // ---- what each state holds
   const speaker = speakerOf([...T.lines].reverse().find((m) => m.who === 'nova')?.agent);
-  // Nova speaks in gold (the mockup); a voiced agent in its own hue
+  // Nova speaks in jade (the mockup); a voiced agent in its own hue
   const sayHue = speaker.voiced ? speaker.hue : STAGE_SPEAK_VAR;
-  const stageSpeaker = useMemo(() => ({ ...speaker, hue: sayHue }), [speaker.key, sayHue]); // eslint-disable-line react-hooks/exhaustive-deps
   const speaking = S.key === 'speaking';
-  const plateOn = useLinger(speaking, 300);
-  const stage = speaking ? T.stage : null;
-  const lastStage = useRef(null);
-  if (stage) lastStage.current = stage;
-  const [dockLeaving, setDockLeaving] = useState(false);
-  const hasStage = !!stage;
-  useEffect(() => {
-    if (hasStage) { setDockLeaving(false); return undefined; }
-    if (!lastStage.current) return undefined;
-    if (reducedMotion()) { lastStage.current = null; return undefined; }
-    setDockLeaving(true);
-    const id = setTimeout(() => { lastStage.current = null; setDockLeaving(false); }, 420);
-    return () => clearTimeout(id);
-  }, [hasStage]);
-  const dock = stage || (dockLeaving ? lastStage.current : null);
-  // the rail: the lookup's cards (a page or video beat lights its card rather
-  // than adding one), then the panels already said, newest first
-  const lookupCards = T.lookup?.cards || [];
-  const lightOf = (card) => (card?.kind === 'page' && !card.lookup && card.source ? `lk:p${card.source}` : card?.kind === 'video' && !card.lookup && card.clip ? `lk:v${card.clip}` : null);
-  const heroLight = lightOf(dock?.hero);
-  const railCards = (() => {
-    const seen = new Set();
-    const out = [];
-    const add = (key, card, lit = false) => { if (!key || !card || seen.has(key)) return; seen.add(key); out.push({ key, card, lit }); };
-    // a lookup card the model is pointing at stays IN the rail, lit, first:
-    // Rose lights the card where it sits, and a page card squeezed into the
-    // plate's hero slot was a sliver (measured in WebKit, 8 Nov)
-    for (const l of lookupCards) if (heroLight === l.key) add(l.key, l.card, true);
-    for (const l of lookupCards) if (heroLight !== l.key) add(l.key, l.card);
-    for (const c of dock?.rail || []) { if (lightOf(c)) continue; add(c.key || `${c.kind}:${c.label || c.title || ''}`, c); }
-    return out;
-  })();
-  const [vw, setVw] = useState(() => (typeof window === 'undefined' ? 402 : window.innerWidth));
-  useEffect(() => { const on = () => setVw(window.innerWidth); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
-  // THE GLASS OBEYS WORDS on the phone too (src/glassVoice.js): maximise
-  // opens the card; clear and away put the rail's cards out of sight
-  const [railGone, setRailGone] = useState(() => new Set());
-  const railShown = railCards.filter((c) => !railGone.has(c.key));
-  // THE WORDS ARE FOLDED BY DEFAULT ON THE PHONE TOO (his call, 8 Nov: "the
-  // same ideas go to the phone version, ability to hide the conversation
-  // text"): the stage shows the core and the cards; one small arrow, or
-  // "show the transcript", opens his line and Nova's. Remembered per device.
-  const [wordsOpen, setWordsOpen] = useState(() => { try { return localStorage.getItem(STAGE_WORDS_KEY) === '1'; } catch { return false; } });
-  useEffect(() => { try { localStorage.setItem(STAGE_WORDS_KEY, wordsOpen ? '1' : '0'); } catch { /* private mode */ } }, [wordsOpen]);
-  useEffect(() => { if (S.key === 'listening') setRailGone(new Set()); }, [S.key]);
-  // asleep: the rail clears too (his yes, 8 Nov)
-  useEffect(() => { if (T.standby) setRailGone(new Set(railCards.map((c) => c.key))); }, [T.standby]); // eslint-disable-line react-hooks/exhaustive-deps
   // HIS PHONE AS THE MAC'S CAMERA (8 Nov 2026, lib/cameraRelay.js): "be my
   // camera" opens the back camera here and posts a small frame four times a
   // second; the Mac shows it live and looks at it when he asks for boxes
@@ -600,60 +437,32 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
       .catch(() => { if (live) setBeam(false); });
     return () => { live = false; clearInterval(timer); peerRef.current?.bye(); peerRef.current?.stop(); peerRef.current = null; beamStream.current?.getTracks().forEach((t) => t.stop()); beamStream.current = null; };
   }, [beam]); // eslint-disable-line react-hooks/exhaustive-deps
-  const glassApi = useRef(null);
-  glassApi.current = {
-    state: () => {
-      const named = (c) => ({ key: c.key, kind: c.card.kind, title: c.card.title || c.card.name || c.card.label || '', label: c.card.label || '', host: c.card.host || '', channel: c.card.channel || '' });
-      const up = [...(dock?.hero ? [{ key: dock.key || 'hero', card: dock.hero }] : []), ...railShown];
-      return { panels: up.map(named), hero: dock?.hero ? named({ key: dock.key || 'hero', card: dock.hero }) : null, history: [] };
-    },
+  // THE GLASS OBEYS WORDS on the phone too (src/glassVoice.js): the panels'
+  // words are the living stage's (src/PhoneStage.jsx); the camera's are here
+  const cameraGlass = useRef(null);
+  cameraGlass.current = {
     run: (cmd) => {
-      const up = [...(dock?.hero ? [{ key: dock.key || 'hero', card: dock.hero }] : []), ...railShown];
-      const find = (k) => up.find((c) => c.key === k);
       switch (cmd.cmd) {
-        case 'maximise': { const c = find(cmd.key); if (c) onOpen?.(c.card, null); return !!c; }
-        case 'away': setRailGone((g) => new Set(g).add(cmd.key)); return true;
-        case 'clear': setRailGone(new Set(up.map((c) => c.key))); return true;
-        case 'clear-except': setRailGone(new Set(up.filter((c) => c.key !== cmd.key).map((c) => c.key))); return true;
-        case 'tidy': case 'restore': return true;
-        case 'words': case 'history': setWordsOpen(true); return true;
-        case 'nowords': setWordsOpen(false); return true;
         case 'camera-beam': case 'camera-on': setBeam(true); return true;
         case 'camera-off': setBeam(false); return true;
-        case 'recall': return T.recallGlass ? T.recallGlass(cmd) : false;
         default: return false;
       }
     },
   };
-  useEffect(() => {
-    if (!glassRef) return undefined;
-    glassRef.current = { state: () => glassApi.current.state(), run: (c) => glassApi.current.run(c) };
-    return () => { glassRef.current = null; };
-  }, [glassRef]);
   const pours = focusPours('thread');
   const asks = chrome.briefMe ? focusAsks(T.status, { offline: T.offline }) : [];
   const rest = !turning;
-  // his words: as they arrive while he talks (the browser's dictation writes
-  // them into the composer; Nova's ears have none until the Mac writes them
-  // down), then his finished question while Nova reads the vault
-  const yours = lastYours(T.lines);
-  const heard = S.key === 'listening' ? (dict.on ? T.composer.value : '') : S.key === 'thinking' ? yours || '' : '';
-  const asked = ex.you?.text || '';
-  const hint = S.key === 'turn' && T.demo ? 'demo replies' : '';
   const dataState = rest ? 'idle' : S.key === 'listening' ? 'listen' : S.key === 'thinking' ? 'think' : 'speak';
-
-  // a tap on a quiet line goes to it in the history, under the presenter
-  const goLine = (i) => {
-    const m = drive.current.main;
-    const el = document.querySelector(`.nv-nt-thread [data-line="${i}"]`);
-    if (!m || !el) return;
-    m.scrollTo({ top: Math.max(0, m.scrollTop + el.getBoundingClientRect().top - 132 - 12), behavior: reducedMotion() ? 'auto' : 'smooth' });
-  };
+  // the real core's element, for the living stage to tell it when to shrink
+  const [coreEl, setCoreEl] = useState(null);
+  useEffect(() => { setCoreEl(coreRef.current); }, []);
+  // the brief's waiting question, or the document the last reply carries,
+  // stand where the chips do at rest
+  const restNote = close || (T.doc ? <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div> : null);
 
   return (
     <>
-      {/* THE GROUND: the mockup's sky (its gradient and three drifting
-          lights) and its fine embers, under the whole page */}
+      {/* THE GROUND: the mockup's sky, under the whole page */}
       <div ref={groundRef} className="nv-nt-ground" data-fixed="" aria-hidden="true">
         <div className="nv-nt-stsky"><i /><i /><i /></div>
         <canvas ref={emberRef} className="nv-nt-stembers" />
@@ -676,7 +485,7 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
       </div>
 
       {/* THE CORE: the real one, one element, fixed, moved by transform alone */}
-      <div ref={coreRef} className="nv-nt-ocore" data-fixed="" data-state={S.key}>
+      <div ref={coreRef} className="nv-nt-ocore" data-fixed="" data-state={S.key} style={{ '--ph-core-k': PHONE_CORE_SCALE.toFixed(4) }}>
         <button type="button" className="nv-fx-corehit" onClick={onTalk}
           aria-label={S.key === 'listening' ? 'Nova is listening. Tap to send' : speaking ? `Nova is ${contest ? 'pushing back' : 'speaking'}. Tap to stop and talk` : `Nova, ${st.word.toLowerCase()}. Tap to talk`}>
           <CoreFace stateKey={S.key} engine={T.engine} focus tinted size={300} contest={contest} gold={STAGE_SPEAK === 'gold'} />
@@ -684,34 +493,10 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
       </div>
       {pours && <canvas ref={pourCanvasRef} className="nv-nt-opour" data-fixed="" aria-hidden="true" />}
 
-      {/* THE STAGE: the foot of the one scroll, laid out at the mockup's numbers */}
+      {/* THE STAGE: the foot of the one scroll, mockup 114's phone
+          (src/PhoneStage.jsx): rest, the hero and the rail, See all, open */}
       <section ref={secRef} className="nv-nt-osec" data-state={dataState} aria-label="Nova" style={{ '--fx-hue': sayHue }}>
-        <p className="nv-nt-stword" role="status">
-          <i className="nv-nt-stdot" data-tone={st.tone} aria-hidden="true" />
-          <b key={st.word}>{st.word}</b>
-          {hint ? <span>· {hint}</span> : null}
-        </p>
-        {/* the one small arrow that opens the words (W on the Mac; "show the transcript" by voice) */}
-        <button type="button" className="nv-nt-wordsbtn" data-open={wordsOpen ? '' : undefined} onClick={() => setWordsOpen((v) => !v)}
-          aria-pressed={wordsOpen} aria-label={wordsOpen ? 'Hide the words' : 'Show the words'}>‹</button>
-
-        {/* Ready: the last exchange (or the brief's question waiting on him); the
-            cards STAY after the turn (his call, 8 Nov) until cleared or sleep */}
-        <div className="nv-nt-stexch" aria-hidden={!rest}>
-          {close || (
-            <>
-              {wordsOpen && ex.you && <button type="button" className="q" onClick={() => goLine(ex.you.i)} tabIndex={rest ? 0 : -1}><span>You</span><span className="t">{ex.you.text}</span></button>}
-              {wordsOpen && ex.nova && <button type="button" className="a" onClick={() => goLine(ex.nova.i)} tabIndex={rest ? 0 : -1}><span>{ex.nova.who}</span><span className="t">{ex.nova.text}</span></button>}
-              {rest && railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
-              {T.doc && rest && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
-            </>
-          )}
-          {rest && asks.length > 0 && (
-            <div className="nv-nt-stasks">
-              {asks.map((a) => <button key={a.key} type="button" className="nv-fx-ask" onClick={a.run}><Ico name={a.icon} />{a.label}</button>)}
-            </div>
-          )}
-        </div>
+        <PhoneStage T={T} S={S} st={st} said={said} close={restNote} core={coreEl} glassRef={glassRef} outerGlass={cameraGlass} asks={asks} />
 
         {/* BEAMING: this phone is the Mac's camera (lib/cameraRelay.js) */}
         {beam && (
@@ -721,41 +506,6 @@ export function NovaStage({ T, S, dict, onTalk, onOpen, onStatus, captions, clos
             <button type="button" onClick={() => setBeam(false)}>Stop</button>
           </div>
         )}
-        {/* Listening and Thinking: his words */}
-        <div className="nv-nt-stheard" aria-hidden={!(S.key === 'listening' || S.key === 'thinking')}>
-          <small>Hearing you</small>
-          <HeardWords text={heard} live={S.key === 'listening'} />
-          {/* THINKING WITH THE PAGES ARRIVING (the Rose study): the lookup's
-              cards rise under his words while Nova reads them */}
-          {S.key === 'thinking' && T.lookup && (
-            <StageRail cards={railShown.filter((c) => c.card.lookup)} onOpen={onOpen} width={vw}
-              label={T.lookup.done ? `${T.lookup.pages.filter((p) => p.read).length} of ${T.lookup.pages.length} pages read` : `Reading on ${T.lookup.query || 'that'}`} />
-          )}
-        </div>
-
-        {/* Speaking: the glass plate and the subtitles */}
-        <section className="nv-nt-stplate" data-panel={dock ? "" : undefined} aria-live="polite" aria-hidden={!speaking} aria-label={`${speaker.name}, speaking`}>
-          {plateOn && (() => {
-            // mockup 106's order: "You" and his question on one line, then
-            // what is showing, then Nova's words; folded, only what is showing
-            const lead = (
-              <>
-                {wordsOpen && asked && <p className="nv-nt-stasked" title={asked}><b>You</b>{asked}</p>}
-                {dock && !heroLight && <PlatePanel key={dock.key} dock={dock} live={!!stage} onOpen={onOpen} />}
-                {railShown.length > 0 && <StageRail cards={railShown} onOpen={onOpen} width={vw} />}
-                {T.doc && <div className="nv-nt-stdoc"><ArtifactCard key={T.doc.id} id={T.doc.id} compact /></div>}
-              </>
-            );
-            if (!wordsOpen) return <div className="nv-nt-stfold">{lead}</div>;
-            return (
-              <Captions said={said} on={captions} speaker={stageSpeaker} pour={pours ? pour : null} look={WORD_LOOK.stage}
-                markHue={stage?.mark?.hue || null} lead={lead}
-                offNote="Subtitles are off. Turn them on in Nova’s status and settings." />
-            );
-          })()}
-        </section>
-
-        {T.lines.length > 0 && <p className="nv-nt-sthint" aria-hidden="true"><Ico name="upc" />Scroll up for history</p>}
       </section>
     </>
   );

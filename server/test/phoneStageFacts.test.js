@@ -2,7 +2,7 @@
 // facts the phone stage is laid out and ordered by, at the mockup's numbers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PH, PHONE_CORE_SCALE, phoneGeometry, phoneOrder, railX, phoneColumns, openTop, capSentence, phoneFace, countWords } from '../../src/phoneStageFacts.js';
+import { PH, PHONE_CORE_SCALE, CAP_MAX, phoneGeometry, phoneOrder, railX, phoneColumns, openTop, capSentence, phoneFace, countWords } from '../../src/phoneStageFacts.js';
 
 test('on the mockup\'s own 402 x 874, the derived numbers are the mockup\'s', () => {
   const g = phoneGeometry(402, 874);
@@ -51,6 +51,11 @@ test('the caption is the sentence being said, its spoken words lit, nothing afte
   assert.deepEqual(capSentence({ lit: 'Two of them need your word.', later: ' Next one.' }), { lit: 'Two of them need your word.', rest: '' });
   assert.deepEqual(capSentence({ lit: '', later: 'Pull day at six, lats first' }), { lit: '', rest: 'Pull day at six, lats first' });
   assert.equal(capSentence(null), null);
+  // a long sentence keeps the spoken point in view, cut at words, never past three lines' worth
+  const long = capSentence({ lit: 'You have flagged your own form on Cable Hammer Curls 3 times across your recent sessions, "Dropped weight to work on form and pull', later: ' the rope higher." Do you want me to keep that on your list, or let it go?' });
+  assert.ok(long.lit.startsWith('…') && long.lit.endsWith('and pull'));
+  assert.ok(long.lit.length + long.rest.length <= CAP_MAX + 1);
+  assert.ok(long.rest.length >= 20);
   assert.equal(capSentence({ lit: ' ', later: '' }), null);
 });
 

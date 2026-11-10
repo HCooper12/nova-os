@@ -663,7 +663,7 @@ function Composer({ T, dict, fieldRef, onSend, onTalk, attach = true, typingFor,
               autoCorrect="on" autoCapitalize="sentences" spellCheck enterKeyHint="send"
               disabled={C.offline}
               aria-label="Message Nova"
-              placeholder={C.offline ? 'Reconnect to ask Nova' : typingFor ? 'Type what you said' : pending.length ? 'Ask about what you attached' : 'Type, or hold to talk'} />
+              placeholder={C.offline ? 'Reconnect to ask Nova' : typingFor ? 'Type what you said' : pending.length ? 'Ask about what you attached' : 'Ask Nova'} />
           </div>
           {canSend ? (
             <button type="button" className="nv-nt-send" onClick={() => onSend(fieldRef.current?.value ?? text)} aria-label="Send"><Ico name="up" /></button>

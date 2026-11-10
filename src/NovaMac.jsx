@@ -1303,7 +1303,7 @@ function StageSheet({ panels, folded, heights = {}, onClose, onRecord }) {
 //   calendar  the proposal's day from his calendar, the proposal in it as the
 //             gold "your call" block with its tick and cross; opened, the
 //             whole day. Undo only where the record carries the rails' undo.
-function CodeBody({ c, open, proposal, onRecord, onUndo }) {
+export function CodeBody({ c, open, proposal, onRecord, onUndo }) {
   if (c.macKind === 'sets') {
     const rows = open ? c.detail : c.rows;
     return (

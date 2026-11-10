@@ -94,15 +94,25 @@ export function openTop(h, height = 874) {
  * lit (mockup .ph-cap span.s). `line` is valsNovaThread's stageLine,
  * { lit, later }. Returns { lit, rest } or null. Pure.
  */
-export function capSentence(line) {
+export const CAP_MAX = 84;   // three lines of the 18 px serif across the phone
+export function capSentence(line, max = CAP_MAX) {
   if (!line) return null;
-  const lit = String(line.lit || '').replace(/\s+/g, ' ').trim();
+  let lit = String(line.lit || '').replace(/\s+/g, ' ').trim();
   const later = String(line.later || '').replace(/\s+/g, ' ');
   // the rest of this sentence only: up to its end mark, or all of it
   const m = later.match(/^.*?[.!?](?=\s|$)/);
   const litEnds = /[.!?]$/.test(lit);
-  const rest = (litEnds ? '' : (m ? m[0] : later)).replace(/\s+$/, '');
+  let rest = (litEnds ? '' : (m ? m[0] : later)).replace(/\s+$/, '');
   if (!lit && !rest.trim()) return null;
+  // a long sentence (his real brief has them) keeps the words being said in
+  // view: what is left of it is cut at a word with "…", then what was
+  // already said gives way from its start
+  if (lit.length + rest.length > max) {
+    const restRoom = Math.min(rest.length, Math.max(24, max - lit.length));
+    if (rest.length > restRoom) rest = `${rest.slice(0, restRoom).replace(/\s+\S*$/, '')}…`;
+    const litRoom = max - rest.length;
+    if (lit.length > litRoom) lit = `…${lit.slice(lit.length - litRoom).replace(/^\S*\s/, '')}`;
+  }
   return { lit, rest };
 }
 

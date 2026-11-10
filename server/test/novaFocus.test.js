@@ -328,8 +328,8 @@ test('the classic Voice screen is untouched: the full screen lives on the summar
   assert.doesNotMatch(voice, /NovaFocus|nv-fx/);
   // the thread's stage reuses the full screen's pieces, never copies of them
   assert.match(read('src/screens/NovaThread.jsx'), /import \{ NovaStage \} from '\.\.\/NovaStage\.jsx';/);
-  assert.match(read('src/NovaStage.jsx'), /import \{ Captions \} from '\.\/NovaFocus\.jsx';/);
-  for (const f of ['src/NovaFocus.jsx', 'src/NovaStage.jsx', 'src/novaStageFacts.js', 'src/novaFocusFacts.js', 'src/subtitlePace.js', 'src/speechClock.js']) {
+  assert.match(read('src/NovaStage.jsx'), /import \{ PhoneStage \} from '\.\/PhoneStage\.jsx';/);
+  for (const f of ['src/NovaFocus.jsx', 'src/NovaStage.jsx', 'src/PhoneStage.jsx', 'src/phoneStageFacts.js', 'src/stagePanels.js', 'src/novaStageFacts.js', 'src/novaFocusFacts.js', 'src/subtitlePace.js', 'src/speechClock.js']) {
     const src = read(f).replace(/\/\/[^\n]*/g, '');
     assert.doesNotMatch(src, /\bfetch\(|\bapi\.|from '\.\.?\/api\.js'/, `${f} reaches no network`);
   }

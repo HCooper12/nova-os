@@ -143,7 +143,8 @@ test('the document a reply carries goes on the stage, not only into the history'
   const app = read('src/App.jsx');
   assert.match(app, /const docId = replyDocument\(text, job\.result\.artifacts\);/);
   const stage = read('src/NovaStage.jsx');
-  assert.equal((stage.match(/<ArtifactCard key=\{T\.doc\.id\} id=\{T\.doc\.id\} compact \/>/g) || []).length, 2, 'speaking and ready');
+  // mockup 114's phone: the document stands where the chips do at rest
+  assert.equal((stage.match(/<ArtifactCard key=\{T\.doc\.id\} id=\{T\.doc\.id\} compact \/>/g) || []).length, 1, 'on the stage at rest');
   assert.match(read('src/vals/valsNovaThread.js'), /doc: st\.voiceDoc \|\| null/);
 });
 
