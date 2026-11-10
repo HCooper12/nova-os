@@ -70,8 +70,12 @@ test('it stays legible while he is deciding', () => {
   assert.equal(half.x, dismissDistance(360) / 2, 'the card does not follow the finger 1:1');
   const none = dismissStyle(0, 0, 'h', 360);
   assert.equal(none.opacity, 1);
-  // upward never drags the card DOWN
-  assert.equal(dismissStyle(0, 40, 'v', 360).y, 0);
+  // pulled down, the wrong way, it gives a little and resists: never 1:1,
+  // never further than a fraction of the pull, and it does not fade
+  const down = dismissStyle(0, 40, 'v', 360);
+  assert.ok(down.y > 0 && down.y < 20, `a 40 px pull down moved it ${down.y}`);
+  assert.ok(dismissStyle(0, 400, 'v', 360).y < 60, 'a long pull down must stay close');
+  assert.equal(down.opacity, 1);
 });
 
 test('it leaves the way it was already going', () => {

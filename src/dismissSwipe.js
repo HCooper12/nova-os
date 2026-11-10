@@ -21,7 +21,7 @@
 
 import { useRef } from 'react';
 import { decideDirection, startsInEdgeGuard } from './swipeCore.js';
-import { velocityFrom } from './sheetPhysics.js';
+import { velocityFrom, rubberband } from './sheetPhysics.js';
 import { settleTo, catchSettle, liveOffset } from './settleSpring.js';
 
 // A share of the card's own width, so a narrow phone and a wide desktop ask
@@ -68,7 +68,10 @@ export function dismissStyle(dx, dy, locked, width = 360) {
   const need = dismissDistance(width);
   if (locked === 'v') {
     const p = Math.min(1, Math.max(0, -dy) / UP_DISMISS_PX);
-    return { x: 0, y: Math.min(0, dy), opacity: 1 - p * 0.75 };
+    // pulled DOWN, the wrong way for a dismiss: it gives a little and resists
+    // (the reel's rubber band, his yes 10 Nov 2026) rather than sitting dead
+    const y = dy > 0 ? rubberband(dy, UP_DISMISS_PX) : dy;
+    return { x: 0, y, opacity: 1 - p * 0.75 };
   }
   const p = Math.min(1, Math.abs(dx) / need);
   return { x: dx, y: 0, opacity: 1 - p * 0.55 };
