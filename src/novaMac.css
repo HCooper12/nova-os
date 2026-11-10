@@ -435,10 +435,10 @@ html[data-nova-wall] [data-island-root] { opacity: 0; pointer-events: none; tran
 /* the words under the core: the sentence being said, no plate around it */
 .nv-mac[data-stage] .nv-mac-layer.nv-mac-plate { top: 34px; padding: 0; border-radius: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; text-align: center; }
 .nv-mac[data-stage] .nv-mac-plate .esc, .nv-mac[data-stage] .nv-mac-plate .nv-fx-phead, .nv-mac[data-stage] .nv-mac-plate .pq { display: none; }
-.nv-mac[data-stage] .nv-mac-plate .nv-fx-pbody { max-height: 56px; padding-bottom: 0; overflow: hidden; }
+.nv-mac[data-stage] .nv-mac-plate .nv-fx-pbody { max-height: 82px; padding-bottom: 0; overflow: hidden; }
 .nv-mac[data-stage] .nv-mac-plate .nv-fx-pcol { font: 400 21px/1.3 var(--nv-font-serif); letter-spacing: -.005em; text-wrap: balance; }
 .nv-mac[data-stage] .nv-mac-plate .nv-fx-pcol p.earlier { display: none; }
-.nv-mac[data-stage] .nv-mac-answer { font: 400 21px/1.3 var(--nv-font-serif); color: var(--nv-ink); margin: 0; text-wrap: balance; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.nv-mac[data-stage] .nv-mac-answer { font: 400 21px/1.3 var(--nv-font-serif); color: var(--nv-ink); margin: 0; text-wrap: balance; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 
 .nv-mac-stage { position: absolute; inset: 0; z-index: 14; pointer-events: none; perspective: 1600px; }
 .nv-mac-steth { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: visible; }

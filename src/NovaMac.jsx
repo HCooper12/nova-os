@@ -470,18 +470,19 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   // (one per newly lit panel) that raised it; one put away keeps its spot,
   // and a change of mode, which takes every old key off together, clears it
   const [arrivals, setArrivals] = useState([]);
-  const beatRef = useRef({ lit: null, n: 0 });
   const wallCards = useRef(new Map());
   wallCards.current = new Map(wallAll.map((w) => [w.key, w.card]));
   useEffect(() => {
-    const b = beatRef.current;
-    if (!stageOn) { b.lit = null; b.n = 0; setArrivals((a) => (a.length ? [] : a)); return; }
-    if (litShown && litShown !== b.lit) { b.lit = litShown; b.n += 1; }
+    if (!stageOn) { setArrivals((a) => (a.length ? [] : a)); return; }
     const keys = [...wallCards.current.keys()];
     const have = new Set(keys);
+    // panels code built for one sentence share that sentence's beat
+    const groupOf = (k) => { const c = wallCards.current.get(k); return c?.macKind && Number.isFinite(c.sentence) ? `s${c.sentence}` : null; };
     setArrivals((a) => {
       const kept = a.filter((e) => have.has(e.key) || gone.has(e.key));
-      const next = stageArrive(kept.length === a.length ? a : kept, keys, b.n);
+      const base = kept.length === a.length ? a : kept;
+      const nextBeat = base.reduce((m, e) => Math.max(m, e.sent + 1), 0);
+      const next = stageArrive(base, keys, nextBeat, groupOf);
       return next.map((e) => (e.w ? e : { ...e, w: stageWidth(wallCards.current.get(e.key)) }));
     });
   }, [stageOn, wallKeys, litShown]); // eslint-disable-line react-hooks/exhaustive-deps

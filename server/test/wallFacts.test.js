@@ -215,9 +215,11 @@ test('the Mac stage (phase 2): the core at the mockup\'s spot less the title bar
 test('the Mac stage: arrival keeps every panel\'s place and beat; only new keys join, at the end', async () => {
   const { stageArrive } = await import('../../src/wallFacts.js');
   const a = stageArrive([], ['x', 'y'], 0);
-  assert.deepEqual(a, [{ key: 'x', sent: 0 }, { key: 'y', sent: 0 }]);
+  assert.deepEqual(a, [{ key: 'x', sent: 0 }, { key: 'y', sent: 1 }], 'two landing in one render are two beats');
   const b = stageArrive(a, ['y', 'x', 'z'], 2);
-  assert.deepEqual(b, [{ key: 'x', sent: 0 }, { key: 'y', sent: 0 }, { key: 'z', sent: 2 }]);
+  assert.deepEqual(b, [{ key: 'x', sent: 0 }, { key: 'y', sent: 1 }, { key: 'z', sent: 2 }]);
+  const g = stageArrive([], ['c1', 'c2', 'm'], 0, (k) => (k.startsWith('c') ? 'sentence-3' : null));
+  assert.deepEqual(g.map((e) => e.sent), [0, 0, 1], 'code panels of one sentence share its beat');
   assert.equal(stageArrive(b, ['x', 'z'], 3), b, 'nothing new: the same array, so React keeps it');
   assert.equal(stageArrive(b, [], 4), b, 'a panel put away keeps its spot, so nothing after it moves');
 });

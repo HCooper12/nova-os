@@ -318,13 +318,26 @@ export function stageChip(width = 1440, height = 900 - STAGE_TITLE) {
 
 /** The order panels came onto the stage, each with the beat that raised it.
  *  A key seen before keeps its place and its beat (one put away keeps its
- *  spot, so nothing after it moves); a new key joins at the end with `beat`.
- *  Returns `prev` itself when nothing is new. Pure. */
-export function stageArrive(prev, keys, beat) {
+ *  spot, so nothing after it moves). New keys join at the end, each its own
+ *  beat from `beat` on, even when several land in one render (the briefing's
+ *  beats can); only keys `groupOf` puts in the same group (panels code built
+ *  for one sentence) share one. Returns `prev` itself when nothing is new.
+ *  Pure. */
+export function stageArrive(prev, keys, beat, groupOf = null) {
   const was = prev || [];
   const seen = new Set(was.map((e) => e.key));
   const add = [];
-  for (const k of keys || []) if (k && !seen.has(k)) { seen.add(k); add.push({ key: k, sent: beat }); }
+  const byGroup = new Map();
+  let n = beat;
+  for (const k of keys || []) {
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    const g = groupOf ? groupOf(k) : null;
+    let s;
+    if (g != null && byGroup.has(g)) s = byGroup.get(g);
+    else { s = add.length ? n + 1 : n; n = s; if (g != null) byGroup.set(g, s); }
+    add.push({ key: k, sent: s });
+  }
   return add.length ? [...was, ...add] : was;
 }
 
