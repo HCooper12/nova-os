@@ -48,7 +48,7 @@ function Ring({ score, basis }) {
 // Fixed 128px because the tallest of them is a two-line name plus two lines
 // of detail, and a rail whose cards agree on height is the difference between
 // a row of cards and a row of boxes.
-const fcardBase = (edge) => `flex:0 0 164px;min-height:128px;box-sizing:border-box;display:flex;flex-direction:column;scroll-snap-align:start;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
+const fcardBase = (edge) => `flex:0 0 164px;min-height:128px;box-sizing:border-box;display:flex;flex-direction:column;scroll-snap-align:start;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s var(--nv-ease),border-color .2s ease`;
 
 export function TrainToday({ o, actions, resume, done = null }) {
   // the Coach's ask leaves in its verdict colour for one beat, then the

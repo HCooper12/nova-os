@@ -114,7 +114,7 @@ span.nv-jr-tag { cursor: default; }
 .nv-jr-dd { font: 400 17px var(--nv-font-serif); flex: none; }
 .nv-jr-dots { margin-left: auto; display: flex; gap: 4px; align-items: center; min-width: 0; }
 .nv-jr-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
-.nv-jr-drow.open .nv-jr-dots i { animation: nvJrDot 300ms ease calc(var(--i) * 110ms) both; }
+.nv-jr-drow.open .nv-jr-dots i { animation: nvJrDot 300ms var(--nv-ease) calc(var(--i) * 110ms) both; }
 .nv-jr-dots small { font-size: 12px; color: var(--nv-jr-ink3); }
 .nv-jr-chev { width: 16px; height: 16px; color: color-mix(in srgb, var(--nv-ink) 38%, transparent); transition: transform 200ms var(--nv-jr-ease); }
 .nv-jr-drow.open .nv-jr-chev { transform: rotate(90deg); }
@@ -209,7 +209,7 @@ span.nv-jr-tag { cursor: default; }
 .nv-jr-skel { margin-top: 12px; }
 .nv-jr-sk { border-radius: 14px; background: linear-gradient(90deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .1), rgba(255, 255, 255, .05)); background-size: 200% 100%; animation: nvJrShim 1.2s linear infinite; }
 
-.nv-jr-ask:active, .nv-jr-save:active, .nv-jr-write:active, .nv-jr-use:active, .nv-jr-another:active, .nv-jr-tag:active, .nv-jr-ib:active, .nv-jr-x:active { transform: scale(.97); transition: transform 120ms ease-out; }
+.nv-jr-ask:active, .nv-jr-save:active, .nv-jr-write:active, .nv-jr-use:active, .nv-jr-another:active, .nv-jr-tag:active, .nv-jr-ib:active, .nv-jr-x:active { transform: scale(.97); transition: transform 120ms var(--nv-ease); }
 
 @keyframes nvJrRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes nvJrDrop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
