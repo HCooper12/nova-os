@@ -70,7 +70,7 @@ test('the core: the real one, gold while speaking, the composer with the mockup\
   assert.match(core, /hue \+= \(\(gold \? 445 : 145\) - hue\) \* mS \* 0\.82;/);
   assert.match(read('src/coreGrains.js'), /const stateC = \(w\) => \(w === SPEAK && gold \? C_GOLD : STATE_C\[w\]\);/);
   const thread = read('src/screens/NovaThread.jsx');
-  assert.match(thread, /'Type, or hold to talk'/);
+  assert.match(thread, /: 'Ask Nova'\} \/>/, 'mockup 114: the composer says Ask Nova');
   assert.match(thread, /<button type="button" className="nv-nt-mic" onClick=\{onTalk\}/);
   assert.match(thread, /onClick=\{\(\) => \{ flushSync\(\(\) => dict\.abandon\(\)\); fieldRef\.current\?\.focus\(\); \}\}/, '× Type closes the mic and raises the keyboard');
 });
@@ -109,8 +109,12 @@ test('speaking (1 Nov, his recording): his question is one line, Nova\'s words k
   assert.match(block, /\.nv-nt-stasked \{[^}]*white-space: nowrap; text-overflow: ellipsis;/, 'a long question never fills the plate');
   assert.match(block, /\.nv-nt-stplate \.nv-fx-pbody \{ flex: 1 0 auto; min-height: calc\(2 \* \(25px \* 1\.3 \+ 4px\) \+ 9px\);/);
   assert.match(block, /\.nv-nt-stplate \.nv-fx-dock \{[^}]*flex: 0 1 auto; min-height: 0;/, 'the panel gives way, never the words');
+  // since mockup 114 (10 Nov, his yes) the phone's speaking face is the
+  // living stage (src/PhoneStage.jsx): the sentence being said under the core,
+  // the hero, the rail; the 106 plate is no longer drawn on the phone
   const src = read('src/NovaStage.jsx');
-  assert.ok(src.indexOf('className="nv-nt-stasked"') < src.indexOf('<PlatePanel key'), 'mockup 106 order: You, then what is showing, then the words');
+  assert.match(src, /<PhoneStage T=\{T\} S=\{S\} st=\{st\}/);
+  assert.doesNotMatch(src, /<PlatePanel /);
   assert.match(read('src/NovaFocus.jsx'), /const top = lineTops\.find\(\(t\) => t >= -y - 0\.5\);/, 'the first line in view is never cut in half');
 });
 
@@ -136,9 +140,8 @@ test('the panel on the plate is whole (1 Nov, his recording): the card entire, w
   assert.ok(Math.abs(g.scale - 91 / 273) < 1e-9);
   // nothing measured yet: as it is
   assert.equal(panelFit({ natural: 0, room: 80 }).mode, 'whole');
-  const src = read('src/NovaStage.jsx');
-  assert.match(src, /const next = panelFit\(\{ natural, room, cuts: cleanCuts\(piecesOf\(inner\)\) \}\);/);
-  assert.match(src, /while \(p && p !== inner\) \{ top \+= p\.offsetTop; p = p\.offsetParent; \}/, 'layout boxes, never painted rects (rows arrive by transform)');
+  // (panelFit stays a tested fact; since mockup 114 the phone shows a panel
+  // whole, as the hero, a small copy or opened, src/PhoneStage.jsx)
   assert.doesNotMatch(read('src/index.css').slice(read('src/index.css').indexOf('ONE NOVA STAGE (31 Oct 2026)')), /\.nv-nt-stplate \.nv-fx-dock \{[^}]*max-height: 45%/, 'no clip box that cuts the card mid-row');
 });
 

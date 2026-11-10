@@ -62,3 +62,19 @@ export function subscribeIsland(fn) {
   while (early.length) fn(early.shift());
   return () => listeners.delete(fn);
 }
+
+// WHAT THE ISLAND IS SHOWING NOW (10 Nov 2026, the phone stage at rest):
+// DynamicIsland tells it here, so a page that keeps the island's drop off
+// its own focus (the living stage keeps Nova's core clear at rest) can show
+// the same notice as content instead. One notice or null.
+let shownNow = null;
+const shownSubs = new Set();
+export function setIslandShown(notice) {
+  shownNow = notice || null;
+  shownSubs.forEach((fn) => fn(shownNow));
+}
+export function islandShown() { return shownNow; }
+export function subscribeIslandShown(fn) {
+  shownSubs.add(fn);
+  return () => shownSubs.delete(fn);
+}

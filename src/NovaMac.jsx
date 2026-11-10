@@ -15,7 +15,8 @@ import { clockNow } from './speechClock.js';
 import { TOKEN_RE } from './artifactBlocks.js';
 import { CountUp } from './CountUp.jsx';
 import { StageForm } from './StageForms.jsx';
-import { stageForm, cardDrawable, proposalCard, cardLineKey } from './stageFormFacts.js';
+import { stageForm, proposalCard } from './stageFormFacts.js';
+import { stagePanels, panelLight } from './stagePanels.js';
 import { consultOf, subscribeConsult } from './motion/consultFeed.js';
 import {
   frameFor, macCoreScale, macState, satellitesOf, thinkingLine, SAT_SLOTS, SAT_SLOTS_DOCKED,
@@ -438,34 +439,18 @@ export function NovaMac({ T, S, dict, onTalk, onSend, fieldRef, captions, histor
   const shownDock = docked.filter((p) => !p.out);
   // THE WALL: a page or video beat the model wrote is a LIGHT on the card the
   // lookup already put up, never a second card
-  const lightOf = (card) => (card?.kind === 'page' && !card.lookup && card.source ? `lk:p${card.source}` : card?.kind === 'video' && !card.lookup && card.clip ? `lk:v${card.clip}` : null);
+  const lightOf = panelLight;
   const stageProposal = (!speaking || !!(T.stage?.total && T.stage.n >= T.stage.total)) ? (lastNova?.proposal || null) : null;
-  const wallAll = (() => {
-    const seen = new Set();
-    const out = [];
-    // ONE THING SAID IS ONE PANEL: a later beat or record that says what an
-    // earlier panel already says (its first row or line) joins it, never a
-    // second copy (his real brief: the Coach line twice)
-    const said = new Set();
-    const add = (key, card, extra = {}) => {
-      if (!key || !card || seen.has(key) || gone.has(key) || !cardDrawable(card)) return;
-      const line = cardLineKey(card);
-      if (line && said.has(line)) return;
-      if (line) said.add(line);
-      seen.add(key); out.push({ key, card, ...extra });
-    };
-    for (const [key, card] of pinned) add(key, card, { pinned: true });
-    for (const [key, card] of brought) add(key, card, { brought: true });
-    for (const l of lookupCards) add(l.key, l.card);
-    const model = replay ? replay.panels : [...codeNow.map((c) => ({ key: c.key, card: c })), ...allModel];
-    for (const p of model) { if (lightOf(p.card)) continue; add(p.key, p.card); }
-    // THE PROPOSAL IS ITS OWN PANEL (mockup 114): the real one on the line,
-    // once its sentence is said, its body line and proposer read from its
-    // Inbox record; a calendar proposal keeps its own day panel instead
-    const pc = !replay && stageProposal && !code.some((c) => c.macKind === 'calendar') ? proposalCard(stageProposal, (T.inbox || []).find((r) => r.id === stageProposal.recordId) || null) : null;
-    if (pc) add(pc.key, pc);
-    return out;
-  })();
+  // the stage's panels, one list for the Mac and the phone (src/stagePanels.js):
+  // kept, brought back, the lookup's, the answer's (code's first), then the
+  // proposal as its own panel (mockup 114), once its sentence is said, its
+  // body line and proposer read from its Inbox record; a calendar proposal
+  // keeps its own day panel instead
+  const wallAll = stagePanels({
+    pinned, brought, lookup: lookupCards, gone,
+    model: replay ? replay.panels : [...codeNow.map((c) => ({ key: c.key, card: c })), ...allModel],
+    proposal: !replay && stageProposal && !code.some((c) => c.macKind === 'calendar') ? proposalCard(stageProposal, (T.inbox || []).find((r) => r.id === stageProposal.recordId) || null) : null,
+  });
   // THE STAGE (phase 2, mockup 114): any panel of the answer, the briefing
   // or the lookup puts the stage up, the core at its centre; a pinned panel
   // alone keeps the column. T squares the panels for reading (the masonry,
@@ -1318,7 +1303,7 @@ function StageSheet({ panels, folded, heights = {}, onClose, onRecord }) {
 //   calendar  the proposal's day from his calendar, the proposal in it as the
 //             gold "your call" block with its tick and cross; opened, the
 //             whole day. Undo only where the record carries the rails' undo.
-function CodeBody({ c, open, proposal, onRecord, onUndo }) {
+export function CodeBody({ c, open, proposal, onRecord, onUndo }) {
   if (c.macKind === 'sets') {
     const rows = open ? c.detail : c.rows;
     return (

@@ -1,0 +1,183 @@
+/* THE LIVING STAGE ON THE PHONE (10 Nov 2026), mockup 114's `.ph`, at its
+   own numbers (src/phoneStageFacts.js PH). Real --nv-* tokens and springs;
+   transform, opacity and filter only; reduced motion is a short fade.
+   src/PhoneStage.jsx draws it; NovaStage.jsx places the real core. */
+
+/* THE MATERIAL MOCKUP 114 WAS DRAWN IN (its tokens are Command's). His
+   phone runs the Summary style, which swaps these four (radius 20, a white
+   glass and edge, and bg2 flattened to the void); an approved mockup is a
+   contract on HIS settings, so the stage carries Command's own values here.
+   Every other colour is the live --nv-* token. */
+.nv-nt.mob, .nv-ph-top { --ph-radius: 10px; --ph-glass: rgba(16, 20, 36, .62); --ph-edge: rgba(130, 175, 255, .24); --ph-sky: #111a32; }
+
+/* the ground: the mockup's sky over the whole page (no drifting lights, no
+   screen-wide embers on the phone: the core carries its own) */
+.nv-nt.mob .nv-nt-ground { background: radial-gradient(120% 70% at 50% 0%, var(--ph-sky), var(--nv-void) 70%); }
+.nv-nt.mob .nv-nt-stsky, .nv-nt.mob .nv-nt-stembers { display: none; }
+/* what the 106 stage drew is this layer's now */
+.nv-nt.mob .nv-nt-osec > .nv-nt-stword, .nv-nt.mob .nv-nt-osec > .nv-nt-wordsbtn, .nv-nt.mob .nv-nt-osec > .nv-nt-stexch,
+.nv-nt.mob .nv-nt-osec > .nv-nt-stheard, .nv-nt.mob .nv-nt-osec > .nv-nt-stplate, .nv-nt.mob .nv-nt-osec > .nv-nt-sthint { display: none; }
+
+/* the core shrinks while everything is dealt out (mockup .ph.all .ph-core);
+   only its own circle takes a tap, so the count row above it stays reachable */
+.nv-nt.mob .nv-nt-ocore { pointer-events: none; }
+.nv-nt.mob .nv-nt-ocore .nv-fx-corehit { pointer-events: auto; }
+.nv-nt-ocore .nv-fx-corehit { transition: transform .6s var(--nv-spring-smooth); }
+.nv-nt-ocore[data-ph-all] .nv-fx-corehit { transform: translate3d(0, calc(-22px / var(--ph-core-k, .595)), 0) scale(.5); }
+
+/* the composer, the mockup's pill: 56 tall, 16 in from the sides, 30 off the foot */
+.nv-nt.mob .nv-nt-composer { left: 16px; right: 16px; bottom: 30px; min-height: 56px; padding: 7px; border-radius: 28px; background: var(--ph-glass); box-shadow: inset 0 0 0 1px var(--ph-edge); }
+.nv-nt.mob[data-tabbar="0"] .nv-nt-composer { bottom: 30px; }
+.nv-nt.mob .nv-nt-composer .nv-nt-bar { gap: 8px; }
+.nv-nt.mob .nv-nt-composer .nv-nt-field { min-height: 42px; border-radius: 21px; padding: 0 8px 0 18px; background: var(--nv-well); box-shadow: none; }
+.nv-nt.mob .nv-nt-composer .nv-nt-field input { height: 42px; }
+.nv-nt.mob .nv-nt-composer .nv-nt-field input::placeholder { color: var(--nv-ink40); }
+.nv-nt.mob .nv-nt-composer .nv-nt-plus { width: 42px; height: 42px; border-radius: 21px; }
+.nv-nt.mob .nv-nt-composer .nv-nt-mic, .nv-nt.mob .nv-nt-composer .nv-nt-send { width: 42px; height: 42px; border-radius: 21px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-cy) 50%, transparent); }
+.nv-nt.mob .nv-nt-composer .nv-nt-type, .nv-nt.mob .nv-nt-composer .nv-nt-stop { height: 42px; }
+.nv-nt.mob .nv-nt-composer .nv-nt-wave { height: 42px; }
+/* listening: the bar is the composer's only laid-out child (the note above it
+   is absolute), so the old three-column grid put it in an auto column as wide
+   as its content and "Send now" ran past the pill's edge (WebKit, 10 Nov) */
+.nv-nt.mob .nv-nt-composer.listening { display: block; }
+
+/* ---- the layer: one screen tall from the top of the stage ---- */
+.nv-ph { position: absolute; left: 0; top: 0; width: 100%; height: var(--ph-vh, 100dvh); pointer-events: none; --sc: var(--nv-nova); }
+.nv-ph > * { pointer-events: auto; }
+.nv-ph[data-st="vi"] { --sc: var(--nv-vi); }
+.nv-ph[data-st="cy"] { --sc: var(--nv-cy); }
+.nv-ph[data-st="say"], .nv-ph[data-st="jade"], .nv-ph[data-st="gold"] { --sc: var(--nv-say); }
+
+/* the state word and the words under the core */
+.nv-ph-st { position: absolute; left: 0; right: 0; top: 206px; height: 26px; margin: 0; display: flex; justify-content: center; align-items: center; gap: 9px; pointer-events: none;
+  transition: transform .55s var(--nv-spring-smooth), opacity .25s var(--nv-ease); }
+.nv-ph-st .sd { width: 8px; height: 8px; border-radius: 50%; background: var(--sc); box-shadow: 0 0 12px var(--sc); transition: background var(--nv-dur-base) var(--nv-ease); }
+.nv-ph-st b { font: 600 13px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--nv-ink60); }
+.nv-ph-cap { position: absolute; left: 24px; right: 24px; top: 236px; margin: 0; min-height: 72px; text-align: center; font: 400 18px/1.3 var(--nv-font-serif); letter-spacing: -.005em; color: var(--nv-ink40); text-wrap: balance;
+  transform-origin: 50% 0; pointer-events: none; transition: transform .55s var(--nv-spring-smooth), opacity .25s var(--nv-ease); }
+.nv-ph-cap span { transition: color .18s var(--nv-ease); }
+.nv-ph-cap span.s { color: var(--nv-ink); }
+.nv-ph-cap.heard { font: 400 19px/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ph[data-s="rest"] .nv-ph-st, .nv-ph[data-s="rest"] .nv-ph-cap, .nv-ph[data-s="rest"] .nv-ph-rail, .nv-ph[data-s="rest"] .nv-ph-count, .nv-ph[data-s="rest"] .nv-ph-hero { opacity: 0; pointer-events: none; }
+
+/* rest: the clock, the date, the chips */
+.nv-ph-rest { position: absolute; left: 0; right: 0; top: 330px; text-align: center; transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-ph:not([data-s="rest"]) .nv-ph-rest { opacity: 0; pointer-events: none; }
+.nv-ph-clock { font: 200 64px/1 var(--nv-font-ui); letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--nv-ink); }
+.nv-ph-clock i { font-style: normal; opacity: .45; margin: 0 2px; }
+.nv-ph-date { margin-top: 10px; font: 500 12px var(--nv-font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--nv-ink40); }
+.nv-ph-chips { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.nv-ph-chip { height: 40px; padding: 0 18px; border: 0; border-radius: 20px; font: 500 14px var(--nv-font-ui); color: var(--nv-ink); background: var(--ph-glass); box-shadow: inset 0 0 0 1px var(--ph-edge); display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: transform var(--nv-dur-fast) var(--nv-ease); -webkit-tap-highlight-color: transparent; }
+.nv-ph-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--nv-cy)); box-shadow: 0 0 10px var(--c, var(--nv-cy)); }
+.nv-ph-chip:active { transform: scale(.96); }
+.nv-ph-close { margin: 20px 16px 0; text-align: left; }
+
+/* the island's notice as content at rest, in the free space under the core
+   (the island's own drop stays off this page while it is at rest) */
+html[data-island-feed] [data-island-card], html[data-island-feed] [data-island-root] svg { opacity: 0 !important; pointer-events: none !important; }
+.nv-ph-feed { position: absolute; left: 16px; right: 16px; top: 232px; max-height: 92px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 10px 14px;
+  border-radius: var(--ph-radius); background: var(--ph-glass); box-shadow: inset 0 0 0 1px var(--ph-edge); text-align: left;
+  font: 500 14px/1.35 var(--nv-font-ui); color: var(--nv-ink); animation: nvPhFeedIn .5s var(--nv-spring-smooth) both; }
+.nv-ph-feed b { font: 600 12.5px var(--nv-font-ui); letter-spacing: .01em; color: var(--nv-gold); }
+.nv-ph-feed > span:not(.acts) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--nv-ink60); }
+.nv-ph-feed .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.nv-ph-feed .acts button { min-height: 32px; padding: 6px 13px; border: 0; border-radius: 999px; font: 600 12.5px var(--nv-font-ui); color: var(--nv-ink); background: rgba(255, 255, 255, .08); cursor: pointer; }
+.nv-ph-feed .acts button.y { color: var(--nv-gold); background: color-mix(in srgb, var(--nv-gold) 16%, transparent); }
+.nv-ph-feed .acts button:active { transform: scale(.96); }
+@keyframes nvPhFeedIn { from { opacity: 0; transform: translate3d(0, -10px, 0); } }
+
+/* ---- a panel, the mockup's .pnl ---- */
+.nv-ph-pnl { position: relative; padding: 14px 16px 16px; border-radius: var(--ph-radius); text-align: left; color: var(--nv-ink);
+  background: var(--ph-glass); -webkit-backdrop-filter: blur(26px) saturate(1.5); backdrop-filter: blur(26px) saturate(1.5);
+  box-shadow: inset 0 0 0 1px var(--ph-edge), inset 0 1px 0 rgba(190, 225, 255, .18), 0 30px 60px -30px rgba(0, 0, 0, .9); }
+.nv-ph-pnl::before, .nv-ph-pnl::after { content: ''; position: absolute; width: 14px; height: 14px; border: 1.5px solid var(--h); opacity: 0; pointer-events: none; }
+.nv-ph-pnl::before { left: -1px; top: -1px; border-right: 0; border-bottom: 0; border-top-left-radius: var(--ph-radius); }
+.nv-ph-pnl::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; border-bottom-right-radius: var(--ph-radius); }
+.nv-ph-pnl .peye { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font: 600 10px var(--nv-font-mono); letter-spacing: .14em; text-transform: uppercase; }
+.nv-ph-pnl .peye .ptag { flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--h); box-shadow: 0 0 10px var(--h); }
+.nv-ph-pnl .peye em { font-style: normal; color: var(--h); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-ph-pnl .peye .pmeta { font-style: normal; color: var(--nv-ink40); margin-left: auto; flex: none; letter-spacing: .08em; }
+.nv-ph-pnl .ptitle { font: 400 18px/1.18 var(--nv-font-serif); margin-bottom: 10px; text-wrap: balance; color: var(--nv-ink); }
+.nv-ph-pnl .pbody { font: 400 13.5px/1.45 var(--nv-font-ui); color: var(--nv-ink60); }
+
+/* ---- the hero: out of the core, large ---- */
+.nv-ph-hero { position: absolute; left: 16px; right: 16px; top: 322px; bottom: 236px; display: flex; flex-direction: column; justify-content: center; transition: opacity .25s var(--nv-ease); }
+.nv-ph-heroin { cursor: pointer; -webkit-tap-highlight-color: transparent; transform-origin: 50% 50%; animation: nvPhHeroIn .7s var(--nv-spring-bouncy) both; }
+.nv-ph-heroin:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 2px; border-radius: var(--ph-radius); }
+.nv-ph-hero .nv-ph-pnl::before, .nv-ph-hero .nv-ph-pnl::after { opacity: .9; }
+.nv-ph-fit.cut { overflow: hidden; border-radius: var(--ph-radius); -webkit-mask-image: linear-gradient(#000 calc(100% - 34px), transparent); mask-image: linear-gradient(#000 calc(100% - 34px), transparent); }
+@keyframes nvPhHeroIn { from { opacity: 0; transform: translate3d(0, -300px, 0) scale(.14); filter: blur(10px); } }
+.nv-ph-spark { position: fixed; left: calc(50% - 45px); top: 88px; width: 90px; height: 90px; border-radius: 50%; border: 2px solid var(--h, var(--nv-cy)); opacity: 0; pointer-events: none; z-index: 16; }
+.nv-ph-spark.go { animation: nvPhSpark .7s var(--nv-ease) both; }
+@keyframes nvPhSpark { from { opacity: .9; transform: scale(.6); } to { opacity: 0; transform: scale(1.9); } }
+
+/* ---- the count row: the one control that opens everything ---- */
+.nv-ph-count { position: absolute; left: 20px; right: 20px; bottom: 192px; height: 44px; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: 0; border: 0; background: none; cursor: pointer;
+  font: 600 10px var(--nv-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nv-ink50); -webkit-tap-highlight-color: transparent;
+  transition: transform .55s var(--nv-spring-smooth), opacity .2s var(--nv-ease); }
+.nv-ph-count b { font-weight: 600; color: var(--nv-cy); }
+
+/* ---- the rail: the earlier panels, small copies of the real ones ---- */
+.nv-ph-rail { position: absolute; left: 16px; right: 0; bottom: 104px; height: 92px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; transition: opacity .25s var(--nv-ease); }
+.nv-ph-rail::-webkit-scrollbar { display: none; }
+.nv-ph-track { position: relative; height: 92px; }
+.nv-ph-mini { position: absolute; left: 0; top: 0; width: 160px; height: 92px; border-radius: var(--ph-radius); overflow: hidden; visibility: hidden; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  background: color-mix(in srgb, var(--h) 7%, rgba(18, 22, 36, .92)); transition: transform .55s var(--nv-spring-smooth); }
+.nv-ph-mini.in { visibility: visible; }
+.nv-ph-mini .mi, .nv-ph-c .mi { width: 280px; transform-origin: 0 0; }
+.nv-ph-mini .mi { transform: scale(var(--ph-minik, .5714)); }
+.nv-ph-mini.in .mi { animation: nvPhMiniIn .5s var(--nv-spring-bouncy) both; }
+@keyframes nvPhMiniIn { from { opacity: 0; transform: translate3d(0, -30px, 0) scale(.42); } }
+.nv-ph-mini::before, .nv-ph-c::before { content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 2; pointer-events: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 42%, transparent); }
+.nv-ph-mini::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 34px; z-index: 1; pointer-events: none; background: linear-gradient(transparent, rgba(12, 15, 26, .96)); }
+.nv-ph-mini .nv-ph-pnl, .nv-ph-c .nv-ph-pnl { -webkit-backdrop-filter: none; backdrop-filter: none; pointer-events: none; background: none; box-shadow: none; }
+.nv-ph-mini .nv-ph-pnl::before, .nv-ph-mini .nv-ph-pnl::after, .nv-ph-c .nv-ph-pnl::before, .nv-ph-c .nv-ph-pnl::after { display: none; }
+.nv-ph-mini:focus-visible, .nv-ph-c:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: -2px; }
+.nv-ph-mini:active, .nv-ph-c:active { filter: brightness(1.15); }
+
+/* ---- See all: two columns, dealt out of the core ---- */
+.nv-ph-grid { position: absolute; left: 16px; right: 16px; top: 244px; bottom: 96px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; opacity: 0; pointer-events: none; padding-bottom: 28px;
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+.nv-ph-grid::-webkit-scrollbar { display: none; }
+.nv-ph-gridin { position: relative; }
+.nv-ph-c { position: absolute; width: var(--ph-col, 180px); border-radius: var(--ph-radius); overflow: hidden; cursor: pointer; opacity: 0; -webkit-tap-highlight-color: transparent;
+  background: color-mix(in srgb, var(--h) 7%, rgba(18, 22, 36, .92));
+  transform: translate3d(var(--dx), var(--dy), 0) scale(.5); transition: transform .25s var(--nv-ease-exit), opacity .18s var(--nv-ease); }
+.nv-ph-c .mi { transform: scale(var(--ph-colk, .6429)); }
+.nv-ph.all .nv-ph-grid { opacity: 1; pointer-events: auto; }
+.nv-ph.all .nv-ph-c.in { opacity: 1; transform: none; transition: transform .62s var(--nv-spring-bouncy) calc(var(--i) * 45ms), opacity .22s var(--nv-ease) calc(var(--i) * 45ms); }
+.nv-ph.all .nv-ph-st { opacity: 0; }
+.nv-ph.all .nv-ph-cap { transform: translate3d(0, -82px, 0) scale(.8); }
+/* held over the grid, the last sentence keeps two lines (the mockup's is one) */
+.nv-ph.all .nv-ph-cap { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; min-height: 0; }
+.nv-ph.all .nv-ph-hero, .nv-ph.all .nv-ph-rail { opacity: 0; pointer-events: none; }
+.nv-ph.all .nv-ph-count { transform: translate3d(0, var(--ph-count-dy, -438px), 0); }
+.nv-ph-top.all .nv-ph-spark { display: none; }
+
+/* ---- a panel opened full size over a dimmed stage ---- */
+.nv-ph-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(4, 5, 10, .62); opacity: 0; pointer-events: none; transition: opacity .25s var(--nv-ease); }
+.nv-ph-top.opened .nv-ph-scrim { opacity: 1; pointer-events: auto; }
+.nv-ph-top.closing .nv-ph-scrim { opacity: 0; }
+.nv-ph-open { position: fixed; left: 16px; width: var(--ph-openw, 370px); z-index: 61; transform-origin: 0 0; max-height: calc(100dvh - 128px); }
+.nv-ph-open .nv-ph-pnl { max-height: calc(100dvh - 128px); overflow-y: auto; background: color-mix(in srgb, var(--h) 8%, rgba(20, 24, 40, .94)); }
+.nv-ph-x { position: absolute; right: 0; top: -52px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); color: var(--nv-ink); transition: transform .16s var(--nv-ease); }
+.nv-ph-x:active { transform: scale(.94); }
+.nv-ph-x .ic { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; }
+
+/* ---- the forms (src/StageForms.jsx) draw where the phone shows them: the
+   hero as it lands, the small copies and the grid finished, the open one whole ---- */
+.nv-ph-hero .nv-mac-sform .ring .fg, .nv-ph-mini.in .nv-mac-sform .ring .fg, .nv-ph-c.in .nv-mac-sform .ring .fg, .nv-ph-open .nv-mac-sform .ring .fg { stroke-dashoffset: calc(100 - var(--v)); }
+.nv-ph-hero .nv-mac-sform .bars > i, .nv-ph-mini.in .nv-mac-sform .bars > i, .nv-ph-c.in .nv-mac-sform .bars > i, .nv-ph-open .nv-mac-sform .bars > i { transform: none; }
+.nv-ph-hero .nv-mac-sform .trend path, .nv-ph-mini.in .nv-mac-sform .trend path, .nv-ph-c.in .nv-mac-sform .trend path, .nv-ph-open .nv-mac-sform .trend path { stroke-dashoffset: 0; }
+.nv-ph-hero .nv-mac-sform .trend circle, .nv-ph-mini.in .nv-mac-sform .trend circle, .nv-ph-c.in .nv-mac-sform .trend circle, .nv-ph-open .nv-mac-sform .trend circle { opacity: 1; }
+.nv-ph-mini .nv-mac-sform .sacts, .nv-ph-c .nv-mac-sform .sacts { flex-wrap: wrap; }
+
+/* ---- reduced motion: every move becomes a short fade ---- */
+@media (prefers-reduced-motion: reduce) {
+  .nv-ph-heroin, .nv-ph-mini.in .mi, .nv-ph-feed { animation: nvPhFade .2s linear both; }
+  .nv-ph-spark { display: none; }
+  .nv-ph-c, .nv-ph.all .nv-ph-c.in { transform: none !important; }
+  .nv-ph *, .nv-ph-top *, .nv-nt-ocore .nv-fx-corehit { transition-duration: .2s !important; transition-delay: 0s !important; transition-timing-function: linear !important; }
+}
+@keyframes nvPhFade { from { opacity: 0; } }

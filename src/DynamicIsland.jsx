@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as C from './islandCore.js';
-import { subscribeIsland, currentActivities, notify } from './island.js';
+import { subscribeIsland, currentActivities, notify, setIslandShown } from './island.js';
 import { startsInEdgeGuard } from './swipeCore.js';
 import { AlertCard } from './AlertCard.jsx';
 import { afterLayout } from './afterLayout.js';
@@ -130,6 +130,8 @@ function Trail({ trail, color }) {
 
 export function DynamicIsland() {
   const [shown, setShown] = useState(null); // { notice, env, key }
+  // the notice on screen, for a page that shows it as content (island.js)
+  useEffect(() => { setIslandShown(shown ? shown.notice : null); }, [shown]);
   const [acts, setActs] = useState(() => C.rankActivities(currentActivities()));
   const [shellEnv, setShellEnv] = useState(() => readEnv());
 
