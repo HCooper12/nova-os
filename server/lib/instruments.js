@@ -141,6 +141,20 @@ export function musclesForRoutine(routine) {
   return { primary: [...primary], secondary: [...secondary], unknown };
 }
 
+// THE SESSION'S LIFTS as his program states them (name, sets, the rep
+// range, the muscle it is filed under), for the Mac stage's Train panel
+// (mockup 114). A lift with no target sets is listed without a set count;
+// nothing is guessed. Pure.
+export function liftsOf(routine) {
+  return (routine?.exercises || []).filter((e) => e && e.name && e.name !== '(deleted exercise)').map((e) => ({
+    name: e.name,
+    sets: Number.isFinite(Number(e.targetSets)) && Number(e.targetSets) > 0 ? Number(e.targetSets) : null,
+    repsLow: Number.isFinite(Number(e.targetRepsLow)) && Number(e.targetRepsLow) > 0 ? Number(e.targetRepsLow) : null,
+    repsHigh: Number.isFinite(Number(e.targetRepsHigh)) && Number(e.targetRepsHigh) > 0 ? Number(e.targetRepsHigh) : null,
+    muscle: e.muscleGroup || null,
+  }));
+}
+
 /* --------------------------------------------------------------- build --- */
 
 export function scheduledRoutineFor(routines, schedule, date) {
@@ -197,6 +211,7 @@ export async function buildInstruments(vaultPath, { now = new Date() } = {}) {
       ok: !!routine,
       session: routine?.name || null,
       exercises: routine?.exercises?.length || 0,
+      lifts: routine ? liftsOf(routine) : [],
       muscles,
       carryovers,
       streak,
