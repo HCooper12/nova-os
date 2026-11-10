@@ -11,6 +11,17 @@ the session log at the foot is append-only.
 
 ---
 
+## 10 Nov (Sonnet 5.5, short side session): COACH CAN RENAME A LIFT; COACH KNOWS WHICH LIFT IS OPEN (69e0246e, b0cd11d9, pushed)
+- GOAL: he asked Coach (opened from the Reverse Single Arm Pec Deck) to rename that lift; Coach refused ("I cannot rename exercises") and meant the Lying T Bar row.
+- DONE CRITERIA: rename action works through the Coach card rails (MET in tests, UNMET on his phone); Coach resolves "this exercise" to the open card (MET in tests, UNMET on his phone).
+- STATE: `rename` action in server/lib/coach.js (EDIT_ACTIONS, normaliseProposal aliases relabel/retitle, validateCoachEdit, routeForAction -> 'exercise-rename'); `renameExerciseIn`/`renameExercise` in server/lib/exercises.js; apply + undo in server/lib/inbox.js (undo kind 'exercise-rename', restores the stored entry); route label in src/coachSuggestions.js (COACH_ROUTES must match coach.js), src/vals/valsInbox.js, valsInboxSummary.js; both Coach prompts in server/lib/claudeCode.js name the action. Open lift: App.jsx sends `liveSession.viewing` (same choice as valsSessionSummary exIdx), coach.js liveSessionContext writes "THE LIFT OPEN ON HIS SCREEN RIGHT NOW" first. Tests: server/test/coachRename.test.js (3).
+- DECISIONS: rename changes the library `name` only, id kept -> routines, sets, audits, clips follow; forecloses nothing, but logged session files keep the old name text as a copy (readers key on exerciseId). A case-only rename is allowed; a clash with another lift is refused. Rename rides its own route, not 'exercise-remap'.
+- VERIFIED: tests pass (node --test server/test/coachRename.test.js, 3/3); push on origin/main (git merge-base b0cd11d9 origin/main); Pages run 42792738045 success; served bundle index-9I1v7kwL.js contains "exercise-rename" and `{viewing:` in the askCoach payload; live server reloaded via scripts/reload-server.mjs, /api/health 200.
+- ASSUMED: that a real Coach turn now emits PROPOSE {"action":"rename"} and files the card (never run against his vault or a real model); that the viewing index is right on his phone (not seen).
+- OPEN: full server suite at close: 5445 pass, 2 fail ("the atlas covers his real library exactly, both ways", "every exercise resolves to at least one drawable view"; both fail without my change, cause not investigated; an earlier run showed a third failure that did not recur, so likely flaky). Lying T Bar row: left as is, his call.
+- NEXT ACTION: on his phone, open Coach from a lift and say "rename this to X"; expect a "Rename A to B" card; approve; the lift reads B everywhere and Undo gives A back.
+- DO NOT: pop or drop stash@{0} (a peer's). Do not treat Coach's "I cannot rename" as policy: it was a missing action. Do not claim the Coach fix is seen on his phone.
+
 ## 10 Nov (night, Fable 5.2): MAC STAGE SHIPPED (c8387a44). FELT SPEED built on branch `felt-speed`, NOT merged, NOT pushed. Phone stage in progress
 - MAC STAGE: his "1. Now". Merged and pushed as c8387a44, deploy checked down to the served bundle, server reloaded with the script. NOT CONFIRMED on his Mac: he has to open or reload Nova there.
 - FELT SPEED (his reel, @motion_ui_interface "Why iPhone feels so smooth", "build in these"): six commits on `felt-speed` (worktree .claude/worktrees/felt-speed, off c8387a44): cbb7283b press on touchdown held 90 ms, springs back (Interactive.jsx); 7ee4f047 the same press for every plain button (index.css, main.jsx); 4eb36909 + 51b0f7c9 a sheet closed mid-rise leaves from where it is (useExit.js `leaveFromHere`, GlassSheet, Portion/Exercise/Reply sheets); e8cbd96b easing tokens in place of stock curves; 2bf8a51c a flick carries its speed into the settle and edges rubber-band (settleSpring.js, YourDay pager, Ambient, RailCard, dismissSwipe).
@@ -6062,6 +6073,8 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**10 Nov (Sonnet 5.5):** added Coach's `rename` action (id kept, own route, undo) and made the mid-workout Coach sheet tell the server which lift is open (`liveSession.viewing`). Corrected a wrong diagnosis on the way: the second complaint (Coach talking about the T Bar row) was missing context, not a Coach misreading; the live-session text listed every lift and never said which was on screen. Pushed, deployed (run 42792738045), bundle and server checked; not seen on his phone.
 
 **9 Nov (Opus 5.5):** briefs now come back by name (Nova from the Researcher and Inbox, Wren from ideas); first turns start from a prewarmed session and quick lookups stop at four pages; a lighter lookup first turn was built, timed and reverted as no gain (corrected, not added: the earlier belief that prompt size drove turn-one latency).
 
