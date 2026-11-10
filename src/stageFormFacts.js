@@ -296,6 +296,9 @@ export function stageForm(card, { now = null } = {}) {
     }
     // what to keep in mind is a caution: the warn hue, as the mockup draws it
     if (notes.every((x) => !x)) return { ...none, form: 'dots', items: items.map((i) => ({ name: i.name })), meta: String(items.length), foot, hue: /\b(keep(ing)? in mind|concern|caution|risk|watch out)\b/i.test(label) ? 'var(--nv-warn)' : null };
+    // any other short-noted list is the mockup's rows: the name whole (it
+    // wraps), its note on the right
+    if (notes.every((x) => x.length <= 14)) return { ...none, form: 'rows', items: items.map((i, j) => ({ name: i.name, note: notes[j] ? notes[j].toLowerCase() : '' })), foot };
     return none;
   }
 

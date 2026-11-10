@@ -64,7 +64,8 @@ test('lists take the form their rows carry: times, weekdays, sets x reps, agents
   assert.equal(src.form, 'sources');
   assert.equal(src.meta, '2');
   assert.equal(stageForm({ kind: 'list', label: 'KEEP IN MIND', items: [{ name: 'One' }, { name: 'Two' }] }).form, 'dots');
-  assert.equal(stageForm({ kind: 'list', items: [{ name: 'Mixed', note: '9:30' }, { name: 'Other', note: 'later' }] }).form, null, 'mixed rows: the plain form');
+  assert.equal(stageForm({ kind: 'list', items: [{ name: 'Mixed', note: '9:30' }, { name: 'Other', note: 'later' }] }).form, 'rows', 'mixed rows are not a timeline: the plain rows form');
+  assert.equal(stageForm({ kind: 'list', items: [{ name: 'Long note', note: 'a note far too long to sit on the right' }] }).form, null, 'a long note: the plain card');
 });
 
 test('a video carries its timecode only when a real start time exists; the scope never says whose it is', () => {
@@ -92,7 +93,7 @@ test('the briefing calendar rows ("9:30 am", "5:30 pm · passed", "all day") mak
   assert.equal(f.form, 'timeline');
   assert.equal(f.meta, '2 fixed', 'the all-day note is not a fixed point');
   assert.deepEqual(f.items.map((x) => [x.time, x.past, x.now]), [['all day', false, false], ['09:30', true, false], ['18:00', false, true]]);
-  assert.equal(stageForm({ kind: 'list', label: 'NOTES', items: [{ name: 'a', note: 'all day' }] }).form, null, 'no timed row: not a timeline');
+  assert.notEqual(stageForm({ kind: 'list', label: 'NOTES', items: [{ name: 'a', note: 'all day' }] }).form, 'timeline', 'no timed row: not a timeline');
 });
 
 test('overnight drafts that are Inbox records carry their ids and count as drafts; rows without one are only named', () => {
@@ -174,6 +175,9 @@ test('one thing said is one panel; a row cut mid-word breaks at a word; audit ba
   assert.equal(wordCut('Short and whole'), 'Short and whole');
   const audit = stageForm({ kind: 'bars', label: 'PROGRAM AUDIT · WEEK OF 2026-11-09', bars: [{ name: 'Decide', value: 1, tone: 'warn', pct: 20 }, { name: 'Clean', value: 5, tone: 'good', pct: 100 }, { name: 'Not yet', value: 1, tone: 'cy', pct: 20 }] });
   assert.deepEqual(audit.rows.map((r) => r.hue), ['var(--nv-warn)', 'var(--nv-good)', 'var(--nv-cy)']);
+  // a short-noted list is the rows form, the name whole so it can wrap
+  const coach = stageForm({ kind: 'list', label: 'COACH · A CHANGE WORTH MAKING', items: [{ name: 'You have flagged your own form on Cable Hammer', note: 'NEW' }] });
+  assert.deepEqual([coach.form, coach.items[0].note], ['rows', 'new']);
 });
 
 test('the body instrument lists the session lifts as his program states them, nothing guessed', async () => {
