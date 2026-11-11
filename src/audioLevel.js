@@ -28,6 +28,25 @@ function ensureCtx() {
   }
 }
 
+// BUILD THE GRAPH BEFORE HE NEEDS IT, ON A DESKTOP BROWSER ONLY (11 Nov 2026,
+// the listening-start pause). In Chrome on his Mac `new AudioContext()` blocks
+// the main thread while the audio hardware opens: 116 to 121 ms measured when
+// the first mic stream made it, about half a second AFTER the tap, so the core
+// and the wave froze mid-entrance on the first listen of every launch. Making
+// it on the press instead was tried and measured worse (200 to 240 ms cold,
+// and the listening state arrived that much later). So it is made once, while
+// the app is idle after boot.
+// Never on iOS: there a page that touches audio can pause his music (the
+// 2 Sep incident, audioSession.js), and WebKit builds a context in about 4 ms
+// anyway, so there is nothing to save. It only constructs, never resumes; the
+// tap still does that (primeSpeech).
+export function warmAudioGraph() {
+  if (typeof navigator === 'undefined') return;
+  const ua = navigator.userAgent || '';
+  const ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+  if (!ios) ensureCtx();
+}
+
 function tick() {
   analyser.getByteTimeDomainData(data);
   let sum = 0;

@@ -143,7 +143,7 @@ import { cleanPath } from './settingsModel.js';
 const TTS_MAX_IN_FLIGHT = 2;
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
 
-import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
+import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech, warmAudioGraph } from './audioLevel.js';
 import { noteSpokenSentence, cutSpeech, beginReply, onSpeech, stanceNow } from './speechClock.js';
 import { watchForUpdate, applyUpdate, attemptsFor } from './buildCheck.js';
 import { kcalFromMacros } from './fuelRead.js';
@@ -244,11 +244,20 @@ function ScreenFallback() {
 // having them PARSED and in module cache before he taps, not about network.
 // requestIdleCallback is unavailable in Safari — feature-detected, with a
 // timeout fallback rather than an assumption.
+// The audio graph costs a desktop browser ~240 ms of main thread to build
+// (audioLevel.js). Two seconds after boot has settled, in an idle slice, so it
+// lands on a still screen and not on the Home entrance or the first listen.
+function warmAudioGraphWhenStill() {
+  setTimeout(() => {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(() => warmAudioGraph(), { timeout: 4000 });
+    else warmAudioGraph();
+  }, 2000);
+}
 let screensPrefetched = false;
 function prefetchScreens() {
   if (screensPrefetched) return;
   screensPrefetched = true;
-  const run = () => { for (const load of [...Object.values(SCREEN_LOADERS), ...Object.values(OVERLAY_LOADERS)]) load().catch(() => {}); };
+  const run = () => { for (const load of [...Object.values(SCREEN_LOADERS), ...Object.values(OVERLAY_LOADERS)]) load().catch(() => {}); warmAudioGraphWhenStill(); };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 6000 });
   else setTimeout(run, 3000);
 }
