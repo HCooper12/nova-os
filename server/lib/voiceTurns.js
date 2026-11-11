@@ -95,6 +95,10 @@ export function listenFields(body = {}) {
   // the phone handed over a muted microphone
   if (Number.isInteger(body.blindReads) && body.blindReads >= 0 && body.blindReads <= 1000) out.blindReads = body.blindReads;
   if (boundedMs(body.stallMs) !== undefined && body.stallMs > 0) out.stallMs = boundedMs(body.stallMs);
+  // WHAT THE SCREEN DID (11 Nov 2026, src/afterPaint.js): the listen's start to
+  // its first drawn frame, and the longest gap between frames in the 2.5 s
+  // after. Zero is a real reading here (a frame drawn at once), so it is kept.
+  for (const k of ['paintMs', 'gapMs']) if (boundedMs(body[k]) !== undefined) out[k] = boundedMs(body[k]);
   if (METERS.has(body.meter)) out.meter = body.meter;
   if (GRAPH_STATES.has(body.graphAtBlind)) out.graphAtBlind = body.graphAtBlind;
   if (body.muted === true) out.muted = true;

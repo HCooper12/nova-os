@@ -269,4 +269,9 @@ test('the receipt keeps the deaf-turn diagnosis, closed sets only', () => {
   assert.deepEqual({ blindReads: f.blindReads, stallMs: f.stallMs, meter: f.meter, graphAtBlind: f.graphAtBlind, muted: f.muted }, { blindReads: 4, stallMs: 7800, meter: 'own', graphAtBlind: 'interrupted', muted: true });
   const bad = listenFields({ blindReads: -1, stallMs: 0, meter: 'ears', graphAtBlind: 'asleep', muted: 'yes' });
   for (const k of ['blindReads', 'stallMs', 'meter', 'graphAtBlind', 'muted']) assert.equal(k in bad, false, k);
+  // the frames he saw as a listen opened: kept, zero included, nonsense dropped
+  const fr = listenFields({ paintMs: 14.4, gapMs: 0 });
+  assert.deepEqual({ paintMs: fr.paintMs, gapMs: fr.gapMs }, { paintMs: 14, gapMs: 0 });
+  const noFr = listenFields({ paintMs: null, gapMs: -3 });
+  assert.equal('paintMs' in noFr, false); assert.equal('gapMs' in noFr, false);
 });
