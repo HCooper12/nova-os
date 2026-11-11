@@ -12,6 +12,7 @@ import { haptic } from './haptics.js';
 import { giveBackMic, warmHeld, dropWarm, micRoute } from './warmMic.js';
 import { bargeInDecision, echoScore } from './bargeIn.js';
 import { vadBlind } from './vad.js';
+import { afterPaint, watchFrames } from './afterPaint.js';
 import { openBurst, stepBurst, burstDue, rewindDue, carryHeard, keepCarry, skipReceiptDue, earWanted } from './bargeListen.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
@@ -128,6 +129,15 @@ export function useNudge(ms = 2200) {
   return [shown, fire];
 }
 
+// What the screen did while this listen opened (src/afterPaint.js): time to
+// the first drawn frame and the longest gap between frames. Absent when no
+// frame was drawn at all (a hidden page), never a zero that reads as "smooth".
+const framesSeen = (meta) => {
+  const f = meta?.frames?.read?.();
+  meta?.frames?.stop?.();
+  return f && f.paintMs !== null ? { paintMs: f.paintMs, gapMs: f.gapMs } : {};
+};
+
 // The audio session type at the moment the mic opened, for the receipt.
 const sessionType = () => {
   try { return navigator.audioSession ? String(navigator.audioSession.type || '') : 'unsupported'; } catch { return 'unsupported'; }
@@ -189,6 +199,13 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const extendedRef = useRef(false);  // the hold is running long on unfinished words
   const peekRef = useRef(null);       // own ears: the clip-so-far read { heardAt, status, text, ms, at }
   const ownerRef = useRef({});        // this hook, as the warm microphone's owner
+  // THIS TURN'S OWN HOLD on the shared audio-session counter (audioSession.js;
+  // warmMic and the wake word hold it too). The microphone is now asked for
+  // two frames after the turn starts, so a turn can end before it ever held:
+  // it gives back only what it took.
+  const sessRef = useRef(false);
+  const holdMic = () => { if (!sessRef.current) { sessRef.current = true; micStarted(); } };
+  const letMic = () => { if (sessRef.current) { sessRef.current = false; micStopped(); } };
   const giveRef = useRef(null);       // the last end-of-turn hold decision { keep, why }
   const keepMicRef = useRef(keepMic);
   keepMicRef.current = keepMic;       // read at the END of a turn, so always this render's
@@ -274,7 +291,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     turnRef.current = null;
     recRef.current = null;
     stopMeter();
-    micStopped();
+    letMic();
     setOn(false);
     // The receipt goes out BEFORE the send, because the send is what he
     // remembers and the receipt is what explains it. Wrapped: a listener
@@ -437,7 +454,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     const tailMs = turnRef.current?.lastHeardAt ? Math.max(0, stopAt - turnRef.current.lastHeardAt) : null;
     clearExtended();
     turnRef.current = null;
-    micStopped();
+    letMic();
     setOn(false);
     setBlind(false);
     setHearing(true);
@@ -526,6 +543,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
           blindMs,
           ...(br?.reads?.length ? { blindReads: br.reads.length } : {}),
           ...(meta.stallMs ? { stallMs: meta.stallMs } : {}),
+          ...framesSeen(meta),
           ...(diagnosis || {}),
           ...(micFacts || {}),
           ...(giveRef.current?.why ? { micKept: giveRef.current.why } : {}),
@@ -720,42 +738,55 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     reasonRef.current = 'engine';
     liveRef.current = true;
     wantRef.current = true;
-    micStarted();
     setOn(true);
     setBlind(false);
     clockRef.current = setInterval(tickNova, TICK_MS);
     giveRef.current = null;
-    openRecording({
-      warm: {
-        owner: ownerRef.current,
-        trigger,
-        release: (stream) => { giveRef.current = giveBackMic(stream, { owner: ownerRef.current, conversing: keepMicNow() }); },
-      },
-      onLevel: (vad) => {
-        if (vad.speaking && turnRef.current && turnSeqRef.current === seq) {
-          turnRef.current = sawSpeech(turnRef.current, Date.now());
-          clearExtended();
-          heardSound(Date.now());
-          if (metaRef.current && !metaRef.current.firstSoundAt) metaRef.current.firstSoundAt = Date.now();
-        }
-      },
-    }).then((handle) => {
-      // he stopped before the mic opened, or the turn gave up on it
-      if (!liveRef.current || turnSeqRef.current !== seq) { handle.cancel(); return; }
-      recordingRef.current = handle;
-      const at = Date.now();
-      if (metaRef.current) { metaRef.current.micOpenAt = at; metaRef.current.audioSession = sessionType(); }
-      turnRef.current = openedTurn(turnRef.current, at);
-    }).catch((e) => {
-      // the mic itself refused — permission, or no device. Nothing was
-      // recorded, so there is nothing to send: say why and stop.
-      // (a turn already over, by his tap or the mic timeout, has said its piece)
-      if (turnSeqRef.current !== seq || !liveRef.current) return;
-      const kind = e?.name === 'NotAllowedError' ? 'not-allowed' : e?.name === 'NotFoundError' ? 'audio-capture' : (e?.message || 'microphone failed');
-      onError?.(kind);
-      reasonRef.current = 'engine';
-      if (liveRef.current) closeOut(true, { engine: 'nova', why: String(kind).slice(0, 120), micOpenMs: null, txStatus: 'none' });
-    });
+    // the frames he saw from this instant: the receipt's paintMs and gapMs
+    if (metaRef.current) metaRef.current.frames = watchFrames();
+    // PAINT FIRST (11 Nov 2026, src/afterPaint.js). A fresh microphone open
+    // can freeze his iPhone's page for up to four seconds, and it used to be
+    // requested in this same task, before "listening" had been drawn. Now the
+    // listening state reaches the screen, then the microphone is asked for.
+    // A held microphone answers in ~30 ms and has never frozen anything
+    // (0 of 17 in his receipts), so it is taken at once.
+    const open = () => {
+      // he stopped inside those two frames: nothing was asked for
+      if (!liveRef.current || turnSeqRef.current !== seq) return;
+      holdMic();
+      openRecording({
+        warm: {
+          owner: ownerRef.current,
+          trigger,
+          release: (stream) => { giveRef.current = giveBackMic(stream, { owner: ownerRef.current, conversing: keepMicNow() }); },
+        },
+        onLevel: (vad) => {
+          if (vad.speaking && turnRef.current && turnSeqRef.current === seq) {
+            turnRef.current = sawSpeech(turnRef.current, Date.now());
+            clearExtended();
+            heardSound(Date.now());
+            if (metaRef.current && !metaRef.current.firstSoundAt) metaRef.current.firstSoundAt = Date.now();
+          }
+        },
+      }).then((handle) => {
+        // he stopped before the mic opened, or the turn gave up on it
+        if (!liveRef.current || turnSeqRef.current !== seq) { handle.cancel(); return; }
+        recordingRef.current = handle;
+        const at = Date.now();
+        if (metaRef.current) { metaRef.current.micOpenAt = at; metaRef.current.audioSession = sessionType(); }
+        turnRef.current = openedTurn(turnRef.current, at);
+      }).catch((e) => {
+        // the mic itself refused — permission, or no device. Nothing was
+        // recorded, so there is nothing to send: say why and stop.
+        // (a turn already over, by his tap or the mic timeout, has said its piece)
+        if (turnSeqRef.current !== seq || !liveRef.current) return;
+        const kind = e?.name === 'NotAllowedError' ? 'not-allowed' : e?.name === 'NotFoundError' ? 'audio-capture' : (e?.message || 'microphone failed');
+        onError?.(kind);
+        reasonRef.current = 'engine';
+        if (liveRef.current) closeOut(true, { engine: 'nova', why: String(kind).slice(0, 120), micOpenMs: null, txStatus: 'none' });
+      });
+    };
+    if (warmHeld(ownerRef.current)) open(); else afterPaint(open);
   };
 
   const startTurn = (trigger = 'tap') => {
@@ -777,7 +808,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     reasonRef.current = 'engine';          // until the clock or the engine says otherwise
     liveRef.current = true;
     wantRef.current = true;
-    micStarted();  // the browser picks the recording session while he talks
+    holdMic();  // the browser picks the recording session while he talks
     setOn(true);
     if (held) clockRef.current = setInterval(tick, TICK_MS);
     spin();
@@ -992,7 +1023,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     wantRef.current = false;
     try { recRef.current?.stop(); } catch { /* already gone */ }
     recRef.current = null;
-    if (liveRef.current) { liveRef.current = false; stopMeter(); micStopped(); }
+    if (liveRef.current) { liveRef.current = false; stopMeter(); letMic(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1013,7 +1044,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       peekRef.current = null;
       blindRef.current = null;
       clearExtended();
-      micStopped();
+      letMic();
       setOn(false);
       setBlind(false);
       return;
