@@ -12226,6 +12226,13 @@ export default class App extends Component {
     this.primeSpeech();
   }
   primeSpeech() {
+    // ONCE PER TAP (11 Nov 2026). The core's tap reaches here twice in one
+    // task (NovaThread.startTalking, then toggleConvMode), and each pass
+    // claims the session and plays the silent clip: double the audio work in
+    // the very moment the microphone is about to be asked for.
+    const at = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (this.primedAt && at - this.primedAt < 80) return;
+    this.primedAt = at;
     try {
       claimForSpeech(); // the session type is HIS choice — see audioSession.js
       resumeAudioGraph(); // inside the gesture — the one moment iOS lets a suspended graph wake
