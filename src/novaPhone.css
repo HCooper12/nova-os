@@ -25,6 +25,18 @@
 .nv-nt-ocore .nv-fx-corehit { transition: transform .6s var(--nv-spring-smooth); }
 .nv-nt-ocore[data-ph-all] .nv-fx-corehit { transform: translate3d(0, calc(-22px / var(--ph-core-k, .595)), 0) scale(.5); }
 
+/* THE CORE ANSWERS THE TAP ON THE COMPOSITOR (11 Nov 2026). A fresh microphone
+   open can freeze his iPhone's page, and the core's own motion (its canvas,
+   its swell with his voice) is drawn by that page, so it froze too. This one
+   breath is transform only, handed to the compositor when "listening" is
+   painted (src/afterPaint.js asks for the microphone after that), so it keeps
+   moving through the freeze. Once per listen; the icon is his exempt part of
+   mockup 114. */
+@keyframes nvCoreHeard { 0% { transform: scale(1); } 22% { transform: scale(1.075); } 55% { transform: scale(.985); } 100% { transform: scale(1); } }
+.nv-nt-ocore[data-state="listening"] .nv-nt-core { animation: nvCoreHeard 1.1s cubic-bezier(.23, 1, .32, 1) both; }
+@media (prefers-reduced-motion: reduce) { .nv-nt-ocore[data-state="listening"] .nv-nt-core { animation: none; } }
+:root[data-nv-calm="1"] .nv-nt-ocore[data-state="listening"] .nv-nt-core { animation: none; }
+
 /* the composer, the mockup's pill: 56 tall, 16 in from the sides, 30 off the foot */
 .nv-nt.mob .nv-nt-composer { left: 16px; right: 16px; bottom: 30px; min-height: 56px; padding: 7px; border-radius: 28px; background: var(--ph-glass); box-shadow: inset 0 0 0 1px var(--ph-edge); }
 .nv-nt.mob[data-tabbar="0"] .nv-nt-composer { bottom: 30px; }
