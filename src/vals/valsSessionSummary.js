@@ -331,7 +331,7 @@ export function valsSessionSummary(app, ctx, v) {
       stepW, stepR,
       tick,
       tickAria: s.done ? `Set ${setIdx + 1} is logged. Tap to untick it` : `Done: log set ${setIdx + 1}, ${setWords(tt, s)}`,
-      remove: s.done && sets.length > 1 ? () => {
+      remove: sets.length > 1 ? () => {
         const snap = { ...s };
         app.removeSessionSet(exIdx, setIdx);
         app.setState({ sessionSumSel: null, sessionSumPad: null });

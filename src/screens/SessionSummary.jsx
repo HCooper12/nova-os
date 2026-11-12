@@ -560,6 +560,7 @@ function SetCard({ S, rs }) {
                       </Interactive>
                     )}
                     {!s.coach && !s.same && <span className="nv-ss-hint">Tap a number for the pad · hold a step to run it</span>}
+                    {s.remove && <button type="button" className="nv-ss-rm" onClick={s.remove}>Remove set</button>}
                   </>
                 )}
               </div>
