@@ -11,6 +11,20 @@ the session log at the foot is append-only.
 
 ---
 
+## 13 Nov (Fable 5.2, research session): THE NEOMAS AND ARK STUDY WRITTEN (a1c3aa21, local, not pushed). NOTHING BUILT. WAITING ON HIS FIVE CALLS
+
+- **GOAL:** his brief 13 Nov with two Instagram links: research both apps one at a time, name what Nova is missing, and plan the work so each improvement is proved.
+- **DONE CRITERIA:** (met) `design/NEOMAS-ARK-STUDY.md`: evidence, Nova's state by file, gaps, what is not copied, the seven-line proof standard, phase 0 baselines, tracks K1-K5 and C1-C8, the order. (UNMET) his answers; any baseline; any build.
+- **STATE:** main = `a1c3aa21` plus this handoff commit, one ahead of origin for each (not pushed, no code changed, no reload needed). Uncommitted and not mine: the two ios files.
+- **THE APPS:** Neomas (@metakaihos, macOS second brain: vault map with labelled clusters, flashcards, ask-your-sources, memory). The Ark (@theultimatehumandiet, coaching app: weekly check-in with a verdict and its working, week on one page, weight trend, fit-to-macros, batch cook calculator, AU food data, blood tests).
+- **THE FINDINGS THAT MATTER:** search is the largest knowledge gap (`recall.js` exists, no screen renders it; `queueRecall` results are never drawn; Notes search is title-only). The check-in ENGINE exists (`fuelReview.js`) with no page. The map draws 400 of 831 Wiki pages. No batch cook maths anywhere. AFCD absent; a food's source shows only as a hover tooltip (`FuelSummary.jsx:292`). Chef is not in `consult.js` AGENTS.
+- **DECISIONS (mine, in the doc, his to overturn):** not copied: water (his 12 Oct no), the three-model Council (cost), an in-app editor, auto-applied calorie changes (propose and approve stays), program catalogue, health modes, share/PDF. The review ladder stays until the Review Log is measured.
+- **VERIFIED:** the claims the plan rests on, read in the code this session (listed in the doc's section 5). Reel and video watched frame by frame; neomas.app fetched.
+- **ASSUMED / NOT VERIFIED:** The Ark beyond its 33 s video (no site found). Neomas reel-only features (map, flashcards). AFCD Release 3 food count and licence (data.gov.au and FSANZ state it differently; read before bundling). Whether Nova turns repeated corrections into rules (baseline B7). Every "done when" number is a target, not a result.
+- **OPEN, HIS CALLS (asked 13 Nov):** (1) start phase 0 + search now beside the stage work, or after it; (2) Chef and Coach joining as step 4 of this plan; (3) blood tests; (4) progress photos; (5) daily review question-first.
+- **NEXT ACTION:** on his yes to (1): phase 0 on a second server (scripts per B1-B7, findings as counts only in `design/audits/`), then K1. Fuel surfaces (C2+C3, C1) are drawn as panels from the start; next mockup number is 115.
+- **DO NOT:** build C5, C7, C8 or K5 without his word; commit his note text or the B1 phrase list (public repo); bundle AFCD data before the licence is read; point any instrument at 4173.
+
 ## 11-13 Nov (Fable 5.2): THE LISTENING PAUSE, CHASED AND SHIPPED (a404d841, b6be800e, df27f038, 96a5f4d2; deploy green and served; server reloaded). NOT YET SEEN ON HIS IPHONE
 
 - **GOAL:** his order 11 Nov, "pause and any lag, stuttering etc gone, quick, snappy". Chase the listening-start pause by own judgment.
