@@ -212,7 +212,7 @@ seven lines are true and written into the handoff.
    `server/data` and the vault, with the Telegram, push, Notion and Todoist
    keys unset. The endpoint is called and the result is read. Port 4173 is
    never touched by an instrument.
-4. **The surface.** A mockup he approves first (the next number is 115), in
+4. **The surface.** A mockup he approves first (the next free number: 116 is the daily review, 117 is search), in
    both Home idioms, at 375 and 402 px, with the design skills loaded before
    drawing. Then the build is laid beside the mockup frame by frame in
    WebKit, on his settings (Summary style, his theme and material) and his
@@ -503,7 +503,7 @@ next begins.
    quotes and concepts/ideas, such as those from Chris Williamson, Alex
    Hormozi, diary of a ceo, etc". K5 therefore changes shape: the card is
    led by the speaker's own words (quote, who, show, real timecode), with
-   the idea behind it, and his named shows are picked first. Mockup 115;
+   the idea behind it, and his named shows are picked first. Mockup 116;
    no build before he approves it.
 
 ### Added the same day: old data presented as current
