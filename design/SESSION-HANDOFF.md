@@ -11,6 +11,19 @@ the session log at the foot is append-only.
 
 ---
 
+## 13 Nov (Fable 5.2, watch session): NOVA ON THE APPLE WATCH, mockup 115 sent for his approval (abcdcd52, local). NOTHING BUILT
+
+- **GOAL:** his brief 13 Nov: "an app of Nova for my Apple Watch, with whatever features would genuinely work and be beneficial ... Also including widgets ... I don't need everything that would just be clunky on the watch".
+- **DONE CRITERIA:** (met) mockup `design/mockups/115-nova-wrist.html`, published privately at https://claude.ai/artifact/1X71qj291NQk5jmqap7KEo, every state looked at wide and at 375. (UNMET) his approval; any Swift; any server endpoint.
+- **NUMBER CLASH:** the research section below planned "mockup 115 (daily review)". 115 is now the wrist. The daily review takes the next free number.
+- **WHAT THE MOCKUP PROPOSES:** the session as the hero (one lift, one tick, rest ring with a wrist tap, weight and reps by crown, heart rate, a real Health workout); Today rings; usuals logged in one tap with Undo; voice for a short answer or a kept note; four complications and two Smart Stack cards; the three missing-link states. Left on the phone: Journal, Library, briefings, recipes, shopping, 3D, Coach's proposals, Settings.
+- **ARCHITECTURE (from `design/WRIST-PLAN.md`, still the plan):** the watch is not on the tailnet. Watch to iPhone by WatchConnectivity, iPhone to Mac with `nova.baseUrl` + `nova.token` from the App Group, an on-watch queue with idempotency keys, HKWorkoutSession for heart rate.
+- **NEW SERVER WORK THE BUILD NEEDS (read in the code by an Explore agent, not run):** no "today's session, ready to run" endpoint (the phone assembles it from three calls); no per-set tick endpoint (the phone PUTs the whole draft to `/api/workouts/session-draft`, so a watch writing too would race it); no usuals endpoint (derive from `/api/food-log/history`); the rest timer is UI-only.
+- **NOT VERIFIED:** whether a watchOS target signs and installs on the free Personal Team; whether WatchConnectivity wakes the iOS app in the background reliably enough for "the Nova app does not need to be open"; his watch model and watchOS version; nothing was compiled.
+- **KNOWN LIMITS TO TELL HIM STRAIGHT:** free team means a 7-day re-install and no native push to the wrist; no watch-alone reach to the Mac without Tailscale Funnel.
+- **WAITS ON HIM:** approve 115 or changes; his watch model; build order (my pick: the session first); what to do with the uncommitted ios pbxproj/Info.plist edits (not mine) before a watch target is added.
+- **DO NOT:** write Swift before he approves 115; commit the two ios files; add a watch target on top of the uncommitted pbxproj changes without his word.
+
 ## 13 Nov (Fable 5.2, research session): THE NEOMAS AND ARK STUDY WRITTEN (a1c3aa21), HIS FIVE CALLS ANSWERED, PHASE 0 AND THE FRESHNESS FIX UNDER WAY
 
 - **GOAL:** his brief 13 Nov with two Instagram links: research both apps one at a time, name what Nova is missing, and plan the work so each improvement is proved.
