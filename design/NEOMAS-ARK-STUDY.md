@@ -485,11 +485,48 @@ next begins.
 - **Every "done when" number** is a target set before measuring, not a
   result.
 
-## 6 · His calls
+## 6 · His calls (answered 13 Nov 2026)
 
 1. Start the baseline and the search build now, beside the stage work, or
    hold all of this until the stage and the panels are finished?
+   **Now.** Phase 0 runs first, then K1.
 2. Does the Chef and Coach joining go ahead as part of this plan (step 4)?
+   **Yes.** C5 is in.
 3. Should Nova read and track blood tests?
+   **Yes.** C7 is in.
 4. Should Nova keep progress photos?
+   **Build the capability; he may not use it.** C8 is in, off by default,
+   and nothing on any surface asks him for a photo.
 5. May the daily review card be redrawn to ask the question first?
+   **Draw a mockup first.** His words: the daily review "still hasn't been
+   working ideally. I want it focused on presenting things like podcast
+   quotes and concepts/ideas, such as those from Chris Williamson, Alex
+   Hormozi, diary of a ceo, etc". K5 therefore changes shape: the card is
+   led by the speaker's own words (quote, who, show, real timecode), with
+   the idea behind it, and his named shows are picked first. Mockup 115;
+   no build before he approves it.
+
+### Added the same day: old data presented as current
+
+His words, 13 Nov: prompts in the morning brief and the inbox are "OLD
+data", such as one slight pain mentioned during an exercise that was not
+ongoing ("it should have merely asked if this was continual pain or
+not"), and gym performance "from an exercise multiple weeks ago that is
+irrelevant for today in reality".
+
+This is a new track, **F (freshness)**, and it goes ahead of K1 because it
+is a fault he meets every morning:
+
+- **F1 · one date rule.** Every producer that raises something from his
+  logs (morning brief, inbox cards, Coach's reviews, alerts) judges age by
+  date through one shared helper, never by "the last N sessions".
+- **F2 · pain is asked once.** A new pain mention gets one question: is
+  this still going on? "No" closes it for good; "yes" opens an Injury Log
+  entry. Either answer is on the inbox rails and can be undone. It is
+  never raised again unasked.
+- **F3 · evidence wears its date.** Anything that survives the rule shows
+  the date of what it is built on; anything too old is dropped, not
+  softened.
+- **Proof:** tests with their own data folder; a replay of the morning
+  brief and the Coach review on a scratch copy of his data, counting how
+  many items cite evidence older than the rule allows, before and after.
