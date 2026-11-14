@@ -39,6 +39,8 @@ const SOURCE_LABEL = {
   studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY', briefing: 'BRIEFING',
   // the four that fell through to TYPED
   'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT', paper: 'STUDY → PROGRAM',
+  // asked once about pain logged in a session or an old Injury Log entry (13 Nov 2026)
+  'pain-check': 'PAIN CHECK',
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
   scout: 'SCOUT · PEOPLE', 'leader-reflect': 'LEADER',
   act: 'BY VOICE', browse: 'BROWSER',

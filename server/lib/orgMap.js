@@ -71,7 +71,7 @@ export const BEING_MEMBERS = {
 // UNFILED_KINDS, so a new kind cannot silently vanish from the map.
 export const KIND_BEING = {
   dispatch: 'commander', 'plan-today': 'commander', followup: 'commander',
-  coach: 'coach', 'coach-program': 'coach', 'coach-audit': 'coach', 'coach-review': 'coach', 'exercise-research': 'coach',
+  coach: 'coach', 'coach-program': 'coach', 'coach-audit': 'coach', 'pain-check': 'coach', 'coach-review': 'coach', 'exercise-research': 'coach',
   program: 'coach', 'weekly-debrief': 'coach', 'week-plan': 'coach', 'training-check': 'coach',
   'food-suggestion': 'mealprep', 'meal-prep': 'mealprep', 'fuel-cross': 'mealprep',
   cfo: 'cfo', money: 'cfo', 'money-import': 'cfo', 'money-write': 'cfo',

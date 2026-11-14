@@ -16,6 +16,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo path has a space
 import path from 'node:path';
 import { weeklyWindowOpen } from './cadence.js';
+import { freshInjuries } from './painCheck.js';
+import { datedLabel } from './freshness.js';
 
 // honors NOVA_DATA_DIR like every sibling store (the healthInsight precedent)
 // — this was one of three hard-coded paths, so tests with the env override
@@ -51,11 +53,14 @@ async function send(text, kind = 'coach-cadence') {
 
 // The injury line for the morning card — moderate or worse, open, and only
 // on a training day (the caller decides that). Niggles stay chat-only so
-// the card stays lean. Pure, exported for the test.
-export function injuryLine(injuries) {
-  const active = (injuries || []).filter((i) => !i.resolvedAt && i.severity && i.severity !== 'niggle');
+// the card stays lean. Since 13 Nov 2026 only a FRESH open entry (lib/
+// painCheck.js freshInjuries), and the line says since when: an old one is
+// asked about once as a pain check, not repeated. Pure, exported for the test.
+export function injuryLine(injuries, { records = [], now = new Date() } = {}) {
+  const active = freshInjuries(injuries || [], records, now).filter((i) => i.severity && i.severity !== 'niggle');
   if (!active.length) return null;
-  return `Open injur${active.length === 1 ? 'y' : 'ies'} on file: ${active.map((i) => `${i.area} (${i.severity})`).join(', ')} — train around ${active.length === 1 ? 'it' : 'them'}.`;
+  const since = (i) => { const d = datedLabel(i.startedAt, now, { on: false }); return d ? `, since ${d}` : ''; };
+  return `Open injur${active.length === 1 ? 'y' : 'ies'} on file: ${active.map((i) => `${i.area} (${i.severity}${since(i)})`).join(', ')}. Train around ${active.length === 1 ? 'it' : 'them'}.`;
 }
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
@@ -102,7 +107,8 @@ export async function morningReadiness(vaultPath) {
   try {
     // an open injury meets him where he plans the session, not only in a chat he may not open
     const { listInjuries } = await import('./injuryLog.js');
-    const inj = injuryLine(await listInjuries(vaultPath));
+    const { listRecords } = await import('./inboxStore.js');
+    const inj = injuryLine(await listInjuries(vaultPath), { records: await listRecords().catch(() => []) });
     if (inj) lines.push(inj);
   } catch { /* no read, no line */ }
   try {
@@ -433,6 +439,14 @@ export function startCoachCadenceScheduler(vaultPath) {
           }
           if (raised.length || nudged.length) console.log(`coach program review: ${raised.length} raised, ${nudged.length} nudged`);
         } catch (e) { console.log('coach program review failed:', e.message); }
+
+        // PAIN IS ASKED ONCE (13 Nov 2026): a session's pain mention, or an
+        // open entry nobody has confirmed lately, becomes one yes/no question
+        try {
+          const { raisePainChecks } = await import('./painCheck.js');
+          const { raised } = await raisePainChecks(vaultPath);
+          if (raised.length) console.log(`pain checks: ${raised.length} raised`);
+        } catch (e) { console.log('pain checks failed:', e.message); }
 
         // THE WEEKLY AUDIT — once a week, the sweep itself gets a receipt.
         // Three detectors had never fired on his data and there was no way

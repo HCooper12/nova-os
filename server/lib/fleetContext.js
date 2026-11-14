@@ -47,7 +47,7 @@ export const KIND_AGENT = {
   guardian: 'Guardian', compost: 'Compost', pattern: 'Pattern Scout',
   autonomy: 'Trust Ladder', distill: 'Distiller', followup: 'Commander',
   video: 'Watcher', study: 'Study Lane', 'forge-job': 'Forge',
-  'coach-program': 'Program Review', 'coach-audit': 'Program Audit',
+  'coach-program': 'Program Review', 'coach-audit': 'Program Audit', 'pain-check': 'Coach',
   'exercise-research': 'Exercise Research',
   'fuel-cross': 'Fuel × Training', 'read-next': 'Librarian',
   'brain-week': 'Brain Week', 'money-import': 'Money Import',

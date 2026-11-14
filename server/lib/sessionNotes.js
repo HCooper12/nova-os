@@ -20,6 +20,8 @@
 // jump. Getting it wrong the other way means telling a man whose form is
 // already breaking down to add weight, which is how people get hurt.
 
+import { ageDays } from './freshness.js';
+
 // Form breaking down / the rep being completed by something other than the
 // target muscle. These are the words he actually writes.
 const FORM_BREAKDOWN = /\b(form|technique|momentum|swing(?:ing)?|cheat(?:ing|ed)?|sloppy|jerk(?:ing|y)?|heave|body ?english|nudge|compensat\w*|wobbl\w*|shak(?:y|ing)|control(?:led)?[- ]?(?:issue|problem)?|lost control|breaking down|not (?:as )?(?:clean|strict|good))\b/i;
@@ -76,9 +78,13 @@ export function notesForExercise(sessions = [], exerciseId, { limit = 6 } = {}) 
 
 // A lift he has flagged for the SAME reason more than once is a pattern, not
 // a bad day. This is what earns a finding on the rails.
-export function recurringSignal(sessions = [], exerciseId, signal, { min = 2, within = 6 } = {}) {
+// `maxAgeDays` (13 Nov 2026, the "old data" complaint) also bounds it by
+// DATE: a note older than that many local days before `now` is not counted.
+// Callers that pass nothing keep the count-only behaviour.
+export function recurringSignal(sessions = [], exerciseId, signal, { min = 2, within = 6, now = new Date(), maxAgeDays = null } = {}) {
   const notes = notesForExercise(sessions, exerciseId, { limit: within });
-  const hits = notes.filter((n) => n.signals.includes(signal));
+  const hits = notes.filter((n) => n.signals.includes(signal)
+    && (maxAgeDays == null || (() => { const a = ageDays(n.date, now); return a != null && a <= maxAgeDays; })()));
   return hits.length >= min ? hits : null;
 }
 

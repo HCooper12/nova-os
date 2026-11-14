@@ -14,7 +14,9 @@
 import { metricCard, listCard } from './spokenCards.js';
 import { mondayOf as mondayOfLocal } from './cadence.js';
 import { findingCard, auditCard, proteinWeekCard } from './findingCards.js';
-import { closedAreas, closedAsOf, isStaleConcern } from './concernClose.js';
+import { freshInjuries } from './painCheck.js';
+import { datedLabel } from './freshness.js';
+import { speakableProgramCards } from './evidenceAge.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -398,31 +400,25 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
   if (!evening) {
     const concerns = [];
     let painPrompt = null;
-    let closed = [];
     try {
       // the log keeps resolved entries as history, and listInjuries returns
-      // them too: an area he closed must not be the morning's concern
+      // them too: an area he closed must not be the morning's concern.
+      // OLD DATA IS NOT TODAY'S NEWS (13 Nov 2026): an open entry is spoken
+      // only while it is fresh (started in the last two weeks, or he said
+      // "not yet" to a pain check lately), and it says since when. An older
+      // one is asked about once, as a pain check, never read out daily.
       const logged = (deps.injuries ? await deps.injuries(vaultPath) : []) || [];
-      closed = closedAreas(logged, { now });
-      const open = logged.filter((i) => !i.resolvedAt);
+      const recs = (deps.records ? await deps.records().catch(() => []) : []) || [];
+      const open = freshInjuries(logged, recs, now);
       for (const inj of open.slice(0, 2)) {
-        concerns.push({ name: despeak(inj.area), note: inj.severity || 'open', tone: 'warn' });
+        const since = datedLabel(inj.startedAt, now, { on: false });
+        concerns.push({ name: despeak(inj.area), note: `${inj.severity || 'open'}${since ? ` · since ${since}` : ''}`, tone: 'warn' });
       }
       if (open.length) painPrompt = despeak(open[0].area);
     } catch { /* absent section */ }
-    try {
-      const sessions = (deps.lastSessions ? await deps.lastSessions(vaultPath) : []) || [];
-      const recent = sessions.filter((x) => (now - new Date(x.date || 0)) < 4 * 86_400_000);
-      for (const sess of recent) {
-        for (const ex of sess.exercises || []) {
-          const hurt = ex.pain || (ex.sets || []).some((st2) => st2.pain);
-          if (!hurt) continue;
-          if (ex.pain && isStaleConcern(`${ex.pain} pain`, closedAsOf(closed, sess.date))) continue;
-          concerns.push({ name: despeak(ex.name || ex.exerciseId), note: `pain · ${sess.date}`, tone: 'warn' });
-          painPrompt = painPrompt || despeak(ex.name || ex.exerciseId);
-        }
-      }
-    } catch { /* absent section */ }
+    // Pain logged in a session is no longer read out here every morning (13
+    // Nov 2026): it is asked ONCE, as a pain check on the brief's yes/no
+    // close (lib/painCheck.js), and nowhere else.
     // RHR drifting well above his own baseline is worth a sentence
     const rhrDays = days.filter((x) => x.restingHr != null);
     if (rhrDays.length >= 2) {
@@ -445,10 +441,12 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
 
   // — THE COACH'S OPEN ASK. His 21-Aug ask: a proposed program change
   //   should reach him in the morning brief, not only the Inbox. One at a
-  //   time, the oldest unanswered first, and it says how long it has waited.
+  //   time, the newest evidence first, and it says how long it has waited.
   if (!evening && deps.programOpen) {
     try {
-      const open = (await deps.programOpen()) || [];
+      // only a card whose evidence is fresh, newest evidence first (13 Nov
+      // 2026): weeks-old gym numbers are not this morning's news
+      const open = speakableProgramCards((await deps.programOpen()) || [], { now });
       if (open.length) {
         const top = open[0];
         const waited = Math.floor((now - new Date(top.createdAt || now)) / 86_400_000);

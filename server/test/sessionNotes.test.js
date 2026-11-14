@@ -3,7 +3,12 @@
 // and a false negative tells a man whose form is already going to add weight.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { signalsIn, readExerciseNote, notesForExercise, recurringSignal, recentNotes, notesContextLines } from '../lib/sessionNotes.js';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-sessionnotes-'));
+const { signalsIn, readExerciseNote, notesForExercise, recurringSignal, recentNotes, notesContextLines } = await import('../lib/sessionNotes.js');
 
 test('his real notes read the way he meant them', () => {
   assert.deepEqual(signalsIn('Form not as good with the left side. Body momentum moving a bit'), ['form-breakdown']);
@@ -69,4 +74,16 @@ test('context lines name the signal and quote him verbatim', () => {
   const lines = notesContextLines([{ date: '2026-08-24', name: 'Lateral Raise', note: 'body momentum', signals: ['form-breakdown'] }]);
   assert.match(lines[0], /\[form-breakdown\]/);
   assert.match(lines[0], /"body momentum"/);
+});
+
+// 13 Nov 2026 ("old data" complaint): callers can bound the pattern by date
+test('recurringSignal: a date bound drops old notes; no bound keeps the count-only reading', () => {
+  const s = [
+    { date: '2026-11-10', exercises: [{ exerciseId: 'x', note: 'used momentum' }] },
+    { date: '2026-09-01', exercises: [{ exerciseId: 'x', note: 'form went' }] },
+  ];
+  const now = new Date(2026, 10, 13, 9);
+  assert.equal(recurringSignal(s, 'x', 'form-breakdown').length, 2, 'unchanged when nothing is passed');
+  assert.equal(recurringSignal(s, 'x', 'form-breakdown', { now, maxAgeDays: 21 }), null, 'one recent note is not a pattern');
+  assert.equal(recurringSignal(s, 'x', 'form-breakdown', { min: 1, now, maxAgeDays: 21 }).length, 1);
 });

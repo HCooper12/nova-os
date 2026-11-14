@@ -4,7 +4,11 @@
 // beat — the glass keeping up with the voice.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
+process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-morningbrief-'));
 const { composeShow, unusualEvents } = await import('../lib/morningShow.js');
 const { metricCard, barsCard, listCard } = await import('../lib/spokenCards.js');
 
@@ -51,7 +55,8 @@ test('the fleet and the Waiting beat name one count: every pending Inbox record,
 test('an open injury raises a beat that ASKS about it', async () => {
   const deps = {
     ...baseDeps,
-    injuries: async () => [{ area: 'Left shoulder', severity: 'niggle' }],
+    // 13 Nov 2026 ("old data" complaint): only a fresh entry is spoken, so it carries its start date
+    injuries: async () => [{ area: 'Left shoulder', severity: 'niggle', startedAt: YESTERDAY }],
     lastSessions: async () => [],
   };
   const { steps } = await composeShow('/tmp/vault', { variant: 'morning' }, deps);
@@ -63,17 +68,19 @@ test('an open injury raises a beat that ASKS about it', async () => {
   assert.equal(beat.card.items[0].tone, 'warn');
 });
 
-test('pain logged in a recent session raises it too — from his own training log', async () => {
+// 13 Nov 2026 ("old data" complaint): session pain is no longer read out every
+// morning; it is asked once, as a pain check on the brief's yes/no close
+test('pain logged in a recent session is not read out by the show — the pain check asks it once', async () => {
   const deps = {
     ...baseDeps,
     injuries: async () => [],
     lastSessions: async () => [{
-      date: new Date().toISOString().slice(0, 10),
+      date: YESTERDAY,
       exercises: [{ name: 'Barbell Row', sets: [{ reps: 8, pain: 'lower back' }] }],
     }],
   };
   const { steps } = await composeShow('/tmp/vault', { variant: 'morning' }, deps);
-  assert.ok(steps.some((s) => /barbell row/i.test(s.say) && /how is it feeling/i.test(s.say)));
+  assert.equal(steps.some((s) => /barbell row/i.test(s.say)), false);
 });
 
 test('no injury, no pain, steady heart rate → no health beat at all (never a daily formality)', async () => {

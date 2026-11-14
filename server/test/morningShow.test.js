@@ -3,7 +3,12 @@
 // gate is armed exactly when something is pending.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { composeShow, leisureEventToday } from '../lib/morningShow.js';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-morningshow-'));
+const { composeShow, leisureEventToday } = await import('../lib/morningShow.js');
 
 const pad = (n) => String(n).padStart(2, '0');
 const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -243,4 +248,52 @@ test('library beat: never on the evening variant', async () => {
   const withLib = { ...deps, libraryResurface: async () => ({ line: 'library line here', item: { concepts: [] }, reason: 'new' }) };
   const { steps } = await composeShow('/tmp/vault', { variant: 'evening', now: AT_8PM }, withLib);
   assert.doesNotMatch(steps.map((s) => s.say).join(' | '), /library line here/);
+});
+
+// ---- 13 Nov 2026, his "old data" complaint: the brief speaks only what is current ----
+const daysAgo = (n) => local(new Date(Date.now() - n * 86_400_000));
+const bare = { recentDays: async () => [], foodToday: async () => ({ entries: [] }), records: async () => [], eventsForDay: async () => [], panel: async () => null };
+const concernBeat = (steps) => steps.find((s) => s.card?.label === 'WORTH KEEPING IN MIND');
+
+test('concern beat: pain logged two days ago is NOT read out (the pain check asks it once instead)', async () => {
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, {
+    ...bare, injuries: async () => [],
+    lastSessions: async () => [{ date: daysAgo(2), exercises: [{ name: 'Barbell Row', exerciseId: 'row', pain: 'Lower back', sets: [{ reps: 8, pain: true }] }] }],
+  });
+  assert.equal(concernBeat(steps), undefined);
+  assert.doesNotMatch(JSON.stringify(steps), /Barbell Row/);
+});
+
+test('concern beat: an open injury from 5 days ago is listed with since when; one from 30 days ago with no word is not', async () => {
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, {
+    ...bare, lastSessions: async () => [],
+    injuries: async () => [
+      { id: 'new', area: 'Left shoulder', severity: 'niggle', startedAt: daysAgo(5) },
+      { id: 'old', area: 'Right knee', severity: 'moderate', startedAt: daysAgo(30) },
+    ],
+  });
+  const beat = concernBeat(steps);
+  assert.ok(beat);
+  assert.equal(beat.card.items.length, 1);
+  assert.equal(beat.card.items[0].name, 'Left shoulder');
+  assert.match(beat.card.items[0].note, /^niggle · since \w{3} \d{1,2} \w{3}$/);
+  assert.doesNotMatch(JSON.stringify(steps), /Right knee/);
+  // his "not yet" on a pain check about it keeps the old one current
+  const said = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, {
+    ...bare, lastSessions: async () => [],
+    injuries: async () => [{ id: 'old', area: 'Right knee', severity: 'moderate', startedAt: daysAgo(30) }],
+    records: async () => [{ id: 'p', kind: 'pain-check', injuryId: 'old', status: 'discarded', discardedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() }],
+  });
+  assert.ok(concernBeat(said.steps), 'confirmed lately, so it is spoken');
+});
+
+test('program beat: a card whose newest evidence is 40 days old is not spoken; one at 5 days is', async () => {
+  const card = (id, ago) => ({ id, kind: 'coach-program', status: 'pending', createdAt: NOW_ISO, text: `Coach: finding ${id}.`, finding: { kind: 'reported-form', dates: [daysAgo(ago + 3), daysAgo(ago)] } });
+  const run = (open) => composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, { ...bare, programOpen: async () => open });
+  const stale = await run([card('old', 40)]);
+  assert.doesNotMatch(stale.steps.map((s) => s.say).join(' '), /finding old/);
+  const both = await run([card('old', 40), card('new', 5)]);
+  const said = both.steps.map((s) => s.say).join(' ');
+  assert.match(said, /finding new/);
+  assert.doesNotMatch(said, /finding old/);
 });

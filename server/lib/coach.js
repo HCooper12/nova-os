@@ -4,6 +4,7 @@ import { loadSessions, setSessionSummary } from './workoutSessions.js';
 import { createRecord } from './inboxStore.js';
 import { readExerciseNote } from './sessionNotes.js';
 import { closedAsOf, isStaleConcern } from './concernClose.js';
+import { isFresh, datedLabel } from './freshness.js';
 import { expandGroup } from './muscleSecondary.js';
 
 // Coach's progression engine — pure deterministic rules over logged history,
@@ -90,8 +91,19 @@ export function bestSetLoad(ex) {
 // routines: the resolved routines from loadRoutines (entries carry
 // exerciseId/trackingType/targetSets/targetRepsHigh). Returns a map keyed
 // `${routineId}:${exerciseId}` → { kind, delta, evidence }.
-export async function computeProgressions(vaultPath, routines) {
+// `settledPainKeys` (13 Nov 2026): the painKeys of pain checks he answered
+// "no, not still going on" (lib/painCheck.js). Read from the inbox when the
+// caller does not pass them; tests pass them in.
+export async function computeProgressions(vaultPath, routines, { now = new Date(), settledPainKeys = null } = {}) {
   const sessions = await loadSessions(vaultPath); // newest first
+  const settled = settledPainKeys ? new Set(settledPainKeys) : await (async () => {
+    try {
+      const { listRecords } = await import('./inboxStore.js');
+      return new Set((await listRecords())
+        .filter((r) => r.kind === 'pain-check' && r.painKey && r.status === 'discarded' && r.expired !== true)
+        .map((r) => r.painKey));
+    } catch { return new Set(); }
+  })();
   // His standing feedback, applied here so a correction he gave once holds
   // forever: a tuned step replaces the default, a hold suppresses the
   // suggestion entirely. See progressionTunes.js.
@@ -108,10 +120,11 @@ export async function computeProgressions(vaultPath, routines) {
       if (tune?.hold) continue; // he asked for no progressions here — honour it
 
       const recent = [];
+      const recentDates = [];
       for (const s of sessions) {
         const ex = s.exercises.find((e) => e.exerciseId === entry.exerciseId);
         if (ex && ex.anomaly) continue; // flagged off-day — not evidence
-        if (ex && ex.sets?.length) recent.push(sansDrops(ex));
+        if (ex && ex.sets?.length) { recent.push(sansDrops(ex)); recentDates.push(s.date); }
         if (recent.length === 2) break;
       }
       if (recent.length < 1) continue;
@@ -189,7 +202,12 @@ export async function computeProgressions(vaultPath, routines) {
       const lastNote = readExerciseNote(recent[0]);
       // pain in an area he has since closed holds nothing (his own close, 1 Nov)
       const closedPain = !!lastNote?.pain && isStaleConcern(`${lastNote.pain} pain`, closedAsOf(closed, recent[0]?.date));
-      const formGone = !!lastNote?.signals.some((x) => x === 'form-breakdown' || (x === 'pain' && !closedPain));
+      // …nor does pain from more than two weeks back, or pain he said was a
+      // one-off when the pain check asked (13 Nov 2026, the "old data" complaint)
+      const painDate = recentDates[0];
+      const painCounts = !closedPain && isFresh('pain-hold', painDate, now)
+        && !settled.has(`pain:${entry.exerciseId}:${painDate}`);
+      const formGone = !!lastNote?.signals.some((x) => x === 'form-breakdown' || (x === 'pain' && painCounts));
 
       // OBJECTIVE TREND FIRST. His effort rating is near-constant, so "is it
       // moving?" is the only question that separates one lift from another.
@@ -205,7 +223,10 @@ export async function computeProgressions(vaultPath, routines) {
       // He said the form went. That is a stronger signal than any rep count,
       // and it decides before the numbers get a vote.
       if (formGone) {
-        const why = lastNote.pain ? `you reported pain — "${lastNote.pain}"` : `your own note: "${lastNote.note}"`;
+        const painSaid = lastNote.signals.includes('pain') && painCounts;
+        const why = painSaid
+          ? `you reported pain ${datedLabel(painDate, now)}: "${lastNote.pain || lastNote.note}"`
+          : `your own note: "${lastNote.note || lastNote.pain}"`;
         out[`${routine.id}:${entry.exerciseId}`] = {
           kind: 'quality',
           delta: 0,

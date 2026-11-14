@@ -1,5 +1,7 @@
 import { findingCard } from './findingCards.js';
 import { metricCard, listCard } from './spokenCards.js';
+import { evidenceDate, speakableProgramCards } from './evidenceAge.js';
+import { datedLabel } from './freshness.js';
 
 // THE CLOSE: one question at a time.
 //
@@ -15,8 +17,9 @@ import { metricCard, listCard } from './spokenCards.js';
 // undo. The queue is a better way to ASK; it is not a new way to write.
 
 // The order he should be asked in: the ones with a real consequence first,
-// receipts last. Anything unranked sorts after these.
-const ORDER = ['coach-program', 'fuel-cross', 'read-next', 'coach-audit'];
+// receipts last. Anything unranked sorts after these. A pain check leads
+// (13 Nov 2026): it is the one question about his body, asked once.
+const ORDER = ['pain-check', 'coach-program', 'fuel-cross', 'read-next', 'coach-audit'];
 
 // A record that can be answered yes/no. Deliberately narrow — a capture
 // waiting to be filed as a todo is not a DECISION, it is admin, and putting
@@ -69,6 +72,9 @@ const firstSentence = (s) => {
 export function questionFor(record) {
   const text = clean(record.text);
   switch (record.kind) {
+    // already a question, written by code (lib/painCheck.js)
+    case 'pain-check':
+      return text;
     case 'coach-program':
       return record.fix
         ? `${firstSentence(text)} Shall I make that change, sir?`
@@ -100,30 +106,50 @@ export function cardFor(record) {
       tone: n('fired') || n('couldnt-look') ? 'warn' : 'good',
     });
   }
+  if (record.kind === 'pain-check') {
+    return listCard({
+      label: label(record.kind),
+      items: [{ name: String(record.exerciseName || record.area || 'Pain').slice(0, 46), note: record.area && record.exerciseName ? record.area : 'Injury Log', tone: 'warn' }],
+      foot: 'yes or no is all it needs',
+    });
+  }
+  // a coach card says when its evidence is from (13 Nov 2026, "old data")
+  const from = record.kind === 'coach-program' ? evidenceDate(record) : null;
   return listCard({
     label: label(record.kind),
-    items: [{ name: firstSentence(record.text).slice(0, 46), tone: 'gold' }],
+    items: [{ name: firstSentence(record.text).slice(0, 46), ...(from ? { note: `from ${datedLabel(from, new Date(), { on: false })}` } : {}), tone: 'gold' }],
     foot: 'yes files it · no leaves it alone',
   });
 }
 
 function label(kind) {
-  return kind === 'coach-program' ? 'COACH'
+  return kind === 'pain-check' ? 'PAIN CHECK'
+    : kind === 'coach-program' ? 'COACH'
     : kind === 'fuel-cross' ? 'FUEL × TRAINING'
       : kind === 'read-next' ? 'LIBRARIAN'
         : kind === 'coach-audit' ? 'PROGRAM AUDIT' : 'NOVA';
 }
 
 // Pure so the ordering and the cap are testable without a store.
-export function buildQueue(records = [], { cap = 5 } = {}) {
+export function buildQueue(records = [], { cap = 5, now = new Date() } = {}) {
   // `= []` only covers undefined; a store that hands back null would throw
-  const open = (Array.isArray(records) ? records : [])
-    .filter((r) => r && ASKABLE.has(r.kind) && r.status === 'pending' && r.id && clean(r.text));
+  const pending = (Array.isArray(records) ? records : [])
+    .filter((r) => r && ASKABLE.has(r.kind) && r.status === 'pending' && r.id && clean(r.text))
+    // a pain check is spoken in one brief only; after that it waits in the Inbox
+    .filter((r) => !(r.kind === 'pain-check' && r.spokenAt));
+  // OLD DATA IS NOT TODAY'S NEWS (13 Nov 2026, his "old data" complaint): a
+  // coach card is asked only while its evidence is fresh, NEWEST evidence
+  // first. It used to be oldest card first, which put weeks-old gym numbers
+  // at the top of his morning.
+  const coach = speakableProgramCards(pending.filter((r) => r.kind === 'coach-program'), { now });
+  const rank = new Map(coach.map((r, i) => [r, i]));
+  const open = pending.filter((r) => r.kind !== 'coach-program' || rank.has(r));
   open.sort((a, b) => {
     const d = ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind);
     if (d) return d;
-    // oldest first within a kind — the one that has waited longest is the
-    // one most likely to be quietly rotting
+    if (a.kind === 'coach-program') return rank.get(a) - rank.get(b);
+    // oldest first within the other kinds: the one that has waited longest
+    // is the one most likely to be quietly rotting
     return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
   });
   // A CAP, and an honest one. Fifty drafts is not a conversation, it is an
@@ -145,6 +171,13 @@ export function buildQueue(records = [], { cap = 5 } = {}) {
 }
 
 export async function briefDecisions(deps = {}) {
-  const { listRecords } = deps.store || await import('./inboxStore.js');
-  return buildQueue(await listRecords(), { cap: deps.cap ?? 5 });
+  const { listRecords, updateRecord } = deps.store || await import('./inboxStore.js');
+  const out = buildQueue(await listRecords(), { cap: deps.cap ?? 5, now: deps.now || new Date() });
+  // a pain check handed to the brief is stamped, so it is spoken in one brief only
+  const at = new Date(deps.now || Date.now()).toISOString();
+  for (const d of out.decisions) {
+    if (d.kind !== 'pain-check') continue;
+    try { await updateRecord(d.recordId, { spokenAt: at }); } catch { /* unstamped: it may be asked once more */ }
+  }
+  return out;
 }
