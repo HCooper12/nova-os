@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily review, quote first</title>
+<!--
+  Mockup 116. Daily review, quote first. For his approval, 14 Nov 2026. Nothing here is built.
+  Why: the daily review has had one graded card in a month. The live card showed a
+  model-written summary of the idea, with the speaker demoted to a grey line and no quote
+  at all. He asked for the podcast quotes and the ideas behind them to lead. So here the
+  quote is the hero, set like a pull quote in a good book, with the person who said it and
+  the moment in the episode right under it. A new line is simply kept; a returning line is
+  asked for first (the quote veiled in place), then shown, then graded. Card, tokens and
+  week bars are taken from src/review.css, src/index.css (Summary) and src/ReviewCard.jsx.
+  SAMPLE CONTENT ONLY. The repo is public. No line, person, show or figure here is real or his.
+  States by URL: ?s=new|kept|question|reveal|graded|done|none|offline|loading &c=0|1|2 &g=got|fuzzy|forgot &idiom=summary|grouped &w=375|402 &bare=1 &still=1
+  Built from parts (head, tokens, shell, card, body, script) by a join script; edit the parts.
+-->
+<style>
+:root{
+  /* real tokens: src/index.css (command base, then the summary style block) */
+  --nv-ease:cubic-bezier(.32,.72,0,1); --nv-ease-exit:cubic-bezier(.4,0,1,1);
+  --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+  --nv-void:#06070d; --nv-bg1:#06070d; --nv-bg2:#06070d;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink50:rgba(232,236,246,.52); --nv-ink40:rgba(232,236,246,.38);
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-gold:#e0b26a; --nv-good:#5fe8a8; --nv-warn:#e08383;
+  --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07);
+  --nv-radius:22px;
+  --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
+  --nv-font-serif:ui-serif,'New York',Georgia,serif;
+  --nv-font-round:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif;
+  --nv-micro-m:600 12.5px var(--nv-font-ui);
+  /* summary glass (nova-glass) */
+  --nv-sum-card:rgba(255,255,255,.09); --nv-sum-card-ring:rgba(255,255,255,.16);
+  --nv-sum-card-hi:rgba(255,255,255,.22); --nv-sum-blur:22px;
+  --nv-sum-card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --nv-sum-sat:1.6;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.015) 45%, rgba(255,255,255,0) 72%, rgba(255,255,255,.03));
+  --nv-sum-glow:inset 0 0 16px -6px rgba(255,255,255,.3);
+  --nv-sum-rim:conic-gradient(from 212deg, rgba(255,255,255,.62), rgba(255,255,255,.10) 18%, rgba(255,255,255,.04) 44%, rgba(255,255,255,.40) 64%, rgba(255,255,255,.07) 82%, rgba(255,255,255,.62));
+  --nv-sum-card-shadow-lg:0 22px 48px -22px rgba(0,0,0,.78);
+  --nv-sum-float-drop:0 18px 44px -18px rgba(0,0,0,.75);
+  --nv-sum-tab:rgba(16,20,36,.58); --nv-sum-tab-ring:rgba(255,255,255,.14); --nv-sum-tab-ink:rgba(232,236,246,.5);
+  --nv-sum-tab-on:#59e6ff; --nv-sum-tab-on-bg:rgba(89,230,255,.1);
+  --nv-sum-stand-a:#59e6ff; --nv-sum-stand-b:#8f7bff;
+  --nv-sum-ink2:rgba(232,236,246,.76); --nv-sum-ink3:rgba(232,236,246,.52); --nv-sum-sep:rgba(232,236,246,.14);
+  /* springs: springs.txt (keynote-motion), true damped springs as linear() */
+  --nv-spring-smooth:linear(0, 0.0126, 0.045, 0.091, 0.1455, 0.2048, 0.2662, 0.3275, 0.3874, 0.4448, 0.4991, 0.5499, 0.5969, 0.6401, 0.6796, 0.7154, 0.7478, 0.777, 0.8032, 0.8266, 0.8475, 0.8661, 0.8825, 0.8971, 0.91, 0.9213, 0.9313, 0.9401, 0.9478, 0.9545, 0.9605, 0.9656, 0.9701, 0.9741, 0.9775, 0.9805, 0.9831, 0.9854, 0.9873, 0.9891, 0.9905, 0.9918, 0.9929, 0.9939, 0.9947, 0.9955, 0.9961, 0.9966, 0.9971, 0.9975, 0.9978, 0.9981, 0.9984, 0.9986, 0.9988, 0.999, 0.9991, 0.9992, 0.9994, 0.9994, 1); --nv-spring-smooth-ms:800ms;
+  --nv-spring-snappy:linear(0, 0.0128, 0.0464, 0.095, 0.1536, 0.2183, 0.286, 0.3543, 0.4214, 0.486, 0.5471, 0.6041, 0.6566, 0.7045, 0.7477, 0.7864, 0.8206, 0.8508, 0.8771, 0.8999, 0.9195, 0.9362, 0.9503, 0.9621, 0.9719, 0.98, 0.9865, 0.9918, 0.9959, 0.9992, 1.0016, 1.0034, 1.0047, 1.0055, 1.006, 1.0063, 1.0063, 1.0061, 1.0059, 1.0055, 1.0052, 1.0047, 1.0043, 1.0039, 1.0035, 1.0031, 1.0027, 1.0024, 1.002, 1.0017, 1.0015, 1.0013, 1.001, 1.0009, 1.0007, 1.0006, 1.0005, 1.0004, 1.0003, 1.0002, 1); --nv-spring-snappy-ms:640ms;
+  --nv-spring-bouncy:linear(0, 0.013, 0.0479, 0.0992, 0.1624, 0.2332, 0.3084, 0.3851, 0.4611, 0.5347, 0.6045, 0.6696, 0.7293, 0.7833, 0.8314, 0.8737, 0.9103, 0.9415, 0.9676, 0.989, 1.0063, 1.0198, 1.0299, 1.0372, 1.0421, 1.0449, 1.0459, 1.0457, 1.0443, 1.0421, 1.0393, 1.0361, 1.0327, 1.0292, 1.0257, 1.0222, 1.019, 1.0159, 1.0131, 1.0106, 1.0083, 1.0063, 1.0045, 1.003, 1.0018, 1.0007, 0.9999, 0.9992, 0.9987, 0.9984, 0.9981, 0.998, 0.9979, 0.9979, 0.9979, 0.998, 0.9982, 0.9983, 0.9985, 0.9986, 1); --nv-spring-bouncy-ms:800ms;
+  --nv-spring-playful:linear(0, 0.0166, 0.0615, 0.128, 0.21, 0.3019, 0.3989, 0.497, 0.5928, 0.6837, 0.7677, 0.8434, 0.9099, 0.9669, 1.0142, 1.0523, 1.0815, 1.1027, 1.1166, 1.1241, 1.1263, 1.1241, 1.1182, 1.1097, 1.0993, 1.0877, 1.0754, 1.063, 1.0509, 1.0395, 1.0289, 1.0194, 1.011, 1.0039, 0.998, 0.9932, 0.9896, 0.9869, 0.9852, 0.9843, 0.984, 0.9844, 0.9851, 0.9862, 0.9875, 0.989, 0.9905, 0.9921, 0.9936, 0.9951, 0.9964, 0.9976, 0.9986, 0.9995, 1.0003, 1.0009, 1.0013, 1.0017, 1.0019, 1.002, 1); --nv-spring-playful-ms:990ms;
+  --nv-rise:12px;
+  color-scheme:dark;
+}
+
+/* ---------- page ---------- */
+*{box-sizing:border-box}
+html{background:var(--nv-void)}
+body{margin:0;background:var(--nv-void);color:var(--nv-ink);font:15px/1.45 var(--nv-font-ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-align:inherit}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--nv-cy);outline-offset:2px;border-radius:12px}
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+
+.page{display:grid;justify-items:center;gap:18px;padding:0 0 48px}
+.demo{position:sticky;top:0;z-index:50;width:100%;display:flex;align-items:center;gap:8px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;
+  background:color-mix(in srgb,var(--nv-void) 86%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  box-shadow:0 .5px 0 rgba(255,255,255,.08)}
+.demo::-webkit-scrollbar{display:none}
+.demo h1{flex:none;margin:0 10px 0 4px;font:700 16px var(--nv-font-ui);letter-spacing:-.01em;white-space:nowrap}
+.demo .grp{display:flex;gap:6px;flex:none}
+.demo .sep{flex:none;width:.5px;height:22px;background:rgba(255,255,255,.16);margin:0 4px}
+.demo button{flex:none;min-height:36px;padding:0 14px;border-radius:18px;font:600 13px var(--nv-font-ui);white-space:nowrap;background:rgba(255,255,255,.07);box-shadow:0 0 0 .5px rgba(255,255,255,.16);transition:background-color var(--nv-dur-fast) var(--nv-ease),transform 120ms var(--nv-ease)}
+.demo button:active{transform:scale(.97)}
+.demo button.cur{background:color-mix(in srgb,var(--nv-vi) 22%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--nv-vi) 60%,transparent)}
+.demo button.play{color:var(--nv-cy)}
+.demo button.play.cur{background:color-mix(in srgb,var(--nv-cy) 16%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--nv-cy) 55%,transparent)}
+
+.cap{max-width:402px;margin:0;padding:0 16px;font:400 14px/1.5 var(--nv-font-ui);color:var(--nv-ink60);text-align:center;text-wrap:pretty}
+.why{max-width:760px;padding:6px 20px 0;display:grid;gap:18px;font-size:14px;line-height:1.5;color:var(--nv-ink60)}
+@media (min-width:760px){.why{grid-template-columns:1fr 1fr;gap:18px 36px}}
+.why h2{margin:0 0 6px;font:700 15px var(--nv-font-ui);color:var(--nv-ink)}
+.why ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.why b{color:var(--nv-ink);font-weight:600}
+.why .fine{grid-column:1/-1;margin:0;font-size:13px;color:var(--nv-ink50)}
+
+/* ---------- the phone ---------- */
+.phone{position:relative;width:375px;height:812px;flex:none;overflow:hidden;isolation:isolate;border-radius:46px;background:var(--nv-void);
+  box-shadow:0 0 0 1px rgba(255,255,255,.14),0 0 0 7px #0b0d14,0 0 0 8px rgba(255,255,255,.08),0 40px 90px -40px #000}
+.phone.w402{width:402px;height:874px}
+.sky{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(60% 34% at 12% 8%,rgba(255,170,130,.28),transparent 72%),
+    radial-gradient(58% 36% at 88% 30%,rgba(143,123,255,.32),transparent 72%),
+    radial-gradient(80% 34% at 50% 112%,rgba(217,181,111,.22),transparent 72%),
+    linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#0f1535 85%,#12183a 100%)}
+.clock{position:absolute;left:34px;top:15px;z-index:30;font:600 16px var(--nv-font-ui);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--nv-ink)}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;padding:46px 16px 110px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* top bar, as the live summary Home (MobileChrome.jsx) */
+.topbar{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 -2px 18px}
+.wordmark{font:700 17px var(--nv-font-round);letter-spacing:.16em;white-space:nowrap}
+.wordmark span{background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ask{margin-left:auto;display:inline-flex;align-items:center;gap:5px;min-height:40px;padding:0 15px;border-radius:999px;font:600 14px var(--nv-font-round);color:var(--nv-acc);background:color-mix(in srgb,var(--nv-cy) 9%,rgba(16,20,36,.6))}
+.ask::before{content:"";position:absolute;inset:-2px}
+.ask,.gear{position:relative}
+.gear{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--nv-ink60);background:color-mix(in srgb,var(--nv-ink) 8%,transparent)}
+.gear::before{content:"";position:absolute;inset:-2px}
+.gear .ic{width:19px;height:19px;stroke-width:1.8}
+
+.date{margin:0 4px;font:600 13px var(--nv-font-ui);letter-spacing:.02em;text-transform:uppercase;color:var(--nv-ink60)}
+.hello{margin:2px 4px 4px;font:700 34px/1.1 var(--nv-font-ui);letter-spacing:-.025em}
+.nv-sum-stand{margin:0 4px 14px;font:italic 400 21px/1.2 var(--nv-font-serif);text-wrap:balance;
+  background:linear-gradient(90deg,var(--nv-sum-stand-a),var(--nv-sum-stand-b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stack{display:grid;gap:14px}
+
+/* the house glass card (index.css .nv-sum-card) */
+.nv-sum-card{position:relative;min-width:0;border-radius:var(--nv-radius);
+  --nv-sum-card-drop:var(--nv-sum-card-shadow-lg);
+  background:var(--nv-sum-sheen),var(--nv-sum-card);
+  box-shadow:var(--nv-sum-glow),0 1px 0 var(--nv-sum-card-hi) inset,0 0 0 .5px var(--nv-sum-card-ring),var(--nv-sum-card-drop);
+  -webkit-backdrop-filter:blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat));backdrop-filter:blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat))}
+.nv-sum-card::after,.nv-sum-tabbar::after,.nv-sum-nova::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:1px;background:var(--nv-sum-rim);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude}
+.nv-sum-cht{display:flex;align-items:center;gap:2px 10px;min-height:30px;font:600 15px var(--nv-font-ui);white-space:nowrap}
+.nv-sum-cht>.lbl{color:var(--nv-ink);min-width:0}
+.nv-tile{--b:color-mix(in srgb,var(--a) 70%,var(--nv-void));flex:none;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(150deg,color-mix(in srgb,var(--a) 70%,#fff) 0%,var(--a) 55%,var(--b) 100%);
+  box-shadow:0 4px 12px -2px color-mix(in srgb,var(--a) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.45)}
+.nv-tile>.ic{width:17px;height:17px;stroke-width:2.4;color:#fff}
+
+/* the next card, peeking: Your day, drawn (sample) */
+.dayc{padding:14px 16px 16px;--nv-sum-card-drop:var(--nv-sum-card-shadow-lg)}
+.dayc .tag{margin-left:auto;font:500 13px var(--nv-font-ui);color:var(--nv-sum-ink3)}
+.dayc .big{margin:10px 0 0;font:400 22px/1.25 var(--nv-font-serif);color:var(--nv-ink);text-wrap:balance}
+.dayc .sm{margin:8px 0 0;font:400 14px/1.45 var(--nv-font-ui);color:var(--nv-sum-ink2)}
+.dayc .rows{margin-top:10px;display:grid}
+.dayc .row{display:flex;align-items:center;gap:10px;min-height:40px;border-top:.5px solid var(--nv-sum-sep);font:500 14px var(--nv-font-ui);color:var(--nv-ink)}
+.dayc .row b{font:600 13px var(--nv-font-round);font-variant-numeric:tabular-nums;color:var(--nv-cy);width:42px}
+.dayc .row i{width:8px;height:8px;border-radius:50%;background:var(--h)}
+
+/* the glass dock (index.css .nv-sum-tabbar, .nv-sum-nova) */
+.dock{position:absolute;left:12px;right:12px;bottom:22px;z-index:20;display:flex;gap:8px;align-items:center}
+.nv-sum-tabbar,.nv-sum-nova{background:var(--nv-sum-sheen),var(--nv-sum-tab);
+  box-shadow:var(--nv-sum-glow),0 1px 0 var(--nv-sum-card-hi) inset,0 0 0 .5px var(--nv-sum-tab-ring),var(--nv-sum-float-drop);
+  -webkit-backdrop-filter:blur(22px) saturate(var(--nv-sum-sat));backdrop-filter:blur(22px) saturate(var(--nv-sum-sat))}
+.nv-sum-tabbar{position:relative;flex:1;min-width:0;height:60px;padding:2px;border-radius:30px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center}
+.nv-sum-tab{position:relative;z-index:1;height:56px;min-width:0;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--nv-sum-tab-ink)}
+.nv-sum-tab.on{color:var(--nv-sum-tab-on)}
+.nv-sum-tab .ic{width:22px;height:22px;stroke-width:1.7}
+.nv-sum-tab-lbl{white-space:nowrap;font:500 11px/1.15 var(--nv-font-ui);letter-spacing:.01em}
+.nv-sum-lens{position:absolute;top:2px;left:2px;width:calc((100% - 4px) / 5);height:56px;border-radius:28px;background:var(--nv-sum-tab-on-bg);pointer-events:none}
+.nv-sum-nova{position:relative;flex:none;width:60px;height:60px;border-radius:50%;display:grid;place-items:center}
+.orb{width:46px;height:46px;border-radius:50%;
+  background:radial-gradient(circle at 45% 40%,#eafcff 0,#8ef0ff 16%,#2f9bf0 44%,rgba(60,50,170,.55) 64%,rgba(23,58,153,0) 74%);
+  box-shadow:0 0 22px -6px rgba(89,230,255,.6)}
+
+/* entrance: deckRise, one 40 ms beat per --i (index.css .nv-sum-rise) */
+@keyframes deckRise{from{opacity:0;transform:translateY(var(--nv-rise)) scale(.985)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}}
+.nv-sum-rise{animation:deckRise var(--nv-dur-base) var(--nv-ease) backwards;animation-delay:calc(var(--i,0) * 40ms)}
+
+/* bare: the phone fills the viewport, for screenshots */
+.bare .demo,.bare .cap,.bare .why{display:none}
+.bare .page{display:block;padding:0}
+.bare .phone,.bare .phone.w402{width:100vw;height:100vh;border-radius:0;box-shadow:none}
+.still *,.still *::before,.still *::after{transition:none !important;animation:none !important}
+
+@media (prefers-reduced-motion:reduce){
+  .nv-sum-rise{animation:fadeIn .16s ease backwards !important}
+}
+@media (prefers-reduced-transparency:reduce){
+  .nv-sum-card,.nv-sum-tabbar,.nv-sum-nova,.demo{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .nv-sum-card{background:color-mix(in srgb,var(--nv-void) 88%,white)}
+  .nv-sum-tabbar,.nv-sum-nova{background:#141a2c}
+  .nv-sum-card::after,.nv-sum-tabbar::after,.nv-sum-nova::after{background:none;border:1px solid var(--nv-sum-sep);padding:0;-webkit-mask:none;mask:none}
+}
+
+/* ================================================================
+   THE CARD. review.css's .nv-rv-* rules, with the quote as the hero.
+   Violet is the review; cyan is the source and play; the grades wear
+   good / gold / warn. Motion: transform, opacity and filter only.
+   ================================================================ */
+.nv-rv{--rv-ink2:color-mix(in srgb,var(--nv-ink) 78%,transparent);--rv-ink3:var(--nv-ink60);
+  --rv-ease:cubic-bezier(.23,1,.32,1);
+  --rv-fill:color-mix(in srgb,var(--nv-ink) 7%,transparent);
+  --rv-ring:color-mix(in srgb,var(--nv-ink) 14%,transparent);
+  --rv-sep:color-mix(in srgb,var(--nv-ink) 14%,transparent);
+  color:var(--nv-ink)}
+.nv-rv .num{font-family:var(--nv-font-round);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* the summary card: house glass, washed in the review's violet */
+.nv-sum-card.nv-rv-card{padding:14px 16px 6px;
+  background:linear-gradient(165deg,color-mix(in srgb,var(--nv-vi) 20%,transparent) 0%,color-mix(in srgb,var(--nv-vi) 5%,transparent) 46%,transparent 100%),var(--nv-sum-sheen),var(--nv-sum-card);
+  box-shadow:var(--nv-sum-glow),inset 0 0 0 .5px color-mix(in srgb,var(--nv-vi) 42%,transparent),0 1px 0 var(--nv-sum-card-hi) inset,0 22px 50px -26px color-mix(in srgb,var(--nv-vi) 60%,transparent)}
+.nv-rv-card[hidden]{display:none}
+
+/* head: violet tile, name, pips, the count */
+.nv-rv-dh{display:flex;align-items:center;gap:10px;min-height:30px;font:600 15px var(--nv-font-ui);white-space:nowrap}
+.nv-rv-dh .lbl{color:var(--nv-ink)}
+.nv-rv-dh .gic{display:none}
+.nv-rv-pips{display:flex;gap:5px;margin-left:auto;align-items:center}
+.nv-rv-pips i{width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--nv-vi) 55%,transparent);transition:background-color 240ms ease,box-shadow 240ms ease}
+.nv-rv-pips i.on{background:var(--nv-vi);box-shadow:none}
+.nv-rv-pips i.cur{box-shadow:inset 0 0 0 1.5px var(--nv-vi),0 0 0 3px color-mix(in srgb,var(--nv-vi) 24%,transparent)}
+.nv-rv-pips i.pop{animation:pipPop var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy)}
+@keyframes pipPop{from{transform:scale(.35)}}
+.nv-rv-cnt{font:500 13px var(--nv-font-ui);color:var(--rv-ink3);white-space:nowrap;margin-left:-2px}
+.nv-rv-cnt .num{color:var(--nv-ink)}
+/* the count's one digit is an odometer column, 0 to 3 */
+.odo{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:bottom}
+.odo>span{display:block;transform:translateY(calc(var(--n,0) * -1.25em));transition:transform 520ms var(--nv-spring-snappy)}
+.odo>span>b{display:block;height:1.25em;font:inherit}
+
+/* the body: arrives over the skeleton by fading; the next card slides in */
+.nv-rv-body{min-width:0}
+.nv-rv-body.arrive{animation:rvArrive 320ms var(--rv-ease) backwards}
+.nv-rv-body.swap{animation:rvSwap 300ms var(--rv-ease) backwards}
+@keyframes rvArrive{from{opacity:0}}
+@keyframes rvSwap{from{opacity:0;transform:translateX(14px)}}
+
+.nv-rv-kick{margin:4px 0 0;font:500 13px/1.3 var(--nv-font-ui);color:var(--rv-ink3)}
+.nv-rv-kick .new{color:var(--nv-vi);font-weight:600}
+
+/* THE QUOTE: the hero. A violet opening mark as a block, then the line */
+.rv-qa{display:grid;margin-top:2px}
+.rv-qa>*{grid-area:1/1}
+.rv-q{transition:filter 420ms var(--nv-spring-smooth),opacity 420ms var(--nv-spring-smooth),transform 420ms var(--nv-spring-smooth)}
+.rv-qm{display:block;height:18px;margin:4px 0 0 -2px;font:400 40px/1 var(--nv-font-serif);color:var(--nv-vi);overflow:visible}
+.rv-qt{margin:0;font:400 23px/1.28 var(--nv-font-serif);letter-spacing:-.005em;color:var(--nv-ink);text-wrap:balance;quotes:none}
+.rv-prompt{align-self:center;justify-self:center;margin:0;padding-top:16px;font:italic 400 20px/1.2 var(--nv-font-serif);color:var(--nv-ink);text-align:center;opacity:0;pointer-events:none;transition:opacity 160ms ease}
+
+/* the source: who said it, where, and when in the episode (cyan) */
+.nv-rv-src{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;margin-top:3px;text-align:left;--rv-k:var(--nv-cy)}
+.nv-rv-pl{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--rv-k) 15%,transparent);color:var(--rv-k)}
+.nv-rv-pl .ic{width:15px;height:15px}
+.nv-rv-src .tx{flex:1;min-width:0;line-height:1.25}
+.nv-rv-src .tx b{display:block;font:600 14px/1.25 var(--nv-font-ui);color:var(--nv-ink)}
+.nv-rv-src .tx em{display:block;font:italic 400 15px/1.25 var(--nv-font-serif);color:var(--rv-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nv-rv-src .at{flex:none;font:600 13px var(--nv-font-round);color:var(--rv-k);font-variant-numeric:tabular-nums}
+
+/* the idea behind it: label, title, one sentence, a way into the page */
+.rv-idea{position:relative;display:flex;align-items:center;gap:6px;width:100%;margin-top:4px;padding:7px 0 2px;text-align:left}
+.rv-idea::before{content:"";position:absolute;left:0;right:0;top:0;height:.5px;background:var(--rv-sep)}
+.rv-idea .in{flex:1;min-width:0}
+.rv-idea .hd{display:flex;align-items:baseline;gap:8px;min-width:0}
+.rv-idea .lab{flex:none;font:500 13px/1.15 var(--nv-font-ui);color:var(--rv-ink3)}
+.rv-idea .ttl{min-width:0;font:400 17px/1.15 var(--nv-font-serif);color:var(--nv-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv-idea .sent{margin:1px 0 0;font:400 15px/1.36 var(--nv-font-ui);color:var(--rv-ink2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  transition:filter 420ms var(--nv-spring-smooth),opacity 420ms var(--nv-spring-smooth),transform 420ms var(--nv-spring-smooth)}
+.rv-idea .chev{flex:none;width:44px;height:44px;margin-right:-14px;display:grid;place-items:center;color:var(--nv-ink40)}
+.rv-idea .chev .ic{width:16px;height:16px}
+
+/* the veil: a returning page asks first. Quote and sentence blurred in place */
+.rv-card[data-phase="ask"] .veil{filter:blur(8px);opacity:.28;transform:translateY(6px);transition-duration:0ms}
+.rv-card[data-phase="ask"] .rv-prompt{opacity:1}
+
+/* the answer slot: the variants share one grid cell and cross-fade on data-phase */
+.rv-slot{display:grid;margin-top:6px}
+.rv-slot>*{grid-area:1/1;opacity:0;pointer-events:none;visibility:hidden;transform:translateY(4px);
+  transition:opacity 220ms ease,transform 300ms var(--nv-spring-snappy),visibility 0s linear 220ms}
+.rv-card[data-phase="new"] .sl-new,.rv-card[data-phase="kept"] .sl-kept,.rv-card[data-phase="ask"] .sl-ask,
+.rv-card[data-phase="shown"] .sl-grade,.rv-card[data-phase="graded"] .sl-res,.rv-slot>.sl-off{opacity:1;pointer-events:auto;visibility:visible;transform:none;transition-delay:80ms,80ms,0s}
+
+.sl-new{display:flex;align-items:center;gap:6px;padding-bottom:4px}
+.rv-pill{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 20px;border-radius:22px;font:600 15px var(--nv-font-ui);color:var(--nv-ink);
+  background:color-mix(in srgb,var(--nv-vi) 26%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-vi) 60%,transparent);transition:transform 120ms var(--rv-ease),background-color 180ms ease}
+.rv-pill .ic{width:16px;height:16px;color:var(--nv-vi)}
+.rv-pill:active,.rv-ta:active,.rv-show:active,.nv-rv-rb:active,.rv-next:active{transform:scale(.97)}
+.rv-ta{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--nv-font-ui);color:var(--rv-ink2);transition:transform 120ms var(--rv-ease)}
+.rv-ta.vi{color:var(--nv-vi)}
+.sl-new .hint{margin-left:auto;font:500 12px var(--nv-font-ui);color:var(--rv-ink3)}
+
+.rv-res{display:flex;align-items:center;gap:10px;min-height:44px;padding-bottom:4px}
+.nv-rv-mark{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;color:var(--g);background:color-mix(in srgb,var(--g) 18%,transparent)}
+.nv-rv-mark .ic{width:16px;height:16px}
+.rv-res p{flex:1;min-width:0;margin:0;font:400 17px/1.25 var(--nv-font-serif);color:var(--nv-ink)}
+.rv-res p small{display:block;margin-top:1px;font:500 12px var(--nv-font-ui);color:var(--rv-ink3)}
+.rv-next{flex:none;min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--nv-font-ui);color:var(--nv-ink);background:color-mix(in srgb,var(--nv-vi) 26%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-vi) 60%,transparent);transition:transform 120ms var(--rv-ease)}
+.rv-card[data-phase="kept"] .sl-kept .nv-rv-mark,.rv-card[data-phase="graded"] .sl-res .nv-rv-mark{animation:markIn var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) backwards;animation-delay:80ms}
+@keyframes markIn{from{opacity:0;transform:scale(.5)}}
+
+.sl-ask{padding-bottom:6px}
+.sl-ask .q,.nv-rv-q{margin:0 0 5px;font:500 13px var(--nv-font-ui);color:var(--rv-ink3)}
+.rv-show{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:54px;border-radius:16px;font:600 16px var(--nv-font-ui);color:var(--nv-ink);
+  background:color-mix(in srgb,var(--nv-vi) 26%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-vi) 60%,transparent);transition:transform 120ms var(--rv-ease)}
+.rv-show .ic{width:17px;height:17px;color:var(--nv-vi)}
+
+.sl-grade{padding-bottom:6px}
+.nv-rv-rec{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.nv-rv-rb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:54px;border-radius:16px;background:var(--rv-fill);box-shadow:inset 0 0 0 .5px var(--rv-ring);color:var(--nv-ink);transition:transform 120ms var(--rv-ease)}
+.nv-rv-rb b{display:flex;align-items:center;gap:5px;font:600 15px var(--nv-font-ui)}
+.nv-rv-rb b .ic{width:15px;height:15px;color:var(--g)}
+.nv-rv-rb small{font:500 12px var(--nv-font-ui);color:var(--rv-ink3);font-variant-numeric:tabular-nums}
+.rv-card[data-phase="shown"] .nv-rv-rb{animation:rbIn 420ms var(--nv-spring-smooth) backwards;animation-delay:calc(var(--i) * 40ms + 140ms)}
+@keyframes rbIn{from{opacity:0;transform:translateY(6px)}}
+
+.sl-off{padding-bottom:6px}
+.nv-rv-offl{display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--nv-ink) 5%,transparent);font:450 14px/1.4 var(--nv-font-ui);color:var(--rv-ink2);text-wrap:pretty}
+.nv-rv-offl .ic{color:var(--rv-ink3);margin-top:1px;width:18px;height:18px}
+
+/* done: the day's close, today's line, the week ahead */
+.nv-rv-big2{margin:10px 0 0;font:400 22px/1.25 var(--nv-font-serif);color:var(--nv-ink);text-wrap:balance}
+.rv-line{position:relative;display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding:10px 0 2px}
+.rv-line::before{content:"";position:absolute;left:0;right:0;top:0;height:.5px;background:var(--rv-sep)}
+.rv-line .k{flex:none;white-space:nowrap;font:500 13px/1.5 var(--nv-font-ui);color:var(--rv-ink3)}
+.rv-line p{margin:0;flex:1;min-width:0;font:italic 400 16px/1.35 var(--nv-font-serif);color:var(--nv-ink)}
+.rv-line p small{display:block;margin-top:2px;font:500 12px var(--nv-font-ui);font-style:normal;color:var(--rv-ink3)}
+.nv-rv-m{margin:10px 0 0;font:400 14px var(--nv-font-ui);color:var(--rv-ink3)}
+.nv-rv-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end;height:74px;margin-top:10px}
+.nv-rv-week div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;font:500 12px var(--nv-font-ui);color:var(--rv-ink3)}
+.nv-rv-week i{display:block;width:100%;max-width:26px;border-radius:5px 5px 2px 2px;background:color-mix(in srgb,var(--nv-vi) 70%,transparent);transform-origin:50% 100%;animation:rvBar var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) backwards;animation-delay:calc(var(--i) * 40ms + 120ms)}
+.nv-rv-week i.z{background:color-mix(in srgb,var(--nv-ink) 18%,transparent)}
+.nv-rv-week b{font:600 12px var(--nv-font-round);color:var(--nv-ink);min-height:15px;font-variant-numeric:tabular-nums}
+@keyframes rvBar{from{transform:scaleY(0)}}
+.nv-rv-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px -12px 0}
+
+/* loading: a skeleton where kicker, quote and source will land */
+.nv-rv-sk{display:flex;flex-direction:column;padding:2px 0 14px}
+.nv-rv-sk i{display:block;height:var(--h);width:var(--w);margin-top:var(--m);border-radius:var(--r,6px);background:color-mix(in srgb,var(--nv-ink) 10%,transparent);animation:skPulse 1.4s ease-in-out infinite}
+.nv-rv-sk .srow{display:flex;align-items:center;gap:10px;margin-top:14px}
+.nv-rv-sk .srow i{margin-top:0}
+@keyframes skPulse{50%{opacity:.45}}
+
+/* ------------------------------ grouped (cupertino) ------------------------------ */
+.grouped .nv-sum-card.nv-rv-card{padding:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.grouped .nv-sum-card.nv-rv-card::after{display:none}
+.grouped .nv-rv-dh{margin:4px 6px 7px;min-height:20px;gap:8px;font:600 13px var(--nv-font-ui);color:var(--nv-vi)}
+.grouped .nv-rv-dh .nv-tile{display:none}
+.grouped .nv-rv-dh .gic{display:block;width:17px;height:17px}
+.grouped .nv-rv-dh .lbl{color:var(--nv-vi)}
+.grouped .nv-rv-pips{margin-left:4px}
+.grouped .nv-rv-cnt{margin-left:auto}
+.grouped .rv-box{background:rgba(255,255,255,.075);border-radius:20px;box-shadow:0 18px 44px -30px #000;overflow:hidden;padding:0;
+  -webkit-backdrop-filter:blur(var(--nv-sum-blur)) saturate(1.4);backdrop-filter:blur(var(--nv-sum-blur)) saturate(1.4)}
+.grouped .rv-pad{padding:12px 16px}
+.grouped .nv-rv-kick{margin-top:0}
+.grouped .rv-qt{font-size:20px}
+.grouped .rv-qm{height:20px;font-size:40px}
+.grouped .gline{position:relative}
+.grouped .gline::before{content:"";position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--rv-sep)}
+.grouped .nv-rv-src{margin:0;min-height:46px;padding:9px 16px}
+.grouped .rv-idea{margin:0;padding:9px 16px;min-height:46px}
+.grouped .rv-idea::before{left:16px}
+.grouped .rv-idea .chev{margin-right:-12px}
+.grouped .rv-slot{margin:0}
+/* grouped rows have no shared height to keep: only the live answer takes room, and it fades in */
+.grouped .rv-slot>*{display:none}
+.grouped.phone .rv-card[data-phase="new"] .sl-new,.grouped.phone .rv-card[data-phase="kept"] .sl-kept,.grouped.phone .rv-card[data-phase="ask"] .sl-ask,
+.grouped.phone .rv-card[data-phase="shown"] .sl-grade,.grouped.phone .rv-card[data-phase="graded"] .sl-res{display:flex;animation:rvArrive 220ms ease backwards}
+.grouped.phone .rv-card[data-phase="ask"] .sl-ask,.grouped.phone .rv-card[data-phase="shown"] .sl-grade,.grouped .rv-slot>.sl-off{display:block}
+.grouped .sl-new{flex-direction:column;align-items:stretch;gap:0;padding:0}
+.grouped .sl-new .rv-pill,.grouped .sl-new .rv-ta{position:relative;justify-content:flex-start;width:100%;min-height:46px;padding:9px 16px;border-radius:0;background:none;box-shadow:none;font:600 15px var(--nv-font-ui)}
+.grouped .sl-new .rv-pill{color:var(--nv-vi)}
+.grouped .sl-new .rv-ta{font-weight:450;color:var(--nv-ink)}
+.grouped .sl-new .rv-pill::before,.grouped .sl-new .rv-ta::before,.grouped .sl-ask .rv-show::before,.grouped .rv-res::before,.grouped .sl-grade::before,.grouped .sl-off::before{content:"";position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--rv-sep)}
+.grouped .sl-new .hint{display:none}
+.grouped .rv-pill:active,.grouped .rv-ta:active,.grouped .rv-show:active{transform:none;background:color-mix(in srgb,var(--nv-ink) 4%,transparent)}
+.grouped .sl-ask{padding:0}
+.grouped .sl-ask .q{display:none}
+.grouped .rv-show{position:relative;justify-content:flex-start;min-height:46px;padding:9px 16px;border-radius:0;background:none;box-shadow:none;color:var(--nv-vi);font:600 15px var(--nv-font-ui)}
+.grouped .sl-grade{position:relative;padding:10px 16px 12px}
+.grouped .rv-res{position:relative;padding:6px 12px 6px 16px}
+.grouped .sl-off{position:relative;padding:10px 16px 12px}
+.grouped .rv-done{padding:12px 16px 4px}
+.grouped .rv-done .nv-rv-big2{margin-top:0}
+.grouped .nv-rv-foot{margin:6px -12px 0}
+.grouped .nv-rv-sk{padding:12px 16px 14px}
+
+/* reduced motion: opacity only; numbers land, nothing travels, filters are instant */
+@media (prefers-reduced-motion:reduce){
+  .nv-rv *{animation-name:fadeIn !important;animation-duration:200ms !important;animation-delay:0ms !important}
+  .nv-rv-sk i{animation:none !important}
+  .odo>span{transition:none !important}
+  .rv-q,.rv-idea .sent{transition:opacity 200ms ease !important;transform:none !important}
+  .rv-slot>*{transform:none !important;transition:opacity 200ms ease,visibility 0s linear 200ms !important}
+  .rv-card[data-phase] .rv-slot>*{transition-delay:0s !important}
+}
+@media (prefers-reduced-transparency:reduce){
+  .grouped .rv-box{-webkit-backdrop-filter:none;backdrop-filter:none;background:#1a1f30}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-review" viewBox="0 0 24 24"><path d="M12 3.5 20.5 12 12 20.5 3.5 12Z"/></symbol>
+    <symbol id="i-got" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-fuzzy" viewBox="0 0 24 24"><path d="M4 13c2.2-3 4.2-3 6 0s3.8 3 6 0 3.2-2 4-1"/></symbol>
+    <symbol id="i-forgot" viewBox="0 0 24 24"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 0 10h-2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5Z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-offline" viewBox="0 0 24 24"><path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a9.5 9.5 0 0 1 4-2.3M19 13a9.5 9.5 0 0 0-2.6-1.8M12 20h.01"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.6v2.2M12 18.2v2.2M3.6 12h2.2M18.2 12h2.2M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6"/></symbol>
+    <symbol id="t-home" viewBox="0 0 24 24"><path d="M4 11.2 12 5l8 6.2"/><path d="M6.2 9.8V19h11.6V9.8"/></symbol>
+    <symbol id="t-nova" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v2.5"/></symbol>
+    <symbol id="t-train" viewBox="0 0 24 24"><path d="M7.2 9v6M16.8 9v6"/><path d="M4 10.5v3M20 10.5v3"/><path d="M7.2 12h9.6"/></symbol>
+    <symbol id="t-fuel" viewBox="0 0 24 24"><path d="M7 3.5v6.5M4.8 3.5v4a2.2 2.2 0 0 0 4.4 0v-4"/><path d="M7 10v10.5"/><path d="M16.6 3.5c-2 1.2-2.8 4-2.8 7h2.8Zm0 7v10"/></symbol>
+    <symbol id="t-more" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="6" height="6" rx="1.8"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.8"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.8"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.8"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <nav class="demo" aria-label="Mockup states">
+    <h1>116 · Daily review, quote first</h1>
+    <div class="grp" id="pills">
+      <button type="button" data-s="new">New quote</button>
+      <button type="button" data-s="kept">Kept</button>
+      <button type="button" data-s="question">Question</button>
+      <button type="button" data-s="reveal">Shown</button>
+      <button type="button" data-s="graded">Graded</button>
+      <button type="button" data-s="done">Done</button>
+      <button type="button" data-s="none">Nothing due</button>
+      <button type="button" data-s="offline">Offline</button>
+      <button type="button" data-s="loading">Loading</button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="grp">
+      <button type="button" data-idiom="summary">Summary</button>
+      <button type="button" data-idiom="grouped">Grouped</button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="grp">
+      <button type="button" data-w="375">375</button>
+      <button type="button" data-w="402">402</button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" class="play" id="play">Play it through</button>
+  </nav>
+
+  <div class="phone" id="phone">
+    <div class="sky" aria-hidden="true"></div>
+    <div class="clock" aria-hidden="true">7:10</div>
+    <div class="scroll" id="scroll">
+      <header class="topbar nv-sum-rise" style="--i:0">
+        <span class="wordmark">NOVA<span>·OS</span></span>
+        <button type="button" class="ask" aria-label="Ask Nova">&#x2726; Ask</button>
+        <button type="button" class="gear" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
+      </header>
+      <p class="date nv-sum-rise" style="--i:1">Friday 13 November</p>
+      <h2 class="hello nv-sum-rise" style="--i:1">Good morning</h2>
+      <p class="nv-sum-stand nv-sum-rise" style="--i:2">Cleared for deep work at 15:30.</p>
+
+      <div class="stack">
+        <section class="nv-sum-card nv-sum-rise nv-rv nv-rv-card rv-card" id="card" style="--i:3" aria-label="Daily review" data-phase="new">
+          <div class="nv-rv-dh nv-sum-cht">
+            <span class="nv-tile" style="--a:var(--nv-vi)" aria-hidden="true"><svg class="ic"><use href="#i-review"/></svg></span>
+            <svg class="ic gic" aria-hidden="true"><use href="#i-review"/></svg>
+            <span class="lbl">Daily review</span>
+            <span class="nv-rv-pips" id="pips" aria-hidden="true"></span>
+            <span class="nv-rv-cnt" id="cnt"><span class="odo num" aria-hidden="true"><span id="odo"><b>0</b><b>1</b><b>2</b><b>3</b></span></span> of <span class="num" id="tot">3</span> done</span>
+          </div>
+          <div class="rv-box" id="box"></div>
+        </section>
+
+        <section class="nv-sum-card nv-sum-rise dayc" id="day" style="--i:4" aria-label="Your day, drawn">
+          <div class="nv-sum-cht">
+            <span class="nv-tile" style="--a:var(--nv-cy)" aria-hidden="true"><svg class="ic"><use href="#i-sun"/></svg></span>
+            <span class="lbl">Your day, drawn</span>
+            <span class="tag">sample</span>
+          </div>
+          <p class="big">Two calls this morning, then a clear run from 15:30.</p>
+          <div class="rows">
+            <div class="row"><b>09:30</b><i style="--h:var(--nv-gold)"></i>Sample call, 30 min</div>
+            <div class="row"><b>11:00</b><i style="--h:var(--nv-gold)"></i>Sample call, 45 min</div>
+            <div class="row"><b>15:30</b><i style="--h:var(--nv-cy)"></i>Deep work, until 18:00</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <nav class="dock" aria-label="Tabs">
+      <div class="nv-sum-tabbar">
+        <span class="nv-sum-lens" aria-hidden="true"></span>
+        <button type="button" class="nv-sum-tab on" aria-current="page"><svg class="ic"><use href="#t-home"/></svg><span class="nv-sum-tab-lbl">Home</span></button>
+        <button type="button" class="nv-sum-tab"><svg class="ic"><use href="#t-nova"/></svg><span class="nv-sum-tab-lbl">Nova</span></button>
+        <button type="button" class="nv-sum-tab"><svg class="ic"><use href="#t-train"/></svg><span class="nv-sum-tab-lbl">Train</span></button>
+        <button type="button" class="nv-sum-tab"><svg class="ic"><use href="#t-fuel"/></svg><span class="nv-sum-tab-lbl">Fuel</span></button>
+        <button type="button" class="nv-sum-tab"><svg class="ic"><use href="#t-more"/></svg><span class="nv-sum-tab-lbl">More</span></button>
+      </div>
+      <button type="button" class="nv-sum-nova" aria-label="Talk to Nova"><span class="orb" aria-hidden="true"></span></button>
+    </nav>
+  </div>
+
+  <p class="cap" id="cap"></p>
+
+  <div class="why">
+    <div>
+      <h2>What stays</h2>
+      <ul>
+        <li>The spacing ladder: <b>1, 3, 7, 16, 35, 90, 180 days</b>.</li>
+        <li>The Review Log format, one line per answer.</li>
+        <li>The grades: Got it, Fuzzy, Forgot, and Read for a new page.</li>
+        <li>Both Home idioms from one view model (Summary on his phone, Grouped for cupertino).</li>
+      </ul>
+    </div>
+    <div>
+      <h2>What changes</h2>
+      <ul>
+        <li><b>The quote leads.</b> It is extracted and checked by code word for word against the page and the transcript, never written by a model.</li>
+        <li>His shows are picked first.</li>
+        <li>New pages are kept; returning pages are asked, then shown, then graded.</li>
+        <li>"Today's line" on the done card is new and can be cut.</li>
+      </ul>
+    </div>
+    <p class="fine">Sample content. No line here is a real quote, and no person or show is real.</p>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  // SAMPLE CONTENT ONLY: every person, show and line here is fictional.
+  var CARDS = [
+    { kind: 'new', quote: 'Every hour of effort you skip gets added to the bill, and the bill carries interest.',
+      who: 'Mara Ellison', show: 'The Long Table', ep: 'ep. 112', at: '41:12',
+      idea: 'Effort Debt', sent: 'Small early payments are cheaper than one big late one.' },
+    { kind: 'ret', quote: 'Start so small that stopping would feel silly.',
+      who: 'Dev Okafor', show: 'Second Draft', ep: 'ep. 48', at: '18:04',
+      idea: 'The Two-Minute Opening', sent: 'A task begun for two minutes is usually a task continued.' },
+    { kind: 'new', quote: 'A plan you cannot say in one breath will not survive a bad day.',
+      who: 'Ines Marchetti', show: 'Field Notes', ep: 'ep. 9', at: '27:40',
+      idea: 'One-Breath Plans', sent: 'If the plan needs a page, the tired version of you will skip it.' }
+  ];
+  var GRADES = {
+    got: { label: 'Got it', gap: '7 days', hue: 'var(--nv-good)', back: 'Back Fri 20 Nov', res: 'Got it · in 7 days' },
+    fuzzy: { label: 'Fuzzy', gap: '3 days', hue: 'var(--nv-gold)', back: 'Back Mon 16 Nov', res: 'Fuzzy · in 3 days' },
+    forgot: { label: 'Forgot', gap: 'Tomorrow', hue: 'var(--nv-warn)', back: 'Back tomorrow', res: 'Forgot · tomorrow' }
+  };
+  var WEEK = [['Sat', 2], ['Sun', 0], ['Mon', 1], ['Tue', 3], ['Wed', 0], ['Thu', 1], ['Fri', 2]];
+  var CAPS = {
+    new: 'A new line. Keep it records the existing Read grade, and the page comes back tomorrow as a question. Not for me moves on and the day drops to two; the build keeps today’s Undo on the receipt pill.',
+    kept: 'Kept. The pip fills, the count rolls, and the page is due back tomorrow as a question.',
+    question: 'A returning page asks first. The speaker and the idea’s title are the cue; the line and the sentence wait under a veil.',
+    reveal: 'Shown. The line clears in place, then he grades how well it came back.',
+    graded: 'Graded. The answer says where the page went, in its own colour.',
+    done: 'All three done. “Today’s line” is a new row and can be cut.',
+    none: 'Nothing due today: the review card is absent and Your day, drawn leads.',
+    offline: 'Offline: the quote reads from the last sync; the answer waits for the Mac.',
+    loading: 'Loading: a skeleton where the kicker, the quote and the source will land.'
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var phone = $('phone'), card = $('card'), box = $('box'), day = $('day');
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var ic = function (id, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + id + '"/></svg>'; };
+
+  var st = { i: 0, phase: 'new', done: 0, grade: null, view: 'card', offline: false, total: 3 };
+  var shown = null;      // the key of what the body shows now
+  var lastDone = null;   // to pop a pip only when it fills
+  var curS = 'new';
+
+  function phaseFor(i) { return CARDS[i].kind === 'new' ? 'new' : 'ask'; }
+
+  function cardHTML(i, offline) {
+    var c = CARDS[i], ret = c.kind === 'ret';
+    var kick = ret ? 'Seen twice · last Tue 10 Nov · sample' : '<span class="new">New today</span> · sample';
+    var slot;
+    if (offline) {
+      slot = '<div class="sl-off"><p class="nv-rv-offl">' + ic('offline') + '<span>From the 06:40 sync. Your answer needs the Mac; read it now and answer when Nova is back.</span></p></div>';
+    } else if (!ret) {
+      slot =
+        '<div class="sl-new"><button type="button" class="rv-pill" data-act="keep">' + ic('got') + 'Keep it</button>' +
+        '<button type="button" class="rv-ta" data-act="skip">Not for me</button></div>' +
+        '<div class="sl-kept rv-res" style="--g:var(--nv-vi)" aria-live="polite"><span class="nv-rv-mark">' + ic('got') + '</span>' +
+        '<p>Kept.<small>Back tomorrow as a question</small></p><button type="button" class="rv-next" data-act="next">' + (i === CARDS.length - 1 ? 'Done' : 'Next') + '</button></div>';
+    } else {
+      slot =
+        '<div class="sl-ask"><p class="q">Say it to yourself, then check.</p><button type="button" class="rv-show" data-act="show">' + ic('eye') + 'Show it</button></div>' +
+        '<div class="sl-grade"><p class="nv-rv-q">How well did it come back?</p><div class="nv-rv-rec">' +
+        ['got', 'fuzzy', 'forgot'].map(function (k, n) {
+          var g = GRADES[k];
+          return '<button type="button" class="nv-rv-rb" style="--g:' + g.hue + ';--i:' + n + '" data-act="grade" data-g="' + k + '" aria-label="' + g.label + ', back in ' + g.gap.toLowerCase() + '"><b>' + ic(k) + g.label + '</b><small>' + g.gap + '</small></button>';
+        }).join('') + '</div></div>' +
+        '<div class="sl-res rv-res" aria-live="polite"><span class="nv-rv-mark"></span><p></p><button type="button" class="rv-next" data-act="next">' + (i === CARDS.length - 1 ? 'Done' : 'Next') + '</button></div>';
+    }
+    return '<div class="rv-pad"><p class="nv-rv-kick">' + kick + '</p>' +
+      '<div class="rv-qa"><div class="rv-q veil"><span class="rv-qm" aria-hidden="true">“</span><blockquote class="rv-qt">' + esc(c.quote) + '</blockquote></div>' +
+      (ret ? '<p class="rv-prompt">What was the line?</p>' : '') + '</div></div>' +
+      '<button type="button" class="nv-rv-src gline" aria-label="Play ' + esc(c.who) + ' on ' + esc(c.show) + ', ' + c.ep + ', from ' + c.at + '">' +
+      '<span class="nv-rv-pl">' + ic('play') + '</span><span class="tx"><b>' + esc(c.who) + '</b><em>' + esc(c.show) + ', ' + c.ep + '</em></span><span class="at">' + c.at + '</span></button>' +
+      '<button type="button" class="rv-idea" aria-label="The idea: ' + esc(c.idea) + '. Open the page"><span class="in"><span class="hd"><span class="lab">The idea</span><span class="ttl">' + esc(c.idea) + '</span></span>' +
+      '<span class="sent veil">' + esc(c.sent) + '</span></span><span class="chev">' + ic('chev') + '</span></button>' +
+      '<div class="rv-slot gline">' + slot + '</div>';
+  }
+
+  function doneHTML() {
+    var max = Math.max.apply(null, WEEK.map(function (w) { return w[1]; }));
+    var c = CARDS[0];
+    var line = st.total === 3 ? 'All three reviewed. Next, two on Saturday.' : 'Both reviewed. Next, two on Saturday.';
+    return '<div class="rv-done"><p class="nv-rv-big2">' + line + '</p>' +
+      '<div class="rv-line"><span class="k">Today’s line</span><p>“' + esc(c.quote) + '”<small>' + esc(c.who) + ' · ' + esc(c.show) + '</small></p></div>' +
+      '<p class="nv-rv-m">The week ahead, by pages due.</p>' +
+      '<div class="nv-rv-week" role="img" aria-label="The week ahead: ' + WEEK.map(function (w) { return w[0] + ' ' + w[1]; }).join(', ') + '">' +
+      WEEK.map(function (w, n) {
+        var h = w[1] ? Math.round(w[1] / max * 44) + 'px' : '2px';
+        return '<div><b>' + (w[1] || '') + '</b><i class="' + (w[1] ? '' : 'z') + '" style="--i:' + n + ';height:' + h + '"></i>' + w[0] + '</div>';
+      }).join('') + '</div>' +
+      '<div class="nv-rv-foot"><button type="button" class="rv-ta vi">Draw one early</button><button type="button" class="rv-ta">A body one</button></div></div>';
+  }
+
+  function skelHTML() {
+    return '<div class="nv-rv-sk" aria-label="Daily review, arriving">' +
+      '<i style="--w:42%;--h:12px;--m:12px"></i>' +
+      '<i style="--w:22px;--h:20px;--m:12px;--r:5px"></i>' +
+      '<i style="--w:100%;--h:20px;--m:6px"></i><i style="--w:88%;--h:20px;--m:9px"></i><i style="--w:54%;--h:20px;--m:9px"></i>' +
+      '<div class="srow"><i style="--w:30px;--h:30px;--m:0;--r:50%"></i><span style="flex:1;display:grid;gap:6px"><i style="--w:40%;--h:12px;--m:0"></i><i style="--w:62%;--h:12px;--m:0"></i></span></div>' +
+      '<i style="--w:100%;--h:44px;--m:16px;--r:22px"></i></div>';
+  }
+
+  function renderHead() {
+    var total = st.total, done = Math.min(st.done, total);
+    var p = '';
+    for (var k = 0; k < total; k++) {
+      var cls = k < done ? 'on' : (k === done && st.view === 'card' ? 'cur' : '');
+      if (k < done && lastDone !== null && k >= lastDone) cls += ' pop';
+      p += '<i class="' + cls + '"></i>';
+    }
+    $('pips').innerHTML = p;
+    lastDone = done;
+    $('odo').style.setProperty('--n', done);
+    $('tot').textContent = total;
+    $('cnt').setAttribute('aria-label', done + ' of ' + total + ' done');
+  }
+
+  function render() {
+    phone.classList.toggle('grouped', st.idiom === 'grouped');
+    phone.classList.toggle('w402', st.w === 402);
+    card.hidden = st.view === 'none';
+    var key = st.view === 'card' ? 'card:' + st.i + ':' + (st.offline ? 1 : 0) : st.view;
+    if (key !== shown) {
+      var html = st.view === 'card' ? cardHTML(st.i, st.offline) : st.view === 'done' ? doneHTML() : st.view === 'loading' ? skelHTML() : '';
+      box.innerHTML = '<div class="nv-rv-body ' + (shown === null || shown === 'loading' ? 'arrive' : 'swap') + '">' + html + '</div>';
+      shown = key;
+    }
+    card.dataset.phase = st.view === 'card' ? (st.offline ? 'off' : st.phase) : st.view;
+    if (st.view === 'card') {
+      var veiled = st.phase === 'ask';
+      box.querySelectorAll('.veil').forEach(function (v) { if (veiled) v.setAttribute('aria-hidden', 'true'); else v.removeAttribute('aria-hidden'); });
+      var pr = box.querySelector('.rv-prompt');
+      if (pr) pr.setAttribute('aria-hidden', veiled ? 'false' : 'true');
+      var live = st.offline ? 'sl-off' : { new: 'sl-new', kept: 'sl-kept', ask: 'sl-ask', shown: 'sl-grade', graded: 'sl-res' }[st.phase];
+      box.querySelectorAll('.rv-slot > *').forEach(function (el) {
+        if (el.classList.contains(live)) el.removeAttribute('inert'); else el.setAttribute('inert', '');
+      });
+      var res = box.querySelector('.sl-res');
+      if (res && st.grade) {
+        var g = GRADES[st.grade];
+        res.style.setProperty('--g', g.hue);
+        res.querySelector('.nv-rv-mark').innerHTML = ic(st.grade);
+        res.querySelector('p').innerHTML = g.back + '<small>' + g.res + '</small>';
+      }
+    }
+    if (st.view === 'loading') { $('pips').innerHTML = ''; $('odo').style.setProperty('--n', 0); $('cnt').style.visibility = 'hidden'; }
+    else { $('cnt').style.visibility = ''; renderHead(); }
+    $('cap').textContent = CAPS[curS] || '';
+    document.querySelectorAll('[data-s]').forEach(function (b) { b.classList.toggle('cur', b.dataset.s === curS); });
+    document.querySelectorAll('[data-idiom]').forEach(function (b) { b.classList.toggle('cur', b.dataset.idiom === st.idiom); });
+    document.querySelectorAll('[data-w]').forEach(function (b) { b.classList.toggle('cur', +b.dataset.w === st.w); });
+  }
+
+  // ONE go(): URL parsing and taps both land here
+  function go(next) {
+    for (var k in next) st[k] = next[k];
+    render();
+  }
+
+  function stateFor(s, c, g) {
+    var i = Math.max(0, Math.min(2, c || 0));
+    switch (s) {
+      case 'kept': return { view: 'card', i: i, phase: CARDS[i].kind === 'new' ? 'kept' : 'graded', grade: CARDS[i].kind === 'new' ? null : 'got', done: i + 1, offline: false, total: 3 };
+      case 'question': return { view: 'card', i: 1, phase: 'ask', done: 1, grade: null, offline: false, total: 3 };
+      case 'reveal': return { view: 'card', i: 1, phase: 'shown', done: 1, grade: null, offline: false, total: 3 };
+      case 'graded': return { view: 'card', i: 1, phase: 'graded', grade: GRADES[g] ? g : 'got', done: 2, offline: false, total: 3 };
+      case 'done': return { view: 'done', done: 3, offline: false, total: 3 };
+      case 'none': return { view: 'none', done: 0, offline: false, total: 3 };
+      case 'offline': return { view: 'card', i: 0, phase: 'new', done: 0, offline: true, total: 3 };
+      case 'loading': return { view: 'loading', done: 0, offline: false, total: 3 };
+      default: return { view: 'card', i: i, phase: phaseFor(i), done: i, grade: null, offline: false, total: 3 };
+    }
+  }
+
+  // taps
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var a = b.dataset.act, last = st.i === CARDS.length - 1;
+    if (a === 'keep') go({ phase: 'kept', done: st.done + 1 });
+    else if (a === 'show') go({ phase: 'shown' });
+    else if (a === 'grade') go({ phase: 'graded', grade: b.dataset.g, done: st.done + 1 });
+    else if (a === 'next') { if (last) go({ view: 'done' }); else go({ i: st.i + 1, phase: phaseFor(st.i + 1), grade: null }); }
+    else if (a === 'skip') {
+      if (last) go({ view: 'done', total: st.total - 1 });
+      else go({ i: st.i + 1, phase: phaseFor(st.i + 1), total: st.total - 1, grade: null });
+    }
+  });
+
+  // URL and the demo bar
+  var q = new URLSearchParams(location.search);
+  if (q.get('bare') === '1') document.documentElement.classList.add('bare');
+  if (q.get('still') === '1') document.documentElement.classList.add('still');
+  st.idiom = q.get('idiom') === 'grouped' ? 'grouped' : 'summary';
+  st.w = q.get('w') === '402' ? 402 : 375;
+  curS = CAPS[q.get('s')] ? q.get('s') : 'new';
+  var startState = stateFor(curS, +q.get('c') || 0, q.get('g'));
+  for (var k in startState) st[k] = startState[k];
+  if (st.view === 'card' && (curS === 'kept' || curS === 'graded')) lastDone = st.done; // land filled, no pop on load
+
+  function setUrl() {
+    var u = new URLSearchParams(location.search);
+    u.set('s', curS); u.set('idiom', st.idiom); u.set('w', st.w);
+    history.replaceState(null, '', '?' + u.toString());
+  }
+  var playT = [];
+  function stopPlay() { playT.forEach(clearTimeout); playT = []; $('play').classList.remove('cur'); }
+  document.querySelectorAll('[data-s]').forEach(function (b) {
+    b.addEventListener('click', function () { stopPlay(); curS = b.dataset.s; shown = shown === null ? null : 'x'; lastDone = null; go(stateFor(curS, 0, 'got')); setUrl(); });
+  });
+  document.querySelectorAll('[data-idiom]').forEach(function (b) { b.addEventListener('click', function () { go({ idiom: b.dataset.idiom }); setUrl(); }); });
+  document.querySelectorAll('[data-w]').forEach(function (b) { b.addEventListener('click', function () { go({ w: +b.dataset.w }); setUrl(); }); });
+
+  // Play it through: the live flow on a timer, pressing the real buttons
+  $('play').addEventListener('click', function () {
+    stopPlay();
+    $('play').classList.add('cur');
+    curS = 'new'; shown = 'x'; lastDone = null;
+    go(stateFor('new', 0));
+    var steps = ['keep', 'next', 'show', 'grade:got', 'next', 'keep', 'next'];
+    steps.forEach(function (s, n) {
+      playT.push(setTimeout(function () {
+        var p = s.split(':');
+        var sel = '[data-act="' + p[0] + '"]' + (p[1] ? '[data-g="' + p[1] + '"]' : '');
+        var btns = Array.prototype.filter.call(box.querySelectorAll(sel), function (el) { return !el.closest('[inert]'); });
+        if (btns[0]) btns[0].click();
+        if (n === steps.length - 1) $('play').classList.remove('cur');
+      }, 1700 * (n + 1)));
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
