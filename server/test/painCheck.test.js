@@ -242,15 +242,17 @@ test('after an undone yes the entry is gone and the same mention is still never 
   assert.equal(again.raised.filter((r) => r.painKey).length, 0, 'the undone record still holds its painKey: asked once, ever');
 });
 
-test('a no cannot be undone or reopened (nothing was filed), and the mention stays answered', async () => {
+test('a no cannot be undone (nothing was filed) but can be reopened, and the mention is never raised twice', async () => {
   await clearPending();
   const sessions = [session(daysAgo(4), [{ exerciseId: 'raise', name: 'Lateral Raise', pain: 'Neck, on the last rep', sets: [{ reps: 12 }] }])];
   const { raised } = await raisePainChecks(vault, { sessions, injuries: [], now: NOW });
   assert.equal(raised.length, 1);
   await discardRecord(raised[0].id);
   await assert.rejects(() => undoRecord(vault, raised[0].id), /only filed captures can be undone/);
-  await assert.rejects(() => reopenRecord(raised[0].id), /only a Coach change/);
   assert.equal((await getRecord(raised[0].id)).status, 'discarded');
+  const none = await raisePainChecks(vault, { sessions, injuries: await listInjuries(vault), now: NOW });
+  assert.equal(none.raised.filter((r) => r.painKey).length, 0, 'a no stays answered until he reopens it');
+  assert.equal((await reopenRecord(raised[0].id)).status, 'pending', 'his way back from a mis-tap (15 Nov 2026)');
   const again = await raisePainChecks(vault, { sessions, injuries: await listInjuries(vault), now: NOW });
   assert.equal(again.raised.filter((r) => r.painKey).length, 0);
 });

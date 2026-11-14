@@ -2458,13 +2458,17 @@ export async function reopenRecord(id) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
   const coachCard = record.kind === 'coach-program' || COACH_ROUTES.includes(record.decision?.route);
+  // a pain check's "no" (his yes, 15 Nov 2026: a mis-tap must not close it for good)
+  const painCheck = record.kind === 'pain-check';
   const hisAnswer = (record.status === 'discarded' && !record.expired && record.reason !== 'retried') || record.status === 'undone';
-  if (!coachCard || !hisAnswer) throw new Error('only a Coach change you turned down or undid can be reopened');
+  if (!(coachCard || painCheck) || !hisAnswer) throw new Error('only a Coach change or a pain check you turned down or undid can be reopened');
   if (record.parentPlanId) throw new Error('its plan has already moved on');
   return updateRecord(id, {
     status: 'pending', reopenedAt: new Date().toISOString(), error: null,
     discardedAt: null, declineReason: null, filedAt: null, destination: null,
     undoData: null, applySummary: null, undoneAt: null, undoSummary: null,
+    // a pain check asked again may be read out again, once
+    ...(painCheck ? { spokenAt: null } : {}),
   });
 }
 

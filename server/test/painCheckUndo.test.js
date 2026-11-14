@@ -27,7 +27,7 @@ await writeFile(path.join(vault, 'Wiki/Health/Injury Log.md'), matter.stringify(
 }), 'utf8');
 
 const { raisePainChecks } = await import('../lib/painCheck.js');
-const { approveRecord, discardRecord, undoRecord } = await import('../lib/inbox.js');
+const { approveRecord, discardRecord, undoRecord, reopenRecord } = await import('../lib/inbox.js');
 const { getRecord } = await import('../lib/inboxStore.js');
 const { listInjuries } = await import('../lib/injuryLog.js');
 
@@ -57,6 +57,25 @@ test('a no writes nothing, and a discarded check cannot be undone', async () => 
   assert.deepEqual(await listInjuries(vault), before, 'the log is untouched');
   await assert.rejects(() => undoRecord(vault, ask.id), /only filed captures can be undone/);
   assert.equal((await getRecord(ask.id)).status, 'discarded', 'still discarded');
+  // his way back from a mis-tapped no (15 Nov 2026): the same question, waiting again
+  const back = await reopenRecord(ask.id);
+  assert.equal(back.status, 'pending');
+  assert.equal(back.spokenAt, null, 'the brief may ask it once more');
+  assert.equal(back.painKey, ask.painKey);
+  const again = await raisePainChecks(vault, { sessions: other, injuries: [], now: NOW });
+  assert.equal(again.raised.filter((r) => r.painKey === ask.painKey).length, 0, 'reopened, never duplicated');
+  await approveRecord(vault, ask.id);
+  assert.equal((await listInjuries(vault)).length, before.length + 1, 'a yes after reopening files the entry');
+});
+
+test('an expired pain check is not reopened: only his own no comes back', async () => {
+  const third = [{ date: daysAgo(4), exercises: [{ exerciseId: 'dip', name: 'Dip', pain: 'Shoulder (left)', sets: [{ reps: 6 }] }] }];
+  const { raised } = await raisePainChecks(vault, { sessions: third, injuries: [], now: NOW });
+  const ask = raised.find((r) => r.painKey);
+  assert.ok(ask);
+  const { updateRecord } = await import('../lib/inboxStore.js');
+  await updateRecord(ask.id, { status: 'discarded', expired: true });
+  await assert.rejects(() => reopenRecord(ask.id), /can be reopened/);
 });
 
 test('undo of a yes on "has it cleared up?" reopens the entry', async () => {
