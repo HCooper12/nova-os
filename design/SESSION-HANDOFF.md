@@ -11,6 +11,24 @@ the session log at the foot is append-only.
 
 ---
 
+## 15 Nov (Fable 5.2): THE FRESHNESS FIX, THE GLASS LENS AND MOCKUPS 116 + 117, ALL LOCAL. NOT PUSHED, SERVER NOT RELOADED, NOTHING SEEN BY HIM
+
+**What landed (local commits, in order):** `5edd0be9` mockup 116 (daily review, quote first) · `cc1e4f32` track F, the freshness fix · `6f17d066` the glass lens and the re-aimed rim · `e733ac84` mockup 117 (search that reads the note).
+
+**Track F (his complaint: old pain and old gym notes raised as if current).** One date rule in `server/lib/freshness.js` (`FRESH_DAYS`: session-pain 7, form-note 21, lift-evidence 28, open-injury 14, pain-hold 14, spoken-evidence 21) gates every reader. A pain mention raises ONE inbox card, kind `pain-check`, that asks whether it is still going (`painCheck.js`, undoData on the rails). Evidence that surfaces wears its date (`evidenceAge.js`).
+- Verified: 178 track tests pass; full server run 5514 pass, 2 fail (both `exerciseAtlas`, older); lint and build clean. Replay by lib calls on scratch copies of his real data, HEAD before vs after: Coach program findings 13 to 4, stale 7 to 0, oldest evidence 53 days to 5.
+- NOT verified: the pain question on his real data (his only pain entries are 33 and 43 days old, so none was raised; tests only). approvePainCheck, nudging, composeShow, the HTTP morning route and model answers were not replayed. The card has not been looked at on a screen.
+- Known limits, told to him: a "no" on a pain check cannot be reopened (`reopenRecord` in `inbox.js` is Coach cards only, and an undone or declined card still counts as asked); the spoken program beat carries no date (the card note does); `coach.js` `formGone` holds a progression on the last session's form-breakdown note with no age limit; finding kinds with no date cannot be age-judged.
+- The live server still runs the old code. Reload only with `node scripts/reload-server.mjs`, on his word.
+
+**Glass (the Glisse reel).** `src/glassLens.js` is Nova's own code, no dependency: an SVG displacement filter per size on the tab bar, Nova disc, search pill and sheets, Chromium only. FINDING: over test stripes the bend is real; at Nova's 22px frost it cannot be seen on real content. WebKit (his iPhone) cannot do it at all. The Summary rim was re-aimed from 212deg to 315deg in all 7 `--nv-sum-rim` blocks (top-left lit), which reaches every engine. Order matters: lens BEFORE blur makes Chrome drop the whole backdrop filter. Not verified in WebKit; shots were demo data.
+
+**Mockups awaiting his yes:** 115 (watch), 116 (daily review; card 359 to 362px at 375 against a 350 target), 117 (search; rest state is the Index because that is where `.nv-sum-search` lives). K5 and K1 are NOT to be built before he approves. K1 needs from `recall.js`: a line snippet with match position, a date per result, words answered ahead of meaning, a meaning-down flag, timings; the Notes box filters titles only today.
+
+**Open decisions put to him:** the FRESH_DAYS limits; reload to turn the pain question on; thin the frost at the rim or drop the lens; push the rim change; reopen for a pain-check "no"; approve 116 and 117.
+
+**Traps paid for:** two sessions resumed from the same state file and worked the same tree; agree one owner by SendMessage before any commit. A dateless grep of the server log matched other days and looked like an instrument hitting 4173; always grep the full date. zsh does not word-split `$VAR` in `git commit -o $VAR`; use an array. A separate live fault seen 15 Nov 07:04 AEDT: 42 requests failed with errno -11 on vault reads at his first open (the iCloud stale read), unfixed.
+
 ## 13 Nov (Fable 5.2, watch session): NOVA ON THE APPLE WATCH, mockup 115 sent for his approval (abcdcd52, local). NOTHING BUILT
 
 - **GOAL:** his brief 13 Nov: "an app of Nova for my Apple Watch, with whatever features would genuinely work and be beneficial ... Also including widgets ... I don't need everything that would just be clunky on the watch".
