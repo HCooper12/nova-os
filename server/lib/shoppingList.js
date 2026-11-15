@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
+import { appendFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { laneSkipped, laneEnabled } from './modelPrefs.js';
 import { parseModelJson } from './jsonSalvage.js';
@@ -38,10 +41,30 @@ function getItems(vaultPath) {
 
 const withWriteLock = createWriteLock();
 
+// WHAT CAME AND WENT (15 Nov 2026). He added cottage cheese, it was not on
+// his list hours later, and nothing on the Mac could say whether it ever
+// arrived or which tap took it off. Every save now appends what it added
+// and removed (names, amounts, the meal) to an operational history in
+// server/data. Ticks are not logged; they are not losses.
+const HISTORY = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'shopping-history.jsonl');
+const brief = (i) => ({ id: i.id, name: i.name, ...(i.amount ? { amount: i.amount } : {}), ...(i.source ? { for: i.source } : {}), ...(i.checked ? { ticked: true } : {}) });
+async function noteHistory(before, after) {
+  try {
+    const was = new Set(before.map((i) => i.id));
+    const now = new Set(after.map((i) => i.id));
+    const added = after.filter((i) => !was.has(i.id)).map(brief);
+    const removed = before.filter((i) => !now.has(i.id)).map(brief);
+    if (!added.length && !removed.length) return;
+    await appendFile(HISTORY(), `${JSON.stringify({ at: new Date().toISOString(), ...(added.length ? { added } : {}), ...(removed.length ? { removed } : {}) })}\n`);
+  } catch { /* the history is a receipt, never a reason a save fails */ }
+}
+
 async function persist(vaultPath, items) {
+  const before = await getItems(vaultPath).catch(() => []);
   const frontmatter = { type: 'shopping-list', updated: new Date().toISOString().slice(0, 10), items };
   const content = matter.stringify(bodyFor(items), frontmatter);
   await stateFile.write(vaultPath, content, items);
+  await noteHistory(before || [], items);
 }
 
 export async function loadShoppingList(vaultPath) {

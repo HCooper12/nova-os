@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const vault = await mkdtemp(path.join(tmpdir(), 'nova-shop-'));
+process.env.NOVA_DATA_DIR = path.join(vault, '.data');
+await mkdir(process.env.NOVA_DATA_DIR, { recursive: true });
 process.env.NOVA_VAULT_GRACE_MS = '0';
 
 import test from 'node:test';
@@ -220,4 +222,15 @@ test('a whole item keeps its own name: "15g" in "15g YoPRO" is the protein grade
   assert.equal(it.amount, null);
   const { productMatches } = await import('../../src/shopPrice.js');
   assert.equal(productMatches(whole.toLowerCase(), 'YoPRO Perform Protein Yoghurt Pouch No Added Sugar Mixed Berries 175g'), false, 'the 20 g Perform pouch is not this line');
+});
+
+test('every save leaves a receipt of what was added and removed (the lost cottage cheese, 15 Nov)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const before = (await readFile(path.join(process.env.NOVA_DATA_DIR, 'shopping-history.jsonl'), 'utf8').catch(() => '')).split('\n').filter(Boolean).length;
+  const [it] = await addItemsDirect(vault, [{ name: '500g cottage cheese', source: 'Test Bowl' }]);
+  const { removeItems } = await import('../lib/shoppingList.js');
+  await removeItems(vault, [it.id]);
+  const rows = (await readFile(path.join(process.env.NOVA_DATA_DIR, 'shopping-history.jsonl'), 'utf8')).split('\n').filter(Boolean).map((l) => JSON.parse(l)).slice(before);
+  assert.deepEqual(rows[0].added, [{ id: it.id, name: 'cottage cheese', amount: '500g', for: 'Test Bowl' }]);
+  assert.deepEqual(rows[1].removed, [{ id: it.id, name: 'cottage cheese', amount: '500g', for: 'Test Bowl' }]);
 });
