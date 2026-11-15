@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shopping, meal by meal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  Mockup 118. The shopping line, meal by meal. For his approval, 15 Nov 2026. Nothing here is built.
+  His words: "I want to be able to double check it by how much is needed of that ingredient for each
+  individual meal planned", and "I still want to be able to see what quantity is needed for each
+  individual meal if I am to tap open that shopping list item."
+  The moment: he taps a collated line open and the first thing he sees is one row per meal, each with
+  its amount and a bar for its share, and the total at the foot, so he can add it up himself.
+  Live look copied from src/screens/ShoppingSummary.jsx + src/shopping.css (Summary idiom, his),
+  the recipe page from src/RecipeOverlay.jsx + src/RecipePage.jsx (.nv-rp-* in src/index.css).
+  SAMPLE CONTENT ONLY. The repo is public. Every meal, food, amount and price here is invented.
+  States by URL: ?s=line|sheet|loading|offline|ask|ask-line|removed &w=375|402 &bare=1 &still=1
+  Built from parts in a scratch folder by join.mjs, which refuses en and em dashes, emoji, and the reject-then-announce construction.
+-->
+<style>
+
+:root{
+  /* real tokens: src/index.css (command base, then the summary style block) */
+  --nv-ease:cubic-bezier(.32,.72,0,1); --nv-ease-exit:cubic-bezier(.4,0,1,1);
+  --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+  --nv-void:#06070d; --nv-bg1:#06070d; --nv-bg2:#06070d;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink50:rgba(232,236,246,.52); --nv-ink40:rgba(232,236,246,.38);
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-gold:#e0b26a; --nv-good:#5fe8a8; --nv-warn:#e08383;
+  --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07);
+  --nv-radius:22px;
+  --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
+  --nv-font-serif:ui-serif,'New York',Georgia,serif;
+  --nv-font-round:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif;
+  --nv-micro-m:600 12.5px var(--nv-font-ui);
+  /* summary glass (nova-glass) */
+  --nv-sum-card:rgba(255,255,255,.09); --nv-sum-card-ring:rgba(255,255,255,.16);
+  --nv-sum-card-hi:rgba(255,255,255,.22); --nv-sum-blur:22px;
+  --nv-sum-card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --nv-sum-sat:1.6;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.015) 45%, rgba(255,255,255,0) 72%, rgba(255,255,255,.03));
+  --nv-sum-glow:inset 0 0 16px -6px rgba(255,255,255,.3);
+  --nv-sum-rim:conic-gradient(from 212deg, rgba(255,255,255,.62), rgba(255,255,255,.10) 18%, rgba(255,255,255,.04) 44%, rgba(255,255,255,.40) 64%, rgba(255,255,255,.07) 82%, rgba(255,255,255,.62));
+  --nv-sum-card-shadow-lg:0 22px 48px -22px rgba(0,0,0,.78);
+  --nv-sum-float-drop:0 18px 44px -18px rgba(0,0,0,.75);
+  --nv-sum-tab:rgba(16,20,36,.58); --nv-sum-tab-ring:rgba(255,255,255,.14); --nv-sum-tab-ink:rgba(232,236,246,.5);
+  --nv-sum-tab-on:#59e6ff; --nv-sum-tab-on-bg:rgba(89,230,255,.1);
+  --nv-sum-stand-a:#59e6ff; --nv-sum-stand-b:#8f7bff;
+  --nv-sum-ink2:rgba(232,236,246,.76); --nv-sum-ink3:rgba(232,236,246,.52); --nv-sum-sep:rgba(232,236,246,.14);
+  /* springs: springs.txt (keynote-motion), true damped springs as linear() */
+  --nv-spring-smooth:linear(0, 0.0126, 0.045, 0.091, 0.1455, 0.2048, 0.2662, 0.3275, 0.3874, 0.4448, 0.4991, 0.5499, 0.5969, 0.6401, 0.6796, 0.7154, 0.7478, 0.777, 0.8032, 0.8266, 0.8475, 0.8661, 0.8825, 0.8971, 0.91, 0.9213, 0.9313, 0.9401, 0.9478, 0.9545, 0.9605, 0.9656, 0.9701, 0.9741, 0.9775, 0.9805, 0.9831, 0.9854, 0.9873, 0.9891, 0.9905, 0.9918, 0.9929, 0.9939, 0.9947, 0.9955, 0.9961, 0.9966, 0.9971, 0.9975, 0.9978, 0.9981, 0.9984, 0.9986, 0.9988, 0.999, 0.9991, 0.9992, 0.9994, 0.9994, 1); --nv-spring-smooth-ms:800ms;
+  --nv-spring-snappy:linear(0, 0.0128, 0.0464, 0.095, 0.1536, 0.2183, 0.286, 0.3543, 0.4214, 0.486, 0.5471, 0.6041, 0.6566, 0.7045, 0.7477, 0.7864, 0.8206, 0.8508, 0.8771, 0.8999, 0.9195, 0.9362, 0.9503, 0.9621, 0.9719, 0.98, 0.9865, 0.9918, 0.9959, 0.9992, 1.0016, 1.0034, 1.0047, 1.0055, 1.006, 1.0063, 1.0063, 1.0061, 1.0059, 1.0055, 1.0052, 1.0047, 1.0043, 1.0039, 1.0035, 1.0031, 1.0027, 1.0024, 1.002, 1.0017, 1.0015, 1.0013, 1.001, 1.0009, 1.0007, 1.0006, 1.0005, 1.0004, 1.0003, 1.0002, 1); --nv-spring-snappy-ms:640ms;
+  --nv-spring-bouncy:linear(0, 0.013, 0.0479, 0.0992, 0.1624, 0.2332, 0.3084, 0.3851, 0.4611, 0.5347, 0.6045, 0.6696, 0.7293, 0.7833, 0.8314, 0.8737, 0.9103, 0.9415, 0.9676, 0.989, 1.0063, 1.0198, 1.0299, 1.0372, 1.0421, 1.0449, 1.0459, 1.0457, 1.0443, 1.0421, 1.0393, 1.0361, 1.0327, 1.0292, 1.0257, 1.0222, 1.019, 1.0159, 1.0131, 1.0106, 1.0083, 1.0063, 1.0045, 1.003, 1.0018, 1.0007, 0.9999, 0.9992, 0.9987, 0.9984, 0.9981, 0.998, 0.9979, 0.9979, 0.9979, 0.998, 0.9982, 0.9983, 0.9985, 0.9986, 1); --nv-spring-bouncy-ms:800ms;
+  --nv-spring-playful:linear(0, 0.0166, 0.0615, 0.128, 0.21, 0.3019, 0.3989, 0.497, 0.5928, 0.6837, 0.7677, 0.8434, 0.9099, 0.9669, 1.0142, 1.0523, 1.0815, 1.1027, 1.1166, 1.1241, 1.1263, 1.1241, 1.1182, 1.1097, 1.0993, 1.0877, 1.0754, 1.063, 1.0509, 1.0395, 1.0289, 1.0194, 1.011, 1.0039, 0.998, 0.9932, 0.9896, 0.9869, 0.9852, 0.9843, 0.984, 0.9844, 0.9851, 0.9862, 0.9875, 0.989, 0.9905, 0.9921, 0.9936, 0.9951, 0.9964, 0.9976, 0.9986, 0.9995, 1.0003, 1.0009, 1.0013, 1.0017, 1.0019, 1.002, 1); --nv-spring-playful-ms:990ms;
+  --nv-rise:12px;
+  color-scheme:dark;
+}
+
+/* ---------- page ---------- */
+*{box-sizing:border-box}
+html{background:var(--nv-void)}
+body{margin:0;background:var(--nv-void);color:var(--nv-ink);font:15px/1.45 var(--nv-font-ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-align:inherit}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--nv-cy);outline-offset:2px;border-radius:12px}
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+
+.page{display:grid;justify-items:center;gap:18px;padding:0 0 48px}
+.demo{position:sticky;top:0;z-index:50;width:100%;display:flex;align-items:center;gap:8px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;
+  background:color-mix(in srgb,var(--nv-void) 86%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  box-shadow:0 .5px 0 rgba(255,255,255,.08)}
+.demo::-webkit-scrollbar{display:none}
+.demo h1{flex:none;margin:0 10px 0 4px;font:700 16px var(--nv-font-ui);letter-spacing:-.01em;white-space:nowrap}
+.demo .grp{display:flex;gap:6px;flex:none}
+.demo .sep{flex:none;width:.5px;height:22px;background:rgba(255,255,255,.16);margin:0 4px}
+.demo button{flex:none;min-height:36px;padding:0 14px;border-radius:18px;font:600 13px var(--nv-font-ui);white-space:nowrap;background:rgba(255,255,255,.07);box-shadow:0 0 0 .5px rgba(255,255,255,.16);transition:background-color var(--nv-dur-fast) var(--nv-ease),transform 120ms var(--nv-ease)}
+.demo button:active{transform:scale(.97)}
+.demo button.cur{background:color-mix(in srgb,var(--nv-vi) 22%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--nv-vi) 60%,transparent)}
+.demo button.play{color:var(--nv-cy)}
+.demo button.play.cur{background:color-mix(in srgb,var(--nv-cy) 16%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--nv-cy) 55%,transparent)}
+
+.cap{max-width:402px;margin:0;padding:0 16px;font:400 14px/1.5 var(--nv-font-ui);color:var(--nv-ink60);text-align:center;text-wrap:pretty}
+.why{max-width:760px;padding:6px 20px 0;display:grid;gap:18px;font-size:14px;line-height:1.5;color:var(--nv-ink60)}
+@media (min-width:760px){.why{grid-template-columns:1fr 1fr;gap:18px 36px}}
+.why h2{margin:0 0 6px;font:700 15px var(--nv-font-ui);color:var(--nv-ink)}
+.why ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.why b{color:var(--nv-ink);font-weight:600}
+.why .fine{grid-column:1/-1;margin:0;font-size:13px;color:var(--nv-ink50)}
+
+/* ---------- the phone ---------- */
+.phone{position:relative;width:375px;height:812px;flex:none;overflow:hidden;isolation:isolate;border-radius:46px;background:var(--nv-void);
+  box-shadow:0 0 0 1px rgba(255,255,255,.14),0 0 0 7px #0b0d14,0 0 0 8px rgba(255,255,255,.08),0 40px 90px -40px #000}
+.phone.w402{width:402px;height:874px}
+.sky{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(60% 34% at 12% 8%,rgba(255,170,130,.28),transparent 72%),
+    radial-gradient(58% 36% at 88% 30%,rgba(143,123,255,.32),transparent 72%),
+    radial-gradient(80% 34% at 50% 112%,rgba(217,181,111,.22),transparent 72%),
+    linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#0f1535 85%,#12183a 100%)}
+.clock{position:absolute;left:34px;top:15px;z-index:30;font:600 16px var(--nv-font-ui);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--nv-ink)}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;padding:46px 16px 110px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+
+/* the house glass card (index.css .nv-sum-card) */
+.nv-sum-card{position:relative;min-width:0;border-radius:var(--nv-radius);
+  --nv-sum-card-drop:var(--nv-sum-card-shadow-lg);
+  background:var(--nv-sum-sheen),var(--nv-sum-card);
+  box-shadow:var(--nv-sum-glow),0 1px 0 var(--nv-sum-card-hi) inset,0 0 0 .5px var(--nv-sum-card-ring),var(--nv-sum-card-drop);
+  -webkit-backdrop-filter:blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat));backdrop-filter:blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat))}
+.nv-sum-card::after,.nv-sum-tabbar::after,.nv-sum-nova::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:1px;background:var(--nv-sum-rim);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude}
+
+/* the glass dock (index.css .nv-sum-tabbar, .nv-sum-nova) */
+.dock{position:absolute;left:12px;right:12px;bottom:22px;z-index:20;display:flex;gap:8px;align-items:center}
+.nv-sum-tabbar,.nv-sum-nova{background:var(--nv-sum-sheen),var(--nv-sum-tab);
+  box-shadow:var(--nv-sum-glow),0 1px 0 var(--nv-sum-card-hi) inset,0 0 0 .5px var(--nv-sum-tab-ring),var(--nv-sum-float-drop);
+  -webkit-backdrop-filter:blur(22px) saturate(var(--nv-sum-sat));backdrop-filter:blur(22px) saturate(var(--nv-sum-sat))}
+.nv-sum-tabbar{position:relative;flex:1;min-width:0;height:60px;padding:2px;border-radius:30px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center}
+.nv-sum-tab{position:relative;z-index:1;height:56px;min-width:0;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--nv-sum-tab-ink)}
+.nv-sum-tab.on{color:var(--nv-sum-tab-on)}
+.nv-sum-tab .ic{width:22px;height:22px;stroke-width:1.7}
+.nv-sum-tab-lbl{white-space:nowrap;font:500 11px/1.15 var(--nv-font-ui);letter-spacing:.01em}
+.nv-sum-lens{position:absolute;top:2px;left:2px;width:calc((100% - 4px) / 5);height:56px;border-radius:28px;background:var(--nv-sum-tab-on-bg);pointer-events:none}
+.nv-sum-nova{position:relative;flex:none;width:60px;height:60px;border-radius:50%;display:grid;place-items:center}
+.orb{width:46px;height:46px;border-radius:50%;
+  background:radial-gradient(circle at 45% 40%,#eafcff 0,#8ef0ff 16%,#2f9bf0 44%,rgba(60,50,170,.55) 64%,rgba(23,58,153,0) 74%);
+  box-shadow:0 0 22px -6px rgba(89,230,255,.6)}
+
+/* entrance: deckRise, one 40 ms beat per --i (index.css .nv-sum-rise) */
+@keyframes deckRise{from{opacity:0;transform:translateY(var(--nv-rise)) scale(.985)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}}
+.nv-sum-rise{animation:deckRise var(--nv-dur-base) var(--nv-ease) backwards;animation-delay:calc(var(--i,0) * 40ms)}
+
+/* bare: the phone fills the viewport, for screenshots */
+.bare .demo,.bare .cap,.bare .why{display:none}
+.bare .page{display:block;padding:0}
+.bare .phone,.bare .phone.w402{width:100vw;height:100vh;border-radius:0;box-shadow:none}
+.still *,.still *::before,.still *::after{transition:none !important;animation:none !important}
+
+@media (prefers-reduced-motion:reduce){
+  .nv-sum-rise{animation:fadeIn .16s ease backwards !important}
+}
+@media (prefers-reduced-transparency:reduce){
+  .nv-sum-card,.nv-sum-tabbar,.nv-sum-nova,.demo{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .nv-sum-card{background:color-mix(in srgb,var(--nv-void) 88%,white)}
+  .nv-sum-tabbar,.nv-sum-nova{background:#141a2c}
+  .nv-sum-card::after,.nv-sum-tabbar::after,.nv-sum-nova::after{background:none;border:1px solid var(--nv-sum-sep);padding:0;-webkit-mask:none;mask:none}
+}
+
+/* ===== src/shopping.css, copied as it stands (15 Nov 2026); 118's overrides follow in their own block ===== */
+.nv-sh, .nv-sh-scrim {
+  --sh-ease: cubic-bezier(.32,.72,0,1); --sh-out: cubic-bezier(.23,1,.32,1);
+  --sh-ink72: color-mix(in srgb, var(--nv-ink) 74%, transparent);
+  --sh-sep: var(--nv-sum-sep, color-mix(in srgb, var(--nv-ink) 10%, transparent));
+  --sh-hue: var(--nv-good);
+  --sh-on: #071018;
+  --sh-pt: #b3a6ff; --sh-ptx: #ef96e8; --sh-ptx-ink: #2b0b27;
+  --sh-er: #fd6400; --sh-er-hi: #ff9a5a; --sh-er-act: #d44500;
+  --sh-fb: #007cc2; --sh-fb-navy: #0f4b91; --sh-fb-hi: #5cb4ea; --sh-fb-act: #007cc2;
+  --sh-st-w: #3fcf74; --sh-st-c: #ff5f5f; --sh-st-a: #6f9bff;
+  /* the tint's strength (his call 4): a wash, an edge and a ring */
+  --sh-wash: 30%; --sh-wash2: 12%; --sh-edge: 72%;
+}
+:root[data-nv-theme="daylight"] :is(.nv-sh, .nv-sh-scrim) {
+  --sh-pt: #5b45d6; --sh-ptx: #a3278f; --sh-ptx-ink: #fff; --sh-er-hi: #ff8a3d; --sh-fb-hi: #3d9ad6;
+  --sh-st-w: #178a46; --sh-st-c: #d42a2f; --sh-st-a: #2c5fd6; --sh-wash: 16%; --sh-wash2: 6%;
+}
+.nv-sh { box-sizing: border-box; color: var(--nv-ink); font: 400 15px/1.35 var(--nv-font-ui); min-width: 0; position: relative; }
+.nv-sh *, .nv-sh-scrim * { box-sizing: border-box; }
+:where(.nv-sh, .nv-sh-scrim) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: inherit; }
+:where(.nv-sh, .nv-sh-scrim) button:disabled { cursor: default; opacity: .45; }
+:where(.nv-sh, .nv-sh-scrim) button:not(:disabled):active { transform: scale(.97); transition: transform .14s var(--sh-out); }
+.nv-sh-ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-sh .sr, .nv-sh-scrim .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.nv-sh-num { font-family: var(--nv-font-round); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+/* ---------- the bar: back and ⋯ above the large title. The house chrome
+   folds the title into its own bar on scroll (MobileChrome's compact title),
+   so a second sticky bar here would sit under it, unseen. ---------- */
+.nv-sh-bar { position: relative; z-index: 2; margin: -6px -4px 0; }
+.nv-sh-nav { display: flex; align-items: center; justify-content: space-between; height: 44px; }
+.nv-sh-nb { min-width: 44px; height: 44px; border-radius: 22px; display: inline-flex !important; align-items: center; justify-content: center; padding: 0 14px !important; font: 400 17px var(--nv-font-ui) !important; background: var(--nv-sum-card) !important; box-shadow: inset 0 0 0 .5px var(--nv-sum-card-ring), inset 0 1px 0 var(--nv-sum-card-hi); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+.nv-sh-nb.circ { width: 44px; padding: 0 !important; }
+.nv-sh-nb .nv-sh-ic { width: 20px; height: 20px; stroke-width: 2.2; }
+.nv-sh-ttl { margin: 2px 4px 0; font: 700 34px/1.12 var(--nv-font-ui); letter-spacing: -.025em; }
+.nv-sh-news { margin: 6px 4px 0; font: 400 20px/1.32 var(--nv-font-serif); text-wrap: balance; overflow-wrap: anywhere; }
+.nv-sh-news b { font-weight: 600; }
+.nv-sh-stat { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: 8px 4px 0; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); min-height: 20px; }
+.nv-sh-stat .tx { min-width: 0; flex: 1 1 auto; }
+/* the dot rides the first line of the words (break-ui: a long status left it alone on a line) */
+.nv-sh-stat .dot { display: inline-block; width: 7px; height: 7px; margin: 0 8px 1px 0; border-radius: 4px; background: var(--sh-hue); vertical-align: middle; }
+.nv-sh-stat.bad { color: var(--nv-warn); }
+.nv-sh-stat.bad .dot { background: var(--nv-warn); }
+.nv-sh-stat.off .dot { background: var(--nv-gold); }
+.nv-sh-stat .rt { min-height: 44px; margin: -12px 0 !important; padding: 0 12px !important; border-radius: 22px; color: var(--nv-warn) !important; font: 600 13px var(--nv-font-ui) !important; }
+.nv-sh-ex { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 10px; font: 600 12px/1 var(--nv-font-ui); color: var(--nv-gold); background: color-mix(in srgb, var(--nv-gold) 15%, transparent); }
+
+/* ---------- house tiles, tags, marks ---------- */
+.nv-sh-tile { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--t) 82%, #fff), var(--t)); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.18); }
+.nv-sh-tile .nv-sh-ic { width: 17px; height: 17px; stroke: #fff; }
+.nv-sh-tile.sm { width: 20px; height: 20px; border-radius: 6px; }
+.nv-sh-tile.sm .nv-sh-ic { width: 12px; height: 12px; stroke-width: 2.3; }
+.nv-sh-tile.store { background: color-mix(in srgb, var(--t) 22%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--t) 50%, transparent); color: var(--t); font: 800 14px/1 var(--nv-font-round); overflow: hidden; }
+.nv-sh-tile img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; background: #fff; }
+.nv-sh-tg { display: inline-grid; place-items: center; flex: none; width: 17px; height: 17px; border-radius: 5px; font: 800 11px/1 var(--nv-font-round); color: var(--t); background: color-mix(in srgb, var(--t) 20%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--t) 45%, transparent); vertical-align: -3px; }
+.nv-sh-tg.dash { background: none; color: var(--nv-ink40); outline: 1px dashed var(--nv-ink40); outline-offset: -1px; box-shadow: none; }
+.st-w { --t: var(--sh-st-w); } .st-c { --t: var(--sh-st-c); } .st-a { --t: var(--sh-st-a); }
+.pg-er { --pg: var(--sh-er); --pg2: var(--sh-er); --pg-hi: var(--sh-er-hi); --pg-act: var(--sh-er-act); }
+.pg-fb { --pg: var(--sh-fb-hi); --pg2: var(--sh-fb-navy); --pg-hi: var(--sh-fb-hi); --pg-act: var(--sh-fb-act); }
+.nv-sh-pmark { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font: 600 13px/1 var(--nv-font-ui); letter-spacing: -.003em; color: var(--nv-ink); white-space: nowrap; }
+.nv-sh-pmark i { flex: none; width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(160deg, color-mix(in srgb, var(--pg) 82%, #fff) 0%, var(--pg) 38%, var(--pg2) 100%); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.26), 0 1px 2px rgba(0,0,0,.25); }
+.pg-fb .nv-sh-pmark i, .nv-sh-pmark.pg-fb i { background: linear-gradient(160deg, color-mix(in srgb, var(--sh-fb) 82%, #fff) 0%, var(--sh-fb) 38%, var(--sh-fb-navy) 100%); }
+.nv-sh-pmark i .nv-sh-ic { width: 12px; height: 12px; stroke: #fff; stroke-width: 2.3; }
+.nv-sh-pmark i img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.nv-sh-pmark.lg i { width: 30px; height: 30px; border-radius: 9px; }
+.nv-sh-pmark.lg i .nv-sh-ic { width: 18px; height: 18px; stroke-width: 2.1; }
+.nv-sh-pmark.quiet { font-weight: 500; color: var(--nv-ink60); }
+.nv-sh-pmark span { overflow: hidden; text-overflow: ellipsis; }
+/* the two kinds of points */
+.nv-sh-ptx { display: inline-flex; align-items: center; justify-content: center; flex: none; height: 20px; padding: 0 7px; border-radius: 10px; font: 800 12px/1 var(--nv-font-round); color: var(--sh-ptx-ink); background: var(--sh-ptx); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; vertical-align: 1px; }
+.nv-sh-ptx.sm { height: 17px; padding: 0 6px; border-radius: 9px; font-size: 11px; }
+.nv-sh-ptx.lg { height: 28px; padding: 0 10px; border-radius: 14px; font-size: 17px; letter-spacing: -.02em; }
+.nv-sh-ptx.xl { height: 46px; padding: 0 16px; border-radius: 23px; font-size: 30px; letter-spacing: -.03em; }
+.nv-sh-ptn { font: 700 1em/1 var(--nv-font-round); color: var(--sh-pt); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.nv-sh-ptn small { margin-left: .18em; font: 600 .62em/1 var(--nv-font-ui); letter-spacing: .01em; opacity: .82; }
+.nv-sh-ptn.lg { font-size: 26px; letter-spacing: -.02em; }
+.nv-sh-ptn.lg small { font-size: 13px; }
+.nv-sh-ptn.xl { font-size: 46px; letter-spacing: -.03em; }
+.nv-sh-ptn.xl small { font-size: 17px; }
+.nv-sh-arr { flex: none; width: 14px; height: 14px; fill: none; stroke: var(--nv-ink40); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* tinted glass: Nova's card, a wash from the top corner, an edge that catches the hue */
+.nv-sh-tint { background: linear-gradient(152deg, color-mix(in srgb, var(--pg) var(--sh-wash), transparent) 0%, color-mix(in srgb, var(--pg2) var(--sh-wash2), transparent) 46%, transparent 80%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0) 50%), var(--nv-sum-card);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pg-hi) var(--sh-edge), transparent), inset 1px 0 0 color-mix(in srgb, var(--pg-hi) 26%, transparent), 0 0 0 .5px color-mix(in srgb, var(--pg-hi) 58%, var(--nv-sum-card-ring)), 0 14px 34px -22px color-mix(in srgb, var(--pg) 70%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6); backdrop-filter: blur(22px) saturate(1.6); }
+/* Flybuys sinks into a navy sky: its wash starts from the lifted blue, a touch stronger */
+.nv-sh-tint.pg-fb { --sh-wash: 36%; --sh-wash2: 16%; }
+
+/* ---------- cards ---------- */
+.nv-sh-card { position: relative; border-radius: 22px; overflow: hidden; }
+.nv-sh-basket { margin-top: 16px; padding: 14px 16px 12px; }
+.nv-sh-bk { display: grid; grid-template-columns: 104px minmax(0,1fr); gap: 16px; align-items: center; }
+.nv-sh-ring { position: relative; width: 104px; height: 104px; }
+.nv-sh-ring svg { width: 104px; height: 104px; transform: rotate(-90deg); display: block; }
+.nv-sh-ring circle { fill: none; stroke-width: 9; stroke-linecap: butt; }
+.nv-sh-ring .tr { stroke: color-mix(in srgb, var(--c) 24%, transparent); }
+.nv-sh-ring .fl { stroke: var(--c); transition: stroke-dasharray 520ms var(--sh-ease); }
+.nv-sh-ring .ctr { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.nv-sh-ring .big { font: 700 28px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; }
+.nv-sh-ring .sm { font: 500 12px/1.2 var(--nv-font-ui); color: var(--nv-ink60); margin-top: 3px; }
+.nv-sh-wb { min-width: 0; }
+.nv-sh-wb h3 { margin: 0 0 6px; font: 600 13px/1.2 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-wb p { margin: 0; font: 400 14px/1.4 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; background: color-mix(in srgb, var(--nv-ink) 8%, transparent); }
+.nv-sh-split i { display: block; height: 100%; background: var(--t); transform-origin: 0 50%; animation: nvShGrow 600ms var(--sh-out) backwards; animation-delay: calc(var(--k, 0) * 60ms + 120ms); }
+.nv-sh-split i.na { background: repeating-linear-gradient(90deg, var(--nv-ink40) 0 4px, transparent 4px 7px); }
+@keyframes nvShGrow { from { transform: scaleX(0); } }
+.nv-sh-legend { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.nv-sh-legend li { display: grid; grid-template-columns: 17px minmax(0,1fr) auto; gap: 8px; align-items: center; font: 400 14px/1.3 var(--nv-font-ui); color: var(--nv-ink60); min-width: 0; }
+.nv-sh-legend li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-sh-legend b { font-weight: 600; color: var(--nv-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sh-legend .gap { color: var(--nv-ink40); }
+.nv-sh-bfoot { margin: 10px 0 0; padding-top: 10px; border-top: .5px solid var(--sh-sep); font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-bfoot b { color: var(--nv-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.nv-sh-sv { color: var(--nv-good); font-weight: 600; }
+.nv-sh-seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); margin-top: 12px; padding: 3px; border-radius: 22px; background: rgba(120,120,128,.22); }
+.nv-sh-seg button { min-width: 0; height: 38px; padding: 0 6px !important; border-radius: 19px; font: 600 13px var(--nv-font-ui) !important; color: var(--nv-ink60) !important; white-space: nowrap; text-align: center !important; transition: background-color 200ms ease, color 200ms ease; }
+.nv-sh-seg button[aria-pressed="true"] { color: var(--nv-ink) !important; background: rgba(255,255,255,.16) !important; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.nv-sh-seg button::after { content: ""; position: absolute; inset: -3px 0; }
+.nv-sh-seg button { position: relative; }
+.nv-sh-aisles { display: flex; gap: 6px; margin: 10px -16px 0; padding: 0 16px 2px; overflow-x: auto; scrollbar-width: none; }
+.nv-sh-aisles::-webkit-scrollbar { display: none; }
+.nv-sh-achip { flex: none; display: inline-flex !important; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 8px !important; border-radius: 18px; background: color-mix(in srgb, var(--nv-ink) 7%, transparent) !important; font: 600 13px var(--nv-font-ui) !important; position: relative; white-space: nowrap; }
+.nv-sh-achip::after { content: ""; position: absolute; inset: -4px 0; }
+.nv-sh-achip .c { color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
+
+/* ---------- section heads ---------- */
+.nv-sh-sh2 { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 0 8px 4px; min-width: 0; }
+.nv-sh-sh2 h2 { margin: 0; font: 700 22px/1.2 var(--nv-font-ui); letter-spacing: -.015em; white-space: nowrap; }
+.nv-sh-sh2 .nv-sh-nb { font-size: 15px !important; font-weight: 600 !important; color: var(--sh-hue); }
+
+/* ---------- points this week ---------- */
+.nv-sh-pts { margin-top: 24px; }
+.nv-sh-pts .nv-sh-sh2 { margin: 0 0 10px 4px; align-items: flex-end; }
+.nv-sh-pts .nv-sh-sh2 h2 { font-size: 20px; }
+.nv-sh-wv { flex: none; text-align: right; font: 500 12px/1.2 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-wv .nv-sh-ptn { display: block; margin-bottom: 2px; font-size: 20px; letter-spacing: -.015em; }
+.nv-sh-wv .nv-sh-ptn small { font-size: 12px; }
+.nv-sh-pmk { display: flex; gap: 14px; margin: -2px 4px 10px; flex-wrap: wrap; }
+.nv-sh-gcall { display: flex !important; align-items: center; gap: 12px; width: 100%; min-height: 76px; padding: 12px 12px 12px 14px !important; border-radius: 22px; text-align: left; margin-bottom: 0; }
+.nv-sh-gcall + .nv-sh-gcall { margin-top: 10px; }
+.nv-sh-gcart { flex: none; position: relative; width: 66px; height: 42px; border-radius: 7px; overflow: hidden; background: linear-gradient(140deg, #59627a 0%, #2c3347 52%, #1b2030 100%); box-shadow: 0 8px 16px -10px rgba(0,0,0,.7), inset 0 0 0 .5px rgba(255,255,255,.3); }
+.nv-sh-gcart::before { content: ""; position: absolute; left: 0; right: 0; top: 8px; height: 6px; background: rgba(255,255,255,.16); }
+.nv-sh-gcart .nv-sh-ptx { position: absolute; left: 5px; bottom: 5px; }
+.nv-sh-gcart .nv-sh-tg { position: absolute; right: 5px; bottom: 5px; width: 15px; height: 15px; font-size: 10px; color: #fff; background: rgba(0,0,0,.28); box-shadow: none; }
+.nv-sh-gtx { flex: 1; min-width: 0; display: block; }
+.nv-sh-gtx .k { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; min-width: 0; }
+.nv-sh-dl { margin-left: auto; font: 500 12px/1 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sh-dl.soon { color: var(--nv-gold); }
+.nv-sh-gtx .h { display: block; font: 600 16px/1.25 var(--nv-font-ui); letter-spacing: -.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.nv-sh-gtx .s { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 6px; margin-top: 4px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-gtx .s .nv-sh-ptn { font-size: 14px; }
+.nv-sh-chev { flex: none; width: 16px; height: 16px; fill: none; stroke: var(--nv-ink40); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.nv-sh-prail { display: flex; gap: 10px; margin: 10px -16px 0; padding: 2px 16px 6px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
+.nv-sh-prail::-webkit-scrollbar { display: none; }
+.nv-sh-ocard { flex: none; width: 258px; scroll-snap-align: start; display: flex !important; flex-direction: column; gap: 5px; padding: 12px 12px 10px !important; border-radius: 20px; text-align: left; }
+.nv-sh-ocard .top { display: flex; align-items: center; gap: 6px; font: 500 12px/1 var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; min-width: 0; }
+.nv-sh-ocard .fig { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; margin-top: 5px; min-height: 30px; min-width: 0; }
+.nv-sh-ocard .wth { margin-left: auto; font: 600 13px var(--nv-font-ui); color: var(--nv-good); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sh-ocard .on { font: 600 15px/1.25 var(--nv-font-ui); letter-spacing: -.006em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sh-ocard .why { font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 34px; }
+.nv-sh-ft { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; padding-top: 8px; border-top: .5px solid var(--sh-sep); }
+.nv-sh-srcc { display: inline-flex; align-items: center; gap: 4px; font: 500 12px/1 var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; }
+.nv-sh-srcc .nv-sh-ic { width: 13px; height: 13px; }
+.nv-sh-act { font: 600 12px/1 var(--nv-font-ui); color: var(--sh-ink72); white-space: nowrap; }
+.nv-sh-act.done { color: var(--nv-good); }
+.nv-sh-act.none { color: var(--nv-ink50); font-weight: 500; }
+.nv-sh-ptend { margin: 10px 4px 0; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); }
+
+/* ---------- the list ---------- */
+.nv-sh-gh { display: flex; align-items: center; gap: 10px; margin: 24px 4px 8px; min-width: 0; }
+.nv-sh-gh .nm { font: 700 20px/1.2 var(--nv-font-ui); letter-spacing: -.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-sh-gh .c { margin-left: auto; font: 600 15px var(--nv-font-round); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sh-gh .c.done { color: var(--nv-good); }
+.nv-sh-gh .spin { width: 14px; height: 14px; border-radius: 7px; border: 2px solid color-mix(in srgb, var(--sh-hue) 30%, transparent); border-top-color: var(--sh-hue); animation: nvShSpin .9s linear infinite; }
+@keyframes nvShSpin { to { transform: rotate(360deg); } }
+.nv-sh-rows { padding: 0; }
+.nv-sh-row { position: relative; }
+.nv-sh-row + .nv-sh-row::before { content: ""; position: absolute; z-index: 3; left: 54px; right: 0; top: 0; height: .5px; background: var(--sh-sep); }
+.nv-sh-face { position: relative; z-index: 1; display: flex; align-items: stretch; min-height: 64px; transition: background-color 220ms ease; }
+.nv-sh-face:active { background-color: color-mix(in srgb, var(--nv-ink) 7%, transparent); transition: background-color 0ms; }
+.nv-sh-tick { flex: none; width: 54px; display: grid !important; place-items: center; position: relative; }
+.nv-sh-cbox { width: 24px; height: 24px; border-radius: 12px; box-shadow: inset 0 0 0 1.6px var(--nv-ink40); display: grid; place-items: center; transition: background-color 200ms ease, box-shadow 200ms ease; }
+.nv-sh-cbox .nv-sh-ic { width: 14px; height: 14px; stroke: var(--sh-on); stroke-width: 2.6; opacity: 0; transform: scale(.6); transition: opacity 160ms ease, transform 220ms var(--sh-out); }
+.got .nv-sh-cbox { background: var(--nv-good); box-shadow: none; }
+.got .nv-sh-cbox .nv-sh-ic { opacity: 1; transform: none; }
+.nv-sh-cbox.pop { animation: nvShPop 300ms var(--sh-out); }
+@keyframes nvShPop { 0% { transform: scale(.8); } 60% { transform: scale(1.08); } 100% { transform: none; } }
+.nv-sh-body { flex: 1; min-width: 0; padding: 11px 4px 11px 0 !important; display: flex !important; flex-direction: column; justify-content: center; gap: 3px; }
+.nv-sh-nm1 { font: 600 18px/1.22 var(--nv-font-ui); letter-spacing: -.014em; color: var(--nv-ink); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; transition: color 200ms ease; }
+/* (break-ui: a 70-character product name wraps to two lines and is named in full in its sheet, never cut to "Woolworths Macr…") */
+.got .nv-sh-nm1 { font-weight: 400; color: var(--nv-ink40); text-decoration: line-through; text-decoration-color: var(--nv-ink40); }
+.nv-sh-meta { font: 400 13px/1.3 var(--nv-font-ui); letter-spacing: .006em; color: var(--nv-ink50); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-sh-meta b { font-weight: 500; color: var(--sh-ink72); font-variant-numeric: tabular-nums; }
+.got .nv-sh-meta b { color: var(--nv-ink50); }
+.nv-sh-pin { display: inline-flex; align-items: center; gap: 3px; vertical-align: -1px; }
+.nv-sh-pin .nv-sh-ic { width: 11px; height: 11px; fill: var(--nv-ink60); stroke: none; }
+.nv-sh-pcap { display: inline-flex; align-items: center; gap: 5px; vertical-align: -1px; }
+.nv-sh-pdot { flex: none; width: 7px; height: 7px; border-radius: 4px; background: var(--pg); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--pg) 28%, transparent); }
+.nv-sh-adv { display: flex; align-items: flex-start; gap: 5px; font: 400 13px/1.3 var(--nv-font-ui); letter-spacing: .006em; color: var(--nv-ink50); text-wrap: pretty; }
+.nv-sh-adv .nv-sh-ic { width: 13px; height: 13px; margin-top: 1px; stroke: var(--nv-ink50); }
+.nv-sh-adv .wt { color: var(--nv-gold); }
+.got .nv-sh-adv { display: none; }
+.nv-sh-pcell { flex: none; min-width: 74px; max-width: 112px; padding: 10px 6px 10px 4px !important; display: flex !important; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px; position: relative; text-align: right !important; }
+.nv-sh-pcell .v { font: 600 16px/1.15 var(--nv-font-ui); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.nv-sh-pcell .w { display: flex; align-items: center; gap: 5px; font: 500 12px/1 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sh-pcell.none .v { font-size: 13px; font-weight: 500; color: var(--nv-ink60); }
+.got .nv-sh-pcell .v { color: var(--nv-ink40); font-weight: 500; }
+.nv-sh-qty { flex: none; width: 46px; display: grid !important; place-items: center; }
+.nv-sh-qty span { min-width: 30px; height: 26px; padding: 0 6px; border-radius: 13px; display: grid; place-items: center; font: 600 13px var(--nv-font-round); background: color-mix(in srgb, var(--nv-ink) 9%, transparent); font-variant-numeric: tabular-nums; }
+.nv-sh-qty.one span { color: var(--nv-ink60); background: none; }
+.nv-sh-stepper { flex: none; display: flex; align-items: center; margin-right: 6px; }
+.nv-sh-stepper button { width: 44px; height: 44px; display: grid !important; place-items: center; font: 500 22px/1 var(--nv-font-ui) !important; color: var(--sh-hue) !important; }
+.nv-sh-stepper .vv { min-width: 18px; text-align: center; font: 600 15px var(--nv-font-round); font-variant-numeric: tabular-nums; }
+.nv-sh-clear { display: block; width: 100%; min-height: 50px; margin: 18px 0 0 !important; border-radius: 25px; background: color-mix(in srgb, var(--nv-good) 16%, transparent) !important; color: var(--nv-good) !important; font: 600 17px var(--nv-font-ui) !important; text-align: center !important; }
+.nv-sh-empty { margin: 28px 8px; text-align: center; font: 400 20px/1.35 var(--nv-font-serif); color: var(--nv-ink60); text-wrap: balance; }
+.nv-sh-skel { height: 62px; display: flex; align-items: center; gap: 14px; padding: 0 16px; }
+.nv-sh-skel i { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--nv-ink) 8%, transparent), color-mix(in srgb, var(--nv-ink) 16%, transparent), color-mix(in srgb, var(--nv-ink) 8%, transparent)); background-size: 200% 100%; animation: nvShShim 1.4s linear infinite; }
+.nv-sh-skel i:first-child { width: 24px; height: 24px; border-radius: 12px; flex: none; }
+@keyframes nvShShim { to { background-position: -200% 0; } }
+/* the swipe's colours (SwipeRow draws the buttons) */
+.nv-sh .nv-swipe { border-radius: 0 !important; }
+
+/* ---------- your meals ---------- */
+.nv-sh-rail { display: flex; gap: 10px; margin: 0 -16px; padding: 2px 16px 6px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.nv-sh-rail::-webkit-scrollbar { display: none; }
+.nv-sh-mcard { flex: none; width: 150px; scroll-snap-align: start; padding: 10px !important; border-radius: 20px; text-align: left; display: block; }
+.nv-sh-mcard .art { display: block; height: 64px; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, var(--m1), var(--m2)); position: relative; }
+.nv-sh-mcard .art::after { content: ""; position: absolute; left: 50%; top: 54%; width: 74px; height: 34px; margin: -17px 0 0 -37px; border-radius: 50%; background: radial-gradient(circle at 35% 45%, var(--m3) 0 9px, transparent 10px), radial-gradient(circle at 62% 40%, var(--m4) 0 9px, transparent 10px), radial-gradient(circle at 50% 66%, var(--m1) 0 8px, transparent 9px), #e9edf3; box-shadow: 0 6px 10px -4px rgba(0,0,0,.4); }
+.nv-sh-mcard .sl { display: block; margin-top: 8px; font: 600 12px/1.2 var(--nv-font-ui); color: var(--nv-or); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-sh-mcard .dn { display: block; font: 600 15px/1.25 var(--nv-font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-sh-mcard .cv { display: flex; align-items: center; gap: 6px; margin-top: 6px; font: 500 12px var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
+.nv-sh-mcard .tk { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--nv-ink) 12%, transparent); overflow: hidden; }
+.nv-sh-mcard .tk i { display: block; height: 100%; background: var(--nv-good); transform-origin: 0 50%; transition: transform 520ms var(--sh-ease); }
+
+/* ---------- the add bar ---------- */
+.nv-sh-addbar { position: fixed; z-index: 70; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: calc(84px + min(env(safe-area-inset-bottom), 34px)); max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 6px 6px 18px; border-radius: 28px; background: var(--nv-sum-sheen, transparent), var(--nv-sum-tab); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring, var(--nv-sum-card-ring)), inset 0 1px 0 var(--nv-sum-card-hi), 0 14px 34px -16px rgba(0,0,0,.6); }
+.nv-sh-addbar .ph { flex: 1; min-width: 0; min-height: 44px; font: 400 17px/44px var(--nv-font-ui) !important; color: var(--nv-ink60) !important; text-align: left !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sh-addbar textarea { flex: 1; min-width: 0; height: 66px; resize: none; border: 0; outline: 0; background: none; color: var(--nv-ink); font: 400 17px/1.3 var(--nv-font-ui); padding: 8px 0; }
+.nv-sh-plus { flex: none; width: 44px; height: 44px; border-radius: 22px; display: grid !important; place-items: center; background: var(--sh-hue) !important; color: var(--sh-on) !important; }
+.nv-sh-plus .nv-sh-ic { width: 20px; height: 20px; stroke-width: 2.6; }
+.nv-sh-pad { height: 72px; }
+
+/* ---------- sheets ---------- */
+.nv-sh-scrim { position: fixed; inset: 0; z-index: 145; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--nv-void) 50%, transparent); animation: fadeIn var(--nv-dur-base) var(--nv-ease); color: var(--nv-ink); font: 400 15px/1.35 var(--nv-font-ui); }
+.nv-sh-sheet { width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column; outline: none; border-radius: 30px 30px 0 0; padding: 0 18px calc(22px + env(safe-area-inset-bottom)); }
+@media (min-width: 900px) { .nv-sh-scrim { align-items: center; } .nv-sh-sheet { border-radius: 30px; max-height: 86vh; } }
+.nv-sh-sheet.tinted { background-image: linear-gradient(180deg, color-mix(in srgb, var(--pg) 26%, transparent) 0, color-mix(in srgb, var(--pg2) 9%, transparent) 150px, transparent 300px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pg-hi) 70%, transparent), 0 0 0 .5px var(--nv-sum-card-ring); }
+.nv-sh-grabrow { position: relative; flex: none; height: 22px; }
+.nv-sh-grab { position: absolute; top: 8px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: var(--nv-ink40); }
+.nv-sh-shbody { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 0 2px 4px; margin: 0 -2px; }
+.nv-sh-shd { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; min-width: 0; }
+.nv-sh-shd h3 { margin: 0; flex: 1; min-width: 0; font: 700 22px/1.2 var(--nv-font-ui); letter-spacing: -.015em; overflow-wrap: anywhere; }
+.nv-sh-shd .sub { display: flex; align-items: center; gap: 6px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); margin-top: 2px; }
+.nv-sh-needbox { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, var(--nv-ink) 6%, transparent); }
+.nv-sh-needbox .n { font: 700 34px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; white-space: nowrap; }
+.nv-sh-needbox .n small { font-size: 15px; }
+.nv-sh-needbox ul { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; font: 400 14px/1.4 var(--nv-font-ui); color: var(--nv-ink60); overflow-wrap: anywhere; }
+.nv-sh-needbox ul b { color: var(--nv-ink); font-weight: 600; }
+.nv-sh-verdict { margin: 14px 2px 10px; font: 400 19px/1.35 var(--nv-font-serif); text-wrap: pretty; }
+.nv-sh-ways { list-style: none; margin: 0; padding: 0; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); }
+.nv-sh-ways li { display: grid; grid-template-columns: 17px minmax(0,1fr) auto; gap: 4px 10px; align-items: center; padding: 10px 14px; border-top: .5px solid var(--sh-sep); }
+.nv-sh-ways li:first-child { border-top: 0; }
+.nv-sh-ways .wl { font: 400 15px/1.3 var(--nv-font-ui); overflow-wrap: anywhere; }
+.nv-sh-ways .ws { grid-column: 2; font: 400 12px/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-ways .ws .p { color: var(--nv-gold); }
+.nv-sh-ways .wt { grid-row: 1 / 3; grid-column: 3; text-align: right; font: 600 16px var(--nv-font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sh-ways li.pick { background: color-mix(in srgb, var(--nv-good) 10%, transparent); }
+.nv-sh-ways li.pick .wt { color: var(--nv-good); }
+.nv-sh-ways li.gone { opacity: .5; }
+.nv-sh-sfoot { margin: 12px 2px 0; font: 400 12px/1.45 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-sacts { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.nv-sh-pillb { min-height: 44px; padding: 0 14px !important; border-radius: 22px; font: 600 14px var(--nv-font-ui) !important; background: color-mix(in srgb, var(--nv-ink) 10%, transparent) !important; white-space: nowrap; }
+a.nv-sh-pillb { display: inline-flex; align-items: center; gap: 7px; color: var(--nv-ink); text-decoration: none; }
+.nv-sh-pillb.good { background: var(--nv-good) !important; color: var(--sh-on) !important; }
+.nv-sh-pillb.warn { color: var(--nv-warn) !important; }
+.nv-sh-pillb.pg { background: var(--pg-act) !important; color: #fff !important; }
+.nv-sh-actbox { display: block; width: 100%; margin-top: 12px; padding: 12px 14px !important; border-radius: 18px; font: 400 15px/1.4 var(--nv-font-ui) !important; text-align: left !important; background: color-mix(in srgb, var(--pg, var(--nv-ink)) 13%, transparent) !important; box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--pg, var(--nv-ink)) 48%, transparent); }
+.nv-sh-actbox b { font-weight: 600; }
+.nv-sh-actbox.done { background: color-mix(in srgb, var(--nv-good) 10%, transparent) !important; box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-good) 40%, transparent); }
+.nv-sh-actbox.free { background: color-mix(in srgb, var(--nv-ink) 5%, transparent) !important; box-shadow: none; }
+.nv-sh-actbox .nv-sh-sacts { margin-top: 8px; }
+.nv-sh-ofig { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 2px 2px 0; }
+.nv-sh-ofig + .nv-sh-ofig, .nv-sh-oon + .nv-sh-ofig { margin-top: 14px; }
+.nv-sh-ofig > span.lab { font: 500 17px/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sh-ofig .nv-sh-arr { width: 18px; height: 18px; }
+.nv-sh-oon { margin: 6px 2px 0; font: 600 20px/1.25 var(--nv-font-ui); letter-spacing: -.012em; overflow-wrap: anywhere; }
+.nv-sh-ofacts { list-style: none; margin: 14px 0 0; padding: 0; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); }
+.nv-sh-ofacts li { display: grid; grid-template-columns: 22px minmax(0,1fr); gap: 10px; align-items: start; padding: 11px 14px; border-top: .5px solid var(--sh-sep); font: 400 15px/1.35 var(--nv-font-ui); }
+.nv-sh-ofacts li:first-child { border-top: 0; }
+.nv-sh-ofacts li > .nv-sh-ic { width: 18px; height: 18px; margin-top: 1px; stroke: var(--nv-ink60); stroke-width: 1.9; }
+.nv-sh-ofacts .k { display: block; margin-top: 1px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); overflow-wrap: anywhere; }
+.nv-sh-ingl, .nv-sh-mlist { list-style: none; margin: 0; padding: 0; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); }
+.nv-sh-ingl li { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-top: .5px solid var(--sh-sep); font-size: 16px; }
+.nv-sh-ingl li:first-child, .nv-sh-mlist li:first-child button { border-top: 0; }
+.nv-sh-ingl li > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.nv-sh-ingl .ok { margin-left: auto; font: 600 13px var(--nv-font-ui); color: var(--nv-good); white-space: nowrap; }
+.nv-sh-ingl .no { margin-left: auto; font: 500 13px var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; }
+.nv-sh-mlist button { display: flex !important; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 0 14px !important; border-top: .5px solid var(--sh-sep) !important; font-size: 17px !important; }
+.nv-sh-mlist .warn { color: var(--nv-warn) !important; }
+.nv-sh-menuarm { padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, var(--nv-warn) 10%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-warn) 40%, transparent); font-size: 15px; }
+
+/* ---------- arrival ---------- */
+.nv-sh-rise { animation: nvShRise 360ms var(--sh-out) backwards; animation-delay: calc(min(var(--i, 0), 10) * 40ms); }
+@keyframes nvShRise { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- reduced motion and transparency ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .nv-sh *, .nv-sh-scrim * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+  .nv-sh .nv-sh-rise { animation: nvShFade 200ms ease both !important; }
+  :where(.nv-sh, .nv-sh-scrim) button:not(:disabled):active { transform: none; }
+  .nv-sh-ring .fl, .nv-sh-mcard .tk i { transition: none; }
+}
+@keyframes nvShFade { from { opacity: 0; } }
+@media (prefers-reduced-transparency: reduce) {
+  .nv-sh-tint { -webkit-backdrop-filter: none; backdrop-filter: none; background: color-mix(in srgb, var(--pg) 16%, #141a30); }
+  .nv-sh-addbar, .nv-sh-bar::before, .nv-sh-nb { -webkit-backdrop-filter: none; backdrop-filter: none; background: #141a30 !important; }
+}
+
+/* ===== the recipe page: src/index.css (.nv-rp-*), copied as it stands ===== */
+.nv-rp { --rp-p: var(--nv-cy); --rp-k: var(--nv-good); --rp-rm: var(--nv-warn);
+  --rp-sep: color-mix(in srgb, var(--nv-ink) 10%, transparent);
+  --rp-fill: color-mix(in srgb, var(--nv-ink) 7%, transparent);
+  --rp-num: var(--nv-font-round, var(--nv-font-ui));
+  position: relative; color: var(--nv-ink); box-sizing: border-box; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.nv-rp *, .nv-rp *::before, .nv-rp *::after { box-sizing: border-box; }
+:where(.nv-rp, .nv-rp-menu) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; -webkit-tap-highlight-color: transparent; }
+.nv-rp-ico { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-rp-eyebrow { display: block; margin: 0; font: 600 13px var(--nv-font-ui); letter-spacing: .05em; text-transform: uppercase; color: var(--nv-ink60); }
+.nv-rp-sub { margin: 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--nv-ink60); text-wrap: pretty; }
+
+/* the floating controls: glass rounds over the photo, pinned while he scrolls */
+.nv-rp-bar { position: sticky; top: 0; height: 0; z-index: 6; }
+.nv-rp-fab { position: absolute; top: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  color: var(--nv-ink); background: color-mix(in srgb, var(--nv-void) 52%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 14%, transparent), 0 6px 18px -8px rgba(0,0,0,.6); }
+.nv-rp-fab:first-child { left: 14px; }
+.nv-rp-fab:last-child:not(:first-child) { right: 14px; }
+.nv-rp[data-mobile] .nv-rp-fab { top: calc(8px + env(safe-area-inset-top)); }
+.nv-rp-fab .nv-rp-ico { width: 20px; height: 20px; stroke-width: 2.2; }
+.nv-rp-fab:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; }
+
+/* THE DISH: 16:10 on the phone, the name in the serif over a fade into the ground */
+.nv-rp-hero { position: relative; aspect-ratio: 16 / 10; max-height: 380px; width: 100%; overflow: hidden; background: var(--rp-fill); }
+.nv-rp-hero.empty { aspect-ratio: 16 / 9; max-height: 300px;
+  background: radial-gradient(120% 90% at 85% 0%, color-mix(in srgb, var(--nv-ink) 9%, transparent), transparent 60%), linear-gradient(170deg, color-mix(in srgb, var(--nv-ink) 6%, transparent), color-mix(in srgb, var(--nv-ink) 2%, transparent)); }
+.nv-rp-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+  animation: nvRpSettle var(--nv-dur-slow) var(--nv-ease) both; transform-origin: 50% 40%; }
+@keyframes nvRpSettle { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
+.nv-rp-hero::after { content: ''; position: absolute; inset: 35% 0 0; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--nv-void) 72%, transparent) 55%, var(--nv-void)); }
+.nv-rp-ph { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: calc(62px + env(safe-area-inset-top)); }
+.nv-rp:not([data-mobile]) .nv-rp-ph { padding-top: 64px; }
+.nv-rp-ph-g { position: absolute; right: -14px; top: 22%; width: 150px; height: 150px; stroke-width: 1; color: color-mix(in srgb, var(--nv-ink) 9%, transparent); }
+.nv-rp-addph { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer;
+  font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 9%, transparent);
+  -webkit-tap-highlight-color: transparent; transition: transform 140ms var(--nv-ease); }
+.nv-rp-addph:active { transform: scale(.97); }
+.nv-rp-title { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 18px 12px; }
+.nv-rp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.nv-rp-title h2 { margin: 0; font: 400 32px/1.08 var(--nv-font-serif); letter-spacing: -.01em; color: var(--nv-ink); text-wrap: balance; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.nv-rp-body { padding: 4px 18px 24px; }
+.nv-rp:not([data-mobile]) .nv-rp-body { padding: 4px 30px 28px; }
+
+/* the meta row: glyph + figure pairs in one line, wrapping when it must */
+.nv-rp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; margin: 2px 0 0; }
+.nv-rp-mi { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0; font: 500 15px var(--nv-font-ui); color: var(--nv-ink);
+  text-decoration: none; white-space: nowrap; cursor: default; }
+button.nv-rp-mi, a.nv-rp-mi { cursor: pointer; }
+.nv-rp-mi .nv-rp-ico { color: var(--nv-ink60); }
+.nv-rp-mi.link { color: var(--nv-acc); }
+.nv-rp-mi.link .nv-rp-ico { color: currentColor; }
+button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+.nv-rp-mi:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; border-radius: 8px; }
+
+/* a meta value set in place: label · stepper · unit · Save · Cancel */
+.nv-rp-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; padding: 8px 10px; border-radius: 16px; background: var(--rp-fill);
+  animation: deckRise var(--nv-dur-base) var(--nv-ease) backwards; }
+.nv-rp-edit-l { font: 600 15px var(--nv-font-ui); }
+.nv-rp-edit-u { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-rp-edit-a { display: inline-flex; margin-left: auto; }
+.nv-rp-edit-n { width: 56px; height: 36px; border: 0; border-radius: 10px; text-align: center; background: var(--nv-well); color: var(--nv-ink);
+  font: 600 15px var(--rp-num); font-variant-numeric: tabular-nums; outline: none; -moz-appearance: textfield; appearance: textfield; }
+.nv-rp-edit-n::-webkit-inner-spin-button, .nv-rp-edit-n::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.nv-rp-edit-n:focus-visible { box-shadow: 0 0 0 2px var(--nv-acc-border); }
+
+/* the four figures, per serving (the summary sheet's m4 treatment) */
+.nv-rp-figs-w { margin-top: 16px; }
+.nv-rp-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.nv-rp-figs > div { min-width: 0; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-rp-figs b { display: block; font: 700 28px/1.05 var(--rp-num); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--nv-ink); white-space: nowrap; }
+.nv-rp-figs > .p b { color: var(--rp-p); }
+.nv-rp-figs > .k b { color: var(--rp-k); }
+.nv-rp-pending { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 16px; padding: 12px 14px; border-radius: 16px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-gold) 32%, transparent); background: color-mix(in srgb, var(--nv-gold) 5%, transparent); }
+.nv-rp-pending > p { margin: 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-rp-desc { margin: 16px 0 0; font: 400 15px/1.5 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+
+/* the scale: Makes N, the number large between − and + */
+.nv-rp-scale-w { margin-top: 18px; }
+.nv-rp-scale { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 18px; background: var(--rp-fill); }
+.nv-rp-scale.none { margin-top: 18px; }
+.nv-rp-scale-l { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nv-rp-step { flex: none; display: inline-grid; grid-template-columns: 44px minmax(64px, auto) 44px; align-items: center; text-align: center; }
+.nv-rp-step.sm { grid-template-columns: 36px auto 36px; gap: 6px; }
+.nv-rp-step-b { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--nv-ink);
+  background: color-mix(in srgb, var(--nv-ink) 10%, transparent); transition: transform 140ms var(--nv-ease), opacity var(--nv-dur-fast) var(--nv-ease); }
+.nv-rp-step.sm .nv-rp-step-b { width: 36px; height: 36px; }
+.nv-rp-step-b:active:not(:disabled) { transform: scale(.94); }
+.nv-rp-step-b:disabled { opacity: .35; cursor: default; }
+.nv-rp-step-b:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; }
+.nv-rp-step-b .nv-rp-ico { width: 16px; height: 16px; stroke-width: 2.6; }
+.nv-rp-step-n { display: flex; flex-direction: column; align-items: center; line-height: 1; overflow: hidden; }
+.nv-rp-step-n > b { display: block; font: 700 28px/1.05 var(--rp-num); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.nv-rp-step.sm .nv-rp-step-n > b { font-size: 15px; font-weight: 600; min-width: 28px; }
+.nv-rp-step-n > small { margin-top: 2px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-rp-step-n > b.tick { animation: nvRpTick var(--nv-dur-fast) var(--nv-ease) both; }
+@keyframes nvRpTick { from { opacity: 0; transform: translateY(-40%); } to { opacity: 1; transform: none; } }
+.nv-rp-scale-note { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 6px 2px 0 14px;
+  font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); animation: fadeIn var(--nv-dur-base) var(--nv-ease) both; }
+
+/* sections */
+.nv-rp-sec { margin-top: 22px; }
+.nv-rp-sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 2px 4px; }
+.nv-rp-count { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-rp-hint { margin: 8px 2px 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--nv-ink50); text-wrap: pretty; }
+
+/* the ingredients: a checklist for cooking */
+.nv-rp-ings { display: flex; flex-direction: column; }
+.nv-rp-ings > .nv-rp-ing + .nv-rp-ing::before { content: ''; position: absolute; left: 38px; right: 6px; top: 0; height: 1px; background: var(--rp-sep); pointer-events: none; }
+.nv-rp-group { padding: 14px 2px 4px; }
+.nv-rp-ing { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 6px 8px 2px; margin: 0 -6px 0 -2px; border-radius: 12px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.nv-rp-tick { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--nv-ink) 30%, transparent);
+  transition: background-color var(--nv-dur-fast) var(--nv-ease), box-shadow var(--nv-dur-fast) var(--nv-ease); }
+.nv-rp-tick .nv-rp-ico { width: 14px; height: 14px; stroke-width: 3; color: var(--nv-void); opacity: 0; transform: scale(.5);
+  transition: opacity var(--nv-dur-fast) var(--nv-ease), transform var(--nv-dur-base) var(--nv-ease); }
+.nv-rp-ing[data-done] .nv-rp-tick { background: var(--nv-ink); box-shadow: inset 0 0 0 1.5px var(--nv-ink); }
+.nv-rp-ing[data-done] .nv-rp-tick .nv-rp-ico { opacity: 1; transform: none; }
+.nv-rp-amt { flex: none; min-width: 4.2em; font: 500 13px var(--nv-font-mono); font-variant-numeric: tabular-nums; color: var(--nv-ink); white-space: nowrap;
+  transition: opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-rp-amt.tick { animation: nvRpTick var(--nv-dur-fast) var(--nv-ease) both; }
+.nv-rp-item { flex: 1; min-width: 0; font: 400 15px/1.35 var(--nv-font-ui); color: var(--nv-ink); overflow-wrap: anywhere;
+  text-decoration: line-through; text-decoration-color: transparent; text-decoration-thickness: 1.5px;
+  transition: color var(--nv-dur-base) var(--nv-ease), text-decoration-color var(--nv-dur-base) var(--nv-ease); }
+.nv-rp-item > em { margin-left: 8px; font: 600 13px var(--nv-font-ui); font-style: normal; color: var(--rp-rm); text-decoration: none; display: inline-block; }
+.nv-rp-ing[data-done] .nv-rp-item { color: var(--nv-ink50); text-decoration-color: var(--nv-ink50); }
+.nv-rp-ing[data-done] .nv-rp-amt { opacity: .5; }
+.nv-rp-ing[data-dropped] .nv-rp-item { color: var(--nv-ink60); text-decoration-color: var(--rp-rm); }
+.nv-rp-ing[data-dropped] .nv-rp-amt { opacity: .45; }
+.nv-rp-ing:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: -2px; }
+.nv-rp-foot { position: sticky; bottom: 0; z-index: 5; padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--nv-void) 74%, transparent); -webkit-backdrop-filter: blur(20px) saturate(150%); backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: inset 0 1px 0 var(--rp-sep); }
+.nv-rp:not([data-mobile]) .nv-rp-foot { padding: 12px 30px; }
+.nv-rp-foot-in { display: flex; gap: 8px; }
+.nv-rp-foot-in > * { flex: 1; }
+.nv-rp-footnote { margin: 6px 0 0; text-align: center; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-rp-footnote.gold { color: var(--nv-gold); }
+
+/* ================================================================
+   118. THE SHOPPING LINE, MEAL BY MEAL. New rules only; everything
+   above is the live CSS. Colour carries one meaning each here:
+   the aisle hue (Meat is --nv-m-chest) is a meal's share still to
+   get; --nv-good is a share bought; --nv-gold is a tick that is
+   waiting for the Mac; cyan (--nv-acc) is an action word.
+   Motion: transform and opacity only; under reduced motion every
+   end state lands at once.
+   ================================================================ */
+:root{
+  --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-biceps:#5fe8a8; --nv-m-abs:#ffd66b;
+  --nv-m-calves:#8fd3ff; --nv-m-forearms:#e0b26a; --nv-m-hamstrings:#5aa0ff; --nv-m-glutes:#c98bff;
+  --nv-or:#ffa257; --nv-bg1:#0a0f1e; --nv-bg2:#111a32; --nv-well:rgba(0,0,0,.3); --nv-on-acc:#0a2830;
+  --nv-acc-border:rgba(89,230,255,.42); --nv-mg:#ff7ad9;
+  --nv-font-mono:'IBM Plex Mono',monospace;
+  /* the house liquid material, summary sheet values (index.css .nv-liquid.nv-sum-sheet) */
+  --nv-liquid-blur:22px; --nv-liquid-sat:160%; --nv-liquid-tint:var(--nv-sum-tab); --nv-liquid-sheen:var(--nv-sum-sheen);
+  --nv-liquid-rim:var(--nv-sum-rim); --nv-liquid-glow:var(--nv-sum-glow); --nv-liquid-spec:inset 0 1px 0 var(--nv-sum-card-hi);
+  --nv-liquid-drop:var(--nv-sum-float-drop);
+}
+.nv-liquid{position:relative;isolation:isolate;background:var(--nv-liquid-sheen),var(--nv-liquid-tint);
+  -webkit-backdrop-filter:blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));backdrop-filter:blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+  box-shadow:var(--nv-liquid-glow),var(--nv-liquid-spec),var(--nv-liquid-drop);
+  --nv-ink60:color-mix(in srgb,var(--nv-ink) 74%,transparent); --nv-ink50:color-mix(in srgb,var(--nv-ink) 66%,transparent); --nv-ink40:color-mix(in srgb,var(--nv-ink) 54%,transparent)}
+.nv-liquid::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:1px;background:var(--nv-liquid-rim);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude}
+
+/* inside the phone frame: fixed things are pinned to the phone, not the window */
+.dock{left:16px;right:16px;bottom:42px;gap:10px}
+.nv-sh .nv-sh-addbar{position:absolute;left:12px;right:12px;bottom:118px}
+.phone .nv-sh-addbar{position:absolute;left:12px;right:12px;bottom:118px;z-index:19}
+.nv-sh-scrim{position:absolute;z-index:40}
+.nv-sh-sheet{max-height:88%}
+/* the scrim: 60% (figure/ground, ~/.claude/CLAUDE.md); the live sheet dims 50% */
+.nv-sh-scrim{background:color-mix(in srgb,var(--nv-void) 60%,transparent)}
+
+/* the sheet rises from the bottom edge on a spring (snappy: a 0.6% settle past home), the frost ramps with it */
+.m-rise{animation:mSheetUp var(--nv-spring-snappy-ms) var(--nv-spring-snappy) backwards;
+  transition:-webkit-backdrop-filter var(--nv-dur-slow) var(--nv-ease),backdrop-filter var(--nv-dur-slow) var(--nv-ease)}
+@starting-style{.m-rise{-webkit-backdrop-filter:blur(0px) saturate(100%);backdrop-filter:blur(0px) saturate(100%)}}
+@keyframes mSheetUp{from{transform:translateY(100%)}to{transform:none}}
+.nv-sh-scrim.m-in{animation:fadeIn var(--nv-dur-base) var(--nv-ease) backwards}
+
+/* ---------- the shopping screen behind ---------- */
+/* the house top bar (MobileChrome.jsx), as it reads once the page has scrolled:
+   solid, and the large title folded into the compact title */
+.tb{position:absolute;top:0;left:0;right:0;z-index:25;display:flex;align-items:center;gap:10px;padding:50px 16px 8px;
+  background:linear-gradient(rgba(26,32,54,.8),rgba(26,32,54,.8)) var(--nv-void);border-bottom:.5px solid rgba(130,175,255,.24)}
+.tb .ct{font:600 15px var(--nv-font-ui);letter-spacing:.02em;color:var(--nv-ink)}
+.tb .askp{margin-left:auto;font:600 13px var(--nv-font-round);padding:8px 14px;border-radius:999px;color:var(--nv-acc);background:var(--nv-acc-bg)}
+.tb .gear{display:grid;place-items:center;width:37px;height:31px;border-radius:999px;color:var(--nv-ink60);background:color-mix(in srgb,var(--nv-ink) 8%,transparent)}
+.scroll.shop{padding:100px 16px 200px}
+.nv-sh-row.m-hl .nv-sh-face{background:color-mix(in srgb,var(--nv-ink) 7%,transparent)}
+
+/* ---------- FOR EACH MEAL: the first thing in the line's sheet ---------- */
+.m-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 4px 8px}
+.m-head h4{margin:0;font:600 13px/1.2 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-head span{font:500 13px var(--nv-font-ui);color:var(--nv-ink60);font-variant-numeric:tabular-nums;white-space:nowrap}
+.m-list{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 6%,transparent)}
+.m-row{--hue:var(--nv-m-chest);display:grid;grid-template-columns:50px minmax(0,1fr) 108px;align-items:center;column-gap:4px;min-height:64px;padding:9px 14px 9px 0;border-top:.5px solid var(--sh-sep)}
+.m-row:first-child{border-top:0}
+.m-tick{width:50px;height:46px;display:grid !important;place-items:center}
+.m-mid{min-width:0}
+.m-nm{position:relative;display:inline-block;max-width:100%;font:600 16px/1.25 var(--nv-font-ui);letter-spacing:-.01em;color:var(--nv-ink);overflow-wrap:anywhere;transition:color 220ms ease}
+/* the strike: a drawn line, so it can travel left to right as the tick lands */
+.m-nm::after{content:"";position:absolute;left:-1px;right:-1px;top:56%;height:1.5px;border-radius:1px;background:var(--nv-ink40);transform:scaleX(0);transform-origin:0 50%;
+  transition:transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy)}
+.m-sl{display:block;margin-top:1px;font:400 12px/1.3 var(--nv-font-ui);color:var(--nv-ink50);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-bar{position:relative;display:block;height:5px;margin-top:7px;border-radius:3px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 9%,transparent)}
+.m-bar i{position:absolute;inset:0;border-radius:3px;background:var(--hue);transform:scaleX(var(--s));transform-origin:0 50%;
+  transition:background-color 260ms ease,opacity 260ms ease;
+  animation:mGrow var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) backwards;animation-delay:calc(200ms + var(--k,0) * 40ms)}
+@keyframes mGrow{from{transform:scaleX(0)}}
+.m-amt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;padding-left:8px}
+.m-amt b{font:600 17px/1.15 var(--nv-font-round);font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;color:var(--nv-ink);transition:color 220ms ease}
+.m-amt small{font:500 12px/1.2 var(--nv-font-ui);color:var(--nv-ink60);white-space:nowrap;font-variant-numeric:tabular-nums}
+.m-amt .bt{color:var(--nv-good);font-weight:600}
+.m-amt .wt{color:var(--nv-gold);font-weight:600}
+/* bought: dimmed, struck, the share turns green and steps back */
+.m-row.got .m-nm{color:var(--nv-ink40);font-weight:500}
+.m-row.got .m-nm::after{transform:scaleX(1)}
+.m-row.got .m-amt b{color:var(--nv-ink40);font-weight:500}
+.m-row.got .m-bar i{background:var(--nv-good);opacity:.5}
+.m-row.got .nv-sh-cbox{background:var(--nv-good);box-shadow:none}
+.m-row.got .nv-sh-cbox .nv-sh-ic{opacity:1;transform:none}
+.m-row.wait .nv-sh-cbox{background:var(--nv-gold)}
+.m-row.wait .m-bar i{background:var(--nv-gold)}
+/* the foot: the total, the hero of the box */
+.m-foot{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4px 12px;padding:12px 14px 13px 16px;border-top:.5px solid var(--sh-sep);background:color-mix(in srgb,var(--nv-ink) 3%,transparent)}
+.m-foot .l{font:600 15px/1.2 var(--nv-font-ui);color:var(--nv-ink)}
+.m-foot .n{font:700 30px/1 var(--nv-font-round);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;text-align:right}
+.m-foot .n small{font-size:16px;font-weight:600;margin-left:2px}
+.m-foot .s{grid-column:1/-1;font:400 13px/1.35 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-foot .s b{font-weight:600;color:var(--nv-ink);font-variant-numeric:tabular-nums}
+.m-foot .s .g{color:var(--nv-good);font-weight:600}
+.m-note{margin:8px 4px 0;font:400 12px/1.45 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-gap{height:6px}
+.nv-sh-sheet .nv-sh-verdict{margin-top:18px}
+.m-off{display:flex;align-items:flex-start;gap:8px;margin:0 4px 12px;font:400 13px/1.4 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-off i{flex:none;width:7px;height:7px;margin-top:6px;border-radius:4px;background:var(--nv-gold)}
+.m-stale{opacity:.6}
+
+/* the loading skeleton: the shape of what is coming, not a blank */
+.m-sk{display:block;border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--nv-ink) 8%,transparent),color-mix(in srgb,var(--nv-ink) 15%,transparent),color-mix(in srgb,var(--nv-ink) 8%,transparent));background-size:200% 100%;animation:nvShShim 1.4s linear infinite}
+.m-row.sk .nv-sh-cbox{box-shadow:inset 0 0 0 1.6px color-mix(in srgb,var(--nv-ink) 16%,transparent)}
+.m-row.sk .m-mid .m-sk:first-child{width:62%;height:13px}
+.m-row.sk .m-bar{background:color-mix(in srgb,var(--nv-ink) 7%,transparent)}
+.m-row.sk .m-amt .m-sk{width:56px;height:15px}
+.m-foot.sk .m-sk{height:24px;width:92px;justify-self:end}
+.m-sk.line{height:14px;margin:10px 2px 0}
+.m-skways{margin-top:14px;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 5%,transparent)}
+.m-skways div{display:flex;align-items:center;gap:12px;height:54px;padding:0 14px;border-top:.5px solid var(--sh-sep)}
+.m-skways div:first-child{border-top:0}
+
+/* ---------- TAKEN OFF TODAY: content, never a banner ---------- */
+.m-gone .nv-sh-gh .nm{color:var(--nv-ink60)}
+.m-gone .nv-sh-tile{--t:color-mix(in srgb,var(--nv-ink) 30%,var(--nv-void))}
+.m-grow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:62px;padding:9px 8px 9px 16px;border-top:.5px solid var(--sh-sep);
+  transition:opacity 240ms ease,transform 240ms var(--sh-out)}
+.m-grow:first-child{border-top:0}
+.m-grow .t{min-width:0}
+.m-grow .t b{display:block;font:500 17px/1.25 var(--nv-font-ui);letter-spacing:-.01em;color:var(--sh-ink72);overflow-wrap:anywhere}
+.m-grow .t span{display:block;margin-top:2px;font:400 13px/1.3 var(--nv-font-ui);color:var(--nv-ink50)}
+.m-grow .t span em{font-style:normal;color:var(--sh-ink72);font-variant-numeric:tabular-nums}
+.m-undo{min-height:44px;padding:0 16px !important;border-radius:22px;font:600 15px var(--nv-font-ui) !important;color:var(--nv-acc) !important;background:color-mix(in srgb,var(--nv-ink) 8%,transparent) !important}
+.m-grow.back{opacity:.45}
+.m-grow.back .m-undo{color:var(--nv-good) !important}
+.m-gfoot{margin:8px 6px 0;font:400 12px/1.45 var(--nv-font-ui);color:var(--nv-ink50)}
+
+/* ---------- THE RECIPE PAGE (behind the ask) ---------- */
+.rpw{position:absolute;inset:0;z-index:1;overflow-y:auto;scrollbar-width:none;background:var(--nv-void)}
+.rpw::-webkit-scrollbar{display:none}
+.rpw .nv-rp[data-mobile] .nv-rp-fab{top:52px}
+.nv-rp-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.nv-rp-stp{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:start;padding:10px 8px 10px 4px;margin:0 -8px 0 -4px;border-radius:14px;font:400 15px/1.5 var(--nv-font-ui);color:var(--nv-ink)}
+.nv-rp-sn{font:400 28px/1 var(--nv-font-serif);color:var(--nv-ink50);font-variant-numeric:tabular-nums;text-align:center;padding-top:1px}
+.rpw .nv-rp-ph{padding-top:110px}
+.rp-art{position:absolute;inset:0;background:
+  radial-gradient(40% 46% at 54% 58%,#e9edf3 0 54%,transparent 56%),
+  radial-gradient(18% 18% at 44% 52%,#6b2a24 0 70%,transparent 72%),
+  radial-gradient(16% 16% at 62% 50%,#e0b26a 0 70%,transparent 72%),
+  radial-gradient(14% 14% at 54% 68%,#5fe8a8 0 60%,transparent 62%),
+  linear-gradient(135deg,#6b2a24,#2a120f)}
+.rpw .nv-rp-foot{position:sticky;bottom:0;padding-bottom:30px}
+.rpbtn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 20px;border-radius:999px;font:600 15px var(--nv-font-ui);letter-spacing:-.01em;white-space:nowrap}
+.rpbtn.good{background:var(--nv-good);color:var(--nv-on-acc)}
+.rpbtn.quiet{background:color-mix(in srgb,var(--nv-ink) 12%,transparent);color:var(--nv-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-ink) 38%,transparent)}
+.rpbtn.acc{min-height:40px;padding:8px 16px;background:color-mix(in srgb,var(--nv-acc) 12%,transparent);color:var(--nv-acc);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-acc) 38%,transparent);font-size:14px}
+.rpbtn.txt{min-height:40px;padding:8px 12px;color:var(--nv-ink60);font-size:14px}
+
+/* the single line, held: an inline confirm on the line itself */
+.nv-rp-ing.m-held{background:color-mix(in srgb,var(--nv-ink) 5%,transparent)}
+.m-inl{margin:2px -6px 6px 30px;padding:10px 12px 8px;border-radius:14px;background:color-mix(in srgb,var(--nv-acc) 7%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-acc) 30%,transparent);
+  transform-origin:0 0;animation:mInl var(--nv-spring-snappy-ms) var(--nv-spring-snappy) backwards}
+@keyframes mInl{from{opacity:0;transform:translateY(-6px) scale(.98)}}
+.m-inl p{margin:0;font:400 14px/1.4 var(--nv-font-ui);color:var(--nv-ink)}
+.m-inl p b{font-weight:600;font-variant-numeric:tabular-nums}
+.m-inl .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+/* ---------- THE ASK: already on the list for this recipe ---------- */
+.m-ask h3{margin:0;font:700 21px/1.22 var(--nv-font-ui);letter-spacing:-.015em;text-wrap:balance;flex:1;min-width:0}
+.m-ask .nv-sh-shd{align-items:flex-start}
+.m-al{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 6%,transparent)}
+.m-al li{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-top:.5px solid var(--sh-sep);font:400 16px/1.3 var(--nv-font-ui)}
+.m-al li:first-child{border-top:0}
+.m-al li > span:not(.nv-sh-tile){flex:1;min-width:0;overflow-wrap:anywhere}
+.m-al li b{font:600 15px var(--nv-font-round);font-variant-numeric:tabular-nums;white-space:nowrap}
+.m-miss{margin:10px 4px 0;font:400 13px/1.4 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-miss b{color:var(--nv-ink);font-weight:600}
+.m-choices{display:grid;gap:8px;margin-top:16px}
+.m-cta{display:flex !important;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:26px;font:600 17px var(--nv-font-ui) !important;text-align:center !important}
+.m-cta.pri{background:var(--nv-good) !important;color:var(--sh-on) !important}
+.m-cta.sec{background:color-mix(in srgb,var(--nv-ink) 11%,transparent) !important;color:var(--nv-ink) !important}
+.m-cta.can{min-height:46px;color:var(--nv-ink60) !important;font-weight:500 !important}
+.m-cta .nv-sh-ic{width:18px;height:18px;stroke-width:2.6}
+.m-sub{margin:-2px 12px 4px;text-align:center;font:400 12px/1.4 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-cta.done{pointer-events:none}
+
+/* the stagger of the ask's lines: they arrive with the sheet, 40 ms apart */
+.m-al li{animation:nvShRise 360ms var(--sh-out) backwards;animation-delay:calc(160ms + var(--k,0) * 40ms)}
+
+/* ---------- reduced motion: no movement, instant states ---------- */
+@media (prefers-reduced-motion:reduce){
+  .m-rise,.m-inl,.m-al li{animation:none !important}
+  .nv-sh-scrim.m-in{animation:fadeIn 120ms linear backwards}
+  .m-bar i{animation:none !important;transition:none !important}
+  .m-nm::after{transition:none !important}
+  .m-grow{transition:none !important}
+  .m-sk{animation:none !important}
+}
+/* still: screenshots skip every entrance */
+.still .m-rise,.still .m-inl,.still .m-al li,.still .m-bar i,.still .nv-sh-scrim{animation:none !important}
+
+.m-abs{position:static}
+.nv-sh-gh .c.done .nv-sh-ic{width:16px;height:16px;vertical-align:-3px;stroke:var(--nv-good)}
+/* the Tag control (Controls.jsx Tag), as the recipe page wears it */
+.rptag{display:inline-flex;align-items:center;min-height:24px;padding:2px 10px;border-radius:999px;font:600 13px var(--nv-font-ui);color:var(--nv-ink60);background:color-mix(in srgb,var(--nv-ink) 10%,transparent)}
+
+/* demo bar extras */
+.demo button.opt{border:1px dashed rgba(255,255,255,.28);box-shadow:none}
+.demo button.opt.cur{border-color:transparent}
+.demo .tagopt{font:500 11px var(--nv-font-ui);color:var(--nv-gold);margin-left:4px}
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="t-home" viewBox="0 0 24 24"><path d="M4 11.2 12 5l8 6.2"/><path d="M6.2 9.8V19h11.6V9.8"/></symbol>
+    <symbol id="t-nova" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v2.5"/></symbol>
+    <symbol id="t-train" viewBox="0 0 24 24"><path d="M7.2 9v6M16.8 9v6"/><path d="M4 10.5v3M20 10.5v3"/><path d="M7.2 12h9.6"/></symbol>
+    <symbol id="t-fuel" viewBox="0 0 24 24"><path d="M7 3.5v6.5M4.8 3.5v4a2.2 2.2 0 0 0 4.4 0v-4"/><path d="M7 10v10.5"/><path d="M16.6 3.5c-2 1.2-2.8 4-2.8 7h2.8Zm0 7v10"/></symbol>
+    <symbol id="t-more" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="6" height="6" rx="1.8"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.8"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.8"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.8"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <nav class="demo" aria-label="Mockup states">
+    <h1>118 · Shopping, meal by meal</h1>
+    <div class="grp">
+      <button type="button" data-s="line">1 The line</button>
+      <button type="button" data-s="sheet">2 Opened</button>
+      <button type="button" data-s="loading">2 Loading</button>
+      <button type="button" data-s="offline">2 Offline</button>
+      <button type="button" data-s="ask">3 Ask</button>
+      <button type="button" data-s="ask-line">3 One line</button>
+      <button type="button" data-s="removed" class="opt">4 Taken off <span class="tagopt">optional</span></button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="grp">
+      <button type="button" data-w="375">375</button>
+      <button type="button" data-w="402">402</button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" class="play" id="replay">Play the motion</button>
+  </nav>
+
+  <div class="phone" id="phone">
+    <div class="sky" aria-hidden="true"></div>
+    <div class="clock" aria-hidden="true">11:52</div>
+    <div id="screen"></div>
+    <div id="layer"></div>
+  </div>
+
+  <p class="cap" id="cap"></p>
+
+  <section class="why" aria-label="What this mockup decides">
+    <div>
+      <h2>What changes</h2>
+      <ul>
+        <li><b>The line's sheet opens on the meals.</b> One row per meal, its amount, a bar for its share, the total at the foot. The price section below is unchanged.</li>
+        <li><b>A meal added twice says so:</b> "400 g × 2", and "800 g in all" under it.</li>
+        <li><b>A meal's share can be ticked on its own.</b> It dims, strikes through and reads "bought"; the price below follows what is still to get.</li>
+        <li><b>Adding a recipe that is already on the list asks first:</b> only what is missing, or another batch. One held line asks on the line itself.</li>
+        <li><b>Taken off today</b> (optional): the lines removed today, each with its time and an Undo. Our proposal for the cottage cheese that never arrived.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Motion</h2>
+      <ul>
+        <li>The sheet rises from the bottom edge on a snappy spring; the frost ramps with it.</li>
+        <li>The meal bars grow from the left on a bouncy spring, 40 ms apart, after the sheet lands.</li>
+        <li>A tick on a meal row draws the strike left to right, the bar turns green, and the "still to get" figure counts to its new value.</li>
+        <li>Reduced motion: no movement; the sheet and bars are simply there and a tick changes state at once.</li>
+      </ul>
+    </div>
+    <p class="fine">Sample content only: every meal, food, amount and price is invented. The scrim is 60% here; the live sheet dims 50%.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // SAMPLE CONTENT ONLY: every meal, food, amount and price here is invented.
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var reduced = function () { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; };
+
+  // the live glyphs (ShoppingSummary.jsx G)
+  var G = {
+    pr: 'M6 19c0-8 5-13 13-13 0 8-5 13-13 13zM6 19l7-7',
+    me: 'M8 15c-3-1-4-5-1-8s8-3 10 0 1 8-3 9l-3 1-2 3-2-1 1-3z',
+    da: 'M9 3h6v3l2 3v11a1 1 0 01-1 1H8a1 1 0 01-1-1V9l2-3zM7 13h10',
+    pa: 'M6 8h12v13H6zM8 4h8v4H8zM6 13h12',
+    ba: 'M4 13c0-4 4-7 8-7s8 3 8 7v5H4zM9 9v3M12 8v4M15 9v3',
+    clock: 'M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM12 7.5V12l3 2',
+    check: 'M5 12.5l4.5 4.5L19 7.5',
+    back: 'M15 5l-7 7 7 7',
+    x: 'M6 6l12 12M18 6L6 18',
+    plus: 'M12 5v14M5 12h14',
+    minus: 'M5 12h14',
+    fork: 'M7 3.5v6.5M4.8 3.5v4a2.2 2.2 0 0 0 4.4 0v-4M7 10v10.5M16.6 3.5c-2 1.2-2.8 4-2.8 7h2.8Zm0 7v10'
+  };
+  var Ic = function (n, cls) { return '<svg class="' + (cls || 'nv-sh-ic') + '" viewBox="0 0 24 24" aria-hidden="true"><path d="' + G[n] + '"/></svg>'; };
+  var More = '<svg class="nv-sh-ic" viewBox="0 0 24 24" aria-hidden="true" style="fill:currentColor;stroke:none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
+  var Tile = function (k, hue, sm) { return '<span class="nv-sh-tile' + (sm ? ' sm' : '') + '" style="--t:' + hue + '" aria-hidden="true">' + Ic(k) + '</span>'; };
+  var CH = { w: 'Woolworths', c: 'Coles', a: 'Aldi' };
+  var Tag = function (ch) { return '<span class="nv-sh-tg st-' + ch + '" aria-hidden="true">' + CH[ch][0] + '</span>'; };
+  var dollars = function (n) { return '$' + n.toFixed(2); };
+  var kg = function (g) { return g >= 1000 ? (+(g / 1000).toFixed(2)) + '\u00a0kg' : Math.round(g) + '\u00a0g'; };
+
+  /* ------------------------------------------------------- the list -- */
+  var AISLE = {
+    pr: { label: 'Produce', hue: 'var(--nv-m-biceps)' },
+    me: { label: 'Meat', hue: 'var(--nv-m-chest)' },
+    da: { label: 'Dairy and eggs', hue: 'var(--nv-m-abs)' },
+    ba: { label: 'Bakery', hue: 'var(--nv-m-forearms)' },
+    pa: { label: 'Pantry', hue: 'var(--nv-or)' }
+  };
+  var LIST = [
+    { a: 'pr', rows: [
+      { key: 'tom', name: 'Tomatoes', b: '4', t: 'for 2 meals', v: 3.60, ch: 'c', buy: 4 },
+      { key: 'spin', name: 'Baby spinach', b: '120 g', t: 'for Pizza Bowls', v: 3.00, ch: 'w', buy: 1 }
+    ] },
+    { a: 'me', rows: [
+      { key: 'mince', name: 'Extra lean beef mince', b: '1.55 kg', t: 'for 3 meals', v: 21.00, ch: 'w', buy: 3 },
+      { key: 'chk', name: 'Chicken breast fillets', b: '900 g', t: 'for 2 meals', v: 11.70, ch: 'c', buy: 1 }
+    ] },
+    { a: 'da', rows: [
+      { key: 'ched', name: 'Cheddar slices', b: '160 g × 2', t: 'for Burger Bowls', v: 9.00, ch: 'w', buy: 2 },
+      { key: 'egg', name: 'Eggs', b: '12', t: 'for Breakfast Muffins', v: 6.20, ch: 'a', buy: 1 }
+    ] },
+    { a: 'ba', rows: [
+      { key: 'bun', name: 'Brioche buns', b: '4 × 2', t: 'for Burger Bowls', v: 9.00, ch: 'w', buy: 2 }
+    ] },
+    { a: 'pa', rows: [
+      { key: 'sauce', name: 'Pizza sauce', b: '1 jar', t: 'for Pizza Bowls', v: 2.80, ch: 'a', buy: 1, got: true }
+    ] }
+  ];
+  var MEALS = [
+    { slot: 'Breakfast', name: 'Breakfast Muffins', on: 3, of: 3, art: ['#e8d9b8', '#6b5a3a', '#a99bff', '#e35d6a'] },
+    { slot: 'Lunch', name: 'Pizza Bowls', on: 4, of: 4, art: ['#3a4a2a', '#1a2414', '#e0b26a', '#5fe8a8'] },
+    { slot: 'Dinner', name: 'Burger Bowls', on: 4, of: 7, art: ['#6b2a24', '#2a120f', '#e35d6a', '#e0b26a'] },
+    { slot: 'Dinner', name: 'Chilli Bowls', on: 5, of: 5, art: ['#4a2a1a', '#1e120a', '#c08a5a', '#f2e3c6'] }
+  ];
+  // taken off today: what the server's add-and-remove history already holds
+  var GONE = [
+    { key: 'cc', name: 'Cottage cheese', amt: '500 g', how: 'swiped off here', at: '11:42' },
+    { key: 'sp', name: 'Light sour cream', amt: '300 ml', how: 'taken off on the Mac', at: '9:20' },
+    { key: 'cf', name: 'Chilli flakes', amt: '1 jar', how: 'cleared as got', at: '8:05' }
+  ];
+
+  function row(r) {
+    return '<div class="nv-sh-row' + (r.got ? ' got' : '') + '" data-row="' + r.key + '"><div class="nv-sh-face">' +
+      '<button type="button" class="nv-sh-tick" aria-label="' + (r.got ? 'Not got yet' : 'Got it') + ': ' + esc(r.name) + '"><span class="nv-sh-cbox">' + Ic('check') + '</span></button>' +
+      '<button type="button" class="nv-sh-body" tabindex="-1" aria-hidden="true"><span class="nv-sh-nm1">' + esc(r.name) + '</span>' +
+      '<span class="nv-sh-meta"><span><span><b>' + esc(r.b) + '</b> ' + esc(r.t) + '</span></span></span></button>' +
+      '<button type="button" class="nv-sh-pcell" data-open="' + r.key + '" aria-label="' + esc(r.name) + '. Every way to buy it, and each meal\'s share"><span class="v">' + dollars(r.v) + '</span><span class="w">' + Tag(r.ch) + '</span></button>' +
+      '<button type="button" class="nv-sh-qty' + (r.buy === 1 ? ' one' : '') + '" aria-label="Buying ' + r.buy + ', change"><span>×' + r.buy + '</span></button>' +
+      '</div></div>';
+  }
+
+  var RR = 44, CC = 2 * Math.PI * RR;
+  function ring() {
+    var arcs = [], tot = 0, start = 0;
+    LIST.forEach(function (g) { tot += g.rows.length; });
+    var out = '';
+    LIST.forEach(function (g) {
+      var share = g.rows.length / tot, len = share * CC, seg = Math.max(0, len - 3);
+      var got = g.rows.filter(function (r) { return r.got; }).length / g.rows.length;
+      var off = (-start * CC).toFixed(2), fill = seg * got;
+      out += '<g style="--c:' + AISLE[g.a].hue + '"><circle class="tr" cx="52" cy="52" r="44" stroke-dasharray="' + seg.toFixed(2) + ' ' + (CC - seg).toFixed(2) + '" stroke-dashoffset="' + off + '"/>' +
+        '<circle class="fl" cx="52" cy="52" r="44" stroke-dasharray="' + fill.toFixed(2) + ' ' + (CC - fill).toFixed(2) + '" stroke-dashoffset="' + off + '"/></g>';
+      start += share;
+    });
+    return '<div class="nv-sh-ring"><svg viewBox="0 0 104 104" aria-hidden="true">' + out + '</svg><div class="ctr"><span class="big">7</span><span class="sm">of 8 to get</span></div></div>';
+  }
+
+  function shopScreen(o) {
+    o = o || {};
+    var h = '';
+    h += '<div class="nv-sh-bar"><div class="nv-sh-nav"><button type="button" class="nv-sh-nb circ" aria-label="Back to More">' + Ic('back') + '</button><button type="button" class="nv-sh-nb circ" aria-label="More for the shopping list">' + More + '</button></div></div>';
+    h += '<h1 class="nv-sh-ttl nv-sh-rise" style="--i:0">Shopping</h1>';
+    h += '<p class="nv-sh-news nv-sh-rise" style="--i:1"><b>7</b><span> to get, across 5 aisles.</span></p>';
+    h += '<div class="nv-sh-stat nv-sh-rise" style="--i:2"><span class="tx"><span class="dot" aria-hidden="true"></span>Synced 11:48 · prices read 7:12 this morning</span><span class="nv-sh-ex">example prices</span></div>';
+    // the basket
+    h += '<section class="nv-sum-card nv-sh-card nv-sh-basket nv-sh-rise" style="--i:3" aria-label="7 of 8 lines to get"><div class="nv-sh-bk">' + ring() +
+      '<div class="nv-sh-wb"><h3>Where to buy what is left</h3><div class="nv-sh-split" aria-hidden="true"><i class="st-w" style="flex-grow:4;--k:0"></i><i class="st-c" style="flex-grow:2;--k:1"></i><i class="st-a" style="flex-grow:1;--k:2"></i></div>' +
+      '<ul class="nv-sh-legend"><li>' + Tag('w') + '<span>Woolworths 4</span><b>$42.00</b></li><li>' + Tag('c') + '<span>Coles 2</span><b>$15.30</b></li><li>' + Tag('a') + '<span>Aldi 1</span><b>$6.20</b></li></ul></div></div>' +
+      '<p class="nv-sh-bfoot"><b>$63.50</b> for 7 priced lines, split as above: <span class="nv-sh-sv">$4.10 less</span> than all at Woolworths.</p>' +
+      '<div class="nv-sh-seg" role="group" aria-label="Group the list"><button type="button" aria-pressed="true">By aisle</button><button type="button" aria-pressed="false">By shop</button></div>' +
+      '<div class="nv-sh-aisles" aria-label="Go to an aisle">' +
+      ['pr', 'me', 'da', 'ba'].map(function (k) { var n = LIST.filter(function (g) { return g.a === k; })[0].rows.filter(function (r) { return !r.got; }).length; return '<button type="button" class="nv-sh-achip">' + Tile(k, AISLE[k].hue, true) + AISLE[k].label + ' <span class="c">' + n + '</span></button>'; }).join('') +
+      '</div></section>';
+    // the groups
+    h += '<div class="nv-sh-rise" style="--i:5">';
+    LIST.forEach(function (g) {
+      var left = g.rows.filter(function (r) { return !r.got; }).length;
+      h += '<div id="g-' + g.a + '"><div class="nv-sh-gh">' + Tile(g.a, AISLE[g.a].hue) + '<span class="nm">' + AISLE[g.a].label + '</span><span class="c' + (left ? '' : ' done') + '">' + (left || '') + (left ? '' : Ic('check', 'nv-sh-ic')) + '</span></div>' +
+        '<div class="nv-sum-card nv-sh-card nv-sh-rows">' + g.rows.map(row).join('') + '</div></div>';
+    });
+    h += '<button type="button" class="nv-sh-clear">Clear the 1 you got</button>';
+    if (o.removed) {
+      h += '<section class="m-gone" id="gone" aria-label="Taken off today"><div class="nv-sh-gh">' + Tile('clock', 'color-mix(in srgb,var(--nv-ink) 34%,#1a2034)') + '<span class="nm">Taken off today</span><span class="c">' + GONE.length + '</span></div>' +
+        '<div class="nv-sum-card nv-sh-card">' + GONE.map(function (x) {
+          return '<div class="m-grow" data-gone="' + x.key + '"><span class="t"><b>' + esc(x.name) + '</b><span>' + esc(x.amt) + ' · ' + esc(x.how) + ', <em>' + x.at + '</em></span></span><button type="button" class="m-undo" data-undo="' + x.key + '" aria-label="Undo: put ' + esc(x.name) + ' back on the list">Undo</button></div>';
+        }).join('') + '</div><p class="m-gfoot">Kept until midnight. Undo puts a line back with its meal amounts.</p></section>';
+    }
+    h += '</div>';
+    // your meals
+    h += '<section aria-label="Your meals"><div class="nv-sh-sh2"><h2>Your meals</h2><button type="button" class="nv-sh-nb">Recipes</button></div><div class="nv-sh-rail">' +
+      MEALS.map(function (m) {
+        return '<button type="button" class="nv-sum-card nv-sh-mcard" style="--m1:' + m.art[0] + ';--m2:' + m.art[1] + ';--m3:' + m.art[2] + ';--m4:' + m.art[3] + '"><span class="art" aria-hidden="true"></span><span class="sl">' + m.slot + '</span><span class="dn">' + esc(m.name) + '</span><span class="cv"><span class="tk"><i style="transform:scaleX(' + (m.on / m.of).toFixed(3) + ')"></i></span>' + m.on + '/' + m.of + '</span></button>';
+      }).join('') + '</div></section>';
+    h += '<div class="nv-sh-pad" aria-hidden="true"></div>';
+    return '<header class="tb" aria-label="Nova"><span class="ct">Shopping</span><span class="askp">\u2726 Ask</span><span class="gear" aria-label="Settings"><svg class="nv-sh-ic" viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;display:block"><path d="M12 9a3 3 0 100 6 3 3 0 000-6zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span></header>' +
+      '<div class="scroll shop" id="scroll"><div class="nv-sh">' + h + '</div></div>' +
+      '<div class="nv-sh m-abs"><div class="nv-sh-addbar"><button type="button" class="ph">Add items, one per line</button><button type="button" class="nv-sh-plus" aria-label="Add items">' + Ic('plus') + '</button></div></div>' +
+      dock();
+  }
+  function dock() {
+    return '<nav class="dock" aria-label="Tabs"><div class="nv-sum-tabbar"><span class="nv-sum-lens" aria-hidden="true" style="transform:translateX(400%)"></span>' +
+      [['home', 'Home'], ['nova', 'Nova'], ['train', 'Train'], ['fuel', 'Fuel'], ['more', 'More']].map(function (t) {
+        return '<button type="button" class="nv-sum-tab' + (t[0] === 'more' ? ' on" aria-current="page' : '') + '"><svg class="ic"><use href="#t-' + t[0] + '"/></svg><span class="nv-sum-tab-lbl">' + t[1] + '</span></button>';
+      }).join('') + '</div><button type="button" class="nv-sum-nova" aria-label="Talk to Nova"><span class="orb" aria-hidden="true"></span></button></nav>';
+  }
+
+  /* ------------------------------------------ the line's sheet (frame 2) -- */
+  // each meal's share of the beef mince line; g is grams for ONE copy, n the copies on the list
+  function shares(offline) {
+    return [
+      { key: 'bb', name: 'Burger Bowls', slot: 'Dinner · added twice', g: 400, n: 2 },
+      { key: 'pb', name: 'Pizza Bowls', slot: 'Lunch', g: 450, n: 1, got: !!offline, wait: !!offline },
+      { key: 'cb', name: 'Chilli Bowls', slot: 'Dinner', g: 300, n: 1, got: true }
+    ];
+  }
+  var SH = shares(false);
+  var TOTAL = 1550;
+  function mealRow(m, k) {
+    var all = m.g * m.n, s = (all / TOTAL).toFixed(3);
+    var small = m.got ? (m.wait ? '<small class="wt">bought</small>' : '<small class="bt">bought</small>') : (m.n > 1 ? '<small>' + kg(all) + ' in all</small>' : '');
+    var slot = m.wait ? '<span class="m-sl" style="color:var(--nv-gold)">' + m.slot + ' · waits for your Mac</span>' : '<span class="m-sl">' + m.slot + '</span>';
+    return '<li class="m-row' + (m.got ? ' got' : '') + (m.wait ? ' wait' : '') + '" data-meal="' + m.key + '">' +
+      '<button type="button" class="m-tick" role="checkbox" aria-checked="' + (m.got ? 'true' : 'false') + '" aria-label="' + esc(m.name) + '\'s ' + kg(all) + (m.got ? ' bought' : ' to get') + '"><span class="nv-sh-cbox">' + Ic('check') + '</span></button>' +
+      '<span class="m-mid"><span class="m-nm">' + esc(m.name) + '</span>' + slot + '<span class="m-bar" aria-hidden="true"><i style="--s:' + s + ';--k:' + k + '"></i></span></span>' +
+      '<span class="m-amt"><b>' + kg(m.g) + (m.n > 1 ? ' × ' + m.n : '') + '</b>' + small + '</span></li>';
+  }
+  function footFig(list) {
+    var got = 0; list.forEach(function (m) { if (m.got) got += m.g * m.n; });
+    return { got: got, left: TOTAL - got };
+  }
+  function footS(f) {
+    if (!f.got) return 'Nothing bought yet; all <b>' + kg(f.left) + '</b> still to get';
+    if (!f.left) return '<span class="g">All of it bought</span>';
+    return '<b data-left>' + kg(f.left) + '</b> still to get · <span class="g">' + kg(f.got) + ' bought</span>';
+  }
+  function breakdown(list) {
+    var f = footFig(list);
+    return '<div class="m-head"><h4>For each meal</h4><span>3 meals</span></div>' +
+      '<ul class="m-list" id="mlist">' + list.map(mealRow).join('') +
+      '<li class="m-foot"><span class="l">In all</span><span class="n">1.55<small>kg</small></span><span class="s" id="mfs">' + footS(f) + '</span></li></ul>' +
+      '<p class="m-note">Tick a meal\'s share as it goes in the trolley. The prices below are for what is still to get.</p>';
+  }
+  var WAYS = '<ul class="nv-sh-ways">' +
+    '<li class="pick">' + Tag('w') + '<span class="wl">3 × Extra Lean Beef Mince 500&nbsp;g</span><span class="wt">$21.00</span><span class="ws">250 g spare · <span>freezes</span> · <b style="color:var(--nv-good)">the pick</b></span></li>' +
+    '<li>' + Tag('c') + '<span class="wl">2 × Lean Beef Mince 750&nbsp;g</span><span class="wt">$24.00</span><span class="ws">250 g spare · <span>freezes</span></span></li></ul>';
+  function sheetHead() {
+    return '<div class="nv-sh-shd">' + Tile('me', AISLE.me.hue) + '<h3>Extra lean beef mince<span class="sub">Meat</span></h3><button type="button" class="nv-sh-nb circ" data-close aria-label="Close">' + Ic('x') + '</button></div>';
+  }
+  function sheetShell(inner, label, cls) {
+    return '<div class="nv-sh-scrim m-in" data-close role="dialog" aria-modal="true" aria-label="' + esc(label) + '"><div class="nv-liquid nv-sum-sheet nv-sh-sheet m-rise' + (cls ? ' ' + cls : '') + '" data-sheet>' +
+      '<div class="nv-sh-grabrow"><span class="nv-sh-grab" aria-hidden="true"></span></div><div class="nv-sh-shbody">' + inner + '</div></div></div>';
+  }
+  function priceSheet(mode) {
+    var inner = sheetHead();
+    if (mode === 'loading') {
+      var skrow = '<li class="m-row sk"><span class="m-tick"><span class="nv-sh-cbox"></span></span><span class="m-mid"><span class="m-sk"></span><span class="m-bar"></span></span><span class="m-amt"><span class="m-sk"></span></span></li>';
+      inner += '<div class="m-head" aria-busy="true" aria-label="Reading each meal\'s share"><h4>For each meal</h4><span></span></div>' +
+        '<ul class="m-list">' + skrow + skrow + skrow + '<li class="m-foot sk"><span class="l" style="color:var(--nv-ink50)">In all</span><span class="m-sk"></span></li></ul>' +
+        '<span class="m-sk line" style="width:78%;margin-top:22px"></span><span class="m-sk line" style="width:52%"></span>' +
+        '<div class="m-skways"><div><span class="m-sk" style="width:17px;height:17px"></span><span class="m-sk" style="flex:1;height:13px"></span><span class="m-sk" style="width:52px;height:15px"></span></div><div><span class="m-sk" style="width:17px;height:17px"></span><span class="m-sk" style="flex:1;height:13px"></span><span class="m-sk" style="width:52px;height:15px"></span></div></div>';
+      return sheetShell(inner, 'Extra lean beef mince: reading');
+    }
+    var list = mode === 'offline' ? shares(true) : SH;
+    if (mode === 'offline') inner += '<p class="m-off"><i aria-hidden="true"></i><span>Offline · the list as of 11:40. A tick here waits for your Mac.</span></p>';
+    inner += breakdown(list);
+    inner += '<p class="nv-sh-verdict' + (mode === 'offline' ? ' m-stale' : '') + '">Woolworths, $3.00 less than Coles.</p>';
+    inner += mode === 'offline' ? '<div class="m-stale">' + WAYS + '</div>' : WAYS;
+    inner += mode === 'offline'
+      ? '<p class="nv-sh-sfoot">Prices as Nova read them at 7:12 this morning, for the 1.25 kg before your last tick. Nova prices it again when your Mac answers.</p>'
+      : '<p class="nv-sh-sfoot">Prices read by Nova from each shop\'s own site, 7:12 this morning, as listed online for Melbourne. A pack sold by weight is an "about" count. The pick counts cash only.</p>';
+    inner += '<div class="nv-sh-sacts"><button type="button" class="nv-sh-pillb">Pin the one I buy</button><button type="button" class="nv-sh-pillb">Open Burger Bowls</button></div>';
+    inner += '<p class="nv-sh-sfoot">Pinning keeps Extra Lean Beef Mince 500 g at Woolworths as the one Nova prices for this line.</p>';
+    return sheetShell(inner, 'Extra lean beef mince: each meal, and every way to buy it');
+  }
+
+  /* -------------------------------------------- the recipe page (frame 3) -- */
+  var ING = [
+    { k: 'mince', amt: '400 g', item: 'extra lean beef mince', a: 'me', on: true },
+    { k: 'bun', amt: '4', item: 'brioche buns', a: 'ba', on: true },
+    { k: 'tom', amt: '2', item: 'tomatoes', a: 'pr', on: true },
+    { k: 'ched', amt: '160 g', item: 'cheddar slices', a: 'da', on: true },
+    { k: 'cos', amt: '1', item: 'cos lettuce', a: 'pr' },
+    { k: 'bsc', amt: '60 g', item: 'light burger sauce', a: 'pa' },
+    { k: 'oni', amt: '1', item: 'red onion', a: 'pr' }
+  ];
+  var RG = function (n) { return '<svg class="nv-rp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + G[n] + '"/></svg>'; };
+  function recipePage(o) {
+    o = o || {};
+    var h = '<div class="nv-rp" data-mobile="true">';
+    h += '<div class="nv-rp-bar"><button type="button" class="nv-rp-fab" aria-label="Back">' + RG('back') + '</button><button type="button" class="nv-rp-fab" aria-label="More: photo, versions, edit, source, delete">' + More.replace('nv-sh-ic', 'nv-rp-ico') + '</button></div>';
+    h += '<header class="nv-rp-hero empty"><div class="nv-rp-ph" aria-hidden="true">' + RG('fork').replace('nv-rp-ico', 'nv-rp-ico nv-rp-ph-g') + '</div>' +
+      '<div class="nv-rp-title"><span class="nv-rp-tags"><span class="rptag">Dinner</span></span><h2>Burger Bowls</h2></div></header>';
+    h += '<div class="nv-rp-body">';
+    h += '<div class="nv-rp-meta"><span class="nv-rp-mi">' + RG('fork') + '<span>4 servings</span></span><span class="nv-rp-mi">' + RG('clock') + '<span>25 min</span></span></div>';
+    h += '<div class="nv-rp-figs-w"><span class="nv-rp-eyebrow">Per serving</span><div class="nv-rp-figs"><div class="p"><b>46</b><span>g protein</span></div><div class="k"><b>520</b><span>kcal</span></div><div><b>38</b><span>g carbs</span></div><div><b>18</b><span>g fat</span></div></div></div>';
+    h += '<div class="nv-rp-scale-w"><div class="nv-rp-scale"><span class="nv-rp-scale-l"><span class="nv-rp-eyebrow">Makes</span><span class="nv-rp-sub">The amounts follow this</span></span>' +
+      '<span class="nv-rp-step"><button type="button" class="nv-rp-step-b" aria-label="One fewer">' + RG('minus') + '</button><span class="nv-rp-step-n"><b>4</b><small>servings</small></span><button type="button" class="nv-rp-step-b" aria-label="One more">' + RG('plus') + '</button></span></div></div>';
+    h += '<section class="nv-rp-sec" aria-label="Ingredients" id="ings"><div class="nv-rp-sechead"><h3 class="nv-rp-eyebrow">Ingredients</h3><span class="nv-rp-count">7 lines</span></div><div class="nv-rp-ings">';
+    ING.forEach(function (it) {
+      var held = o.held === it.k;
+      h += '<div class="nv-rp-ing' + (held ? ' m-held' : '') + '" role="checkbox" aria-checked="false"><span class="nv-rp-tick">' + RG('check') + '</span><span class="nv-rp-amt">' + it.amt + '</span><span class="nv-rp-item">' + it.item + '</span></div>';
+      if (held) {
+        h += '<div class="m-inl" role="group" aria-label="Already on your list"><p>Already on your list for Burger Bowls: <b>' + it.amt + '</b>.</p><div class="acts">' +
+          '<button type="button" class="rpbtn acc" data-inl="more">Add ' + it.amt + ' more</button><button type="button" class="rpbtn txt" data-inl="leave">Leave it</button></div></div>';
+      }
+    });
+    h += '</div><p class="nv-rp-hint">Tap a line as it goes in. Hold one to add just it to the list, or drop it.</p></section>';
+    h += '<section class="nv-rp-sec" aria-label="Method"><div class="nv-rp-sechead"><h3 class="nv-rp-eyebrow">Method</h3></div><ol class="nv-rp-steps">' +
+      ['Brown the mince in a hot pan, breaking it up as it goes.', 'Slice the tomatoes and onion; shred the lettuce.', 'Toast the buns cut side down, then build the bowls.'].map(function (s, i) {
+        return '<li class="nv-rp-stp"><span class="nv-rp-sn">' + (i + 1) + '</span><span>' + s + '</span></li>';
+      }).join('') + '</ol></section>';
+    h += '</div>';
+    h += '<div class="nv-rp-foot"><div class="nv-rp-foot-in"><button type="button" class="rpbtn good">Log a portion</button><button type="button" class="rpbtn quiet" id="addlist" aria-label="Add 7 items to the shopping list">' + (o.allOn ? 'All 7 on your list' : 'Add 7 to list') + '</button></div></div>';
+    h += '</div>';
+    return '<div class="rpw" id="scroll">' + h + '</div>';
+  }
+  function askSheet() {
+    var on = ING.filter(function (i) { return i.on; }), miss = ING.filter(function (i) { return !i.on; });
+    var inner = '<div class="nv-sh-shd"><h3>' + on.length + ' of these are already on your list for Burger Bowls</h3></div>' +
+      '<ul class="m-al">' + on.map(function (i, k) { return '<li style="--k:' + k + '">' + Tile(i.a, AISLE[i.a].hue, true) + '<span>' + esc(i.item) + '</span><b>' + i.amt + '</b></li>'; }).join('') + '</ul>' +
+      '<p class="m-miss">Not on it yet: <b>' + miss.map(function (i) { return i.item; }).join(', ') + '</b>.</p>' +
+      '<div class="m-choices">' +
+      '<button type="button" class="m-cta pri" data-ask="missing">Add only what\'s missing</button>' +
+      '<p class="m-sub">Adds those ' + miss.length + '. The ' + on.length + ' on your list stay as they are.</p>' +
+      '<button type="button" class="m-cta sec" data-ask="batch">Add another batch</button>' +
+      '<p class="m-sub">All 7 again: the list then reads 400&nbsp;g × 2.</p>' +
+      '<button type="button" class="m-cta can" data-close>Cancel</button></div>';
+    return sheetShell(inner, 'Already on your list', 'm-ask');
+  }
+
+  /* ------------------------------------------------------------- states -- */
+  var ORDER = ['line', 'sheet', 'loading', 'offline', 'ask', 'ask-line', 'removed'];
+  var CAP = {
+    line: 'The shopping screen as it is today, Summary idiom. The beef mince is one collated line: 1.55 kg for 3 meals. Its price opens the sheet.',
+    sheet: 'Opened: the meals come first. One row per meal with its amount and a bar for its share; Burger Bowls was added twice, so it reads 400 g × 2. The total sits at the foot. Tick a circle to mark a share bought.',
+    loading: 'Loading: the shape of the breakdown and the prices, before the list has been read.',
+    offline: 'Offline: the breakdown still shows from the list Nova last had. A tick made now waits for the Mac, in gold, and the prices are labelled as this morning\'s.',
+    ask: 'The recipe page, Add 7 to list, with 4 of its lines already on the list for this recipe. Nova asks: only what is missing, or another batch.',
+    'ask-line': 'One line held when it is already on the list for this recipe: the confirm opens on the line itself, with no sheet.',
+    removed: 'Optional, our proposal for the cottage cheese: the lines taken off today, at the foot of the list, each with its time and an Undo.'
+  };
+  var st = { s: 'line', w: 375 };
+
+  function render(noAnim) {
+    var still = document.documentElement.classList.contains('still');
+    $('phone').classList.toggle('w402', st.w === 402);
+    var s = st.s, scr = $('screen'), lay = $('layer');
+    if (s === 'ask' || s === 'ask-line') {
+      scr.innerHTML = recipePage({ held: s === 'ask-line' ? 'mince' : null, allOn: st.allOn });
+      lay.innerHTML = s === 'ask' && !st.allOn ? askSheet() : '';
+    } else {
+      SH = shares(false);
+      scr.innerHTML = shopScreen({ removed: s === 'removed' });
+      lay.innerHTML = s === 'sheet' || s === 'loading' || s === 'offline' ? priceSheet(s) : '';
+    }
+    // where the screen behind sits
+    var sc = $('scroll'), ph = $('phone').clientHeight;
+    var top = function (el) { return el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop; };
+    if (sc) {
+      if (s === 'removed') { var g = $('gone'); if (g) sc.scrollTop = top(g) + g.offsetHeight - (ph - 196); }
+      else if (s === 'ask' || s === 'ask-line') { var ig = $('ings'); if (ig) sc.scrollTop = top(ig) - (s === 'ask' ? 330 : 400); }
+      else { var me = $('g-me'); if (me) sc.scrollTop = top(me) - 250; }
+    }
+    $('cap').textContent = CAP[s] || '';
+    document.querySelectorAll('[data-s]').forEach(function (b) { b.classList.toggle('cur', b.dataset.s === s); });
+    document.querySelectorAll('[data-w]').forEach(function (b) { b.classList.toggle('cur', +b.dataset.w === st.w); });
+  }
+  function setUrl() {
+    var q = new URLSearchParams(location.search);
+    q.set('s', st.s); q.set('w', String(st.w));
+    history.replaceState(null, '', '?' + q.toString());
+  }
+  function go(s) { st.s = s; st.allOn = false; render(); setUrl(); }
+
+  // count a figure to its new value (snappy, about half a second); at once under reduced motion
+  function countTo(el, from, to, fmt) {
+    if (!el) return;
+    if (reduced() || document.documentElement.classList.contains('still')) { el.textContent = fmt(to); return; }
+    var t0 = performance.now(), D = 520;
+    (function f(t) {
+      var p = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(from + (to - from) * e);
+      if (p < 1) requestAnimationFrame(f);
+    })(t0);
+  }
+  function tickMeal(key) {
+    var m = SH.filter(function (x) { return x.key === key; })[0];
+    if (!m || st.s !== 'sheet') return;
+    var before = footFig(SH);
+    m.got = !m.got;
+    var li = document.querySelector('[data-meal="' + key + '"]');
+    li.classList.toggle('got', m.got);
+    var cb = li.querySelector('.nv-sh-cbox');
+    if (m.got && !reduced()) { cb.classList.remove('pop'); void cb.offsetWidth; cb.classList.add('pop'); }
+    li.querySelector('.m-tick').setAttribute('aria-checked', m.got ? 'true' : 'false');
+    var amt = li.querySelector('.m-amt');
+    var sm = amt.querySelector('small');
+    var want = m.got ? '<small class="bt">bought</small>' : (m.n > 1 ? '<small>' + kg(m.g * m.n) + ' in all</small>' : '');
+    if (sm) sm.outerHTML = want || ''; else if (want) amt.insertAdjacentHTML('beforeend', want);
+    var after = footFig(SH);
+    $('mfs').innerHTML = footS(after);
+    var lf = $('mfs').querySelector('[data-left]');
+    if (lf && before.left && after.left) countTo(lf, before.left, after.left, kg);
+  }
+
+  /* -------------------------------------------------------------- input -- */
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var open = t.closest('[data-open]');
+    if (open && open.dataset.open === 'mince') { go('sheet'); return; }
+    var mt = t.closest('.m-tick');
+    if (mt) { e.stopPropagation(); tickMeal(mt.closest('[data-meal]').dataset.meal); return; }
+    var ask = t.closest('[data-ask]');
+    if (ask) {
+      ask.classList.add('done');
+      ask.innerHTML = Ic('check') + (ask.dataset.ask === 'missing' ? ' 3 added' : ' Another batch added');
+      setTimeout(function () { st.allOn = ask.dataset.ask === 'missing'; var sc = $('scroll').scrollTop; render(); $('scroll').scrollTop = sc; }, reduced() ? 300 : 900);
+      return;
+    }
+    if (t.closest('#addlist') && st.s === 'ask' && !st.allOn) { render(); return; }
+    var inl = t.closest('[data-inl]');
+    if (inl) { var b = inl.closest('.m-inl'); b.innerHTML = '<p>' + (inl.dataset.inl === 'more' ? 'Added. The list now reads <b>400 g × 2</b> for Burger Bowls.' : 'Left as it is.') + '</p>'; return; }
+    var un = t.closest('[data-undo]');
+    if (un) { var r = un.closest('.m-grow'); un.textContent = 'Back on'; un.disabled = true; r.classList.add('back'); return; }
+    var sheet = t.closest('[data-sheet]');
+    var close = t.closest('[data-close]');
+    if (close && (!sheet || close !== t.closest('.nv-sh-scrim'))) {
+      if (st.s === 'ask') { $('layer').innerHTML = ''; return; }
+      go('line');
+    }
+  });
+
+  // URL and the demo bar
+  var qs = new URLSearchParams(location.search);
+  if (qs.get('bare') === '1') document.documentElement.classList.add('bare');
+  if (qs.get('still') === '1') document.documentElement.classList.add('still');
+  var want = qs.get('state') || qs.get('s');
+  st.s = ORDER.indexOf(want) >= 0 ? want : 'line';
+  st.w = qs.get('w') === '402' ? 402 : 375;
+  document.querySelectorAll('[data-s]').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.s); }); });
+  document.querySelectorAll('[data-w]').forEach(function (b) { b.addEventListener('click', function () { st.w = +b.dataset.w; render(); setUrl(); }); });
+  $('replay').addEventListener('click', function () { document.documentElement.classList.remove('still'); st.allOn = false; render(); });
+  render();
+})();
+</script>
+</body>
+</html>
