@@ -59,6 +59,49 @@ async function saveSyncStore(s) {
 const NUMS = /^\s*((?:\d+(?:\.\d+)?|[¼½¾])\s*(?:x\s*\d+(?:\.\d+)?\s*)?(?:kg|g|ml|l|tbsp|tsp|cups?|slices?|cloves?|cans?|tins?|packs?|jars?|bottles?|punnets?|bunch(?:es)?|heads?|sachets?)?\s*(?:\+\s*)?)+/i;
 export const keyOfTitle = (title) => lineKey(String(title || '').replace(NUMS, '').replace(/\s*×\s*\d+\s*$/, ''));
 
+// HOW MUCH, FOR WHICH MEAL (15 Nov 2026). His screenshot: "750 g + 400g
+// extra lean beef mince" with "for Cheesy Pizza Bowls · Almighty Muffin"
+// under it, so nothing said which amount was for which meal, and lettuce
+// read "150g + 150g + 150g" though two of the three were already ticked.
+// Now the title carries one total of what is still to buy, the notes carry
+// one row per meal ("750 g for Cheesy Pizza Bowls"), and a ticked item no
+// longer counts. The recipe's prep words ("cooked, drained, chopped") stay
+// out of the title: they are cooking, not shopping, and Apple sorts a
+// grocery list by the title's words.
+const UNIT = { g: ['g', 1], kg: ['g', 1000], mg: ['g', 0.001], ml: ['ml', 1], l: ['ml', 1000] };
+// "750 g", "1kg", "1 x 250g", "10" → { fam, q } or null when it is not a plain amount
+function parseAmount(a) {
+  const m = String(a || '').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(?:x\s*(\d+(?:\.\d+)?)\s*)?(kg|g|mg|ml|l)?$/);
+  if (!m) return null;
+  const n = Number(m[1]) * (m[2] ? Number(m[2]) : 1);
+  if (!m[3]) return { fam: 'n', q: n };
+  const [fam, k] = UNIT[m[3]];
+  return { fam, q: n * k };
+}
+const tidy = (n) => String(+n.toFixed(2));
+function showAmount({ fam, q }) {
+  if (fam === 'g') return q >= 1000 ? `${tidy(q / 1000)} kg` : `${tidy(q)} g`;
+  if (fam === 'ml') return q >= 1000 ? `${tidy(q / 1000)} l` : `${tidy(q)} ml`;
+  return tidy(q);
+}
+const qtyOf = (i) => Math.max(1, Number(i.qty) || 1);
+// one amount for a set of items: a sum when they share a unit, else each as written
+function amountOf(its) {
+  const withAmt = its.filter((i) => i.amount);
+  if (!withAmt.length) return '';
+  const parsed = withAmt.map((i) => { const p = parseAmount(i.amount); return p && { fam: p.fam, q: p.q * qtyOf(i) }; });
+  if (parsed.every(Boolean) && parsed.every((p) => p.fam === parsed[0].fam)) {
+    return showAmount({ fam: parsed[0].fam, q: parsed.reduce((t, p) => t + p.q, 0) });
+  }
+  return withAmt.map((i) => `${i.amount}${qtyOf(i) > 1 ? ` × ${i.qty}` : ''}`).join(' + ');
+}
+// "lean beef patties (5 patties, cooked, drained), 1 patty per bowl, chopped" → "lean beef patties"
+export function shopName(name) {
+  const cut = String(name || '').split(/\s*[(,]/)[0].trim();
+  return cut.length >= 2 ? cut : String(name || '').trim();
+}
+const FROM_ITSELF = /^(reminders|text|voice|inbox|siri)$/i;
+
 // Nova's items grouped as the screen groups them (src/shopModel.js buildLines)
 export function linesOf(items) {
   const by = new Map();
@@ -71,11 +114,25 @@ export function linesOf(items) {
   const out = new Map();
   for (const [key, its] of by) {
     const first = its[0];
-    const amounts = its.map((i) => (i.amount ? `${i.amount}${(Number(i.qty) || 1) > 1 ? ` × ${i.qty}` : ''}` : null)).filter(Boolean);
-    const qty = its.length === 1 && !first.amount && (Number(first.qty) || 1) > 1 ? ` ×${first.qty}` : '';
-    const title = `${amounts.length ? `${amounts.join(' + ')} ` : ''}${first.name}${qty}`;
-    const sources = [...new Set(its.map((i) => i.source).filter((s) => s && !/^(reminders|text|voice|inbox|siri)$/i.test(s)))];
-    out.set(key, { key, items: its, done: its.every((i) => i.checked), title, notes: sources.length ? `for ${sources.join(' · ')}` : '' });
+    const done = its.every((i) => i.checked);
+    // what is still to buy; a finished line keeps its whole amount
+    const open = done ? its : its.filter((i) => !i.checked);
+    const amount = amountOf(open);
+    const qty = !amount && open.reduce((t, i) => t + qtyOf(i), 0) > 1 ? ` ×${open.reduce((t, i) => t + qtyOf(i), 0)}` : '';
+    const title = `${amount ? `${amount} ` : ''}${shopName(first.name)}${qty}`;
+    const meals = [...new Set(open.map((i) => i.source).filter((s) => s && !FROM_ITSELF.test(s)))];
+    let notes = '';
+    if (meals.length === 1 && open.filter((i) => i.source === meals[0]).length === 1) notes = `for ${meals[0]}`;
+    else if (meals.length) {
+      notes = meals.map((m) => {
+        const mine = open.filter((i) => i.source === m);
+        const amt = amountOf(mine);
+        // the same meal planned twice says so, so the total can be checked
+        const each = mine.length > 1 && mine.every((i) => i.amount === mine[0].amount) && mine[0].amount ? `${showAmount(parseAmount(mine[0].amount) || { fam: 'n', q: 0 }) || mine[0].amount} × ${mine.length}` : null;
+        return `${each && parseAmount(mine[0].amount) ? each : amt || `${mine.length} ×`} for ${m}`.trim();
+      }).join('\n');
+    }
+    out.set(key, { key, items: its, done, title, notes });
   }
   return out;
 }

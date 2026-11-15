@@ -41,9 +41,38 @@ test('a recipe line reads in Reminders as he would say it, the recipe in the not
   assert.equal(L.title, '10 Weet-Bix');
   assert.equal(L.notes, 'for Milky Bar Weet-Bix Slice');
   const two = R.linesOf([{ id: 'a', name: 'blueberries', amount: '100g', source: 'Smoothie' }, { id: 'b', name: 'Blueberries', amount: '50g', source: 'Oats' }]).get('blueberry');
-  assert.equal(two.title, '100g + 50g blueberries');
-  assert.equal(R.keyOfTitle('100g + 50g blueberries'), 'blueberry');
+  assert.equal(two.title, '150 g blueberries');
+  assert.equal(two.notes, '100 g for Smoothie\n50 g for Oats');
+  assert.equal(R.keyOfTitle('150 g blueberries'), 'blueberry');
+  assert.equal(R.keyOfTitle('100g + 50g blueberries'), 'blueberry', 'an old title still links');
   assert.equal(R.keyOfTitle('Milk'), 'milk');
+});
+
+test('each meal says its own amount, a ticked item no longer counts, prep words stay out (his screenshot, 15 Nov)', () => {
+  const L = R.linesOf([
+    { id: 'a', name: 'extra lean beef mince', amount: '750 g', source: 'Pizza Bowls' },
+    { id: 'b', name: 'extra lean beef mince', amount: '400g', source: 'Muffin' },
+    { id: 'c', name: 'iceberg lettuce', amount: '150g', checked: true, source: 'Burger' },
+    { id: 'd', name: 'iceberg lettuce', amount: '150g', source: 'Burger' },
+    { id: 'e', name: 'lean beef patties (5 patties, cooked, drained), 1 patty per bowl, chopped', amount: '1kg', source: 'Burger' },
+    { id: 'f', name: 'lean beef patties (5 patties, cooked, drained), 1 patty per bowl, chopped', amount: '1kg', source: 'Burger' },
+    { id: 'g', name: 'oats', amount: '1 cup', source: 'A' },
+    { id: 'h', name: 'oats', amount: '40g', source: 'B' },
+  ]);
+  const mince = [...L.values()].find((l) => /mince/.test(l.title));
+  assert.equal(mince.title, '1.15 kg extra lean beef mince');
+  assert.equal(mince.notes, '750 g for Pizza Bowls\n400 g for Muffin');
+  const lettuce = [...L.values()].find((l) => /lettuce/.test(l.title));
+  assert.equal(lettuce.title, '150 g iceberg lettuce', 'the ticked 150 g is bought');
+  assert.equal(lettuce.done, false);
+  const patties = [...L.values()].find((l) => /patties/.test(l.title));
+  assert.equal(patties.title, '2 kg lean beef patties');
+  assert.equal(patties.notes, '1 kg × 2 for Burger', 'the same meal twice says so');
+  const oats = [...L.values()].find((l) => /oats/.test(l.title));
+  assert.equal(oats.title, '1 cup + 40g oats', 'units that do not add stay as written');
+  assert.equal(oats.notes, '1 cup for A\n40 g for B');
+  const done = R.linesOf([{ id: 'x', name: 'milk', amount: '1l', checked: true, source: 'S' }, { id: 'y', name: 'milk', amount: '1l', checked: true, source: 'S' }]).get('milk');
+  assert.equal(done.title, '2 l milk', 'a finished line keeps its whole amount');
 });
 
 test('the first pass deletes nothing: links by name, and each side gets what it was missing', async () => {
