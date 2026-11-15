@@ -59,7 +59,7 @@ export async function addItemsDirect(vaultPath, newItems) {
       // A caller that already split keeps its amount; one that passed a whole
       // ingredient line ("1kg raw chicken breast") gets it split here, so no
       // add path can drop the number.
-      const s = raw.amount ? { amount: raw.amount, name: String(raw.name || '').trim() } : splitAmount(raw.name);
+      const s = raw.amount ? { amount: raw.amount, name: String(raw.name || '').trim() } : splitForAdd(raw);
       return { ...raw, name: s.name, amount: s.amount };
     })
     .map((it) => ({
@@ -98,6 +98,17 @@ export async function addItemsDirect(vaultPath, newItems) {
 const AMOUNT_UNITS = 'kg|g|mg|ml|l|tbsp|tbs|tsp|cups?|slices?|cloves?|cans?|tins?|pouch(?:es)?|punnets?|bunch(?:es)?|heads?|scoops?|serves?|packs?|jars?|bottles?|sticks?|rashers?|fillets?|sheets?';
 const NUM = '(?:\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|[¼½¾⅓⅔]|\\d+(?:\\.\\d+)?)';
 const AMOUNT_RE = new RegExp(`^\\s*(${NUM}\\s*(?:x\\s*${NUM}\\s*)?(?:${AMOUNT_UNITS})?)\\s*(?:of\\s+)?(?=\\S)`, 'i');
+
+// A WHOLE ITEM IS ITS OWN NAME (15 Nov 2026). "15g YoPRO Mixed Berries
+// Yoghurt pouch" is a product, added whole (its line is its own source), and
+// its "15g" is the protein grade, not a weight. Split, it became a 15 g
+// amount of "YoPRO Mixed Berries Yoghurt pouch", the search lost the grade,
+// and Woolworths' 20 g Perform pouch was priced at $3.90 for the $3.20 one.
+export function splitForAdd(it) {
+  const name = String(it?.name ?? '').trim();
+  if (it?.source && name === String(it.source).trim()) return { amount: null, name };
+  return splitAmount(name);
+}
 
 export function splitAmount(raw) {
   const str = String(raw ?? '').trim();
@@ -229,7 +240,7 @@ const jobs = new Map();
 // off, out of usage or wrong costs a mis-shelved item, never a lost one.
 export function startAddItems(vaultPath, newItems) {
   const split = (newItems || []).map((it) => {
-    const { amount, name } = splitAmount(it.name);
+    const { amount, name } = splitForAdd(it);
     return { ...it, name, amount: it.amount || amount };
   });
   const jobId = randomUUID().slice(0, 8);

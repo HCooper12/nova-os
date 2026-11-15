@@ -209,3 +209,15 @@ test('remove some lines (a swipe, Clear the N you got): exactly those leave, and
   const back = (await loadShoppingList(vault)).items.find((i) => i.id === added[1].id);
   assert.equal(back.checked, true, 'the same line, ticked as it was');
 });
+
+test('a whole item keeps its own name: "15g" in "15g YoPRO" is the protein grade, not a weight (15 Nov)', async () => {
+  const { splitForAdd, addItemsDirect } = await import('../lib/shoppingList.js');
+  const whole = '15g YoPRO Mixed Berries Yoghurt pouch';
+  assert.deepEqual(splitForAdd({ name: whole, source: whole }), { amount: null, name: whole });
+  assert.deepEqual(splitForAdd({ name: '750 g extra lean beef mince', source: 'Cheesy Pizza Bowls' }), { amount: '750 g', name: 'extra lean beef mince' });
+  const [it] = await addItemsDirect(vault, [{ name: whole, source: whole }]);
+  assert.equal(it.name, whole);
+  assert.equal(it.amount, null);
+  const { productMatches } = await import('../../src/shopPrice.js');
+  assert.equal(productMatches(whole.toLowerCase(), 'YoPRO Perform Protein Yoghurt Pouch No Added Sugar Mixed Berries 175g'), false, 'the 20 g Perform pouch is not this line');
+});
