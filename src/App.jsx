@@ -9407,7 +9407,7 @@ export default class App extends Component {
   inboxAction(id, kind, reason) {
     const conn = getConnection();
     if (!conn) return;
-    const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : kind === 'retry' ? api.inboxRetry : api.inboxUndo;
+    const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : kind === 'retry' ? api.inboxRetry : kind === 'reopen' ? api.inboxReopen : api.inboxUndo;
     // OPTIMISTIC for approve/discard — the two that are "the daily action".
     // The row leaves the pending list in the same frame; the server's real
     // record (with its destination and undo data) replaces this a moment
@@ -9458,6 +9458,7 @@ export default class App extends Component {
         // the conversation, as the first run's did
         if (record?.kind === 'plan') this.watchPlanRun(id);
       }
+      else if (kind === 'reopen') this.toastMsg('Asked again: it is back in your inbox');
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
       // Put the row back exactly where it was — an optimistic approve that

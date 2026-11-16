@@ -190,13 +190,13 @@ test('Decide later writes nothing, and a waiting briefing is never trimmed or ex
   assert.doesNotMatch(expiry, /briefing/, 'a briefing is not on the expiry list');
 });
 
-test('Discard writes nothing and cannot be reopened: only a Coach card reopens', () => {
+test('Discard writes nothing and cannot be reopened: only a Coach card or a pain check reopens', () => {
   const discard = BRIEFING_VERBS.find((v) => v.key === 'discard');
   const app = read('src/App.jsx');
   assert.match(method(app, discard.calls), /api\.inboxDiscard\(conn, id\)/);
   const inbox = read('server/lib/inbox.js');
   assert.match(inbox, /const coachCard = record\.kind === 'coach-program' \|\| COACH_ROUTES\.includes\(record\.decision\?\.route\);/);
-  assert.match(inbox, /if \(!coachCard \|\| !hisAnswer\) throw new Error/);
+  assert.match(inbox, /if \(!\(coachCard \|\| painCheck\) \|\| !hisAnswer\) throw new Error/);
 });
 
 test('Ask about it: the stage\'s own microphone, and his words reach Nova with this briefing as their context; nothing is filed', () => {

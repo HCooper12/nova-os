@@ -29,7 +29,7 @@ import { briefingGrowKey } from '../motion/growKeys.js';
 const autoSeenOnce = new Set();
 
 const TRAIN_ROUTES = new Set(['routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'exercise-rename', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today', 'exercise-audit']);
-const TRAIN_KINDS = new Set(['coach', 'coach-program', 'coach-audit', 'training-check', 'weekly-debrief', 'coach-review', 'exercise-research', 'paper']);
+const TRAIN_KINDS = new Set(['coach', 'coach-program', 'coach-audit', 'training-check', 'weekly-debrief', 'coach-review', 'exercise-research', 'paper', 'pain-check']);
 const PRACTICE_KINDS = new Set(['practice-skill', 'practice-session', 'practice-status']);
 const REPORT_KINDS = new Set(['research', 'coach-review', 'plan', 'program', 'briefing']);
 const GLYPH_BY_ROUTE = {

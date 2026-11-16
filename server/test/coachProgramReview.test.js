@@ -7,6 +7,11 @@
 // believed again, so each of those is now a test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-programreview-'));
 
 const {
   expectedGroupFromName, findMappingSuspects, findStaleLifts,
@@ -288,4 +293,81 @@ test('his own notes never outrank or crowd out the program: ranked last, one ope
   const store2 = { ...store, listRecords: async () => rows2, createRecord: async (r) => { rows2.push(r); return r; } };
   const off = await raiseProgramFindings('/tmp/v', { store: store2, review: async () => ({ findings: rankFindings(notes) }), now: t0, checkOn: false });
   assert.deepEqual(off.raised.map((r) => r.findingKey), ['under:Side Delts:w', 'form:a']);
+});
+
+// ---- 13 Nov 2026, his "old data" complaint: old evidence is not today's news ----
+test('the review never raises a reported-pain card: the pain check is the one asker', async () => {
+  const { findNoteSignals } = await import('../lib/coachProgramReview.js');
+  const now = new Date(2026, 10, 13, 9);
+  const sessions = [
+    { date: '2026-11-12', exercises: [{ exerciseId: 'lat', name: 'Lateral Raise', pain: 'Shoulder, left' }] },
+    { date: '2026-11-10', exercises: [{ exerciseId: 'lat', name: 'Lateral Raise', note: 'sharp pain at the top' }] },
+  ];
+  assert.deepEqual(findNoteSignals(sessions, [{ id: 'lat', name: 'Lateral Raise' }], { now }), []);
+});
+
+test('form notes count only from the last 21 days, and the line names their days', async () => {
+  const { findNoteSignals } = await import('../lib/coachProgramReview.js');
+  const now = new Date(2026, 10, 13, 9);
+  const lib = [{ id: 'row', name: 'Cable Row' }];
+  const note = (date) => ({ date, exercises: [{ exerciseId: 'row', name: 'Cable Row', note: 'used body momentum on the last reps' }] });
+  assert.deepEqual(findNoteSignals([note('2026-10-15'), note('2026-10-08')], lib, { now }), [], 'two old notes raise nothing');
+  assert.deepEqual(findNoteSignals([note('2026-11-10'), note('2026-10-08')], lib, { now }), [], 'one fresh note is not a pattern');
+  const [f] = findNoteSignals([note('2026-11-10'), note('2026-11-03')], lib, { now });
+  assert.equal(f.kind, 'reported-form');
+  assert.equal(f.key, 'form-breakdown:row:2026-11-10', 'the key scheme is unchanged');
+  assert.deepEqual(f.dates, ['2026-11-10', '2026-11-03']);
+  assert.match(f.line, /^You flagged your own form on Cable Row 2 times, on Tue 10 Nov and Tue 3 Nov: /);
+  assert.doesNotMatch(f.line, /[—–]/);
+});
+
+test('a flat lift is reported only when its latest session is inside 28 days', () => {
+  const exercises = [{ id: 'fly', name: 'Cable Fly', muscleGroup: 'Chest' }];
+  const sessions = ['2026-07-04', '2026-07-11', '2026-07-18', '2026-07-25', '2026-08-01', '2026-08-08', '2026-08-15'].map((date) => ({
+    date, exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }],
+  }));
+  assert.equal(findStaleLifts(sessions, exercises, { now: new Date('2026-08-20T12:00:00') }).length, 1, 'trained five days ago: still news');
+  assert.deepEqual(findStaleLifts(sessions, exercises, { now: new Date('2026-09-20T12:00:00') }), [], 'last trained 36 days ago: says nothing about today');
+});
+
+test('a pending card whose finding has gone is expired as a marked discard, may come back on fresh data, and is never his no', async () => {
+  const { raiseProgramFindings } = await import('../lib/coachProgramReview.js');
+  const { latestDeclines } = await import('../lib/respectTheNo.js');
+  const day = 86_400_000;
+  const t0 = Date.parse('2026-11-01T08:00:00Z');
+  const rows = [
+    { id: 'gone', kind: 'coach-program', findingKind: 'stale', findingKey: 'stale:fly:2026-10-01', finding: { kind: 'stale', weeks: 5 }, status: 'pending', text: 'Coach: fly flat.', createdAt: new Date(t0).toISOString(), lastRaisedAt: new Date(t0).toISOString(), nudges: 0 },
+    { id: 'still', kind: 'coach-program', findingKind: 'mapping', findingKey: 'mapping:curl:Biceps', status: 'pending', text: 'Coach: remap.', createdAt: new Date(t0).toISOString(), lastRaisedAt: new Date(t0).toISOString(), nudges: 0 },
+    { id: 'paper', kind: 'coach-program', findingKind: 'paper', findingKey: 'paper:x', status: 'pending', text: 'Coach: a study.', createdAt: new Date(t0).toISOString(), lastRaisedAt: new Date(t0).toISOString(), nudges: 0 },
+  ];
+  const store = {
+    listRecords: async () => rows,
+    createRecord: async (r) => { rows.push(r); return r; },
+    updateRecord: async (id, patch) => { Object.assign(rows.find((r) => r.id === id), patch); },
+  };
+  const mapping = { kind: 'mapping', key: 'mapping:curl:Biceps', line: 'remap', fix: { action: 'remap' } };
+
+  // a review that could not run expires nothing
+  await raiseProgramFindings('/tmp/v', { store, review: async () => { throw new Error('vault unreadable'); }, now: t0 + day, checkOn: false });
+  assert.equal(rows.find((r) => r.id === 'gone').status, 'pending');
+  await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [], counts: { sessions: 0, exercises: 5 } }), now: t0 + day, checkOn: false });
+  assert.equal(rows.find((r) => r.id === 'gone').status, 'pending', 'no sessions read: nothing is judged gone');
+
+  const out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [mapping], counts: { sessions: 20 } }), now: t0 + day, checkOn: false });
+  const gone = rows.find((r) => r.id === 'gone');
+  assert.deepEqual(out.expired, ['gone']);
+  assert.equal(gone.status, 'discarded');
+  assert.equal(gone.expired, true);
+  assert.equal(gone.expiredWhy, 'no longer applies on current data');
+  assert.ok(gone.discardedAt);
+  assert.equal(rows.find((r) => r.id === 'still').status, 'pending', 'still true: it stays');
+  assert.equal(rows.find((r) => r.id === 'paper').status, 'pending', 'another lane\'s card is that lane\'s to judge');
+  assert.equal(latestDeclines(rows, { kind: 'coach-program', subjectOf: (r) => r.findingKey }).size, 0, 'an expiry is not his no');
+
+  // fresh data produces the same finding again: it may be raised again (past
+  // the one-exercise-change-a-week restraint, which still counts the card)
+  rows.find((r) => r.id === 'still').status = 'filed';
+  const back = { kind: 'stale', key: 'stale:fly:2026-10-01', weeks: 6, line: 'fly flat again.', fix: null };
+  const again = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [back], counts: { sessions: 21 } }), now: t0 + 8 * day, checkOn: false });
+  assert.deepEqual(again.raised.map((r) => r.findingKey), ['stale:fly:2026-10-01']);
 });

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nova Wrist</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  Mockup 115 · Nova on the Apple Watch · 13 Nov 2026
+  For his approval. Nothing here is built.
+  SAMPLE CONTENT ONLY. The repo is public. No figure, lift, food or line on this page is his data.
+  The first watch under "The session" is playable: tap the tick, the rest ring runs, the next set arrives.
+-->
+<style>
+:root{
+  color-scheme:dark;
+  --nv-ease:cubic-bezier(.32,.72,0,1); --nv-dur-fast:.16s; --nv-dur-base:.28s;
+  --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
+  --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8); --nv-well:rgba(255,255,255,.07);
+  --nv-edge:rgba(130,175,255,.24);
+  --nv-cy:#59e6ff; --nv-vi:#a493ff; --nv-good:#5fe8a8; --nv-warn:#e08383; --nv-kcal:#ffb35c; --nv-nova:#c9d8ff;
+  --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5;
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --spring:cubic-bezier(.3,1.35,.5,1);
+}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{background:var(--nv-void);color:var(--nv-ink);font:15px/1.5 var(--ui);margin:0}
+.page{max-width:1080px;margin:0 auto;padding-block:36px 72px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font:600 30px/1.1 var(--ui);letter-spacing:-.02em;margin:0 0 10px;text-wrap:balance}
+h2{font:600 20px/1.2 var(--ui);letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+.eyebrow{font:600 11px/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--nv-ink40);margin:0 0 12px}
+.lede{color:var(--nv-ink60);max-width:64ch;margin:0}
+.note{color:var(--nv-ink60);max-width:64ch;margin:0 0 22px}
+section{margin-top:56px;padding-top:28px;border-top:1px solid rgba(255,255,255,.08)}
+.sample{display:inline-block;margin-top:16px;font:500 12px/1.3 var(--ui);color:var(--nv-ink60);
+  border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:6px 10px}
+
+/* the watch */
+.row{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:34px 20px}
+.unit{margin:0;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:0}
+.unit figcaption{font-size:13px;line-height:1.45;color:var(--nv-ink60);max-width:230px;text-align:left;align-self:center}
+.unit figcaption b{display:block;color:var(--nv-ink);font-weight:600;margin-bottom:2px}
+.case{position:relative;padding:11px;border-radius:56px;background:linear-gradient(145deg,#2b2e38,#15161c)}
+.case::after{content:"";position:absolute;right:-5px;top:64px;width:6px;height:34px;border-radius:3px;background:#2b2e38}
+.case::before{content:"";position:absolute;right:-3px;top:118px;width:4px;height:44px;border-radius:2px;background:#22242c}
+.w{width:208px;height:248px;border-radius:46px;background:#000;position:relative;overflow:hidden;
+  font-family:var(--round);color:var(--nv-ink);padding:14px 14px 12px;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:center;font:600 13px/1 var(--round);padding:0 6px;height:16px;flex:none}
+.top .where{display:flex;align-items:center;gap:6px;min-width:0}
+.top .clock{color:var(--nv-ink60);font-variant-numeric:tabular-nums}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sub{font:500 12px/1.3 var(--round);color:var(--nv-ink60)}
+.serif{font:400 15px/1.3 var(--serif);color:var(--nv-nova)}
+
+/* session */
+.target{margin-top:14px;padding:0 6px}
+.target .big{font:700 42px/1 var(--round)}
+.target .big small{font:600 17px/1 var(--round);color:var(--nv-ink60);margin-left:2px}
+.target .x{color:var(--nv-ink40);font-weight:500;margin:0 4px;font-size:28px}
+.pips{display:flex;align-items:center;margin:14px 6px 0;position:relative;height:10px}
+.pips::before{content:"";position:absolute;left:5px;right:5px;top:4px;height:2px;background:rgba(255,255,255,.14)}
+.pips i{width:10px;height:10px;border-radius:50%;background:#000;border:2px solid rgba(255,255,255,.3);position:relative;
+  transition:background var(--nv-dur-base) var(--nv-ease),border-color var(--nv-dur-base) var(--nv-ease),transform .5s var(--spring)}
+.pips i+i{margin-left:auto}
+.pips i.done{background:var(--nv-m-chest);border-color:var(--nv-m-chest)}
+.pips i.now{border-color:var(--nv-ink);transform:scale(1.25)}
+.foot{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;padding:0 2px 0 6px}
+.hr{display:flex;align-items:center;gap:5px;font:700 20px/1 var(--round);color:var(--nv-warn);padding-bottom:8px}
+.hr svg{width:15px;height:15px}
+.hr small{font:500 11px/1 var(--round);color:var(--nv-ink40)}
+.tick{width:62px;height:62px;border-radius:50%;border:0;background:var(--nv-good);display:grid;place-items:center;cursor:pointer;
+  transition:transform var(--nv-dur-fast) ease-out}
+.tick:active{transform:scale(.94)}
+.tick svg{width:28px;height:28px}
+.pill{border:0;border-radius:999px;background:var(--nv-well);color:var(--nv-ink);font:600 14px/1 var(--round);padding:11px 16px;cursor:pointer;
+  transition:transform var(--nv-dur-fast) ease-out}
+.pill:active{transform:scale(.96)}
+
+/* rest */
+.rest{flex:1;display:grid;place-items:center;position:relative}
+.rest svg{width:150px;height:150px;transform:rotate(-90deg)}
+.rest .mid{position:absolute;text-align:center}
+.rest .mid .t{font:700 36px/1 var(--round)}
+.restfoot{display:flex;justify-content:space-between;align-items:center;padding:0 4px}
+
+/* crown */
+.field{margin:12px 2px 0;padding:10px 12px;border-radius:16px;background:var(--nv-well);display:flex;justify-content:space-between;align-items:baseline}
+.field .v{font:700 26px/1 var(--round)}
+.field.on{box-shadow:inset 0 0 0 2px var(--nv-good);background:rgba(95,232,168,.1)}
+.crownmark{position:absolute;right:3px;top:76px;width:4px;height:34px;border-radius:2px;background:var(--nv-good)}
+
+/* done */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 8px;margin:14px 6px 0}
+.stats b{display:block;font:700 22px/1.05 var(--round)}
+.stats span{font:500 11px/1.2 var(--round);color:var(--nv-ink40)}
+.receipt{margin:auto 2px 2px;display:flex;align-items:center;gap:8px;font:600 13px/1.25 var(--round);padding:10px 12px;border-radius:16px;background:var(--nv-well)}
+.receipt svg{width:16px;height:16px;flex:none}
+
+/* today */
+.rings{display:flex;align-items:center;gap:12px;margin:12px 4px 0}
+.rings svg{width:92px;height:92px;transform:rotate(-90deg);flex:none}
+.legend{display:grid;gap:7px;min-width:0}
+.legend div{font:700 15px/1 var(--round);display:flex;flex-direction:column;gap:2px}
+.legend small{font:500 10.5px/1 var(--round);color:var(--nv-ink40)}
+.next{margin:auto 2px 2px;padding:10px 12px;border-radius:16px;background:var(--nv-well);display:flex;gap:10px;align-items:center}
+.next .bar{width:4px;align-self:stretch;border-radius:2px}
+.next b{display:block;font:600 14px/1.2 var(--round)}
+
+/* list */
+.list{display:grid;gap:6px;margin-top:10px}
+.item{border-radius:16px;background:var(--nv-well);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.item b{font:600 14px/1.2 var(--round);display:block}
+.item .p{font:700 14px/1 var(--round);color:var(--nv-good);white-space:nowrap}
+.peek{opacity:.45}
+
+/* ask */
+.wave{display:flex;align-items:center;justify-content:center;gap:5px;height:70px;margin-top:22px}
+.wave i{width:6px;border-radius:3px;background:var(--nv-cy)}
+.heard{font:500 14px/1.3 var(--round);color:var(--nv-ink60);padding:0 6px;margin-top:12px}
+
+/* faces */
+.face{padding:16px}
+.face .time{font:600 62px/1 var(--round);letter-spacing:-.03em;text-align:right;margin-top:4px}
+.face .date{font:600 13px/1 var(--round);color:var(--nv-warn);text-align:right;letter-spacing:.04em;text-transform:uppercase}
+.comps{display:flex;justify-content:space-between;margin-top:12px}
+.comp{width:50px;height:50px;position:relative;display:grid;place-items:center}
+.comp svg{position:absolute;inset:0;width:50px;height:50px;transform:rotate(-90deg)}
+.comp b{font:700 13px/1 var(--round);position:relative}
+.comp small{position:absolute;bottom:-1px;font:600 8px/1 var(--round);letter-spacing:.06em}
+.rect{margin-top:auto;display:flex;gap:9px;align-items:center}
+.rect .bar{width:4px;height:40px;border-radius:2px;background:var(--nv-m-back)}
+.rect b{font:700 14px/1.2 var(--round);display:block;color:var(--nv-m-back)}
+.stackcard{margin-top:12px;border-radius:22px;background:#15171f;padding:12px}
+.mini{display:flex;justify-content:space-between;margin-top:2px}
+.mini .comp{width:46px;height:46px}.mini .comp svg{width:46px;height:46px}
+.honest{color:var(--nv-kcal)}
+
+/* path + lists */
+.path{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:6px 0 0}
+.hop{flex:1 1 180px;min-width:0;padding:14px 16px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:var(--nv-bg1)}
+.hop b{display:block;font-weight:600}
+.hop span{color:var(--nv-ink60);font-size:13px}
+.link{flex:0 0 34px;align-self:center;height:2px;background:var(--nv-edge)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px}
+.two ul{margin:8px 0 0;padding-left:18px;color:var(--nv-ink60)}
+.two li{margin:6px 0}
+.two li b{color:var(--nv-ink);font-weight:600}
+@media (max-width:560px){.path{flex-direction:column;flex-wrap:nowrap}.hop{flex:0 0 auto}.link{flex:0 0 16px;align-self:flex-start;width:2px;height:16px;min-width:0;max-width:2px;margin:0 0 0 24px}}
+@media (prefers-reduced-motion:reduce){*{transition-duration:0s!important}}
+</style>
+
+<div class="page">
+  <p class="eyebrow">Mockup 115 · for approval · nothing here is built</p>
+  <h1>Nova on your wrist</h1>
+  <p class="lede">A native Apple Watch app built around the moments your phone is in your bag or your hands are full: lifting, eating, a thought you want kept, and a glance at where the day stands. Everything that needs reading, typing or a big screen stays on the phone.</p>
+  <span class="sample">Sample content only. No number, lift or food on this page is yours.</span>
+
+  <section>
+    <p class="eyebrow">1 · the hero</p>
+    <h2>The session</h2>
+    <p class="note">The watch carries the workout so the phone can stay in the bag. One lift on screen, one target, one tick. The first watch is playable: tap the green tick.</p>
+    <div class="row">
+      <figure class="unit">
+        <div class="case"><div class="w" id="demo">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-m-chest)"></i>Bench press</span><span class="clock">6:42</span></div>
+          <div id="d-ready" style="display:flex;flex-direction:column;flex:1">
+            <div class="target"><div class="big num"><span id="d-w">80</span><small>kg</small><span class="x">×</span><span>8</span></div>
+              <div class="sub" style="margin-top:6px" id="d-sub">Set 2 of 4 · last time 77.5 × 8</div></div>
+            <div class="pips" id="d-pips"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+            <div class="foot"><div class="hr"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.300 2.300 4.500 6 4.500c2.100 0 3.900 1.100 6 3.500 2.100-2.400 3.900-3.500 6-3.500 3.700 0 5.600 3.800 4 7.200C19.500 16.400 12 21 12 21z"/></svg><span class="num">132</span></div>
+              <button class="tick" id="d-tick" aria-label="Set done"><svg viewBox="0 0 24 24" fill="none" stroke="#04130c" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button></div>
+          </div>
+          <div id="d-rest" hidden style="display:flex;flex-direction:column;flex:1">
+            <div class="rest"><svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="70" fill="none" stroke="rgba(89,230,255,.16)" stroke-width="11"/><circle id="d-ring" cx="80" cy="80" r="70" fill="none" stroke="var(--nv-cy)" stroke-width="11" stroke-linecap="round" stroke-dasharray="439.800" stroke-dashoffset="0"/></svg>
+              <div class="mid"><div class="t num" id="d-t">1:30</div><div class="sub">rest</div></div></div>
+            <div class="restfoot"><span class="sub" id="d-next">Next 80 kg × 8</span><button class="pill" id="d-skip">Skip</button></div>
+          </div>
+          <div id="d-done" hidden style="display:flex;flex-direction:column;flex:1">
+            <div class="target"><div class="serif">Bench is done. Four sets, all eight reps.</div></div>
+            <div style="margin:auto 2px 2px"><button class="pill" id="d-again" style="width:100%">Play again</button></div>
+          </div>
+        </div></div>
+        <figcaption><b>Set ready (playable)</b>The lift wears its muscle's hue. The four sets are one joined line. Rest here runs at twelve times real speed so you can watch it finish.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-m-chest)"></i>Bench press</span><span class="clock">6:43</span></div>
+          <div class="rest"><svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="70" fill="none" stroke="rgba(89,230,255,.16)" stroke-width="11"/><circle cx="80" cy="80" r="70" fill="none" stroke="var(--nv-cy)" stroke-width="11" stroke-linecap="round" stroke-dasharray="439.800" stroke-dashoffset="88"/></svg>
+            <div class="mid"><div class="t num">1:12</div><div class="sub">rest</div></div></div>
+          <div class="restfoot"><span class="sub">Next 80 kg × 8</span><button class="pill">Skip</button></div>
+        </div></div>
+        <figcaption><b>Rest</b>The ring empties. When it is spent the watch taps your wrist once. That tap is the only alert the session sends.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="crownmark"></div>
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-m-chest)"></i>Set 3</span><span class="clock">6:45</span></div>
+          <div class="field on"><span class="sub">Weight</span><span class="v num">82.5<small style="font-size:13px;color:var(--nv-ink60)"> kg</small></span></div>
+          <div class="field"><span class="sub">Reps</span><span class="v num">8</span></div>
+          <div class="sub" style="padding:10px 8px 0">Turn the crown</div>
+          <div class="foot" style="justify-content:flex-end"><button class="tick" aria-label="Set done"><svg viewBox="0 0 24 24" fill="none" stroke="#04130c" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button></div>
+        </div></div>
+        <figcaption><b>Change it</b>Tap the target to open this. The Digital Crown moves the weight in your plate steps, so nothing is typed.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-good)"></i>Push day</span><span class="clock">7:28</span></div>
+          <div class="stats"><div><b class="num">46 min</b><span>on the clock</span></div><div><b class="num">18</b><span>sets ticked</span></div>
+            <div><b class="num" style="color:var(--nv-warn)">128</b><span>average bpm</span></div><div><b class="num" style="color:var(--nv-kcal)">412</b><span>active kcal</span></div></div>
+          <div class="receipt"><svg viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg>Saved to Nova and Apple Health</div>
+        </div></div>
+        <figcaption><b>Finished</b>Heart rate and energy come from the watch's own sensors, and the workout lands in Apple Health as a real strength session.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">2 · the glance</p>
+    <h2>Today, food and your voice</h2>
+    <p class="note">Three short screens, reached by turning the crown from the first one. Each does one thing.</p>
+    <div class="row">
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where">Today</span><span class="clock">2:14</span></div>
+          <div class="rings"><svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(95,232,168,.18)" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="var(--nv-good)" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.900" stroke-dashoffset="95"/>
+            <circle cx="50" cy="50" r="31" fill="none" stroke="rgba(255,179,92,.18)" stroke-width="9"/><circle cx="50" cy="50" r="31" fill="none" stroke="var(--nv-kcal)" stroke-width="9" stroke-linecap="round" stroke-dasharray="194.800" stroke-dashoffset="63.700"/>
+            <circle cx="50" cy="50" r="20" fill="none" stroke="rgba(89,230,255,.18)" stroke-width="9"/><circle cx="50" cy="50" r="20" fill="none" stroke="var(--nv-cy)" stroke-width="9" stroke-linecap="round" stroke-dasharray="125.700" stroke-dashoffset="22.100"/></svg>
+            <div class="legend"><div class="num" style="color:var(--nv-good)">96 g<small>protein of 150</small></div><div class="num" style="color:var(--nv-kcal)">1,480<small>kcal of 2,200</small></div><div class="num" style="color:var(--nv-cy)">8,240<small>steps</small></div></div></div>
+          <div class="next"><i class="bar" style="background:var(--nv-m-back)"></i><div><b>Pull day · 5:30</b><span class="sub">Tap to start on the watch</span></div></div>
+        </div></div>
+        <figcaption><b>Today</b>The same three hues as your phone widgets. Steps are Apple Health's own figure. The session row starts the workout.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where">Your usuals</span><span class="clock">2:15</span></div>
+          <div class="list">
+            <div class="item"><div><b>Chicken wrap</b><span class="sub">520 kcal</span></div><span class="p num">38 g</span></div>
+            <div class="item"><div><b>Protein oats</b><span class="sub">430 kcal</span></div><span class="p num">32 g</span></div>
+            <div class="item"><div><b>Greek yoghurt</b><span class="sub">180 kcal</span></div><span class="p num">18 g</span></div>
+            <div class="item peek"><div><b>Flat white</b><span class="sub">110 kcal</span></div><span class="p num">6 g</span></div>
+          </div>
+        </div></div>
+        <figcaption><b>Log a usual</b>The foods you log most, ordered for the time of day. One tap logs one. Anything new is spoken, or done on the phone.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-good)"></i>Logged</span><span class="clock">2:15</span></div>
+          <div class="target"><div class="big num" style="color:var(--nv-good)">+38<small style="color:var(--nv-good)">g</small></div><div class="sub" style="margin-top:6px">Chicken wrap · 520 kcal</div>
+            <div class="sub" style="margin-top:10px;color:var(--nv-ink)">Protein now 134 of 150 g</div></div>
+          <div style="margin:auto 2px 2px"><button class="pill" style="width:100%">Undo</button></div>
+        </div></div>
+        <figcaption><b>The receipt</b>The number that moved is the hero, and Undo is one tap, as everywhere in Nova.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-cy)"></i>Listening</span><span class="clock">2:20</span></div>
+          <div class="wave"><i style="height:18px"></i><i style="height:40px"></i><i style="height:62px"></i><i style="height:34px"></i><i style="height:52px"></i><i style="height:24px"></i><i style="height:44px"></i><i style="height:14px"></i></div>
+          <div class="heard">"Have I got room for a wrap before training"</div>
+        </div></div>
+        <figcaption><b>Ask or keep</b>Raise and speak. A question gets an answer. "Note" or "remember" files it to your inbox.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-nova)"></i>Nova</span><span class="clock">2:20</span></div>
+          <div class="target" style="margin-top:18px"><div class="serif" style="font-size:17px">Yes. The wrap takes you to 134 g and leaves 200 kcal for tonight.</div></div>
+          <div style="margin:auto 2px 2px;display:flex;gap:8px"><button class="pill" style="flex:1">Log it</button><button class="pill" style="flex:1">Go on</button></div>
+        </div></div>
+        <figcaption><b>A short turn</b>He answers in a sentence and says it aloud. "Go on" gives the detail he held back. He never asks whether you want the rest.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">3 · widgets</p>
+    <h2>On the watch face and in the Smart Stack</h2>
+    <p class="note">Complications are full colour on the watch, so each number keeps its hue. They read the same feed your phone widgets use.</p>
+    <div class="row">
+      <figure class="unit">
+        <div class="case"><div class="w face">
+          <div class="date">Fri 13</div><div class="time num">10:09</div>
+          <div class="comps">
+            <div class="comp"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="rgba(95,232,168,.2)" stroke-width="5"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--nv-good)" stroke-width="5" stroke-linecap="round" stroke-dasharray="131.900" stroke-dashoffset="47.500"/></svg><b class="num" style="color:var(--nv-good)">96</b></div>
+            <div class="comp"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="rgba(255,179,92,.2)" stroke-width="5"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--nv-kcal)" stroke-width="5" stroke-linecap="round" stroke-dasharray="131.900" stroke-dashoffset="43.100"/></svg><b class="num" style="color:var(--nv-kcal);font-size:11px">1,480</b></div>
+            <div class="comp"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="rgba(89,230,255,.2)" stroke-width="5"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--nv-cy)" stroke-width="5" stroke-linecap="round" stroke-dasharray="131.900" stroke-dashoffset="23.200"/></svg><b class="num" style="color:var(--nv-cy);font-size:12px">8.2k</b></div>
+          </div>
+          <div class="rect"><i class="bar"></i><div><b>Pull day · 5:30 pm</b><span class="sub">Rows, pull-ups, curls</span></div></div>
+        </div></div>
+        <figcaption><b>Four complications</b>Protein, energy and steps as round gauges, and today's session as the wide one. Use any, in any slot the face offers. Tapping one opens that screen.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w face">
+          <div class="top" style="justify-content:flex-end"><span class="clock">10:09</span></div>
+          <div class="stackcard">
+            <div class="sub" style="font-weight:600;color:var(--nv-ink)">Nova · today</div>
+            <div class="mini" style="margin-top:10px">
+              <div class="comp"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="rgba(95,232,168,.2)" stroke-width="5"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--nv-good)" stroke-width="5" stroke-linecap="round" stroke-dasharray="131.900" stroke-dashoffset="47.500"/></svg><b class="num" style="color:var(--nv-good)">96</b></div>
+              <div class="comp"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="rgba(255,179,92,.2)" stroke-width="5"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--nv-kcal)" stroke-width="5" stroke-linecap="round" stroke-dasharray="131.900" stroke-dashoffset="43.100"/></svg><b class="num" style="color:var(--nv-kcal);font-size:11px">1,480</b></div>
+              <div class="comp"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="rgba(89,230,255,.2)" stroke-width="5"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--nv-cy)" stroke-width="5" stroke-linecap="round" stroke-dasharray="131.900" stroke-dashoffset="23.200"/></svg><b class="num" style="color:var(--nv-cy);font-size:12px">8.2k</b></div>
+            </div>
+            <div class="serif" style="font-size:13.5px;margin-top:10px">Protein is the gap. 54 g to go.</div>
+          </div>
+        </div></div>
+        <figcaption><b>Smart Stack card</b>Turn the crown up from the face. The three rings and Nova's one line for the day.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w face">
+          <div class="top" style="justify-content:flex-end"><span class="clock">6:44</span></div>
+          <div class="stackcard">
+            <div class="sub" style="font-weight:600;color:var(--nv-m-chest)">Bench press · set 3 of 4</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px">
+              <div><div class="num" style="font:700 30px/1 var(--round);color:var(--nv-cy)">0:48</div><div class="sub">rest left</div></div>
+              <div class="hr" style="padding:0"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.300 2.300 4.500 6 4.500c2.100 0 3.900 1.100 6 3.500 2.100-2.400 3.900-3.500 6-3.500 3.700 0 5.600 3.800 4 7.200C19.500 16.400 12 21 12 21z"/></svg><span class="num">124</span></div>
+            </div>
+          </div>
+        </div></div>
+        <figcaption><b>While you train</b>During a session the stack shows the live one, so a glance from the face is enough between sets.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">4 · when things are missing</p>
+    <h2>It says so</h2>
+    <p class="note">The watch reaches your Mac through your iPhone. When a link in that chain is down, the screen says which one and what happens to your taps.</p>
+    <div class="row">
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-m-chest)"></i>Bench press</span><span class="clock">6:42</span></div>
+          <div class="target"><div class="big num">80<small>kg</small><span class="x">×</span>8</div><div class="sub honest" style="margin-top:6px">Phone out of reach · 3 sets kept here</div></div>
+          <div class="pips"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+          <div class="foot"><div class="hr"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.300 2.300 4.500 6 4.500c2.100 0 3.900 1.100 6 3.500 2.100-2.400 3.900-3.500 6-3.500 3.700 0 5.600 3.800 4 7.200C19.500 16.400 12 21 12 21z"/></svg><span class="num">132</span></div>
+            <button class="tick" aria-label="Set done"><svg viewBox="0 0 24 24" fill="none" stroke="#04130c" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button></div>
+        </div></div>
+        <figcaption><b>Away from the phone</b>The session keeps working. Sets are held on the watch and sent when the phone is back, each one exactly once.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where">Today</span><span class="clock">2:14</span></div>
+          <div class="rings" style="opacity:.55"><svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(95,232,168,.18)" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="var(--nv-good)" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.900" stroke-dashoffset="140"/>
+            <circle cx="50" cy="50" r="31" fill="none" stroke="rgba(255,179,92,.18)" stroke-width="9"/><circle cx="50" cy="50" r="31" fill="none" stroke="var(--nv-kcal)" stroke-width="9" stroke-linecap="round" stroke-dasharray="194.800" stroke-dashoffset="110"/>
+            <circle cx="50" cy="50" r="20" fill="none" stroke="rgba(89,230,255,.18)" stroke-width="9"/><circle cx="50" cy="50" r="20" fill="none" stroke="var(--nv-cy)" stroke-width="9" stroke-linecap="round" stroke-dasharray="125.700" stroke-dashoffset="70"/></svg>
+            <div class="legend"><div class="num">70 g<small>protein of 150</small></div><div class="num">940<small>kcal of 2,200</small></div><div class="num">4,410<small>steps</small></div></div></div>
+          <div class="next"><i class="bar" style="background:var(--nv-kcal)"></i><div><b class="honest">As of 11:40 am</b><span class="sub">Your Mac is not answering</span></div></div>
+        </div></div>
+        <figcaption><b>Stale, and labelled</b>Old numbers dim and carry their time. Nothing is shown as current unless it is.</figcaption>
+      </figure>
+
+      <figure class="unit">
+        <div class="case"><div class="w">
+          <div class="top"><span class="where"><i class="dot" style="background:var(--nv-kcal)"></i>Nova</span><span class="clock">2:20</span></div>
+          <div class="target" style="margin-top:18px"><div class="serif" style="font-size:17px">I can't reach your Mac from here, so I can't answer that yet.</div>
+            <div class="sub" style="margin-top:10px">Your question is kept. Nothing was lost.</div></div>
+          <div style="margin:auto 2px 2px"><button class="pill" style="width:100%">Keep it as a note</button></div>
+        </div></div>
+        <figcaption><b>No answer</b>He names the real cause and offers the one useful thing left.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">how it reaches home</p>
+    <h2>The path every tap takes</h2>
+    <p class="note">Your watch is not on your private network, and should not need to be. The phone already is.</p>
+    <div class="path">
+      <div class="hop"><b>Watch</b><span>Holds today's plan and your usuals. Keeps taps in a queue when alone.</span></div><i class="link"></i>
+      <div class="hop"><b>iPhone</b><span>Passes each tap on in the background. The Nova app does not need to be open.</span></div><i class="link"></i>
+      <div class="hop"><b>Your Mac</b><span>Tested code writes to the vault. Every write is undoable, as now.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="two">
+      <div><p class="eyebrow">on the wrist</p><h2>What is in</h2>
+        <ul><li><b>The session</b>: ticks, rest, changes by crown, heart rate, a real Health workout</li><li><b>Today</b>: three rings and the next session</li><li><b>Usuals</b>: one-tap food log with Undo</li><li><b>Voice</b>: a short answer, or a note kept</li><li><b>Four complications and two Smart Stack cards</b></li></ul></div>
+      <div><p class="eyebrow">stays on the phone</p><h2>What is out, and why</h2>
+        <ul><li><b>Journal, Library, briefings, research</b>: reading and writing at length</li><li><b>Recipes, shopping, new foods by search</b>: lists and typing</li><li><b>The 3D figure, Agent World, the living stage</b>: need the screen</li><li><b>Coach's proposed changes</b>: a decision deserves the full card. A later round could bring a tick and cross for the simple ones.</li><li><b>Settings</b>: set once, on the phone</li></ul></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var ready=$('d-ready'),rest=$('d-rest'),done=$('d-done'),ring=$('d-ring'),t=$('d-t'),pips=$('d-pips').children;
+  var set=2,timer=null,C=439.8,reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function show(el){[ready,rest,done].forEach(function(x){x.hidden=x!==el})}
+  function paint(){
+    for(var i=0;i<4;i++){pips[i].className=i<set-1?'done':(i===set-1?'now':'')}
+    $('d-sub').textContent='Set '+set+' of 4 · last time 77.5 × 8';
+  }
+  function startRest(){
+    show(rest);var left=90;t.textContent='1:30';
+    ring.style.transition='none';ring.style.strokeDashoffset=0;
+    void ring.getBoundingClientRect();
+    if(!reduce){ring.style.transition='stroke-dashoffset 7.5s linear'}
+    ring.style.strokeDashoffset=C;
+    clearInterval(timer);
+    timer=setInterval(function(){left-=1;if(left<=0){endRest();return}
+      t.textContent=Math.floor(left/60)+':'+('0'+left%60).slice(-2)},83);
+  }
+  function endRest(){clearInterval(timer);set+=1;paint();show(ready)}
+  $('d-tick').addEventListener('click',function(){
+    if(set>=4){for(var i=0;i<4;i++)pips[i].className='done';show(done);return}
+    startRest();
+  });
+  $('d-skip').addEventListener('click',endRest);
+  $('d-again').addEventListener('click',function(){set=1;paint();show(ready)});
+})();
+</script>

@@ -1,5 +1,5 @@
 import { recurringSignal } from './sessionNotes.js';
-import { closedAsOf, isStaleConcern } from './concernClose.js';
+import { isFresh, datedLabel, FRESH_DAYS } from './freshness.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
 import { mondayIso } from './cadence.js';
 import { atlasFor } from './data/exerciseAtlas.js';
@@ -213,6 +213,9 @@ export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4,
   for (const [exerciseId, arr] of history) {
     const dated = arr.sort((a, b) => a.date.localeCompare(b.date));
     if (dated.length < minSessions) continue;
+    // a lift he has not trained in four weeks says nothing about today
+    // (13 Nov 2026, "my gym performance from an exercise multiple weeks ago")
+    if (!isFresh('lift-evidence', dated[dated.length - 1].date, now)) continue;
     // RESTRAINT (his words, 25 Sep: "I don't want it to over indulge or over
     // decide if unnecessary"): three flat weeks is ordinary noise, and a lift
     // he only started last month has not been done "too long". Four weeks
@@ -628,7 +631,14 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
 // about form breaking down under load is a coaching judgement Coach makes
 // with its own evidence rules, and hard-coding a prescription here would be
 // this file pretending to expertise it does not have.
-export function findNoteSignals(sessions = [], exercises = [], { min = 2, within = 6, closed = [] } = {}) {
+//
+// PAIN IS NOT RAISED HERE (13 Nov 2026, his "old data" complaint). A pain
+// note used to become a 'reported-pain' card from any of the last six
+// sessions, however many weeks back. Pain now has ONE asker, the pain check
+// (lib/painCheck.js), which asks once whether it is still going on. Form
+// notes still count, but only notes from the last `form-note` days, and the
+// line names the days they are from.
+export function findNoteSignals(sessions = [], exercises = [], { min = 2, within = 6, now = new Date() } = {}) {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const seen = new Set();
   const out = [];
@@ -637,35 +647,25 @@ export function findNoteSignals(sessions = [], exercises = [], { min = 2, within
       const id = ex.exerciseId;
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      for (const signal of ['pain', 'form-breakdown']) {
-        const found = recurringSignal(sessions, id, signal, { min: signal === 'pain' ? 1 : min, within });
-        // a pain note about an area he has closed raises nothing: this line
-        // reached him as "You logged pain on Cable Lateral Raise" on 6 Nov,
-        // five days after he said to ignore it. Pain logged after the closure
-        // is new evidence and is raised as ever.
-        const hits = signal === 'pain' && found
-          ? found.filter((h) => !isStaleConcern(`${h.pain || h.note} pain`, closedAsOf(closed, h.date)))
-          : found;
-        if (!hits?.length) continue;
-        const name = byId.get(id)?.name || ex.name || id;
-        const quotes = hits.slice(0, 2).map((h) => `"${h.pain || h.note}"`).join(' and ');
-        out.push({
-          kind: signal === 'pain' ? 'reported-pain' : 'reported-form',
-          key: `${signal}:${id}:${hits[0].date}`,
-          exerciseId: id,
-          name,
-          times: hits.length,
-          dates: hits.map((h) => h.date),
-          quote: hits[0].pain || hits[0].note,
-          line: signal === 'pain'
-            ? `You logged pain on ${name} — ${quotes}. Worth deciding about before the next session rather than after it.`
-            : `You have flagged your own form on ${name} ${hits.length} times across your recent sessions — ${quotes}. A load you cannot own cleanly is not a load you are getting the benefit of, and that is the thing to fix before the number moves again.`,
-          // never a one-tap change: what to do about his technique is a
-          // conversation with Coach, not a silent edit to his plan
-          fix: null,
-        });
-        break; // one finding per lift — pain outranks form
-      }
+      const hits = recurringSignal(sessions, id, 'form-breakdown', { min, within, now, maxAgeDays: FRESH_DAYS['form-note'] });
+      if (!hits?.length) continue;
+      const name = byId.get(id)?.name || ex.name || id;
+      const quotes = hits.slice(0, 2).map((h) => `"${h.pain || h.note}"`).join(' and ');
+      const days = [...new Set(hits.map((h) => h.date))].slice(0, 3).map((d) => datedLabel(d, now, { on: false, relative: false })).filter(Boolean);
+      const when = days.length > 1 ? `${days.slice(0, -1).join(', ')} and ${days[days.length - 1]}` : days[0];
+      out.push({
+        kind: 'reported-form',
+        key: `form-breakdown:${id}:${hits[0].date}`,
+        exerciseId: id,
+        name,
+        times: hits.length,
+        dates: hits.map((h) => h.date),
+        quote: hits[0].pain || hits[0].note,
+        line: `You flagged your own form on ${name} ${hits.length} times${when ? `, on ${when}` : ''}: ${quotes}. A load you cannot own cleanly is not a load you are getting the benefit of, and that is the thing to fix before the number moves again.`,
+        // never a one-tap change: what to do about his technique is a
+        // conversation with Coach, not a silent edit to his plan
+        fix: null,
+      });
     }
   }
   return out;
@@ -747,7 +747,6 @@ export async function reviewProgram(vaultPath, deps = {}) {
       const { PLAYBOOK_REL, withoutStruck } = await import('./coachKnowledge.js');
       return withoutStruck(await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8'));
     },
-    closedFor = async () => (await import('./injuryLog.js')).closedConcerns(vaultPath),
     now = new Date(),
   } = deps;
   const avoidText = await loadPlaybook().catch(() => '');
@@ -794,7 +793,7 @@ export async function reviewProgram(vaultPath, deps = {}) {
     const listRecords = deps.listRecords || (await import('./inboxStore.js')).listRecords;
     const cut = now.getTime() - 60 * 86_400_000;
     for (const r of await listRecords()) {
-      if (r.kind !== 'coach-program' || r.status !== 'discarded' || new Date(r.discardedAt || r.createdAt || 0).getTime() < cut) continue;
+      if (r.kind !== 'coach-program' || r.status !== 'discarded' || r.expired === true || new Date(r.discardedAt || r.createdAt || 0).getTime() < cut) continue;
       if (r.fix?.action === 'swap' && r.fix.replaceWith) declined.add(r.fix.replaceWith);
       if (r.fix?.action === 'tune' && r.fix.exerciseId) declinedVariation.add(r.fix.exerciseId);
     }
@@ -821,7 +820,7 @@ export async function reviewProgram(vaultPath, deps = {}) {
     ...findStaleLifts(sessions, exercises, { now, avoidText, inProgram, declined, tunes, declinedVariation, inSessionFocus, cutting }),
     ...findLongTenure(sessions, exercises, { now, avoidText, inProgram, declined, cutting }),
     // what he told Nova himself — the highest-quality signal there is
-    ...findNoteSignals(sessions, exercises, { closed: await closedFor() }),
+    ...findNoteSignals(sessions, exercises, { now }),
   ];
   return { findings: rankFindings(findings), counts: { sessions: sessions.length, exercises: exercises.length } };
 }
@@ -897,10 +896,43 @@ const OTHER_LANES = new Set(['program-check', 'paper']);
 // yes on one changed nothing — two of his three were declined on 19 Oct.
 const SUPERSEDED_BY_CHECK = new Set(['under-volume', 'junk-volume']);
 
+// The kinds THIS review computes, and so can tell are no longer true. Cards
+// other lanes file (program-check, paper) are theirs to judge. 'reported-pain'
+// is no longer computed (13 Nov 2026: the pain check asks instead), so an old
+// pending one reads as gone, which is the point.
+const OWN_KINDS = new Set(['mapping', 'under-volume', 'junk-volume', 'effort-ceiling', 'routine-oversized', 'low-value', 'stale', 'tenure', 'reported-form', 'reported-pain']);
+
 export async function raiseProgramFindings(vaultPath, deps = {}) {
   const { createRecord, listRecords, updateRecord } = deps.store || await import('./inboxStore.js');
   const now = deps.now || Date.now();
-  const records = await listRecords();
+  const listed = await listRecords();
+
+  // 0) A CARD THAT IS NO LONGER TRUE does not sit there (13 Nov 2026, his
+  // "old data" complaint). The review runs first; a pending card of a kind it
+  // computes whose subject is absent from today's findings expires as a
+  // marked discard. A review that could not run, or had no sessions to read,
+  // expires nothing.
+  let reviewed = null;
+  try {
+    reviewed = deps.review ? await deps.review() : await reviewProgram(vaultPath);
+  } catch (e) {
+    console.log(`coach program review could not run: ${e.message}`);
+  }
+  const computed = reviewed && Array.isArray(reviewed.findings) && !(reviewed.counts && !reviewed.counts.sessions)
+    ? reviewed.findings : null;
+  const expiredNow = new Map();
+  if (computed) {
+    const keys = new Set(computed.map((f) => f.key));
+    const subjects = new Set(computed.map((f) => subjectOfKey(f.key)));
+    for (const r of listed) {
+      if (r.kind !== 'coach-program' || r.status !== 'pending' || !OWN_KINDS.has(r.findingKind)) continue;
+      if (keys.has(r.findingKey) || subjects.has(subjectOfKey(r.findingKey))) continue;
+      const patch = { status: 'discarded', discardedAt: new Date(now).toISOString(), expired: true, expiredWhy: 'no longer applies on current data' };
+      await updateRecord(r.id, patch);
+      expiredNow.set(r.id, patch);
+    }
+  }
+  const records = listed.map((r) => (expiredNow.has(r.id) ? { ...r, ...expiredNow.get(r.id) } : r));
   const pendingAll = records.filter((r) => r.kind === 'coach-program' && r.status === 'pending');
   const open = pendingAll.filter((r) => !OTHER_LANES.has(r.findingKind));
   const checkOn = deps.checkOn ?? (() => { try { return laneEnabled('coach-program-check'); } catch { return false; } })();
@@ -923,14 +955,15 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
   // 2) raise anything NEW, up to the cap
   const room = Math.max(0, MAX_OPEN - open.length);
   const raisedOut = [];
-  if (room > 0) {
-    const { findings } = deps.review ? await deps.review() : await reviewProgram(vaultPath);
+  if (room > 0 && computed) {
+    const findings = computed;
     // anything he has already seen — pending, acted on, or argued down —
-    // is never raised again under the same key…
-    const seen = new Set(records.filter((r) => r.kind === 'coach-program').map((r) => r.findingKey));
+    // is never raised again under the same key… (a card that EXPIRED as no
+    // longer true was never his answer: fresh data may raise it again)
+    const seen = new Set(records.filter((r) => r.kind === 'coach-program' && r.expired !== true).map((r) => r.findingKey));
     // …and a week-keyed SUBJECT he argued down stays down for 28 days, then
     // returns only if its number has moved ≥20% — naming the history
-    // (lib/respectTheNo.js).
+    // (lib/respectTheNo.js, which never counts an expiry as his no).
     const declines = latestDeclines(records, {
       kind: 'coach-program',
       subjectOf: (r) => subjectOfKey(r.findingKey),
@@ -976,7 +1009,7 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
       }));
     }
   }
-  return { raised: raisedOut, nudged };
+  return { raised: raisedOut, nudged, expired: [...expiredNow.keys()] };
 }
 
 // What Coach should have in front of it when he asks about any of this — so

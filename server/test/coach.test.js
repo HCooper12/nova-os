@@ -5,6 +5,8 @@ import path from 'node:path';
 
 const vault = await mkdtemp(path.join(tmpdir(), 'nova-coach-vault-'));
 process.env.NOVA_VAULT_GRACE_MS = '0';
+// its own data folder: computeProgressions reads the inbox for settled pain checks (13 Nov 2026)
+process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-coach-data-'));
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -431,12 +433,19 @@ test('auto receipt: write-then-flip; a failed flip after a successful write clos
 // ---- [01] plan 9: the morning card names an open injury ----
 test('morning card: an open moderate/serious injury gets one line; niggles and resolved entries stay off the card', async () => {
   const { injuryLine } = await import('../lib/coachCadence.js');
-  assert.equal(injuryLine([]), null);
-  assert.equal(injuryLine([{ area: 'left wrist', severity: 'niggle' }]), null, 'niggles are chat-only');
-  assert.equal(injuryLine([{ area: 'right knee', severity: 'serious', resolvedAt: '2026-08-20' }]), null, 'resolved is resolved');
-  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate' }]), 'Open injury on file: right knee (moderate) — train around it.');
-  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate' }, { area: 'lower back', severity: 'serious' }, { area: 'thumb', severity: 'niggle' }]),
-    'Open injuries on file: right knee (moderate), lower back (serious) — train around them.');
+  // 13 Nov 2026 ("old data" complaint): only a fresh entry, and the line says since when
+  const now = new Date(2026, 10, 13, 8); // his local morning, whatever zone the suite runs in
+  const at = { now };
+  assert.equal(injuryLine([], at), null);
+  assert.equal(injuryLine([{ area: 'left wrist', severity: 'niggle', startedAt: '2026-11-10' }], at), null, 'niggles are chat-only');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'serious', startedAt: '2026-11-10', resolvedAt: '2026-11-12' }], at), null, 'resolved is resolved');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate', startedAt: '2026-11-03' }], at), 'Open injury on file: right knee (moderate, since Tue 3 Nov). Train around it.');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate', startedAt: '2026-11-12' }, { area: 'lower back', severity: 'serious', startedAt: '2026-11-13' }, { area: 'thumb', severity: 'niggle', startedAt: '2026-11-13' }], at),
+    'Open injuries on file: right knee (moderate, since yesterday), lower back (serious, since today). Train around them.');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate', startedAt: '2026-09-01' }], at), null, 'an old entry nobody confirmed is asked about once, not repeated');
+  assert.equal(injuryLine([{ id: 'k', area: 'right knee', severity: 'moderate', startedAt: '2026-09-01' }],
+    { now, records: [{ kind: 'pain-check', injuryId: 'k', status: 'discarded', discardedAt: '2026-11-10T00:00:00Z' }] }),
+  'Open injury on file: right knee (moderate, since Tue 1 Sep). Train around it.', 'his "not yet" keeps it current');
 });
 
 // ---- [01] plan 5: the quality path reaches RPE-tuned lifts ----

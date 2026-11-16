@@ -32,6 +32,8 @@ export function latestDeclines(records, { kind = null, statuses = ['discarded'],
   for (const r of records || []) {
     if (kind && r.kind !== kind) continue;
     if (!statuses.includes(r.status)) continue;
+    // a card that expired unanswered, or as no longer true, was never his no
+    if (r.expired === true) continue;
     const subject = subjectOf(r);
     if (!subject) continue;
     const at = new Date(r.discardedAt || r.createdAt || 0).getTime();
@@ -87,6 +89,6 @@ export function respectNo({ declined, now = Date.now(), cooldownDays, metric = n
 export function declinedContext(records, { kind, days = 90, now = Date.now(), label = (r) => r.decision?.title || r.text }) {
   const cutoff = now - days * DAY;
   return (records || [])
-    .filter((r) => r.kind === kind && r.status === 'discarded' && new Date(r.discardedAt || r.createdAt || 0).getTime() >= cutoff)
+    .filter((r) => r.kind === kind && r.status === 'discarded' && r.expired !== true && new Date(r.discardedAt || r.createdAt || 0).getTime() >= cutoff)
     .map((r) => `- ${String(label(r) || '').slice(0, 100)}${r.declineReason ? ` — his reason: "${r.declineReason}"` : ''}`);
 }

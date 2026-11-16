@@ -12,6 +12,8 @@ import { computeDeloadSignal } from './coach.js';
 import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet, creditsById } from './trainingAnalytics.js';
 import { isUnaudited } from './muscleSecondary.js';
 import { plannedWeek } from './plannedWeek.js';
+import { freshInjuries } from './painCheck.js';
+import { datedLabel } from './freshness.js';
 import { muscleWeek as buildMuscleWeek } from './muscleWeek.js';
 import { rangeFor, cleanGoalMuscles, V_TAPER_MUSCLES } from '../../src/muscleTaxonomy.js';
 
@@ -92,7 +94,7 @@ export function computeReadiness(days, now = new Date()) {
 // beat progressions; then the day's earned step, a tune focus, a plateau
 // prescription. A rest day only speaks when an active injury gives it
 // something real to say. Never filler (the spec's rule).
-export async function composeFocus(vaultPath, { routine, block, deload, progressions, tunes, plateaus, injuries }) {
+export async function composeFocus(vaultPath, { routine, block, deload, progressions, tunes, plateaus, injuries, records = [], now = new Date() }) {
   if (block?.isDeloadWeek) {
     return { kind: 'deload-week', text: `Deload week — every lift −10-20%, stop 3-4 reps short. Backing off IS the block working; hard sessions this week defeat it.` };
   }
@@ -138,9 +140,12 @@ export async function composeFocus(vaultPath, { routine, block, deload, progress
     if (bits.length) return { kind: 'session', text: bits.slice(0, 2).join(' '), ...(verdict ? { verdict } : {}), ...(focusFix ? { fix: focusFix } : {}) };
     return null; // an ordinary day with nothing earned says nothing
   }
-  const active = (injuries || []).filter((i) => !i.resolvedAt);
+  // only a fresh open entry, and it says since when (13 Nov 2026): an old
+  // one is asked about once as a pain check (lib/painCheck.js)
+  const active = freshInjuries(injuries || [], records, now);
   if (active.length) {
-    return { kind: 'rest', text: `Rest day — 10-15 min of mobility for the ${active[0].area.toLowerCase()} pays double while it's healing.` };
+    const since = datedLabel(active[0].startedAt, now, { on: false });
+    return { kind: 'rest', text: `Rest day. 10 to 15 minutes of mobility for the ${active[0].area.toLowerCase()}${since ? `, open since ${since},` : ''} pays double while it's healing.` };
   }
   return null;
 }
@@ -173,7 +178,8 @@ export async function buildTrainOverview(vaultPath) {
   const deload = computeDeloadSignal(days);
   const readiness = computeReadiness(days);
   const plateaus = detectPlateaus(sessions);
-  const focus = await composeFocus(vaultPath, { routine, block, deload, progressions, tunes, plateaus, injuries });
+  const records = await (await import('./inboxStore.js')).listRecords().catch(() => []);
+  const focus = await composeFocus(vaultPath, { routine, block, deload, progressions, tunes, plateaus, injuries, records });
 
   // momentum: last session's PRs (if within 3 days), top plateau, streak
   const byId = new Map((exercises || []).map((e) => [e.id, e]));

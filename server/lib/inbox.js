@@ -2164,6 +2164,8 @@ const TIME_VALUE_HOURS = {
   dispatch: 48, review: 48, 'training-check': 48, 'plan-today': 24,
   'week-plan': 8 * 24, 'weekly-debrief': 8 * 24, 'brain-week': 8 * 24, 'meal-prep': 8 * 24, 'coach-audit': 8 * 24,
   distill: 7 * 24, 'fuel-cross': 7 * 24,
+  // a question about pain he never answered is not asked again (lib/painCheck.js)
+  'pain-check': 7 * 24,
   cfo: 14 * 24, stash: 14 * 24,
 };
 export async function expireStaleDrafts() {
@@ -2320,6 +2322,13 @@ export async function approveRecord(vaultPath, id) {
   if (record.kind === 'fuel-cross') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
+  // A PAIN CHECK (13 Nov 2026, lib/painCheck.js): his yes on "is it still
+  // going on?" files one Injury Log entry; on "has it cleared up?" it resolves
+  // the entry. Each carries the undo that takes exactly that back.
+  if (record.kind === 'pain-check') {
+    const { approvePainCheck } = await import('./painCheck.js');
+    return approvePainCheck(vaultPath, record);
+  }
   // A read-next proposal is a suggestion about the WORLD, not a vault write:
   // approving it means "noted", because only he can decide what to buy.
   if (record.kind === 'read-next') {
@@ -2467,13 +2476,17 @@ export async function reopenRecord(id) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
   const coachCard = record.kind === 'coach-program' || COACH_ROUTES.includes(record.decision?.route);
+  // a pain check's "no" (his yes, 15 Nov 2026: a mis-tap must not close it for good)
+  const painCheck = record.kind === 'pain-check';
   const hisAnswer = (record.status === 'discarded' && !record.expired && record.reason !== 'retried') || record.status === 'undone';
-  if (!coachCard || !hisAnswer) throw new Error('only a Coach change you turned down or undid can be reopened');
+  if (!(coachCard || painCheck) || !hisAnswer) throw new Error('only a Coach change or a pain check you turned down or undid can be reopened');
   if (record.parentPlanId) throw new Error('its plan has already moved on');
   return updateRecord(id, {
     status: 'pending', reopenedAt: new Date().toISOString(), error: null,
     discardedAt: null, declineReason: null, filedAt: null, destination: null,
     undoData: null, applySummary: null, undoneAt: null, undoSummary: null,
+    // a pain check asked again may be read out again, once
+    ...(painCheck ? { spokenAt: null } : {}),
   });
 }
 

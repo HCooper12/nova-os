@@ -39,6 +39,8 @@ const SOURCE_LABEL = {
   studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY', briefing: 'BRIEFING',
   // the four that fell through to TYPED
   'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT', paper: 'STUDY → PROGRAM',
+  // asked once about pain logged in a session or an old Injury Log entry (13 Nov 2026)
+  'pain-check': 'PAIN CHECK',
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
   scout: 'SCOUT · PEOPLE', 'leader-reflect': 'LEADER',
   act: 'BY VOICE', browse: 'BROWSER',
@@ -591,7 +593,8 @@ export function valsInbox(app, ctx) {
     // 'approve' | 'discard' while the card is leaving (finding 13): the
     // screen plays the fall in that verdict's colour before the row goes
     leaving: (st.inboxLeaving || {})[r.id] || null,
-    canUndo: r.status === 'filed' && !!r.undoData,
+    // a pain check he said no to (or undid) can be asked again (15 Nov 2026)
+    canUndo: (r.status === 'filed' && !!r.undoData) || (r.kind === 'pain-check' && (r.status === 'undone' || (r.status === 'discarded' && !r.expired && r.reason !== 'retried'))),
     canDiscard: r.status === 'error', // errored records need an exit — they used to be unkillable
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
@@ -651,7 +654,7 @@ export function valsInbox(app, ctx) {
         cancelWhy: () => app.setState({ inboxAskWhy: null, inboxWhyText: '' }),
       };
     })(),
-    undo: () => app.inboxAction(r.id, 'undo'),
+    undo: () => app.inboxAction(r.id, r.kind === 'pain-check' && r.status !== 'filed' ? 'reopen' : 'undo'),
     retry: () => app.inboxAction(r.id, 'retry'),
     // a watched video can always go deeper — the full concept weave, from
     // the pending question or after it's filed

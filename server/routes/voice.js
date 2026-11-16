@@ -1140,6 +1140,13 @@ export function voiceRouter(vaultPath) {
       // second round trip at the exact moment it starts talking.
       let decisions = { decisions: [], total: 0, remaining: 0 };
       if (variant === 'morning') {
+        // a pain mention from yesterday becomes its one question in time for
+        // this brief (lib/painCheck.js); composeShow itself only reads
+        try {
+          const { raisePainChecks } = await import('../lib/painCheck.js');
+          const { raised } = await raisePainChecks(vaultPath);
+          if (raised.length) console.log(`pain checks: ${raised.length} raised for the brief`);
+        } catch (e) { console.log('pain checks failed:', e.message); }
         try {
           const { briefDecisions } = await import('../lib/briefDecisions.js');
           decisions = await briefDecisions();

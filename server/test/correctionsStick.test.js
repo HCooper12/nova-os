@@ -104,13 +104,22 @@ test('What Works keeps the closing line and drops the old worry from the prompt,
   assert.match(out, /New shoulder pain/);
 });
 
-test('the pain card stops raising a closed area, and raises new pain as ever', () => {
+// 13 Nov 2026 ("old data" complaint): the program review raises no pain card at
+// all now; the pain check (lib/painCheck.js) asks once, and skips a closed area
+test('the program review raises no pain card, closed area or not; the pain check skips a closed area', async () => {
   const sessions = [{ date: '2026-10-13', exercises: [{ exerciseId: 'lat', name: 'Cable Lateral Raise', pain: 'Shoulder, mostly the middle of the left shoulder' }] }];
   const lib = [{ id: 'lat', name: 'Cable Lateral Raise' }];
-  assert.equal(findNoteSignals(sessions, lib).length, 1, 'with nothing closed, it raises');
-  assert.equal(findNoteSignals(sessions, lib, { closed: closedShoulder }).length, 0);
+  assert.equal(findNoteSignals(sessions, lib, { now: new Date(2026, 9, 14, 9) }).length, 0);
+  const { painMentions, raisePainChecks } = await import('../lib/painCheck.js');
+  const now = new Date(2026, 10, 10, 9);
+  const rows = [];
+  const store = { listRecords: async () => rows, createRecord: async (r) => { rows.push(r); return r; }, updateRecord: async () => {} };
+  const before = [{ date: '2026-11-05', exercises: [{ exerciseId: 'lat', name: 'Cable Lateral Raise', pain: 'Shoulder, left side' }] }];
+  assert.equal(painMentions(before, { now }).length, 1);
+  const shoulderClosed = [{ id: 's', area: 'Shoulder', severity: 'moderate', startedAt: '2026-10-01', resolvedAt: '2026-11-07' }];
+  assert.equal((await raisePainChecks('/tmp/v', { store, sessions: before, injuries: shoulderClosed, now })).raised.length, 0, 'pain written before he closed it is not asked');
   const fresh = [{ date: '2026-11-09', exercises: [{ exerciseId: 'lat', name: 'Cable Lateral Raise', pain: 'Shoulder, sharp at the top' }] }];
-  assert.equal(findNoteSignals(fresh, lib, { closed: closedShoulder }).length, 1);
+  assert.equal((await raisePainChecks('/tmp/v', { store, sessions: fresh, injuries: shoulderClosed, now })).raised.length, 1, 'new pain after the closure is asked');
 });
 
 test('the morning show never names a resolved entry as a concern (it read every entry before)', async () => {
