@@ -96,7 +96,9 @@ export function buildReview(app, ctx) {
   const doneCount = (today?.doneCount || 0) + (answeredJust && !item.answered ? 1 : 0);
   const total = today?.total || 0;
   const curIndex = item ? items.findIndex((i) => i.id === item.id) : -1;
-  const pips = total ? { total, done: Math.min(doneCount, total), cur: state === 'card' && !answeredJust ? curIndex : -1 } : null;
+  // the ringed pip is the page on screen; once it is answered it moves to the next one waiting (mockup 116)
+  const nextWaiting = items.findIndex((i) => !i.answered && i.id !== item?.id);
+  const pips = total ? { total, done: Math.min(doneCount, total), cur: state !== 'card' ? -1 : answeredJust ? nextWaiting : curIndex } : null;
 
   // the page's answers before today's (today's is drawn as the new stretch)
   const pastHistory = (item?.history || []).filter((h) => !(answeredJust && h.date === dayISO));

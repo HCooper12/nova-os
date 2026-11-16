@@ -173,11 +173,11 @@ function Done({ r }) {
       {d.spin && <DrawReel spin={d.spin} />}
       <div className="nv-rv-foot">
         {d.drawEarly && !d.spin
-          ? <TextAction tone="violet" onClick={d.drawBusy ? undefined : d.drawEarly} disabled={d.drawBusy}>{d.drawBusy ? 'Drawing…' : 'Draw one early'}</TextAction>
+          ? <Interactive as="button" type="button" className="rv-ta vi" onClick={d.drawBusy ? undefined : d.drawEarly} disabled={d.drawBusy} haptic="tick" activeStyle={CSS_PRESS}>{d.drawBusy ? 'Drawing…' : 'Draw one early'}</Interactive>
           : <span />}
         {/* the body lane on request (his call, 15 Oct): sleep, stress, health science */}
         {d.drawBody && !d.spin && !d.drawBusy
-          ? <TextAction tone="quiet" onClick={d.drawBody}>A body one</TextAction>
+          ? <Interactive as="button" type="button" className="rv-ta" onClick={d.drawBody} haptic="tick" activeStyle={CSS_PRESS}>A body one</Interactive>
           : null}
       </div>
     </div>
@@ -313,6 +313,7 @@ function QuoteCardBody({ r, phase, onShow, onKeep, onNext, shownLabel }) {
         <span className="chev"><RvIcon name="chev" /></span>
       </Interactive>
       <div className="rv-slot gline">
+        {!r.offline && !r.returning ? <>
         <div className="sl-new" inert={inert('sl-new')}>
           <Interactive as="button" type="button" className="rv-pill" onClick={onKeep} disabled={!onKeep} haptic="tick" activeStyle={CSS_PRESS}><RvIcon name="got" />Keep it</Interactive>
           {r.skip ? <Interactive as="button" type="button" className="rv-ta" onClick={r.skip} haptic="tick" activeStyle={CSS_PRESS}>Not for me</Interactive> : null}
@@ -322,6 +323,8 @@ function QuoteCardBody({ r, phase, onShow, onKeep, onNext, shownLabel }) {
           <p>Kept.<small>{r.keptLine}</small></p>
           <Interactive as="button" type="button" className="rv-next" onClick={onNext} haptic="tick" activeStyle={CSS_PRESS}>{nextLabel}</Interactive>
         </div>
+        </> : null}
+        {!r.offline && r.returning ? <>
         <div className="sl-ask" inert={inert('sl-ask')}>
           <p className="q">Say it to yourself, then check.</p>
           <Interactive as="button" type="button" className="rv-show" onClick={onShow} haptic="tick" activeStyle={CSS_PRESS}><RvIcon name="eye" />{shownLabel}</Interactive>
@@ -347,6 +350,7 @@ function QuoteCardBody({ r, phase, onShow, onKeep, onNext, shownLabel }) {
             </>
           ) : null}
         </div>
+        </> : null}
         {r.offline ? (
           <div className="sl-off" inert={inert('sl-off')}>
             <p className="nv-rv-offl"><RvIcon name="offline" /><span>{r.offline.line}</span></p>
