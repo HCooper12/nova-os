@@ -45,6 +45,8 @@ import { localDateISO } from './localDate.js';
 //   ## Rules
 //   - rule text (stated, S1 12:34)
 //   - rule text (evidenced, S2 1:02:03; needs: the speaker's scale)
+//   - rule text (stated, S1 0:12, on screen)   (read off a frame at that
+//     moment, not heard: on-screen text or a demo; since 16 Nov 2026)
 //   ## Phrases to reuse
 //   - short phrase
 //   ## Mistakes to avoid
@@ -76,7 +78,7 @@ function unq(v) {
 /* -------------------------------- the page -------------------------------- */
 
 const FM_RE = /^---\n([\s\S]*?)\n---(?:\n|(?![\s\S]))/;
-const RULE_RE = /^- (.+) \((stated|evidenced), S(\d+) (\d+:\d{2}(?::\d{2})?)(?:; needs: (.+))?\)\s*$/;
+const RULE_RE = /^- (.+) \((stated|evidenced), S(\d+) (\d+:\d{2}(?::\d{2})?)(, on screen)?(?:; needs: (.+))?\)\s*$/;
 const SOURCE_RE = /^S(\d+) \| (.*?) \| (.*?) \| (\S*)\s*$/;
 
 const SECTIONS = [
@@ -141,7 +143,7 @@ export function parsePlaybook(raw) {
       if (!t) continue;
       if (key === 'rules') {
         const m = t.match(RULE_RE);
-        if (m) pb.rules.push({ text: m[1].trim(), kind: m[2], source: Number(m[3]), at: m[4], ...(m[5] ? { needs: m[5].trim() } : {}) });
+        if (m) pb.rules.push({ text: m[1].trim(), kind: m[2], source: Number(m[3]), at: m[4], ...(m[5] ? { seen: true } : {}), ...(m[6] ? { needs: m[6].trim() } : {}) });
         else if (/^- /.test(t)) pb.rules.push({ text: t.slice(2).trim(), kind: 'stated', source: 0, at: '' }); // his own rule, no source
         continue;
       }
@@ -159,7 +161,8 @@ const list = (a) => a.map((x) => `- ${one(x)}`).join('\n');
 export function formatRule(r) {
   if (!r.source) return `- ${one(r.text)}`; // a rule he added himself carries no source
   const need = r.needs ? `; needs: ${one(r.needs)}` : '';
-  return `- ${one(r.text)} (${r.kind === 'evidenced' ? 'evidenced' : 'stated'}, S${r.source} ${r.at}${need})`;
+  const seen = r.seen ? ', on screen' : '';
+  return `- ${one(r.text)} (${r.kind === 'evidenced' ? 'evidenced' : 'stated'}, S${r.source} ${r.at}${seen}${need})`;
 }
 
 export function formatPlaybook(pb) {

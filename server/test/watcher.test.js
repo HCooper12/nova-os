@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 
 const {
   parseWatchReport, extractVideoUrl, parseWatchDirective,
-  normalizeWatch, composeWatchNote, buildWatchPrompt, resolveWatchScript,
+  normalizeWatch, composeWatchNote, buildWatchPrompt, resolveWatchScript, engineArgs,
   chunkTranscript, buildChunkNotesPrompt, SINGLE_PASS_MAX_CHARS, CHUNK_CHARS,
   stripPreamble, repairJsonControlChars,
 } = await import('../lib/watcher.js');
@@ -268,4 +268,22 @@ test('watcher: resolveWatchScript honors NOVA_WATCH_DIR and fails honestly when 
     delete process.env.NOVA_WATCH_DIR;
     await rm(fake, { recursive: true, force: true });
   }
+});
+
+// THE ENGINE IS NAMED (16 Nov 2026): a Gemini key in ~/.config/watch/.env must
+// never redirect Nova's reader. A Gemini-shaped report has no transcript, which
+// is exactly the failure engineArgs prevents.
+test('watcher: engineArgs asks for the local engine only when the script knows the flag', () => {
+  const newer = 'ap.add_argument("--engine", choices=["auto", "gemini", "local"], default=None,';
+  const older = 'ap.add_argument("--detail", choices=["transcript", "efficient"])';
+  assert.deepEqual(engineArgs('/fake/new/watch.py', () => newer), ['--engine', 'local']);
+  assert.deepEqual(engineArgs('/fake/old/watch.py', () => older), []);
+  assert.deepEqual(engineArgs('/fake/missing/watch.py', () => { throw new Error('ENOENT'); }), []);
+  // read once per path: a later different answer for the same path is not consulted
+  assert.deepEqual(engineArgs('/fake/new/watch.py', () => older), ['--engine', 'local']);
+});
+
+test('watcher: a Gemini report carries no transcript, which is why the engine is named', () => {
+  const gemini = '# Watch report\n\n- **Title:** A reel\n- **Engine:** gemini-3.7-flash (ok)\n\n## Answer (from Gemini)\n\n[0:03] A whiteboard lists five steps.\n';
+  assert.equal(parseWatchReport(gemini).transcript, null);
 });

@@ -921,9 +921,22 @@ async function fileRoute(vaultPath, decision, { source = 'inbox' } = {}) {
   if (route === 'playbook') {
     const { writePlaybookPage } = await import('./playbooks.js');
     const written = await writePlaybookPage(vaultPath, payload.playbook);
+    // the drills for HIM go to his Repertoire (16 Nov 2026). addTechniques never
+    // overwrites a technique he already has; undo takes back exactly what it added.
+    // A failure here leaves the page filed and says so, rather than hiding it.
+    let drillIds = [];
+    let drillNote = '';
+    if (Array.isArray(payload.drills) && payload.drills.length) {
+      try {
+        const { addTechniques, REPERTOIRE_REL } = await import('./repertoire.js');
+        const { added } = await addTechniques(vaultPath, payload.drills);
+        drillIds = added.map((t) => t.id);
+        drillNote = added.length ? ` and ${added.length} drill${added.length === 1 ? '' : 's'} in ${REPERTOIRE_REL}` : ' (the drills were already in your Repertoire)';
+      } catch (e) { drillNote = ` (the drills could not be added: ${String(e?.message || e).slice(0, 120)})`; }
+    }
     return {
-      destination: written.relPath,
-      undo: { route, relPath: written.relPath, hash: written.hash, ...(written.created ? {} : { prior: written.prior }) },
+      destination: `${written.relPath}${drillNote}`,
+      undo: { route, relPath: written.relPath, hash: written.hash, ...(written.created ? {} : { prior: written.prior }), ...(drillIds.length ? { drillIds } : {}) },
     };
   }
 
@@ -1600,7 +1613,12 @@ async function undoRoute(vaultPath, undo) {
   }
   if (undo.route === 'playbook') {
     const { undoPlaybook } = await import('./playbooks.js');
-    return undoPlaybook(vaultPath, undo);
+    // the page first: if he edited it, that throws and nothing else moves
+    const said = await undoPlaybook(vaultPath, undo);
+    if (!undo.drillIds?.length) return said;
+    const { removeTechniques } = await import('./repertoire.js');
+    const { removed } = await removeTechniques(vaultPath, undo.drillIds);
+    return `${said}${removed ? `, and took ${removed} drill${removed === 1 ? '' : 's'} back out of your Repertoire` : ''}`;
   }
   if (undo.route === 'paused-deficit') {
     const { writePausedState } = await import('./pausedDeficit.js');
