@@ -47,24 +47,53 @@ const withWriteLock = createWriteLock();
 // and removed (names, amounts, the meal) to an operational history in
 // server/data. Ticks are not logged; they are not losses.
 const HISTORY = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'shopping-history.jsonl');
+// A removed line keeps its aisle and count too, so "Taken off today" (mockup
+// 118) can put it back as it was; `via` says which door took it off.
 const brief = (i) => ({ id: i.id, name: i.name, ...(i.amount ? { amount: i.amount } : {}), ...(i.source ? { for: i.source } : {}), ...(i.checked ? { ticked: true } : {}) });
-async function noteHistory(before, after) {
+const whole = (i) => ({ ...brief(i), ...(i.category ? { category: i.category } : {}), ...(Number(i.qty) > 1 ? { qty: Number(i.qty) } : {}) });
+async function noteHistory(before, after, via) {
   try {
     const was = new Set(before.map((i) => i.id));
     const now = new Set(after.map((i) => i.id));
     const added = after.filter((i) => !was.has(i.id)).map(brief);
-    const removed = before.filter((i) => !now.has(i.id)).map(brief);
+    const removed = before.filter((i) => !now.has(i.id)).map(whole);
     if (!added.length && !removed.length) return;
-    await appendFile(HISTORY(), `${JSON.stringify({ at: new Date().toISOString(), ...(added.length ? { added } : {}), ...(removed.length ? { removed } : {}) })}\n`);
+    await appendFile(HISTORY(), `${JSON.stringify({ at: new Date().toISOString(), ...(via ? { via } : {}), ...(added.length ? { added } : {}), ...(removed.length ? { removed } : {}) })}\n`);
   } catch { /* the history is a receipt, never a reason a save fails */ }
 }
 
-async function persist(vaultPath, items) {
+async function persist(vaultPath, items, via = null) {
   const before = await getItems(vaultPath).catch(() => []);
   const frontmatter = { type: 'shopping-list', updated: new Date().toISOString().slice(0, 10), items };
   const content = matter.stringify(bodyFor(items), frontmatter);
   await stateFile.write(vaultPath, content, items);
-  await noteHistory(before || [], items);
+  await noteHistory(before || [], items, via);
+}
+
+// TAKEN OFF TODAY (mockup 118, his yes 17 Nov 2026): every line removed since
+// midnight where he lives, newest first, that is not back on the list. What
+// the history holds is all it says; a line removed before the history began
+// is simply not there.
+const DAY_TZ = 'Australia/Melbourne';
+const dayOf = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: DAY_TZ });
+export async function takenOffToday(vaultPath, now = new Date()) {
+  const { readFile } = await import('node:fs/promises');
+  let text = '';
+  try { text = await readFile(HISTORY(), 'utf8'); } catch { return []; }
+  const today = dayOf(now);
+  const have = new Set((await getItems(vaultPath).catch(() => [])).map((i) => i.id));
+  const out = new Map();
+  for (const ln of text.split('\n')) {
+    if (!ln.trim()) continue;
+    let row;
+    try { row = JSON.parse(ln); } catch { continue; }
+    if (!row || !row.at || dayOf(row.at) !== today) continue;
+    for (const r of row.removed || []) {
+      if (!r?.id || have.has(r.id)) continue;
+      out.set(r.id, { ...r, at: row.at, via: row.via || null });
+    }
+  }
+  return [...out.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
 }
 
 export async function loadShoppingList(vaultPath) {
@@ -169,26 +198,26 @@ export async function setItemQty(vaultPath, id, qty) {
   });
 }
 
-export async function removeItems(vaultPath, ids) {
+export async function removeItems(vaultPath, ids, { via = null } = {}) {
   const idSet = new Set(ids);
   return withWriteLock(async () => {
     const current = await getItems(vaultPath);
     const remaining = current.filter((i) => !idSet.has(i.id));
     const removedCount = current.length - remaining.length;
-    await persist(vaultPath, remaining);
+    await persist(vaultPath, remaining, via);
     return removedCount;
   });
 }
 
 // Remove some lines and hand back exactly what left (for Undo through
 // restoreItems, which puts them back verbatim with the same ids).
-export async function removeItemsReturning(vaultPath, ids) {
+export async function removeItemsReturning(vaultPath, ids, { via = null } = {}) {
   const idSet = new Set(ids);
   return withWriteLock(async () => {
     const current = await getItems(vaultPath);
     const removed = current.filter((i) => idSet.has(i.id));
     const items = current.filter((i) => !idSet.has(i.id));
-    if (removed.length) await persist(vaultPath, items);
+    if (removed.length) await persist(vaultPath, items, via);
     return { items, removed };
   });
 }
@@ -204,10 +233,10 @@ export async function toggleItem(vaultPath, id, checked) {
   });
 }
 
-export async function confirmCompletion(vaultPath) {
+export async function confirmCompletion(vaultPath, { via = null } = {}) {
   return withWriteLock(async () => {
     const items = (await getItems(vaultPath)).filter((i) => !i.checked);
-    await persist(vaultPath, items);
+    await persist(vaultPath, items, via);
     return items;
   });
 }
@@ -217,10 +246,10 @@ export async function confirmCompletion(vaultPath) {
 // caller can put it straight back — wiping a list is the most destructive
 // thing this file does, and "everything writeable is undoable" is not
 // optional for the destructive ones.
-export async function clearAll(vaultPath) {
+export async function clearAll(vaultPath, { via = null } = {}) {
   return withWriteLock(async () => {
     const cleared = await getItems(vaultPath);
-    if (cleared.length) await persist(vaultPath, []);
+    if (cleared.length) await persist(vaultPath, [], via);
     return cleared;
   });
 }

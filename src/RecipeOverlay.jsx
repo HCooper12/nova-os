@@ -5,7 +5,7 @@ import { LocalInput } from './LocalInput.jsx';
 import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
 import { Eyebrow, TextAction, Chip, Meta, Button, Tag } from './Controls.jsx';
-import { RGlyph, RecipeMetaRow, RecipeFigures, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu } from './RecipePage.jsx';
+import { RGlyph, RecipeMetaRow, RecipeFigures, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu, RecipeShopAsk } from './RecipePage.jsx';
 import { PhotoReveal } from './motion/PhotoReveal.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
@@ -225,7 +225,7 @@ export function RecipeOverlay({ v }) {
             {P.shopping && P.shopping.count > 0 && (
               <Button variant="quiet" tone="ink" onClick={P.shopping.add}
                 ariaLabel={P.shopping.whole ? 'Add it to the shopping list' : `Add ${P.shopping.count} items${P.shopping.scaled ? `, scaled for ${batch},` : ''} to the shopping list`}>
-                {P.shopping.whole ? 'Add to list' : `Add ${P.shopping.count} to list`}
+                {P.shopping.allOn ? (P.shopping.whole ? 'On your list' : `All ${P.shopping.count} on your list`) : P.shopping.whole ? 'Add to list' : `Add ${P.shopping.count} to list`}
               </Button>
             )}
           </div>
@@ -247,6 +247,7 @@ export function RecipeOverlay({ v }) {
         </div>
       )}
       <RecipeMenu menu={menu} onClose={() => setMenu(null)} />
+      <RecipeShopAsk page={P} />
     </div>
   );
 }

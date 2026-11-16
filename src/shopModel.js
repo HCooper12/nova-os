@@ -12,7 +12,7 @@
 // mockup's sentences and to the honest states.
 
 import {
-  CHAINS, CHAIN_NAME, decide, lineNeed, keepFor, keepsWord, perishable, advice, verdict, verdictNoPrice,
+  CHAINS, CHAIN_NAME, decide, lineNeed, itemNeed, keepFor, keepsWord, perishable, advice, verdict, verdictNoPrice,
   frac, money, dollars, lineKey, productMatches, packWords, ptsWorth,
 } from './shopPrice.js';
 import { parseAmount } from './recipeScale.js';
@@ -68,6 +68,10 @@ export function buildLines(items) {
   return [...by.entries()].map(([key, its]) => {
     const first = its[0];
     const need = lineNeed(its);
+    // what is still to get (mockup 118): a meal's share ticked on its own
+    // leaves the rest to price; a finished line keeps its whole need
+    const openIts = its.every((i) => i.checked) ? its : its.filter((i) => !i.checked);
+    const open = openIts.length === its.length ? need : lineNeed(openIts);
     const keep = keepFor(first.name);
     return {
       key,
@@ -81,6 +85,7 @@ export function buildLines(items) {
       queued: !!first.queued,
       items: its,
       need,
+      open,
       keep,
       sources: its.filter((i) => i.source).map((i) => ({ from: i.source, amount: i.amount, qty: Math.max(1, Number(i.qty) || 1) })),
       typed: its.every((i) => !i.source),
@@ -139,7 +144,7 @@ export function buildShopView({
   for (const l of lines) {
     l.pin = prices?.pins?.[l.key] || null;
     l.products = productsFor(l, prices, avail);
-    l.d = l.pending ? null : decide({ need: l.need.fam === 'any' || l.need.q > 0 ? l.need : { fam: 'any', q: 1 }, products: l.products, keep: l.keep });
+    l.d = l.pending ? null : decide({ need: l.open.fam === 'any' || l.open.q > 0 ? l.open : { fam: 'any', q: 1 }, products: l.products, keep: l.keep });
     l.read = anyRead(l, prices);
   }
 
@@ -240,7 +245,7 @@ export function buildShopView({
     else if (l.read) cell = { kind: 'none', v: 'No price', w: 'not matched' };
     else if (failedChains.length && failedChains.length === CHAINS.length) cell = { kind: 'none', v: 'No price', w: failedChains.length > 1 ? 'shops failed' : `${CHAIN_NAME[failedChains[0]]} failed` };
     else cell = { kind: 'none', v: 'No price', w: 'not read yet' };
-    const buy = d ? d.pick.count : l.need.fam === 'n' ? Math.max(1, Math.ceil(l.need.q - 1e-9)) : l.need.fam === 'any' ? Math.max(1, Math.round(l.need.q)) : 1;
+    const buy = d ? d.pick.count : l.open.fam === 'n' ? Math.max(1, Math.ceil(l.open.q - 1e-9)) : l.open.fam === 'any' ? Math.max(1, Math.round(l.open.q)) : 1;
     return {
       key: l.key, ids: l.ids, name: l.name, got: l.got, pending: l.pending, aisle: l.aisle,
       meta, saving, advice: adv,
@@ -369,6 +374,7 @@ export function buildShopView({
     chains,
     noSource,
     offline,
+    syncedLabel,
   };
 }
 
@@ -393,11 +399,65 @@ function guessAisle(name) {
 
 // The price sheet: the need, each recipe's share, the verdict, the points
 // note, every way to buy it, and where the prices came from.
+// an amount in its family, as the sheet writes it ("1.55 kg", "450 g", "2")
+export function showNeed(n) {
+  if (!n) return '';
+  if (n.fam === 'g') return n.q >= 1000 ? `${+(n.q / 1000).toFixed(2)}\u00a0kg` : `${Math.round(n.q)}\u00a0g`;
+  if (n.fam === 'ml') return n.q >= 1000 ? `${+(n.q / 1000).toFixed(2)}\u00a0L` : `${Math.round(n.q)}\u00a0ml`;
+  if (n.fam === 'n') return frac(n.q);
+  return n.say || '';
+}
+const SELF_SOURCE = /^(reminders|text|voice|inbox|siri)$/i;
+
+// FOR EACH MEAL (mockup 118): one row per meal behind a line, its amount,
+// its share of the whole, and whether it is bought. A meal added twice
+// counts its copies ("400 g × 2"). Lines he typed group as one row.
+export function mealShares(l, meals = []) {
+  if (!l || l.typed) return null;
+  const by = new Map();
+  for (const it of l.items) {
+    const k = it.source || '';
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(it);
+  }
+  const fam = l.need.fam;
+  const qOf = (its) => its.reduce((t, i) => { const n = itemNeed(i); return t + (n && n.fam === fam ? n.q : Math.max(1, Number(i.qty) || 1)); }, 0);
+  const total = fam === 'any' ? l.items.reduce((t, i) => t + Math.max(1, Number(i.qty) || 1), 0) : l.need.q;
+  const rows = [...by.entries()].map(([src, its], k) => {
+    const copies = its.reduce((t, i) => t + Math.max(1, Number(i.qty) || 1), 0);
+    const same = its.every((i) => (i.amount || '') === (its[0].amount || ''));
+    const one = itemNeed({ ...its[0], qty: 1 });
+    const all = fam === 'any' ? copies : qOf(its);
+    const each = same && one && one.fam !== 'any' ? showNeed(one) : same && its[0].amount ? its[0].amount : null;
+    const amt = each ? `${each}${copies > 1 ? ` × ${copies}` : ''}` : (fam === 'any' ? its.map((i) => i.amount).filter(Boolean).join(' + ') : showNeed({ fam, q: all }));
+    const meal = meals.find((m) => m.name === src);
+    const self = !src || SELF_SOURCE.test(src);
+    const times = its.length === 2 ? 'added twice' : its.length > 2 ? `added ${its.length} times` : null;
+    const slot = [self ? (src ? `Added in ${src[0].toUpperCase()}${src.slice(1)}` : 'Added by you') : meal ? meal.slot : null, times].filter(Boolean).join(' · ');
+    return {
+      key: src || `self-${k}`, name: self ? (src ? `From ${src}` : 'Typed in') : src, slot,
+      ids: its.map((i) => i.id), got: its.every((i) => i.checked), wait: its.some((i) => i.tickQueued),
+      amt, allLabel: copies > 1 && each && fam !== 'any' ? showNeed({ fam, q: all }) : null,
+      q: all, s: total > 0 ? Math.min(1, all / total) : 0,
+    };
+  });
+  const got = rows.filter((r) => r.got).reduce((t, r) => t + r.q, 0);
+  const show = (q) => (fam === 'any' ? String(q) : showNeed({ fam, q }));
+  const bigOf = fam === 'g' ? (total >= 1000 ? { n: +(total / 1000).toFixed(2), u: 'kg' } : { n: Math.round(total), u: 'g' })
+    : fam === 'ml' ? (total >= 1000 ? { n: +(total / 1000).toFixed(2), u: 'L' } : { n: Math.round(total), u: 'ml' })
+      : { n: fam === 'n' ? frac(total) : String(total), u: fam === 'any' ? (total === 1 ? 'item' : 'items') : '' };
+  return {
+    rows, count: rows.length, big: bigOf, fam,
+    got, left: Math.max(0, total - got), total,
+    gotLabel: show(got), leftLabel: show(Math.max(0, total - got)), totalLabel: show(total),
+  };
+}
+
 export function priceSheet(view, key, now = new Date()) {
   const l = view._lines.get(key);
   if (!l) return null;
   const d = l.d;
-  const need = l.need;
+  const need = l.open;
   const big = need.fam === 'n' ? frac(need.q) : need.fam === 'g' ? (need.q >= 1000 ? { n: +(need.q / 1000).toFixed(2), u: 'kg' } : { n: Math.round(need.q), u: 'g' }) : need.fam === 'ml' ? (need.q >= 1000 ? { n: +(need.q / 1000).toFixed(2), u: 'L' } : { n: Math.round(need.q), u: 'ml' }) : (l.typed ? frac(need.q) : '?');
   const shares = l.typed
     ? [{ text: 'You typed ', b: l.items.map((i) => `${i.amount ? `${i.amount} ` : ''}${i.name}`).join(', '), rest: '; no recipe behind it, so it is priced as written.' }]
@@ -438,10 +498,14 @@ export function priceSheet(view, key, now = new Date()) {
   const lastAt = d ? d.pick.readAt : null;
   return {
     key, name: l.name, aisle: l.aisle, big, shares, fam: need.fam, typed: l.typed,
+    meals: mealShares(l, view.meals || []),
+    // the ticks on this line, so the sheet can say a price is for what is left
+    part: l.items.some((i) => i.checked) && !l.got,
     stepItem: l.items[0]?.id, stepQty: Math.max(1, Number(l.items[0]?.qty) || 1),
     verdict: verdictText,
     points: card,
     ways,
+    offFoot: d ? `Prices as Nova last read them${lastAt ? `, ${whenLabel(lastAt, now)}` : ''}. Nova prices it again when your Mac answers.` : null,
     foot: d ? `Prices read by Nova from each shop's own site${lastAt ? `, ${whenLabel(lastAt, now)}` : ''}, as listed online for Melbourne. A pack sold by weight is an "about" count. The pick counts cash only.` : null,
     dish: l.sources[0]?.from || null,
     pin: l.pin,

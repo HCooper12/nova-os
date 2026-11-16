@@ -3,6 +3,7 @@ import { mono } from './shared.js';
 import { earnedOn, earnedWords } from '../fuelSummaryFacts.js';
 import { localDateISO } from '../localDate.js';
 import { lineKey } from '../productKey.js';
+import { alreadyOn } from '../shopAsk.js';
 import { kcalFromMacros } from '../fuelRead.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
@@ -331,6 +332,19 @@ function buildRecipePage(app, st, { live, demo, activeAlt, effIngredients, effMe
       lines: extra.wholeItem ? [live.name] : buyable.map((it) => it.line),
       add: () => app.addToShoppingList(extra.wholeItem ? [live.name] : buyable.map((it) => it.line), sourceName),
       whole: !!extra.wholeItem,
+      // every line already on the list for this recipe (mockup 118)
+      allOn: (() => { const ls = extra.wholeItem ? [live.name] : buyable.map((it) => it.line); return ls.length > 0 && alreadyOn(st.liveShoppingList?.items, ls, sourceName).missing.length === 0; })(),
+    } : null,
+    // ALREADY ON THE LIST (mockup 118): the ask for this recipe, and the one
+    // held line's confirm, drawn by the recipe page
+    shopAsk: live && st.shopAsk && st.shopAsk.source === sourceName ? {
+      ...st.shopAsk,
+      total: st.shopAsk.lines.length,
+      choose: (k) => app.shopAskChoose(k),
+    } : null,
+    shopAskLine: live && st.shopAskLine && st.shopAskLine.source === sourceName ? {
+      ...st.shopAskLine,
+      choose: (k) => app.shopAskLineChoose(k),
     } : null,
     log: extra.log || null,
     logNote: live ? (macrosPending ? 'Add its macros first. Nova won’t log a meal as zero.' : null) : 'Demo recipe: logging needs Nova connected to your Mac.',

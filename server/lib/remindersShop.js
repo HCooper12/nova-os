@@ -338,7 +338,7 @@ export function liveDeps(vaultPath) {
     async removeFromReminders(ids, title) {
       const { removeItemsReturning } = await import('./shoppingList.js');
       const { createRecord } = await import('./inboxStore.js');
-      const { removed } = await removeItemsReturning(vaultPath, ids);
+      const { removed } = await removeItemsReturning(vaultPath, ids, { via: 'reminders' });
       if (!removed.length) return { removed };
       const at = new Date().toISOString();
       const record = await createRecord({

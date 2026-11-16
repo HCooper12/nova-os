@@ -52,8 +52,12 @@ export function shoppingWithQueued(list, outbox) {
     id: `${QUEUED_PREFIX}${i.id}-${n}`, name: it.name, source: it.source || null, checked: false, qty: 1,
     category: 'Household & Other', pending: true, queued: true,
   })));
-  const kept = notQueued(list.items);
-  if (!add.length && kept.length === list.items.length) return list;
+  // a tick made with no Mac (mockup 118): the item reads as ticked, marked
+  // as waiting, until the Outbox drains and the server's list replaces it
+  const ticks = new Map();
+  for (const t of waiting(outbox, 'shopTick')) for (const id of t.payload?.ids || []) ticks.set(id, !!t.payload.checked);
+  const kept = notQueued(list.items).map((it) => (ticks.has(it.id) ? { ...it, checked: ticks.get(it.id), tickQueued: true } : it));
+  if (!add.length && !ticks.size && kept.length === list.items.length) return list;
   return { ...list, items: [...kept, ...add] };
 }
 

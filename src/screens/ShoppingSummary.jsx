@@ -1,13 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountUp } from '../CountUp.jsx';
 import { useFlipList } from '../useFlipList.js';
-import { useSheetDrag } from '../useSheetDrag.js';
-import { useExit } from '../useExit.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { haptic } from '../haptics.js';
-import { priceSheet, offerFacts, fmtPts } from '../shopModel.js';
+import { priceSheet, offerFacts, fmtPts, showNeed } from '../shopModel.js';
 import { CHAIN_NAME, dollars, money } from '../shopPrice.js';
 import '../shopping.css';
+import { G, Ic, Tile, Sheet, XBtn } from '../ShopSheet.jsx';
 
 // THE SUMMARY SHOPPING PAGE: mockup 92 (round 5, 10 Oct 2026), which keeps
 // every function of rounds 3 and 4 (mockups 88 and 91). His decisions of
@@ -21,43 +20,9 @@ import '../shopping.css';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ------------------------------------------------------------- glyphs -- */
-const G = {
-  pr: 'M6 19c0-8 5-13 13-13 0 8-5 13-13 13zM6 19l7-7',
-  me: 'M8 15c-3-1-4-5-1-8s8-3 10 0 1 8-3 9l-3 1-2 3-2-1 1-3z',
-  da: 'M9 3h6v3l2 3v11a1 1 0 01-1 1H8a1 1 0 01-1-1V9l2-3zM7 13h10',
-  pa: 'M6 8h12v13H6zM8 4h8v4H8zM6 13h12',
-  fr: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9 4.5l3 2 3-2M9 19.5l3-2 3 2',
-  ba: 'M4 13c0-4 4-7 8-7s8 3 8 7v5H4zM9 9v3M12 8v4M15 9v3',
-  be: 'M7 4h10l-1 16a1 1 0 01-1 1H9a1 1 0 01-1-1zM7.5 9h9',
-  ho: 'M8 21V11h8v10M10 11V7h4v4M14 7l3-3M6 21h12',
-  on: 'M3.5 8L12 4l8.5 4v9L12 21l-8.5-4zM3.5 8L12 12l8.5-4M12 12v9',
-  kit: 'M5 9h12v6a4 4 0 01-4 4H9a4 4 0 01-4-4zM17 11h1.5a2 2 0 010 4H17M8 3v3M12 3v3',
-  bag: 'M5 8h14l-1 12H6zM9 8a3 3 0 016 0',
-  clock: 'M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM12 7.5V12l3 2',
-  list: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
-  trash: 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13',
-  mail: 'M3 5.5h18v13H3zM4 7.5l8 6 8-6',
-  phone: 'M7 2.5h10v19H7zM11 18.5h2',
-  news: 'M5 4.5h11v15H6.5A1.5 1.5 0 015 18zM16 8.5h3v9.5a1.5 1.5 0 01-3 0M8 8h5M8 11.5h5M8 15h3',
-  pts: 'M5 7c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5',
-  check: 'M5 12.5l4.5 4.5L19 7.5',
-  back: 'M15 5l-7 7 7 7',
-  x: 'M6 6l12 12M18 6L6 18',
-  plus: 'M12 5v14M5 12h14',
-  chev: 'M9 6l6 6-6 6',
-  arr: 'M5 12h13M13 7l5 5-5 5',
-  out: 'M8 16L16 8M9 8h7v7',
-  nosign: 'M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM6 6l12 12',
-  pin: 'M14.5 3.5l6 6-3 1-3.5 3.5.5 4-1.5 1.5-4-4-4.5 4.5-1-1L8 14.5l-4-4L5.5 9l4 .5L13 6z',
-};
-const Ic = ({ n, className = 'nv-sh-ic' }) => (
-  <svg className={className} viewBox="0 0 24 24" aria-hidden="true"><path d={G[n]} /></svg>
-);
 const More = () => (
   <svg className="nv-sh-ic" viewBox="0 0 24 24" aria-hidden="true" style={{ fill: 'currentColor', stroke: 'none' }}><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
 );
-const Tile = ({ k, hue, sm }) => <span className={`nv-sh-tile${sm ? ' sm' : ''}`} style={{ '--t': hue }} aria-hidden="true"><Ic n={k} /></span>;
 const Tag = ({ ch, dash }) => <span className={`nv-sh-tg st-${ch}${dash ? ' dash' : ''}`} aria-hidden="true">{CHAIN_NAME[ch][0]}</span>;
 const StoreTile = ({ ch, logo }) => (
   <span className={`nv-sh-tile store st-${ch}`} aria-hidden="true">{logo ? <img src={logo} alt="" /> : CHAIN_NAME[ch][0]}</span>
@@ -280,14 +245,14 @@ function PriceCell({ r, S }) {
   const c = r.cell;
   if (c.kind === 'price') {
     return (
-      <button type="button" className="nv-sh-pcell" onClick={() => S.openSheet({ kind: 'price', key: r.key })} aria-label={`${r.label}. Every way to buy it`}>
+      <button type="button" className="nv-sh-pcell" onClick={() => S.openSheet({ kind: 'price', key: r.key, name: r.name, aisle: r.aisle })} aria-label={`${r.label}. Every way to buy it, and each meal's share`}>
         <span className="v">{c.approx ? 'about ' : ''}{dollars(c.total)}</span>
         <span className="w">{c.chains.map((ch) => <Tag key={ch} ch={ch} />)}{c.date}</span>
       </button>
     );
   }
   return (
-    <button type="button" className="nv-sh-pcell none" onClick={() => S.openSheet({ kind: 'price', key: r.key })} aria-label={`${r.label}. Details`}>
+    <button type="button" className="nv-sh-pcell none" onClick={() => S.openSheet({ kind: 'price', key: r.key, name: r.name, aisle: r.aisle })} aria-label={`${r.label}. Details`}>
       <span className="v">{c.v}</span><span className="w">{c.w}</span>
     </button>
   );
@@ -369,7 +334,31 @@ function Groups({ S, V }) {
       {V.gotLines > 0 && (
         <button type="button" className="nv-sh-clear" data-flip="clear" onClick={S.clearGot}>Clear the {V.gotLines} you got</button>
       )}
+      <TakenOff S={S} />
     </>
+  );
+}
+
+/* ------------------------------------- taken off today (mockup 118) -- */
+
+// content at the foot of the list, never a banner: what left today, when,
+// which door took it off, and an Undo that puts it back with its meal
+function TakenOff({ S }) {
+  const gone = S.gone || [];
+  if (!gone.length) return null;
+  return (
+    <section className="m-gone" aria-label="Taken off today">
+      <div className="nv-sh-gh"><Tile k="clock" hue="color-mix(in srgb,var(--nv-ink) 34%,#1a2034)" /><span className="nm">Taken off today</span><span className="c">{gone.length}</span></div>
+      <div className="nv-sum-card nv-sh-card">
+        {gone.map((x) => (
+          <div key={x.key} className={`m-grow${x.back ? ' back' : ''}`}>
+            <span className="t"><b>{x.name}</b><span>{x.amt ? `${x.amt} · ` : ''}{x.how}, <em>{x.at}</em></span></span>
+            <button type="button" className="m-undo" disabled={x.back} onClick={x.undo} aria-label={`Undo: put ${x.name} back on the list`}>{x.back ? 'Back on' : 'Undo'}</button>
+          </div>
+        ))}
+      </div>
+      <p className="m-gfoot">Kept until midnight. Undo puts a line back with its meal amounts.</p>
+    </section>
   );
 }
 
@@ -427,35 +416,6 @@ function AddBar({ S }) {
 
 /* ------------------------------------------------------------- sheets -- */
 
-function Sheet({ label, onClose, children, tint }) {
-  // close(then): the sheet leaves the way it came, then `then` runs (an
-  // action that opens something else waits until the sheet has gone)
-  const thenRef = useRef(null);
-  const exit = useExit(() => { const t = thenRef.current; thenRef.current = null; onClose(t); });
-  const closeWith = (then) => { thenRef.current = typeof then === 'function' ? then : null; exit.close(); };
-  const drag = useSheetDrag(() => onClose(), { threshold: 80 });
-  const panelRef = useRef(null);
-  const closeRef = useRef(closeWith);
-  useLayoutEffect(() => { closeRef.current = closeWith; });
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') closeRef.current(); };
-    document.addEventListener('keydown', onKey);
-    panelRef.current?.focus({ preventScroll: true });
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-  const onControl = (el) => !!(el && el.closest && el.closest('button, a, input, textarea, [role="button"]'));
-  return (
-    <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={label} onClick={() => closeWith()} className="nv-sh-scrim">
-      <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }} tabIndex={-1} data-sheet=""
-        className={`nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-sh-sheet${tint ? ` tinted pg-${tint}` : ''}`} onClick={(e) => e.stopPropagation()}
-        {...{ onPointerDown: (e) => { if (!onControl(e.target) && e.target.closest('.nv-sh-grabrow, .nv-sh-shd')) drag.handleProps.onPointerDown(e); } }}>
-        <div className="nv-sh-grabrow" {...drag.handleProps} style={drag.handleProps.style}><span className="nv-sh-grab" aria-hidden="true" /></div>
-        <div className="nv-sh-shbody">{children(closeWith)}</div>
-      </div>
-    </div>
-  );
-}
-const XBtn = ({ close }) => <button type="button" className="nv-sh-nb circ" aria-label="Close" onClick={() => close()}><Ic n="x" /></button>;
 
 function Parts({ parts }) {
   return parts.map((p, k) => (p.rate ? <Rate key={k} m={p.rate} size="sm" />
@@ -464,17 +424,108 @@ function Parts({ parts }) {
         : p.b ? <b key={k}>{p.b}</b> : <span key={k}>{p.text}</span>));
 }
 
+/* -------------------------------------------- for each meal (mockup 118) -- */
+
+// a figure counted to its new value (snappy, about half a second); at once
+// under reduced motion
+function CountTo({ q, fmt }) {
+  const [shown, setShown] = useState(q);
+  const from = useRef(q);
+  useEffect(() => {
+    const a = from.current;
+    from.current = q;
+    if (a === q || reduced()) { setShown(q); return undefined; }
+    const t0 = performance.now();
+    let raf = 0;
+    const f = (t) => {
+      const p = Math.min(1, (t - t0) / 520);
+      setShown(a + (q - a) * (1 - (1 - p) ** 3));
+      if (p < 1) raf = requestAnimationFrame(f);
+    };
+    raf = requestAnimationFrame(f);
+    return () => cancelAnimationFrame(raf);
+  }, [q]);
+  return <b>{fmt(shown)}</b>;
+}
+
+function MealRow({ m, k, S, line }) {
+  const [pop, setPop] = useState(0);
+  const say = m.got ? 'bought' : 'to get';
+  return (
+    <li className={`m-row${m.got ? ' got' : ''}${m.wait ? ' wait' : ''}`}>
+      <button type="button" className="m-tick" role="checkbox" aria-checked={m.got ? 'true' : 'false'} aria-label={`${m.name}'s ${m.allLabel || m.amt} ${say}`}
+        onClick={() => { if (!m.got) setPop((n) => n + 1); S.tickShare(m, line); }}>
+        <span key={pop} className={`nv-sh-cbox${pop && m.got ? ' pop' : ''}`}><Ic n="check" /></span>
+      </button>
+      <span className="m-mid">
+        <span className="m-nm">{m.name}</span>
+        {m.wait
+          ? <span className="m-sl" style={{ color: 'var(--nv-gold)' }}>{m.slot ? `${m.slot} · ` : ''}waits for your Mac</span>
+          : m.slot ? <span className="m-sl">{m.slot}</span> : null}
+        <span className="m-bar" aria-hidden="true"><i style={{ '--s': m.s.toFixed(3), '--k': k }} /></span>
+      </span>
+      <span className="m-amt">
+        <b>{m.amt}</b>
+        {m.got ? <small className={m.wait ? 'wt' : 'bt'}>bought</small> : m.allLabel ? <small>{m.allLabel} in all</small> : null}
+      </span>
+    </li>
+  );
+}
+
+function Meals118({ M, S, line, hue }) {
+  const fmt = (q) => (M.fam === 'any' ? String(Math.round(q)) : showNeed({ fam: M.fam, q }));
+  const foot = !M.got
+    ? <>Nothing bought yet; all <b>{M.leftLabel}</b> still to get</>
+    : !M.left ? <span className="g">All of it bought</span>
+      : <><CountTo q={M.left} fmt={fmt} /> still to get · <span className="g">{M.gotLabel} bought</span></>;
+  return (
+    <>
+      <div className="m-head"><h4>For each meal</h4><span>{M.count === 1 ? '1 meal' : `${M.count} meals`}</span></div>
+      <ul className="m-list" style={{ '--hue': hue }}>
+        {M.rows.map((m, k) => <MealRow key={m.key} m={m} k={k} S={S} line={line} />)}
+        <li className="m-foot"><span className="l">In all</span><span className="n">{M.big.n}{M.big.u ? <small>{M.big.u}</small> : null}</span><span className="s">{foot}</span></li>
+      </ul>
+      <p className="m-note">Tick a meal's share as it goes in the trolley. The prices below are for what is still to get.</p>
+    </>
+  );
+}
+
+function PriceSheetLoading({ onClose, sh }) {
+  const sk = (
+    <li className="m-row sk"><span className="m-tick"><span className="nv-sh-cbox" /></span><span className="m-mid"><span className="m-sk" /><span className="m-bar" /></span><span className="m-amt"><span className="m-sk" /></span></li>
+  );
+  return (
+    <Sheet label="Reading each meal's share" onClose={onClose} rise>
+      {(close) => (
+        <>
+          <div className="nv-sh-shd">{sh?.aisle && <Tile k={sh.aisle.k} hue={sh.aisle.hue} />}<h3>{sh?.name || 'Reading the line'}{sh?.aisle && <span className="sub">{sh.aisle.label}</span>}</h3><XBtn close={close} /></div>
+          <div className="m-head" aria-busy="true" aria-label="Reading each meal's share"><h4>For each meal</h4><span /></div>
+          <ul className="m-list">{sk}{sk}{sk}<li className="m-foot sk"><span className="l" style={{ color: 'var(--nv-ink50)' }}>In all</span><span className="m-sk" /></li></ul>
+          <span className="m-sk line" style={{ width: '78%', marginTop: 22 }} /><span className="m-sk line" style={{ width: '52%' }} />
+          <div className="m-skways">
+            {[0, 1].map((k) => <div key={k}><span className="m-sk" style={{ width: 17, height: 17 }} /><span className="m-sk" style={{ flex: 1, height: 13 }} /><span className="m-sk" style={{ width: 52, height: 15 }} /></div>)}
+          </div>
+        </>
+      )}
+    </Sheet>
+  );
+}
+
 function PriceSheet({ S, V, sheetKey, onClose }) {
-  const P = useMemo(() => priceSheet(V, sheetKey), [V, sheetKey]);
+  const P = useMemo(() => (V._lines ? priceSheet(V, sheetKey) : null), [V, sheetKey]);
+  if (!V._lines) return <PriceSheetLoading onClose={onClose} sh={S.sheet} />;
   if (!P) return null;
+  const off = !!V.offline;
   const a = P.aisle;
   const big = typeof P.big === 'object' ? <>{P.big.n}<small> {P.big.u}</small></> : P.big;
   const stepable = P.fam === 'n' || (P.fam === 'any' && P.typed);
   return (
-    <Sheet label={`${P.name}: every way to buy it`} onClose={onClose}>
+    <Sheet label={P.meals ? `${P.name}: each meal, and every way to buy it` : `${P.name}: every way to buy it`} onClose={onClose} rise>
       {(close) => (
         <>
           <div className="nv-sh-shd"><Tile k={a.k} hue={a.hue} /><h3>{P.name}<span className="sub">{a.label}</span></h3><XBtn close={close} /></div>
+          {off && <p className="m-off"><i aria-hidden="true" /><span>Offline · the list as of {V.syncedLabel || 'the last read'}. A tick here waits for your Mac.</span></p>}
+          {P.meals ? <Meals118 M={P.meals} S={S} line={P.name} hue={a.hue} /> : (
           <div className="nv-sh-needbox">
             <span className="n">{big}</span>
             <ul>{P.shares.map((s, k) => <li key={k}>{s.b ? <b>{s.b}</b> : null}{s.text}{s.rest ? (s.b ? s.rest : <b>{s.rest}</b>) : null}</li>)}</ul>
@@ -485,7 +536,8 @@ function PriceSheet({ S, V, sheetKey, onClose }) {
               </span>
             )}
           </div>
-          <p className="nv-sh-verdict">{P.verdict}</p>
+          )}
+          <p className={`nv-sh-verdict${off ? ' m-stale' : ''}`}>{P.verdict}</p>
           {P.points && (
             <button type="button" className={`nv-sh-actbox pg-${P.points.programme}`} style={{ margin: '0 0 12px' }} onClick={() => S.openSheet({ kind: 'offer', id: P.points.id })}>
               <span style={{ display: 'flex', marginBottom: 7 }}><PMark p={P.points.programme} logo={S.logos[P.points.programme]} /></span>
@@ -494,7 +546,7 @@ function PriceSheet({ S, V, sheetKey, onClose }) {
             </button>
           )}
           {P.ways.length > 0 && (
-            <ul className="nv-sh-ways">
+            <ul className={`nv-sh-ways${off ? ' m-stale' : ''}`}>
               {P.ways.map((w, k) => (w.gone ? (
                 <li key={`g${k}`} className="gone"><Tag ch={w.chain} dash /><span className="wl">{CHAIN_NAME[w.chain]}</span><span className="wt">·</span><span className="ws">{w.label}</span></li>
               ) : (
@@ -511,7 +563,7 @@ function PriceSheet({ S, V, sheetKey, onClose }) {
               )))}
             </ul>
           )}
-          {P.foot && <p className="nv-sh-sfoot">{P.foot}</p>}
+          {off && P.foot ? <p className="nv-sh-sfoot">{P.offFoot}</p> : P.foot && <p className="nv-sh-sfoot">{P.foot}</p>}
           <div className="nv-sh-sacts">
             {P.pin
               ? <button type="button" className="nv-sh-pillb" onClick={() => S.pin(P.key, null, `Unpinned ${P.pin.name}`)}>Unpin</button>
@@ -735,7 +787,7 @@ export function ShoppingSummary({ v }) {
       {body}
       <div className="nv-sh-pad" aria-hidden="true" />
       {V.state !== 'offline-empty' && <AddBar S={S} />}
-      {sh?.kind === 'price' && V._lines && <PriceSheet S={S} V={V} sheetKey={sh.key} onClose={S.closeSheet} />}
+      {sh?.kind === 'price' && <PriceSheet S={S} V={V} sheetKey={sh.key} onClose={S.closeSheet} />}
       {sh?.kind === 'offer' && V._cards && <OfferSheet S={S} V={V} id={sh.id} onClose={S.closeSheet} />}
       {sh?.kind === 'sources' && <SourcesSheet S={S} V={V} onClose={S.closeSheet} />}
       {sh?.kind === 'dish' && V.meals && <DishSheet S={S} V={V} id={sh.id} name={sh.name} onClose={S.closeSheet} />}

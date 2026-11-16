@@ -229,8 +229,27 @@ test('every save leaves a receipt of what was added and removed (the lost cottag
   const before = (await readFile(path.join(process.env.NOVA_DATA_DIR, 'shopping-history.jsonl'), 'utf8').catch(() => '')).split('\n').filter(Boolean).length;
   const [it] = await addItemsDirect(vault, [{ name: '500g cottage cheese', source: 'Test Bowl' }]);
   const { removeItems } = await import('../lib/shoppingList.js');
-  await removeItems(vault, [it.id]);
+  await removeItems(vault, [it.id], { via: 'app' });
   const rows = (await readFile(path.join(process.env.NOVA_DATA_DIR, 'shopping-history.jsonl'), 'utf8')).split('\n').filter(Boolean).map((l) => JSON.parse(l)).slice(before);
   assert.deepEqual(rows[0].added, [{ id: it.id, name: 'cottage cheese', amount: '500g', for: 'Test Bowl' }]);
-  assert.deepEqual(rows[1].removed, [{ id: it.id, name: 'cottage cheese', amount: '500g', for: 'Test Bowl' }]);
+  // a removal keeps its aisle too, so Taken off today can put it back as it was
+  assert.deepEqual(rows[1].removed, [{ id: it.id, name: 'cottage cheese', amount: '500g', for: 'Test Bowl', category: it.category }]);
+  assert.equal(rows[1].via, 'app');
+});
+
+test('Taken off today lists what left since midnight, newest first, and drops a line once it is back (mockup 118)', async () => {
+  const { removeItemsReturning, restoreItems, takenOffToday } = await import('../lib/shoppingList.js');
+  const [a, b] = await addItemsDirect(vault, [{ name: '300ml light sour cream', source: 'Test Bowl' }, { name: 'chilli flakes', source: null }]);
+  const { removed } = await removeItemsReturning(vault, [a.id], { via: 'app' });
+  await removeItemsReturning(vault, [b.id], { via: 'reminders' });
+  let gone = await takenOffToday(vault);
+  const mine = gone.filter((g) => g.id === a.id || g.id === b.id);
+  assert.deepEqual(mine.map((g) => [g.name, g.via]), [['chilli flakes', 'reminders'], ['light sour cream', 'app']]);
+  assert.equal(mine[1].amount, '300ml');
+  assert.equal(mine[1].for, 'Test Bowl');
+  await restoreItems(vault, removed);
+  gone = await takenOffToday(vault);
+  assert.equal(gone.some((g) => g.id === a.id), false, 'a line put back is no longer taken off');
+  // tomorrow it is gone from the list of today's
+  assert.equal((await takenOffToday(vault, new Date(Date.now() + 2 * 864e5))).length, 0);
 });

@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Interactive } from './Interactive.jsx';
 import { CountUp } from './CountUp.jsx';
 import { Button, Tag, TextAction } from './Controls.jsx';
+import { Ic, Tile, Sheet } from './ShopSheet.jsx';
+import { aisleOf } from './shopModel.js';
+import { splitAmount } from './vals/valsRecipes.js';
 
 // THE RECIPE PAGE'S PARTS (29 Sep 2026). His ask, with the Osta reel: a
 // recipe he shares should read like a page in a cookbook — the dish, how many
@@ -198,7 +201,7 @@ export function RecipeIngredients({ page, resetKey, onHold }) {
         <span className="nv-rp-count">{count ? `${count} of ${lines.length} in` : products ? 'Tap a line for your product' : `${lines.length} ${lines.length === 1 ? 'line' : 'lines'}`}</span>
       </div>
       <div className="nv-rp-ings nv-stagger">
-        {items.map((it) => (it.group ? (
+        {items.flatMap((it) => [(it.group ? (
           <div key={it.key} className="nv-rp-group"><span className="nv-rp-eyebrow">{it.label}</span></div>
         ) : it.openProduct ? (
           // HIS PRODUCT ON THE LINE (mockup 109): the line opens its product;
@@ -223,10 +226,72 @@ export function RecipeIngredients({ page, resetKey, onHold }) {
             {it.amount && <span key={it.amount} className={`nv-rp-amt${touched.current ? ' tick' : ''}`}>{it.amount}</span>}
             <span className="nv-rp-item">{it.item}{it.dropped && <em>Dropped</em>}</span>
           </Interactive>
-        )))}
+        ))].concat(!it.group && page.shopAskLine && page.shopAskLine.line === it.line ? [<HeldAsk key={`${it.key}-ask`} a={page.shopAskLine} />] : []))}
       </div>
       <p className="nv-rp-hint">{products ? 'Tap the circle as it goes in' : 'Tap a line as it goes in'}{canHold ? '. Hold one to add just it to the list, or drop it.' : '.'}</p>
     </section>
+  );
+}
+
+// ---- already on the list (mockup 118) -------------------------------------
+// One held line that is already on the list for this recipe: the confirm
+// opens on the line itself, no sheet.
+function HeldAsk({ a }) {
+  const twice = a.amount ? `${a.amount.replace(/ × \d+$/, '')} × ${(a.copies || 1) + 1}` : null;
+  return (
+    <div className="m-inl" role="group" aria-label="Already on your list">
+      {a.done ? (
+        <p>{a.done === 'more' ? <>Added. {twice ? <>The list now reads <b>{twice}</b> for {a.source}.</> : `Another one is on the list for ${a.source}.`}</> : 'Left as it is.'}</p>
+      ) : (
+        <>
+          <p>Already on your list for {a.source}{a.amount ? <>: <b>{a.amount}</b></> : ''}.</p>
+          <div className="acts">
+            <Button compact variant="quiet" onClick={() => a.choose('more')} style={{ minHeight: 40, padding: '8px 16px' }}>{a.amount ? `Add ${a.amount.replace(/ × \d+$/, '')} more` : 'Add one more'}</Button>
+            <TextAction compact tone="quiet" onClick={() => a.choose('leave')}>Leave it</TextAction>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Adding a recipe with lines already on the list for it: only what is
+// missing, or another batch. Drawn by both recipe idioms.
+export function RecipeShopAsk({ page }) {
+  const a = page && page.shopAsk;
+  if (!a) return null;
+  const missNames = a.missing.map((l) => splitAmount(l).item || l);
+  const first = a.on.find((i) => i.amount);
+  const batchSub = first ? <>All {a.total} again: the list then reads {first.amount.replace(/ × \d+$/, '')}&nbsp;× 2.</> : `All ${a.total} again, beside the ones on it.`;
+  const doneText = (k) => (k === 'missing' ? ` ${a.missing.length} added` : ' Another batch added');
+  const Cta = ({ k, cls, children }) => (
+    <button type="button" className={`m-cta ${cls}${a.done === k ? ' done' : ''}`} onClick={() => a.choose(k)}>
+      {a.done === k ? <><Ic n="check" />{doneText(k)}</> : children}
+    </button>
+  );
+  return (
+    <Sheet label="Already on your list" onClose={() => a.choose('cancel')} rise="m-ask">
+      {(close) => (
+        <>
+          <div className="nv-sh-shd"><h3>{a.on.length === a.total ? `All ${a.total} are already on your list for ${a.source}` : `${a.on.length} of these ${a.on.length === 1 ? 'is' : 'are'} already on your list for ${a.source}`}</h3></div>
+          <ul className="m-al">
+            {a.on.map((i, k) => { const ai = aisleOf(i.cat); return <li key={i.id} style={{ '--k': k }}><Tile k={ai.k} hue={ai.hue} sm /><span>{i.name}</span><b>{i.amount}</b></li>; })}
+          </ul>
+          {missNames.length > 0 && <p className="m-miss">Not on it yet: <b>{missNames.join(', ')}</b>.</p>}
+          <div className="m-choices">
+            {a.missing.length > 0 && (
+              <>
+                <Cta k="missing" cls="pri">Add only what&rsquo;s missing</Cta>
+                <p className="m-sub">Adds {a.missing.length === 1 ? 'that 1' : `those ${a.missing.length}`}. The {a.on.length} on your list stay as they are.</p>
+              </>
+            )}
+            <Cta k="batch" cls={a.missing.length ? 'sec' : 'pri'}>Add another batch</Cta>
+            <p className="m-sub">{batchSub}</p>
+            <button type="button" className="m-cta can" onClick={() => !a.done && close()}>Cancel</button>
+          </div>
+        </>
+      )}
+    </Sheet>
   );
 }
 

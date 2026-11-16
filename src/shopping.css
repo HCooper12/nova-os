@@ -330,3 +330,139 @@ a.nv-sh-pillb { display: inline-flex; align-items: center; gap: 7px; color: var(
   .nv-sh-tint { -webkit-backdrop-filter: none; backdrop-filter: none; background: color-mix(in srgb, var(--pg) 16%, #141a30); }
   .nv-sh-addbar, .nv-sh-bar::before, .nv-sh-nb { -webkit-backdrop-filter: none; backdrop-filter: none; background: #141a30 !important; }
 }
+
+/* ================================================================
+   118. THE SHOPPING LINE, MEAL BY MEAL. New rules only; everything
+   above is the live CSS. Colour carries one meaning each here:
+   the aisle hue (Meat is --nv-m-chest) is a meal's share still to
+   get; --nv-good is a share bought; --nv-gold is a tick that is
+   waiting for the Mac; cyan (--nv-acc) is an action word.
+   Motion: transform and opacity only; under reduced motion every
+   end state lands at once.
+   Ported from design/mockups/118-shopping-meal-by-meal.html (approved
+   17 Nov 2026); class names kept so the two can be diffed.
+   ================================================================ */
+/* the scrim: 60% (figure/ground; it dimmed 50% before 118) */
+.nv-sh-scrim{background:color-mix(in srgb,var(--nv-void) 60%,transparent)}
+
+
+/* the sheet rises from the bottom edge on a spring (snappy: a 0.6% settle past home), the frost ramps with it */
+.nv-sh-up{animation:mSheetUp var(--nv-spring-snappy-ms) var(--nv-spring-snappy) backwards;
+  transition:-webkit-backdrop-filter var(--nv-dur-slow) var(--nv-ease),backdrop-filter var(--nv-dur-slow) var(--nv-ease)}
+@starting-style{.nv-sh-up{-webkit-backdrop-filter:blur(0px) saturate(100%);backdrop-filter:blur(0px) saturate(100%)}}
+@keyframes mSheetUp{from{transform:translateY(100%)}to{transform:none}}
+
+/* ---------- FOR EACH MEAL: the first thing in the line's sheet ---------- */
+.m-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 4px 8px}
+.m-head h4{margin:0;font:600 13px/1.2 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-head span{font:500 13px var(--nv-font-ui);color:var(--nv-ink60);font-variant-numeric:tabular-nums;white-space:nowrap}
+.m-list{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 6%,transparent)}
+.m-row{display:grid;grid-template-columns:50px minmax(0,1fr) 108px;align-items:center;column-gap:4px;min-height:64px;padding:9px 14px 9px 0;border-top:.5px solid var(--sh-sep)}
+.m-row:first-child{border-top:0}
+.m-tick{width:50px;height:46px;display:grid !important;place-items:center}
+.m-mid{min-width:0}
+.m-nm{position:relative;display:inline-block;max-width:100%;font:600 16px/1.25 var(--nv-font-ui);letter-spacing:-.01em;color:var(--nv-ink);overflow-wrap:anywhere;transition:color 220ms ease}
+/* the strike: a drawn line, so it can travel left to right as the tick lands */
+.m-nm::after{content:"";position:absolute;left:-1px;right:-1px;top:56%;height:1.5px;border-radius:1px;background:var(--nv-ink40);transform:scaleX(0);transform-origin:0 50%;
+  transition:transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy)}
+.m-sl{display:block;margin-top:1px;font:400 12px/1.3 var(--nv-font-ui);color:var(--nv-ink50);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-bar{position:relative;display:block;height:5px;margin-top:7px;border-radius:3px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 9%,transparent)}
+.m-bar i{position:absolute;inset:0;border-radius:3px;background:var(--hue);transform:scaleX(var(--s));transform-origin:0 50%;
+  transition:background-color 260ms ease,opacity 260ms ease;
+  animation:mGrow var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) backwards;animation-delay:calc(200ms + var(--k,0) * 40ms)}
+@keyframes mGrow{from{transform:scaleX(0)}}
+.m-amt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;padding-left:8px}
+.m-amt b{font:600 17px/1.15 var(--nv-font-round);font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;color:var(--nv-ink);transition:color 220ms ease}
+.m-amt small{font:500 12px/1.2 var(--nv-font-ui);color:var(--nv-ink60);white-space:nowrap;font-variant-numeric:tabular-nums}
+.m-amt .bt{color:var(--nv-good);font-weight:600}
+.m-amt .wt{color:var(--nv-gold);font-weight:600}
+/* bought: dimmed, struck, the share turns green and steps back */
+.m-row.got .m-nm{color:var(--nv-ink40);font-weight:500}
+.m-row.got .m-nm::after{transform:scaleX(1)}
+.m-row.got .m-amt b{color:var(--nv-ink40);font-weight:500}
+.m-row.got .m-bar i{background:var(--nv-good);opacity:.5}
+.m-row.got .nv-sh-cbox{background:var(--nv-good);box-shadow:none}
+.m-row.got .nv-sh-cbox .nv-sh-ic{opacity:1;transform:none}
+.m-row.wait .nv-sh-cbox{background:var(--nv-gold)}
+.m-row.wait .m-bar i{background:var(--nv-gold)}
+/* the foot: the total, the hero of the box */
+.m-foot{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4px 12px;padding:12px 14px 13px 16px;border-top:.5px solid var(--sh-sep);background:color-mix(in srgb,var(--nv-ink) 3%,transparent)}
+.m-foot .l{font:600 15px/1.2 var(--nv-font-ui);color:var(--nv-ink)}
+.m-foot .n{font:700 30px/1 var(--nv-font-round);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;text-align:right}
+.m-foot .n small{font-size:16px;font-weight:600;margin-left:2px}
+.m-foot .s{grid-column:1/-1;font:400 13px/1.35 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-foot .s b{font-weight:600;color:var(--nv-ink);font-variant-numeric:tabular-nums}
+.m-foot .s .g{color:var(--nv-good);font-weight:600}
+.m-note{margin:8px 4px 0;font:400 12px/1.45 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-gap{height:6px}
+.nv-sh-sheet .nv-sh-verdict{margin-top:18px}
+.m-off{display:flex;align-items:flex-start;gap:8px;margin:0 4px 12px;font:400 13px/1.4 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-off i{flex:none;width:7px;height:7px;margin-top:6px;border-radius:4px;background:var(--nv-gold)}
+.m-stale{opacity:.6}
+
+/* the loading skeleton: the shape of what is coming, not a blank */
+.m-sk{display:block;border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--nv-ink) 8%,transparent),color-mix(in srgb,var(--nv-ink) 15%,transparent),color-mix(in srgb,var(--nv-ink) 8%,transparent));background-size:200% 100%;animation:nvShShim 1.4s linear infinite}
+.m-row.sk .nv-sh-cbox{box-shadow:inset 0 0 0 1.6px color-mix(in srgb,var(--nv-ink) 16%,transparent)}
+.m-row.sk .m-mid .m-sk:first-child{width:62%;height:13px}
+.m-row.sk .m-bar{background:color-mix(in srgb,var(--nv-ink) 7%,transparent)}
+.m-row.sk .m-amt .m-sk{width:56px;height:15px}
+.m-foot.sk .m-sk{height:24px;width:92px;justify-self:end}
+.m-sk.line{height:14px;margin:10px 2px 0}
+.m-skways{margin-top:14px;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 5%,transparent)}
+.m-skways div{display:flex;align-items:center;gap:12px;height:54px;padding:0 14px;border-top:.5px solid var(--sh-sep)}
+.m-skways div:first-child{border-top:0}
+
+/* ---------- TAKEN OFF TODAY: content, never a banner ---------- */
+.m-gone .nv-sh-gh .nm{color:var(--nv-ink60)}
+.m-gone .nv-sh-tile{--t:color-mix(in srgb,var(--nv-ink) 30%,var(--nv-void))}
+.m-grow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:62px;padding:9px 8px 9px 16px;border-top:.5px solid var(--sh-sep);
+  transition:opacity 240ms ease,transform 240ms var(--sh-out)}
+.m-grow:first-child{border-top:0}
+.m-grow .t{min-width:0}
+.m-grow .t b{display:block;font:500 17px/1.25 var(--nv-font-ui);letter-spacing:-.01em;color:var(--sh-ink72);overflow-wrap:anywhere}
+.m-grow .t span{display:block;margin-top:2px;font:400 13px/1.3 var(--nv-font-ui);color:var(--nv-ink50)}
+.m-grow .t span em{font-style:normal;color:var(--sh-ink72);font-variant-numeric:tabular-nums}
+.m-undo{min-height:44px;padding:0 16px !important;border-radius:22px;font:600 15px var(--nv-font-ui) !important;color:var(--nv-acc) !important;background:color-mix(in srgb,var(--nv-ink) 8%,transparent) !important}
+.m-grow.back{opacity:.45}
+.m-grow.back .m-undo{color:var(--nv-good) !important}
+.m-gfoot{margin:8px 6px 0;font:400 12px/1.45 var(--nv-font-ui);color:var(--nv-ink50)}
+
+/* the single line, held: an inline confirm on the line itself */
+.m-inl{margin:2px -6px 6px 30px;padding:10px 12px 8px;border-radius:14px;background:color-mix(in srgb,var(--nv-acc) 7%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-acc) 30%,transparent);
+  transform-origin:0 0;animation:mInl var(--nv-spring-snappy-ms) var(--nv-spring-snappy) backwards}
+@keyframes mInl{from{opacity:0;transform:translateY(-6px) scale(.98)}}
+.m-inl p{margin:0;font:400 14px/1.4 var(--nv-font-ui);color:var(--nv-ink)}
+.m-inl p b{font-weight:600;font-variant-numeric:tabular-nums}
+.m-inl .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+/* ---------- THE ASK: already on the list for this recipe ---------- */
+.m-ask h3{margin:0;font:700 21px/1.22 var(--nv-font-ui);letter-spacing:-.015em;text-wrap:balance;flex:1;min-width:0}
+.m-ask .nv-sh-shd{align-items:flex-start}
+.m-al{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--nv-ink) 6%,transparent)}
+.m-al li{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-top:.5px solid var(--sh-sep);font:400 16px/1.3 var(--nv-font-ui)}
+.m-al li:first-child{border-top:0}
+.m-al li > span:not(.nv-sh-tile){flex:1;min-width:0;overflow-wrap:anywhere}
+.m-al li b{font:600 15px var(--nv-font-round);font-variant-numeric:tabular-nums;white-space:nowrap}
+.m-miss{margin:10px 4px 0;font:400 13px/1.4 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-miss b{color:var(--nv-ink);font-weight:600}
+.m-choices{display:grid;gap:8px;margin-top:16px}
+.m-cta{display:flex !important;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:26px;font:600 17px var(--nv-font-ui) !important;text-align:center !important}
+.m-cta.pri{background:var(--nv-good) !important;color:var(--sh-on) !important}
+.m-cta.sec{background:color-mix(in srgb,var(--nv-ink) 11%,transparent) !important;color:var(--nv-ink) !important}
+.m-cta.can{min-height:46px;color:var(--nv-ink60) !important;font-weight:500 !important}
+.m-cta .nv-sh-ic{width:18px;height:18px;stroke-width:2.6}
+.m-sub{margin:-2px 12px 4px;text-align:center;font:400 12px/1.4 var(--nv-font-ui);color:var(--nv-ink60)}
+.m-cta.done{pointer-events:none}
+
+/* the stagger of the ask's lines: they arrive with the sheet, 40 ms apart */
+.m-al li{animation:nvShRise 360ms var(--sh-out) backwards;animation-delay:calc(160ms + var(--k,0) * 40ms)}
+
+/* ---------- reduced motion: no movement, instant states ---------- */
+@media (prefers-reduced-motion:reduce){
+  .nv-sh-up,.m-inl,.m-al li{animation:none !important}
+  .m-bar i{animation:none !important;transition:none !important}
+  .m-nm::after{transition:none !important}
+  .m-grow{transition:none !important}
+  .m-sk{animation:none !important}
+}
+.nv-sh-gh .c.done .nv-sh-ic{width:16px;height:16px;vertical-align:-3px;stroke:var(--nv-good)}

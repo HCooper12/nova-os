@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems, setItemQty, removeItemsReturning } from '../lib/shoppingList.js';
+import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems, setItemQty, removeItemsReturning, takenOffToday } from '../lib/shoppingList.js';
 
 export function shoppingListRouter(vaultPath) {
   const router = Router();
@@ -50,7 +50,7 @@ export function shoppingListRouter(vaultPath) {
 
   router.post('/shopping-list/confirm-completion', async (req, res, next) => {
     try {
-      const items = await confirmCompletion(vaultPath);
+      const items = await confirmCompletion(vaultPath, { via: 'app' });
       res.json({ items });
     } catch (err) {
       next(err);
@@ -62,8 +62,18 @@ export function shoppingListRouter(vaultPath) {
   // undo rather than an apology.
   router.post('/shopping-list/clear', async (req, res, next) => {
     try {
-      const cleared = await clearAll(vaultPath);
+      const cleared = await clearAll(vaultPath, { via: 'app' });
       res.json({ items: [], cleared, count: cleared.length });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // TAKEN OFF TODAY (mockup 118): what left the list since midnight, each
+  // with its time and the door that took it off; Undo is /restore with it
+  router.get('/shopping-list/taken-off', async (req, res, next) => {
+    try {
+      res.json({ items: await takenOffToday(vaultPath) });
     } catch (err) {
       next(err);
     }
@@ -84,7 +94,7 @@ export function shoppingListRouter(vaultPath) {
     try {
       const ids = (req.body || {}).ids;
       if (!Array.isArray(ids) || !ids.length || ids.length > 200) return res.status(400).json({ error: 'ids is required' });
-      res.json(await removeItemsReturning(vaultPath, ids.map(String)));
+      res.json(await removeItemsReturning(vaultPath, ids.map(String), { via: 'app' }));
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

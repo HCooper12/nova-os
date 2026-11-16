@@ -33,6 +33,7 @@ import { replyOnReturn, pendingWorthResuming, unheardRest } from './replyReturn.
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache, hasLiveCache, idbGet, idbSet } from './liveStore.js';
 import { queuedPatch, historyWithQueued, isQueuedId, queuedItemId } from './outboxOverlay.js';
+import { alreadyOn, onAmount } from './shopAsk.js';
 import { OfflineMark } from './OfflineCard.jsx';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem, newIdempotencyKey, drainItems, idemSafe } from './outbox.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
@@ -1581,6 +1582,8 @@ export default class App extends Component {
       food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, words: p.words, barcode: p.barcode, fdcId: p.fdcId, fibreG: p.fibreG, sugarG: p.sugarG, sodiumMg: p.sodiumMg, date: p.date }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
+      // the server SETS checked, so a replay is harmless
+      shopTick: (conn, p) => Promise.all((p.ids || []).map((id) => api.toggleShoppingItem(conn, id, p.checked))),
       journal: (conn, p) => api.addJournalEntry(conn, p.text, null, { tag: p.tag, prompt: p.prompt, promptFrom: p.promptFrom }),
       healthDay: (conn, p) => api.saveHealthDay(conn, p.date, p.metrics),
       session: (conn, p) => api.completeWorkoutSession(conn, p.payload)
@@ -1625,7 +1628,7 @@ export default class App extends Component {
       .then((answers) => saveBests(answers.reduce((kept, r) => mergeBests(kept, r?.bests), loadBests())))
       .catch(() => { this.bestsWarmedAt = 0; });
   }
-  enqueueOutbox(kind, label, payload, key = null) {
+  enqueueOutbox(kind, label, payload, key = null, { quiet = false } = {}) {
     const item = makeOutboxItem(kind, label, payload, key);
     this.setState((s) => {
       const outbox = [...s.outbox, item];
@@ -1633,7 +1636,7 @@ export default class App extends Component {
       return { outbox };
     }, () => { this.applyQueuedRows(); this.saveOfflineCopy(); });
     // Notes-like (his ask, 2 Nov): it is saved, and the screen still shows it
-    this.toastMsg(`“${item.label}” is saved on this phone. It files when your Mac is back.`);
+    if (!quiet) this.toastMsg(`“${item.label}” is saved on this phone. It files when your Mac is back.`);
   }
   // what is waiting in the Outbox, drawn back into its list (outboxOverlay.js)
   applyQueuedRows() {
@@ -4768,10 +4771,25 @@ export default class App extends Component {
   discardRecipeTweak() {
     this.setState({ recipeTweakPreview: null, recipeTweakError: null });
   }
-  addToShoppingList(items, source) {
+  addToShoppingList(items, source, { force = false, quiet = false } = {}) {
     const conn = getConnection();
     if (!conn || !items.length) return;
-    this.toastMsg(`Adding ${items.length} item${items.length > 1 ? 's' : ''} to shopping list…`);
+    // ALREADY ON THE LIST (mockup 118): a recipe's lines that are on the list,
+    // unticked, for this same recipe are asked about before a second copy goes on
+    if (!force && source) {
+      const { on, missing } = alreadyOn(this.state.liveShoppingList?.items, items, source);
+      if (on.length) {
+        haptic('tick');
+        if (items.length === 1) {
+          const same = (this.state.liveShoppingList?.items || []).filter((i) => !i.checked && i.source === source && i.name === on[0].item.name).length;
+          this.setState({ shopAskLine: { line: items[0], source, amount: onAmount(on[0].item), copies: same, done: null } });
+        } else {
+          this.setState({ shopAsk: { lines: items, source, on: on.map(({ item }) => ({ id: item.id, name: item.name, amount: onAmount(item), cat: item.category })), missing, done: null } });
+        }
+        return;
+      }
+    }
+    if (!quiet) this.toastMsg(`Adding ${items.length} item${items.length > 1 ? 's' : ''} to shopping list…`);
     const idemKey = newIdempotencyKey('shopping');
     withIdempotencyKey(idemKey, () => api.addShoppingItems(conn, items.map((name) => ({ name, source }))))
       .then(({ jobId }) => this.pollShoppingAdd(conn, jobId))
@@ -4784,6 +4802,26 @@ export default class App extends Component {
         }
         this.toastMsg('Could not add to shopping list: ' + e.message);
       });
+  }
+  // his answer to the ask: only what is missing, or another batch
+  shopAskChoose(kind) {
+    const a = this.state.shopAsk;
+    if (!a || a.done) return;
+    if (kind === 'cancel') { this.setState({ shopAsk: null }); return; }
+    haptic('commit');
+    const lines = kind === 'missing' ? a.missing : a.lines;
+    this.addToShoppingList(lines, a.source, { force: true, quiet: true });
+    this.setState({ shopAsk: { ...a, done: kind } });
+    const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setTimeout(() => this.setState((s) => (s.shopAsk === a || s.shopAsk?.done === kind ? { shopAsk: null } : null)), reducedMotion ? 300 : 900);
+  }
+  // the one held line: add its amount again, or leave it
+  shopAskLineChoose(kind) {
+    const a = this.state.shopAskLine;
+    if (!a || a.done) return;
+    if (kind === 'more') { haptic('commit'); this.addToShoppingList([a.line], a.source, { force: true, quiet: true }); }
+    this.setState({ shopAskLine: { ...a, done: kind } });
+    setTimeout(() => this.setState((s) => (s.shopAskLine?.line === a.line && s.shopAskLine?.done ? { shopAskLine: null } : null)), 2600);
   }
   pollShoppingAdd(conn, jobId) {
     this.startPoll('shoppingAdd', () => api.addShoppingItemsJob(conn, jobId), {
@@ -4858,7 +4896,11 @@ export default class App extends Component {
       this.noteLocalWrite('shoppingList');
       this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
       leave();
-    }).catch((e) => this.toastFail('Could not update item: ' + e.message));
+    }).catch((e) => {
+      // with no Mac the tick waits in the Outbox and shows as waiting (mockup 118)
+      if (isOfflineError(e)) { this.enqueueOutbox('shopTick', item.name, { ids: [id], checked }, null, { quiet: true }); leave(); return; }
+      this.toastFail('Could not update item: ' + e.message);
+    });
   }
   confirmShoppingCompletion() {
     const conn = getConnection();
@@ -4939,12 +4981,35 @@ export default class App extends Component {
   shopDemoState() { return this.state.shopDemo || demoShopState(shopDemoVariant()); }
   shopIsDemo() { return this.state.connectionStatus === 'demo'; }
   setShopDemo(next) { this.setState({ shopDemo: next }); }
+  // TAKEN OFF TODAY (mockup 118): the lines removed since midnight
+  refreshShopTakenOff() {
+    const conn = getConnection();
+    if (!conn || this.shopIsDemo()) return;
+    api.shopTakenOff(conn).then((r) => this.setState({ liveShopTakenOff: r.items || [] })).catch(() => {});
+  }
+  // Undo on one of them: back on the list as it was, same id, same meal
+  shopPutBack(item) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Offline: putting it back waits until Nova is back'); return; }
+    haptic('commit');
+    const back = { id: item.id, name: item.name, amount: item.amount || null, source: item.for || null, category: item.category, qty: item.qty || 1, checked: false };
+    this.setState((s) => ({ shopTakenBack: { ...(s.shopTakenBack || {}), [item.id]: true } }));
+    api.restoreShoppingList(conn, [back]).then(({ items }) => {
+      this.noteLocalWrite('shoppingList');
+      this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+      setTimeout(() => this.refreshShopTakenOff(), 2400);
+    }).catch((e) => {
+      this.setState((s) => { const b = { ...(s.shopTakenBack || {}) }; delete b[item.id]; return { shopTakenBack: b }; });
+      this.toastMsg('Could not put it back: ' + e.message);
+    });
+  }
   refreshShopExtras() {
     if (this.shopIsDemo()) return;
     const conn = getConnection();
     if (!conn) return;
     api.shopPrices(conn).then((p) => this.setState({ liveShopPrices: p })).catch(() => {});
     api.shopOffers(conn).then((o) => this.setState({ liveShopOffers: o })).catch(() => {});
+    this.refreshShopTakenOff();
     if (!this.shopLogosAt || Date.now() - this.shopLogosAt > 10 * 60 * 1000) {
       this.shopLogosAt = Date.now();
       api.shopLogos(conn).then(async (view) => {
@@ -5010,6 +5075,7 @@ export default class App extends Component {
     api.removeShoppingItems(conn, ids).then(({ items, removed }) => {
       this.noteLocalWrite('shoppingList');
       this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+      this.refreshShopTakenOff();
       tickReceipt({
         key: `shop-rm:${ids.join(',')}`, title,
         undo: () => api.restoreShoppingList(conn, removed).then(({ items: back }) => { this.noteLocalWrite('shoppingList'); this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items: back } })); }).catch((e) => this.toastMsg('Could not undo: ' + e.message)),

@@ -9,7 +9,7 @@ import { Button, Meta, Tag } from './Controls.jsx';
 import { MealEditor } from './RecipeOverlay.jsx';
 import { FIcon } from './FuelIcon.jsx';
 import { PORTIONS, portionLabel, scaleMacros, validPortion } from './portion.js';
-import { RecipeMetaRow, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu } from './RecipePage.jsx';
+import { RecipeMetaRow, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu, RecipeShopAsk } from './RecipePage.jsx';
 import { PhotoReveal } from './motion/PhotoReveal.jsx';
 
 // THE RECIPE, AS A SHEET — mockup 59, variation A · 3. Under the `summary`
@@ -411,6 +411,7 @@ export function RecipeSheet({ v }) {
         </div>
       </div>
       <RecipeMenu menu={menu} onClose={() => setMenu(null)} z={150} />
+      <RecipeShopAsk page={P} />
     </div>
   );
 }

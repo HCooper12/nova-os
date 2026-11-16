@@ -338,6 +338,7 @@ export const api = {
   },
   setShoppingQty: (conn, id, qty) => post(conn, '/api/shopping-list/qty', { id, qty }),
   clearShoppingList: (conn) => post(conn, '/api/shopping-list/clear'),
+  shopTakenOff: (conn) => call(conn, '/api/shopping-list/taken-off'),
   restoreShoppingList: (conn, items) => post(conn, '/api/shopping-list/restore', { items }),
   // the summary Shopping screen (mockup 92): a line removed with its Undo set,
   // prices read from the chains, rewards offers from his saved emails, logos

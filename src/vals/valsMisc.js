@@ -666,7 +666,19 @@ function shopSummary(app, st, { demoMode, isOffline }) {
       const el = typeof document !== 'undefined' ? document.getElementById(`nv-sh-${id}`) : null;
       if (el) el.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
     },
+    // TAKEN OFF TODAY (mockup 118): newest first, each with its door and time
+    gone: demoMode ? [] : (st.liveShopTakenOff || []).map((g) => {
+      const how = g.via === 'reminders' ? 'taken off in Reminders' : g.via === 'voice' ? 'cleared by voice' : g.ticked ? 'cleared as got' : g.via === 'app' ? 'taken off here' : 'taken off';
+      const amt = g.amount ? `${g.amount}${g.qty > 1 ? ` × ${g.qty}` : ''}` : g.qty > 1 ? `× ${g.qty}` : '';
+      return {
+        key: g.id, name: g.name, amt, how, back: !!st.shopTakenBack?.[g.id],
+        at: new Date(g.at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Melbourne' }).replace(/\s?[ap]m$/i, ''),
+        undo: () => app.shopPutBack(g),
+      };
+    }),
     tick: (r) => app.shopTick(r.ids, !r.got, r.name),
+    // one meal's share of a line (mockup 118): its own items, its own pill
+    tickShare: (m, line) => app.shopTick(m.ids, !m.got, `${line} for ${m.name}`),
     remove: (r) => app.shopRemove(r.ids, `Removed ${r.name}`),
     step: (r, d) => { if (r.stepItem) app.shopQty(r.stepItem, r.stepQty + d); },
     qty: (id, n) => app.shopQty(id, n),

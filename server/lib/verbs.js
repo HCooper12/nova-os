@@ -272,7 +272,7 @@ verb({
   describe: 'clear the whole shopping list (asks first)', args: {},
   async run(vaultPath) {
     const { clearAll } = await shopLib();
-    const cleared = await clearAll(vaultPath);
+    const cleared = await clearAll(vaultPath, { via: 'voice' });
     if (!cleared.length) throw new Error('the shopping list is already empty');
     return { destination: `Shopping — cleared ${cleared.length} item${cleared.length === 1 ? '' : 's'}`, said: `Cleared the list — ${cleared.length} item${cleared.length === 1 ? '' : 's'}.`, undo: { verb: 'shopping.clear', items: cleared } };
   },
