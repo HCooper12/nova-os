@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
-import { readdirSync, existsSync, copyFileSync } from 'node:fs';
+import { readdirSync, existsSync, copyFileSync, readFileSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -108,6 +108,25 @@ export function resolveWatchScript() {
   throw new Error('the watch toolchain is installed but watch.py was not found in any version');
 }
 
+// THE ENGINE IS NAMED, NEVER INHERITED (16 Nov 2026). Watch 0.3.0 added a
+// Gemini engine, and with a GEMINI_API_KEY in ~/.config/watch/.env its
+// default ("auto") hands the video to Google and prints "## Answer (from
+// Gemini)" with NO "## Transcript" section. Every Nova lane reads that
+// section, so one key added for Claude Code would have turned every watch,
+// learn and recipe ask into "the link has no transcript". Nova verifies its
+// rules against a transcript and real frames, so it asks for the local
+// engine by name. An older script without the flag would reject it, so the
+// flag is sent only when the installed script knows it. Read once per path.
+const engineSeen = new Map();
+export function engineArgs(script, read = (p) => readFileSync(p, 'utf8')) {
+  if (!engineSeen.has(script)) {
+    let knows = false;
+    try { knows = /["']--engine["']/.test(read(script)); } catch { knows = false; }
+    engineSeen.set(script, knows);
+  }
+  return engineSeen.get(script) ? ['--engine', 'local'] : [];
+}
+
 // A pasted thought may be "URL question" in either order — pull the first
 // video-looking URL out and treat the rest as the question.
 const VIDEO_HOSTS = /(?:youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|twitch\.tv|x\.com|twitter\.com|instagram\.com|loom\.com|facebook\.com)/i;
@@ -152,13 +171,16 @@ export function parseWatchReport(stdout) {
 // Instagram/TikTok/X (3 Nov 2026): yt-dlp borrows Nova's OWN browser sign-in
 // for that platform (lib/watchAuth.js); a login-walled refusal is said as
 // what it is, never as yt-dlp's raw line.
-export async function fetchVideoTranscript(url, workDir, { frames = false } = {}) {
+// `resolution` widens the frames (the learn lane reads on-screen text at 1024).
+export async function fetchVideoTranscript(url, workDir, { frames = false, resolution = null } = {}) {
   const script = resolveWatchScript();
-  const detail = frames ? ['--detail', 'efficient', '--max-frames', String(DESIGN_FRAMES)] : ['--detail', 'transcript'];
+  const detail = frames
+    ? ['--detail', 'efficient', '--max-frames', String(DESIGN_FRAMES), ...(Number.isInteger(resolution) && resolution > 0 ? ['--resolution', String(resolution)] : [])]
+    : ['--detail', 'transcript'];
   const { ytdlpAuthFor, signInHint } = await import('./watchAuth.js');
   const auth = await ytdlpAuthFor(url).catch(() => ({ env: null }));
   return new Promise((resolve, reject) => {
-    const child = spawn(resolvePython(), [script, url, ...detail, '--out-dir', workDir], {
+    const child = spawn(resolvePython(), [script, url, ...engineArgs(script), ...detail, '--out-dir', workDir], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, PATH: SPAWN_PATH, ...(auth.env || {}) },
     });
