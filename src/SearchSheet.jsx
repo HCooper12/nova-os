@@ -57,7 +57,7 @@ function Row({ r, mean, anim, i, onOpen }) {
         <span className="nv-sr-tile" style={{ '--h': hueOf(r.type) }}><Ic n={glyphOf(r.type)} /></span>
         <span className="nv-sr-tx">
           <span className="nv-sr-line">{mean ? plain : <Marked line={r.line} marks={r.marks} />}</span>
-          <span className="nv-sr-rmeta"><b>{r.title}</b>{' · '}{T}{r.date ? ` · ${fmtDay(r.date)}` : ''}</span>
+          <span className="nv-sr-rmeta"><b>{r.title}</b><span>{` · ${T}${r.date ? ` · ${fmtDay(r.date)}` : ''}`}</span></span>
         </span>
         <Ic n="chev" className="chev" />
       </Interactive>
@@ -131,7 +131,7 @@ function List({ f, recents, onPick, onOpen, onShowAll }) {
       break;
     default: {
       // words, then meaning
-      body.push(<Sec key="sx" kind="ex" label="Has these words" n={f.words.length} />);
+      body.push(<Sec key="sx" kind="ex" label="Has these words" n={`${f.words.length}${f.plus}`} />);
       if (f.words.length) {
         body.push(<ul key="rx" className="nv-sr-ul nv-sr-rows">{f.wordsShown.map((r, i) => <Row key={r.id} r={r} anim={lex} i={i} onOpen={onOpen} />)}</ul>);
       } else {
@@ -147,7 +147,7 @@ function List({ f, recents, onPick, onOpen, onShowAll }) {
       } else {
         body.push(<Say key="down" icon="words">{f.words.length ? 'Exact words only right now. ' : ''}{f.meaningDownText}</Say>);
       }
-      if (f.showAll) body.push(<Interactive key="all" as="button" type="button" className="nv-sr-show" haptic="tick" onClick={onShowAll}>Show all <b>{f.showAll}</b><Ic n="down" /></Interactive>);
+      if (f.showAll) body.push(<Interactive key="all" as="button" type="button" className="nv-sr-show" haptic="tick" onClick={onShowAll}>Show all <b>{f.showAll}{f.plus}</b><Ic n="down" /></Interactive>);
     }
   }
   return body;
@@ -258,7 +258,7 @@ const SearchSheetImpl = forwardRef(function SearchSheet({ total = null, lastReac
         const offline = e instanceof TypeError || /offline/i.test(e?.message || '');
         return { offline, message: offline ? null : (e?.message || 'unknown error') };
       };
-      api.recallNotes(conn, trimmed, 'words').then((r) => upd({ words: { rows: r.words?.results || [], ms: r.words?.ms ?? null }, total: r.total ?? null, wordsAt: Date.now() }))
+      api.recallNotes(conn, trimmed, 'words').then((r) => upd({ words: { rows: r.words?.results || [], more: !!r.words?.more, ms: r.words?.ms ?? null }, total: r.total ?? null, wordsAt: Date.now() }))
         .catch((e) => upd({ error: fail(e) }));
       api.recallNotes(conn, trimmed, 'meaning').then((r) => upd({ meaning: { rows: r.meaning?.results || [], ms: r.meaning?.ms ?? null, state: r.meaning?.state || 'ok' }, total: r.total ?? null, meaningAt: Date.now() }))
         .catch((e) => { const f = fail(e); if (f.offline) upd({ error: f }); else upd({ meaning: { rows: [], ms: null, state: 'error' } }); });

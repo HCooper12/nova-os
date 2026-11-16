@@ -138,3 +138,19 @@ test('searchVault still returns what every existing caller reads', async () => {
   assert.ok(withText.every((h) => typeof h.text === 'string'));
   assert.deepEqual(await searchVault(vault, 'the of and'), []);
 });
+
+test('more notes than are returned say so (the sheet shows "40+", never a count it did not get)', async () => {
+  const d = await mkdtemp(path.join(tmpdir(), 'nova-recallnotes-many-'));
+  await mkdir(path.join(d, 'Wiki/Concepts'), { recursive: true });
+  for (let i = 0; i < 6; i++) {
+    await writeFile(path.join(d, 'Wiki/Concepts', `Many ${i}.md`), matter.stringify(`# Many ${i}\n\nThe lantern burns on for note ${i}.\n`, { type: 'concept', updated: `2026-10-0${i + 1}` }), 'utf8');
+  }
+  _resetRecallCache();
+  const r = await searchNotes(d, 'lantern burns', { half: 'words', wordsLimit: 4 });
+  assert.equal(r.words.results.length, 4);
+  assert.equal(r.words.more, true);
+  const all = await searchNotes(d, 'lantern burns', { half: 'words' });
+  assert.equal(all.words.more, false);
+  await rm(d, { recursive: true, force: true });
+  _resetRecallCache();
+});

@@ -28,10 +28,10 @@ let rebuilding = null;
 // fresh read happens behind it. A cold read of ~1,300 files took 510 ms on
 // 7 Nov, and that is dead air to a man waiting on an answer. Every other caller
 // waits for the truth, as it always did.
-async function getIndex(vaultPath, { stale = false } = {}) {
+async function getIndex(vaultPath, { stale = false, maxStaleMs = Infinity } = {}) {
   const same = cache.pages && cache.vaultPath === vaultPath;
   if (same && Date.now() - cache.at < INDEX_TTL_MS) return cache.pages;
-  if (stale && same) {
+  if (stale && same && Date.now() - cache.at < maxStaleMs) {
     rebuilding ||= buildIndex(vaultPath).catch(() => null).finally(() => { rebuilding = null; });
     return cache.pages;
   }
@@ -242,7 +242,7 @@ const isoDate = (d) => {
 };
 
 const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const SNIP = 150;
+const SNIP = 120;
 
 // Cut `text` to about SNIP characters around [from, to) on word edges, and
 // carry the marks across with it. Marks are [start, end) offsets in the
@@ -253,8 +253,8 @@ function windowLine(text, marks) {
   if (text.length > SNIP) {
     const first = marks.length ? marks[0][0] : 0;
     const lastEnd = marks.length ? marks[marks.length - 1][1] : 0;
-    start = Math.max(0, Math.min(first - 40, text.length - SNIP));
-    end = Math.min(text.length, Math.max(start + SNIP, lastEnd + 20));
+    start = Math.max(0, Math.min(first - 24, text.length - SNIP));
+    end = Math.min(text.length, Math.max(start + SNIP, lastEnd + 12));
     if (start > 0) { const sp = text.indexOf(' ', start); if (sp > -1 && sp < first) start = sp + 1; }
     if (end < text.length) { const sp = text.lastIndexOf(' ', end); if (sp > lastEnd) end = sp; }
   }
@@ -303,7 +303,10 @@ export function exactLine(page, terms, phrase) {
       if (!marks) continue;
       marks.sort((a, b) => a[0] - b[0]);
     }
-    const rank = (literal ? 1000 : 0) + (l.title ? 0 : 10) - Math.min(9, Math.floor(l.t.length / 80));
+    // a literal phrase first; then the line whose words sit closest together,
+    // so the marks land inside the two lines a row has room for
+    const span = marks[marks.length - 1][1] - marks[0][0];
+    const rank = (literal ? 1000 : 0) + (l.title ? 0 : 10) + Math.max(0, 100 - span) / 2 - Math.min(9, Math.floor(l.t.length / 80));
     if (!best || rank > best.rank) best = { rank, literal, l, marks };
   }
   if (!best) return null;
@@ -331,12 +334,14 @@ const rowOf = (page, extra) => ({
   id: page.id, title: page.title, type: page.type, date: isoDate(page.date), ...extra,
 });
 
-export async function searchNotes(vaultPath, query, { half = 'both', wordsLimit = 24, meaningLimit = 12 } = {}) {
+export async function searchNotes(vaultPath, query, { half = 'both', wordsLimit = 40, meaningLimit = 12 } = {}) {
   const q = String(query || '').trim().replace(/\s+/g, ' ');
   const terms = tokenize(q);
   const out = { query: q, half, total: 0 };
   const t0 = Date.now();
-  const pages = await getIndex(vaultPath);
+  // the pages as they stood up to five minutes ago, the fresh read behind them:
+  // a rebuild is ~0.5 s on his vault and the search is the thing he is waiting on
+  const pages = await getIndex(vaultPath, { stale: true, maxStaleMs: 5 * 60_000 });
   out.total = pages.length;
   if (!terms.length) {
     if (half !== 'meaning') out.words = { results: [], ms: 0 };
@@ -362,6 +367,9 @@ export async function searchNotes(vaultPath, query, { half = 'both', wordsLimit 
       results: rankRecall(exact, wordsLimit).map(({ page, hit }) => rowOf(page, {
         line: hit.line, marks: hit.marks, para: hit.para, literal: hit.literal,
       })),
+      // true when more notes held the words than were returned: the sheet then
+      // says "40+", never a count it did not get
+      more: exact.length > wordsLimit,
       ms: Date.now() - t0,
     };
   }

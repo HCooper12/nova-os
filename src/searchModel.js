@@ -103,6 +103,7 @@ export function buildFrame({ q, res, reachable, total = null, lastReached = null
 
   const stale = res.q !== q;
   const words = res.words.rows;
+  const more = !!res.words.more;
   const m = res.meaning;
   const meaningState = !m ? 'pending' : m.state === 'ok' ? 'ok' : 'down';
   const meaning = meaningState === 'ok' ? m.rows : [];
@@ -119,6 +120,7 @@ export function buildFrame({ q, res, reachable, total = null, lastReached = null
     kind: 'results', words, wordsShown, meaning, meaningShown, meaningState,
     meaningDownText: meaningState === 'down' ? (MEANING_DOWN[m.state] || MEANING_DOWN.error) : '',
     showAll: !showAll && hidden > 0 ? words.length + meaning.length : 0,
+    plus: more ? '+' : '',
     freshWords: meaningState === 'pending',
     lateMeaning: meaningState === 'ok',
     meta, stale,
