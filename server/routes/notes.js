@@ -89,6 +89,22 @@ export function notesRouter(vault) {
     }
   });
 
+  // K1, the search sheet (mockup 117): the matching LINE with the phrase's
+  // position, a date, exact-words hits apart from hits by meaning, and a state
+  // for the meaning half. `half` lets the words answer go out before the
+  // embedder has finished: the client asks for both at once. /recall above is
+  // unchanged for every other reader.
+  router.get('/recall/notes', async (req, res, next) => {
+    try {
+      const { searchNotes } = await import('../lib/recall.js');
+      const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 200) : '';
+      const half = ['words', 'meaning'].includes(req.query.half) ? req.query.half : 'both';
+      res.json(await searchNotes(vault.vaultPath, q, { half }));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/graph', async (req, res, next) => {
     try {
       const pages = await vault.listPages();
