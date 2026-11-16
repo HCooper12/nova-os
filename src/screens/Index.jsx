@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react';
 import { Interactive } from '../Interactive.jsx';
+import { SearchSheet } from '../SearchSheet.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { TabIcon } from '../TabIcon.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
@@ -87,6 +89,10 @@ function IndexGroup({ g, i }) {
 }
 
 export function Index({ v }) {
+  // the search sheet (mockup 117) belongs to this screen: the pill opens it, and
+  // the screen steps back while it is up (figure and ground)
+  const sheet = useRef(null);
+  const [stage, setStage] = useState('closed');
   const P = v.indexPage;
   if (!P) return null;
   const last = P.groups.length + 3;
@@ -97,7 +103,8 @@ export function Index({ v }) {
   const searchBottom = !v.isMobile ? '16px'
     : v.statusBanner ? 'calc(118px + env(safe-area-inset-bottom))' : undefined;
   return (
-    <div style={v.wrapMission} data-screen-label="Index">
+    <>
+    <div className="nv-sr-behind" data-search={stage === 'closed' ? undefined : stage} style={v.wrapMission} data-screen-label="Index">
       {/* Technique opens the Repertoire book in place, so the book has to be
           drawn wherever the row is, as each Home idiom draws it for its card */}
       {v.repertoireBook && <RepertoireBook v={v.repertoireBook} />}
@@ -126,15 +133,20 @@ export function Index({ v }) {
         {P.groups.map((g, gi) => <IndexGroup key={g.key} g={g} i={gi + 3} />)}
 
         {/* SEARCH, floating above the tab bar while the list scrolls under it.
-            It opens the conversation — the one front door (✦ Ask does the same) */}
-        <Interactive as="div" className="nv-sum-search nv-sum-rise" onClick={v.openPalette} haptic="tick"
+            It opens the search sheet, which reads the notes (mockup 117, K1);
+            ✦ Ask is still the way into the conversation */}
+        <Interactive as="div" className="nv-sum-search nv-sum-rise" onClick={() => sheet.current?.open()} haptic="tick"
           style={{ '--i': last, ...(searchBottom ? { bottom: searchBottom } : null) }}
-          aria-label="Search Nova. Opens the conversation" base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
+          role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sheet.current?.open(); } }}
+          aria-label="Search your notes" base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
           <svg className="nv-sum-search-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <span className="nv-sum-search-lbl">Search Nova</span>
           <svg className="nv-sum-search-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
         </Interactive>
       </div>
     </div>
+    {/* outside the stepping-back wrapper: a transform there would turn its fixed children into its own */}
+    <SearchSheet ref={sheet} onStage={setStage} {...P.search} />
+    </>
   );
 }
