@@ -160,7 +160,7 @@ export function extractQuotes(raw, { people = new Set() } = {}) {
       // gap BETWEEN two quotes, not a quote
       const prev = text[m.index - 1];
       if ((prev && !/[\s(:\u2014\u2013-]/.test(prev)) || !/^[\p{L}\p{N}]/u.test(q)) continue;
-      if (/[\[\]{}]/.test(q) || q.split(/\s+/).length < 7) continue; // a template or a fragment
+      if (/[[\]{}]/.test(q) || q.split(/\s+/).length < 7) continue; // a template or a fragment
       if (/\.{3}|…/.test(q) && q.split(/\.{3}|…/).some((s) => s.trim().split(/\s+/).length < 4)) continue;
       // the clause in front of it: a reporting verb or a third party's name
       // means the words are not the speaker's own
@@ -248,7 +248,7 @@ export function namedShow(sources) {
 function peopleIn(text, people) {
   const hay = titleOf(text);
   const found = [];
-  for (const [low, title] of people) {
+  for (const title of people.values()) {
     const re = new RegExp(`(^|[^\\p{L}])${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'u');
     if (re.test(hay)) found.push(title);
   }
