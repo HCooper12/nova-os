@@ -11,7 +11,9 @@
   --sr-sep: var(--nv-sum-sep, color-mix(in srgb, var(--nv-ink) 14%, transparent));
   --sr-mark: color-mix(in srgb, var(--nv-cy) 30%, transparent);
   --sr-fill: rgba(0, 0, 0, .30);
-  --sr-top: 52px;
+  /* clear of the status band: the mockup's 52px, or the safe-area inset (the Dynamic Island's band) plus a gap, whichever is lower down.
+     Pages clear it the same way, with env(safe-area-inset-top) (valsChrome.js `mp`) */
+  --sr-top: max(52px, calc(env(safe-area-inset-top) + 6px));
 }
 
 /* figure and ground: the screen steps back under a 60% scrim */
