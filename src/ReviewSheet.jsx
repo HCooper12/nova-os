@@ -109,6 +109,18 @@ export function ReviewSheet({ v }) {
             {r.kicker?.isNew ? <><span className="new">New</span> · {r.kicker.text}</> : r.kicker?.text}{r.demo ? ' · demo' : ''}
           </p>
           <h3 className="nv-rv-ct">{r.title}</h3>
+          {r.quote && (
+            // mockup 116: the speaker's own words lead the page too, with who
+            // said it and the real moment, or no moment
+            <figure className="nv-rv-sq">
+              <blockquote>{r.quote.text}</blockquote>
+              <figcaption>
+                <b>{r.quote.primary}</b><span>{r.quote.secondary}</span>
+                {r.quote.at ? <span className="at">{r.quote.at}</span> : null}
+                {r.quote.href ? <Interactive as="button" type="button" className="nv-rv-sqp" onClick={r.quote.open} haptic="tick" aria-label={r.quote.aria}><RvIcon name="play" />Play</Interactive> : null}
+              </figcaption>
+            </figure>
+          )}
           {sum ? (
             // THE STRUCTURED NOTE (mockup 98, rule C): what it is, the key
             // terms each on its own line, where it came from, then the

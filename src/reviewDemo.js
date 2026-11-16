@@ -172,6 +172,12 @@ const DRAWN = {
 // the week ahead, invented (the mockup's), so the done state has a shape
 const DEMO_WEEK = [2, 1, 3, 0, 2, 1, 4];
 
+// the lines the demo deck leads with: the mockup's sample, invented, shown only in demoMode
+const DEMO_QUOTES = {
+  'demo-effort-debt': { text: 'Every hour of effort you skip gets added to the bill, and the bill carries interest.', who: 'Mara Ellison', show: 'The Long Table', episode: 'ep. 112', at: '41:12', url: null, verified: true },
+  'demo-two-minute-floor': { text: 'Start so small that stopping would feel silly.', who: 'Dev Okafor', show: 'Second Draft', episode: 'ep. 48', at: '18:04', url: null, verified: true },
+  'demo-quiet-hours': { text: 'A plan you cannot say in one breath will not survive a bad day.', who: 'Ines Marchetti', show: 'Field Notes', episode: 'ep. 9', at: '27:40', url: null, verified: true },
+};
 function itemFrom(card, today, answers) {
   const history = card.history.map(([off, grade]) => ({ date: shiftISO(today, off), grade }));
   const mine = answers?.[card.id];
@@ -187,6 +193,8 @@ function itemFrom(card, today, answers) {
     history, step, due,
     note: card.note,
     summary: card.summary || null,
+    quote: DEMO_QUOTES[card.id] || null,
+    idea: { title: card.title, sentence: (card.gist || '').split(/(?<=[.!?])\s/)[0] || null },
     demo: true,
   };
 }

@@ -2,6 +2,8 @@ import { NOTE_TYPE_COLOR } from './shared.js';
 import { pickReviewItem } from '../reviewPick.js';
 import { GAPS, nextStep, parseISO, shiftISO, localISO, demoReviewToday, demoScenarioFromUrl, DEMO_UNREVIEWED } from '../reviewDemo.js';
 import { dtf } from './fmt.js';
+import { api, getConnection } from '../api.js';
+import { tickReceipt } from '../receipt.js';
 
 // THE DAILY REVIEW's view model (mockup 96, audit 27). ONE shape, read by the
 // summary Moment, the grouped Group, the classic pane and the sheet. Demo
@@ -124,6 +126,15 @@ export function buildReview(app, ctx) {
   // says so on the card, so a health page never reads as a lapse in the rule
   if (kicker && item?.lane === 'body') kicker.text = `Body · ${kicker.text}`;
 
+  // the card's own kicker line (mockup 116): "New today", or how often it has
+  // been seen and when last
+  const seenWord = n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`;
+  const kickerQ = !item ? null : {
+    isNew: n === 0,
+    body: item.lane === 'body',
+    text: n === 0 ? 'today' : `Seen ${seenWord} · last ${fmtDay(pastHistory[n - 1].date)}`,
+  };
+
   const src = item?.source || null;
   const source = src ? {
     title: src.title,
@@ -138,6 +149,50 @@ export function buildReview(app, ctx) {
       app.toastMsg(item.demo ? 'Demo source: there is nothing to play' : 'The source page has no link to open');
     },
   } : null;
+
+  // THE LINE (mockup 116): the speaker's own words, found and checked by the
+  // Mac (server/lib/reviewQuote.js). Every field is real or null, and a null
+  // is said, not filled: no speaker reads "speaker not named", no time shows
+  // no time, no link makes the source row a plain line, not a Play button.
+  const qt = item?.quote || null;
+  const returning = !!item && (item.history || []).length > 0;
+  const quote = qt ? (() => {
+    const who = qt.who || null;
+    const show = qt.show && qt.show !== who ? qt.show : null;
+    const ep = qt.episode && qt.episode !== who && qt.episode !== show ? qt.episode : null;
+    const primary = who || qt.show || qt.episode || 'From your notes';
+    const rest = who ? [show, ep] : [qt.show ? ep : null, 'speaker not named'];
+    const secondary = (qt.show || qt.episode || who) ? rest.filter(Boolean).join(', ') : 'the page does not say which source';
+    const href = qt.url ? playFromUrl(qt.url, qt.at) : null;
+    return {
+      text: qt.text, who, primary, secondary,
+      at: qt.at || null, verified: !!qt.verified, href,
+      aria: href ? `Play ${primary}${qt.show ? ` on ${qt.show}` : ''}${qt.at ? `, from ${qt.at}` : ''}` : `${primary}: ${secondary}`,
+      open: () => {
+        if (href) { window.open(href, '_blank', 'noopener'); return; }
+        app.toastMsg(item.demo ? 'Demo source: there is nothing to play' : 'The page has no link to play this from');
+      },
+    };
+  })() : null;
+  const idea = item ? { title: item.idea?.title || item.title, sentence: item.idea?.sentence || null } : null;
+  const keptGap = GAPS[nextStep(stepBefore, 'read')];
+  // NOT FOR ME on a new line: passed by, nothing written to the Review Log
+  const skip = canWrite && item && !returning && !item.answered && !answeredJust ? () => {
+    if (item.demo) { app.answerReview(item, 'read', { step: stepBefore, due: dueBefore }); return; }
+    const conn = getConnection();
+    if (!conn) return;
+    api.reviewSkip(conn, item.id).then(({ record }) => {
+      app.reviewNext();
+      app.refreshReviewToday();
+      tickReceipt({
+        key: `review:${item.id}`, label: item.title, title: `${item.title} · passed by`,
+        undo: () => { if (record?.id) api.inboxUndo(conn, record.id).then(() => app.refreshReviewToday()).catch((e) => app.toastMsg('Could not undo: ' + e.message)); },
+      });
+    }).catch((e) => app.toastMsg(`Could not pass that by: ${e.message}`));
+  } : null;
+  // TODAY'S LINE on the done card: the first line of the day that has one
+  const lineItem = items.find((i) => i.quote?.text);
+  const todayLine = lineItem ? { text: lineItem.quote.text, by: [lineItem.quote.who, lineItem.quote.show].filter(Boolean).join(' · ') || null } : null;
 
   const connected = (item?.connected || []).map((c) => {
     const type = (c.type || '').toLowerCase();
@@ -211,6 +266,9 @@ export function buildReview(app, ctx) {
       })),
     } : null,
     provenance,
+    quote, idea, returning, skip, todayLine, kickerQ,
+    answered: !!item?.answered,
+    keptLine: keptGap === 1 ? 'Back tomorrow as a question' : `Back in ${keptGap} days as a question`,
     // at most one connection line on the card (rule E)
     // ...and when the Mac found where else in his vault the idea lives, that
     // is the line: the other source, not merely the nearest link
