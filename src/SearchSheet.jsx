@@ -155,18 +155,24 @@ function List({ f, recents, onPick, onOpen, onShowAll }) {
 
 function NotePage({ note, query, onBack }) {
   const litRef = useRef(null);
+  const layerRef = useRef(null);
+  const [scrolled, setScrolled] = useState(false);
   const d = note.detail;
   const paras = useMemo(() => (d ? noteParas(d.paragraphs, note.row) : []), [d, note.row]);
   const T = typeLabel(note.row.type);
+  // open AT the line: a line already in view leaves the page at its top (as
+  // the mockup draws it); one further down brings its paragraph up under the bar
   useEffect(() => {
-    if (d && litRef.current) {
-      try { litRef.current.scrollIntoView({ block: 'center', behavior: 'auto' }); } catch { /* old WebKit */ }
-    }
+    const layer = layerRef.current;
+    const lit = litRef.current;
+    if (!d || !layer || !lit) return;
+    const r = lit.getBoundingClientRect();
+    if (r.top > window.innerHeight * 0.55) layer.scrollTop += r.top - 150;
   }, [d]);
   return (
-    <article className="nv-sr-note" role="dialog" aria-modal="true" aria-label={`${note.row.title}, opened at the matching line`} data-edge-page="" style={{ zIndex: 60 }}>
+    <article ref={layerRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 24)} className="nv-sr-note" role="dialog" aria-modal="true" aria-label={`${note.row.title}, opened at the matching line`} data-edge-page="" style={{ zIndex: 60 }}>
       <div className="nv-sr-nin">
-        <div className="nv-sr-nbar">
+        <div className="nv-sr-nbar" data-scrolled={scrolled ? 'true' : 'false'}>
           <Interactive as="button" type="button" className="nv-sr-back" haptic="tick" data-edge-close="" onClick={onBack}><Ic n="chev" />Search</Interactive>
         </div>
         <div className="nv-sr-nchip"><span className="nv-sr-tile" style={{ '--h': hueOf(note.row.type) }}><Ic n={glyphOf(note.row.type)} /></span>{T}{note.row.date ? ` · ${fmtDay(note.row.date)}` : ''}</div>

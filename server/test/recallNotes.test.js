@@ -154,3 +154,13 @@ test('more notes than are returned say so (the sheet shows "40+", never a count 
   await rm(d, { recursive: true, force: true });
   _resetRecallCache();
 });
+
+test('words spread wider than a row: the window holds as many of them as fit, every mark lands on a word', async () => {
+  const { exactLine } = await import('../lib/recall.js');
+  const filler = 'word '.repeat(70);
+  const p = { title: 'T', bullets: [], paragraphs: [`Alpha opens it. ${filler}then beta and gamma sit together at the end.`] };
+  const hit = exactLine(p, ['alpha', 'beta', 'gamma'], 'alpha beta gamma');
+  assert.ok(hit.line.length <= 140);
+  const marked = hit.marks.map(([a, b]) => hit.line.slice(a, b).toLowerCase());
+  assert.deepEqual(marked, ['beta', 'gamma']);
+});

@@ -5,7 +5,7 @@
    filter only. Under `summary` the sheet is the house glass (.nv-liquid
    .nv-sum-sheet); under `cupertino` its sections become inset groups.
    ================================================================ */
-.nv-sr {
+.nv-sr, .nv-sr-note {
   --sr-ink2: var(--nv-sum-ink2, color-mix(in srgb, var(--nv-ink) 76%, transparent));
   --sr-ink3: var(--nv-sum-ink3, color-mix(in srgb, var(--nv-ink) 52%, transparent));
   --sr-sep: var(--nv-sum-sep, color-mix(in srgb, var(--nv-ink) 14%, transparent));
@@ -56,7 +56,7 @@
 .nv-sr-clear svg { width: 18px; height: 18px; }
 .nv-sr-clear[hidden] { display: grid; visibility: hidden; }
 .nv-sr-cancel { flex: none; min-height: 44px; padding: 0 8px; font: 400 17px var(--nv-font-ui); color: var(--nv-acc, var(--nv-cy)); }
-:where(.nv-sr) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; text-align: inherit; }
+:where(.nv-sr, .nv-sr-note) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; text-align: inherit; }
 .nv-sr-cancel:active, .nv-sr-clear:active, .nv-sr-show:active, .nv-sr-back:active, .nv-sr-row:active .nv-sr-tile { transform: scale(.97); }
 .nv-sr button:focus-visible, .nv-sr-q:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 2px; border-radius: 12px; }
 .nv-sr-q:focus-visible { outline: none; }
@@ -131,10 +131,11 @@
 
 /* ---------- the note page, opened at the line ---------- */
 .nv-sr-note { position: fixed; inset: 0; z-index: 60; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; box-sizing: border-box;
-  padding: calc(46px + env(safe-area-inset-top)) 20px calc(120px + env(safe-area-inset-bottom)); animation: nvSrPaint 200ms var(--nv-ease); }
+  padding: 0 20px calc(120px + env(safe-area-inset-bottom)); animation: nvSrPaint 200ms var(--nv-ease); }
 .nv-sr-note::-webkit-scrollbar { display: none; }
 .nv-sr-nin { max-width: 560px; margin: 0 auto; }
-.nv-sr-nbar { display: flex; align-items: center; min-height: 44px; margin: 0 -10px 10px; }
+.nv-sr-nbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-end; min-height: calc(90px + env(safe-area-inset-top)); margin: 0 -10px 10px; padding-top: calc(46px + env(safe-area-inset-top)); transition: background-color 160ms var(--nv-ease); }
+.nv-sr-nbar[data-scrolled="true"] { background: var(--nv-sum-tab, rgba(16,20,36,.58)); -webkit-backdrop-filter: blur(22px) saturate(1.6); backdrop-filter: blur(22px) saturate(1.6); }
 .nv-sr-back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 10px; font: 400 17px var(--nv-font-ui); color: var(--nv-acc, var(--nv-cy)); }
 .nv-sr-back svg { width: 20px; height: 20px; transform: scaleX(-1); }
 .nv-sr-nchip { display: flex; align-items: center; gap: 8px; font: 500 13px var(--nv-font-ui); color: var(--sr-ink3, var(--nv-ink60)); font-variant-numeric: tabular-nums; }
@@ -143,7 +144,7 @@
 .nv-sr-ntitle { margin: 8px 0 6px; font: 700 32px/1.1 var(--nv-font-ui); letter-spacing: -.025em; overflow-wrap: anywhere; text-wrap: balance; }
 .nv-sr-nfrom { margin: 0 0 18px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
 .nv-sr-nfrom b { font-weight: 500; color: var(--nv-ink); }
-.nv-sr-nbody p { white-space: pre-line; margin: 0 0 16px; font: 400 18px/1.55 var(--nv-font-serif); color: var(--nv-ink60); text-wrap: pretty; overflow-wrap: anywhere; }
+.nv-sr-nbody p { margin: 0 0 16px; font: 400 18px/1.55 var(--nv-font-serif); color: var(--nv-ink60); text-wrap: pretty; overflow-wrap: anywhere; }
 .nv-sr-nbody p.lit { position: relative; color: var(--nv-ink); isolation: isolate; }
 .nv-sr-nbody p.lit::before { content: ''; position: absolute; inset: -8px -10px; z-index: -1; border-radius: 12px; background: color-mix(in srgb, var(--nv-cy) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-cy) 30%, transparent); animation: nvSrLitFade 1.2s var(--nv-ease) 400ms forwards; }
 @keyframes nvSrLitFade { to { opacity: 0; } }

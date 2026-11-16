@@ -251,12 +251,21 @@ function windowLine(text, marks) {
   let start = 0;
   let end = text.length;
   if (text.length > SNIP) {
-    const first = marks.length ? marks[0][0] : 0;
-    const lastEnd = marks.length ? marks[marks.length - 1][1] : 0;
-    start = Math.max(0, Math.min(first - 24, text.length - SNIP));
-    end = Math.min(text.length, Math.max(start + SNIP, lastEnd + 12));
-    if (start > 0) { const sp = text.indexOf(' ', start); if (sp > -1 && sp < first) start = sp + 1; }
-    if (end < text.length) { const sp = text.lastIndexOf(' ', end); if (sp > lastEnd) end = sp; }
+    // anchor on the first mark, or, when the words are spread wider than a row
+    // can show, on the mark whose window holds the most of them
+    let anchor = marks.length ? marks[0][0] : 0;
+    if (marks.length > 1 && marks[marks.length - 1][1] - marks[0][0] > SNIP - 30) {
+      let best = -1;
+      for (const [a] of marks) {
+        const lo = Math.max(0, a - 24);
+        const n = marks.filter(([x, y]) => x >= lo && y <= lo + SNIP).length;
+        if (n > best) { best = n; anchor = a; }
+      }
+    }
+    start = Math.max(0, Math.min(anchor - 24, text.length - SNIP));
+    end = Math.min(text.length, start + SNIP);
+    if (start > 0) { const sp = text.indexOf(' ', start); if (sp > -1 && sp < anchor) start = sp + 1; }
+    if (end < text.length) { const sp = text.lastIndexOf(' ', end); if (sp > start + SNIP / 2) end = sp; }
   }
   const lead = start > 0 ? '\u2026' : '';
   const tail = end < text.length ? '\u2026' : '';
