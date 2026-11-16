@@ -40,7 +40,9 @@
   --nv-liquid-tint: rgba(22, 26, 44, .72);
   --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 60%);
 }
-.nv-sr-grab { flex: none; width: 36px; height: 5px; border-radius: 3px; margin: 7px auto 4px; background: color-mix(in srgb, var(--nv-ink) 30%, transparent); }
+.nv-sr-grabzone { flex: none; position: relative; height: 16px; }
+.nv-sr-grabzone::before { content: ''; position: absolute; inset: 0 0 -10px; }
+.nv-sr-grab { width: 36px; height: 5px; border-radius: 3px; margin: 7px auto 4px; background: color-mix(in srgb, var(--nv-ink) 30%, transparent); }
 
 .nv-sr-frow { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 8px 0 16px; }
 .nv-sr-field { flex: 1; min-width: 0; height: 44px; border-radius: 13px; display: flex; align-items: center; gap: 8px; padding: 0 0 0 12px; background: var(--sr-fill); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.12); }

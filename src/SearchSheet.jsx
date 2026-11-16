@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Interactive } from './Interactive.jsx';
 import { api, getConnection } from './api.js';
+import { useSheetDrag } from './useSheetDrag.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { buildFrame, fmtDay, markedParts, typeLabel, whenLabel, noteParas, readRecents, writeRecent } from './searchModel.js';
 import './searchSheet.css';
@@ -221,7 +222,7 @@ const SearchSheetImpl = forwardRef(function SearchSheet({ total = null, lastReac
     },
   }), []);
 
-  useLayoutEffect(() => { if (sheetRef.current) sheetRef.current.style.visibility = ''; }, [open]);
+  useLayoutEffect(() => { if (open && sheetRef.current) sheetRef.current.style.visibility = ''; }, [open]);
   useEffect(() => { onStage?.(!open ? 'closed' : note ? 'note' : 'up'); }, [open, note, onStage]);
 
   const close = useCallback(() => {
@@ -232,6 +233,22 @@ const SearchSheetImpl = forwardRef(function SearchSheet({ total = null, lastReac
     returnTo.current = null;
     try { back?.focus?.({ preventScroll: true }); } catch { /* gone */ }
   }, []);
+
+  // pull the sheet down by its handle to dismiss it, as every iOS sheet does.
+  // The hook clears its own inline transform before it calls this, so the
+  // sheet is hidden for the frame in which the open state catches up
+  const pulled = useCallback(() => {
+    const el = sheetRef.current;
+    if (el) el.style.visibility = 'hidden';
+    close();
+  }, [close]);
+  const { sheetRef: dragRef, handleProps } = useSheetDrag(pulled);
+  const setSheet = useCallback((el) => { sheetRef.current = el; dragRef.current = el; }, [dragRef]);
+  useEffect(() => {
+    if (open || !sheetRef.current) return undefined;
+    const t = setTimeout(() => { if (sheetRef.current) sheetRef.current.style.visibility = ''; }, 700);
+    return () => clearTimeout(t);
+  }, [open]);
 
   // the sheet shrinks to what the keyboard leaves
   useEffect(() => {
@@ -294,15 +311,15 @@ const SearchSheetImpl = forwardRef(function SearchSheet({ total = null, lastReac
 
   return (
     <>
-      <div className="nv-sr-scrim" data-up={up ? 'true' : 'false'} aria-hidden="true" onClick={close} />
-      <section ref={sheetRef} className="nv-sr nv-liquid nv-sum-sheet nv-sr-sheet" data-up={up ? 'true' : 'false'} role="dialog" aria-modal={up ? 'true' : undefined}
+      <div className="nv-sr-scrim" data-sheet-close="" data-up={up ? 'true' : 'false'} aria-hidden="true" onClick={close} />
+      <section ref={setSheet} data-sheet="" className="nv-sr nv-liquid nv-sum-sheet nv-sr-sheet" data-up={up ? 'true' : 'false'} role="dialog" aria-modal={up ? 'true' : undefined}
         aria-label="Search your notes" inert={up ? undefined : true} style={{ zIndex: 141 }}>
-        <div className="nv-sr-grab" aria-hidden="true" />
+        <div className="nv-sr-grabzone" {...handleProps}><div className="nv-sr-grab" aria-hidden="true" /></div>
         <div className="nv-sr-frow">
           <div className="nv-sr-field">
             <Ic n="search" />
             <input ref={inputRef} className="nv-sr-q" type="search" role="searchbox" aria-label="Search your notes" placeholder="Search your notes" value={q}
-              onChange={(e) => setQ(e.target.value)} enterKeyHint="search" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+              onChange={(e) => setQ(e.target.value)} enterKeyHint="search" autoComplete="off" autoCapitalize="off"
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (trimmed.length >= 2) remember(trimmed); inputRef.current?.blur(); } }} />
             <button type="button" className="nv-sr-clear" aria-label="Clear the search" hidden={!q}
               onClick={() => { setQ(''); try { inputRef.current?.focus({ preventScroll: true }); } catch { /* */ } }}><Ic n="x" /></button>
