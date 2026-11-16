@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { backupFile } from './backup.js';
 import { doublingSchedule, pickDue } from './spacing.js';
+import { quoteContext, reviewRank, quoteFor } from './reviewQuote.js';
 
 // THE DAILY REVIEW, ON A FORGETTING CURVE (mockup 96, audit
 // design/audits/redesign-2026-09/27-daily-review.md). His intent: concepts
@@ -305,14 +306,29 @@ export function reach(page, byTitle) {
 // page first (its concept page's own date, standing in for "the day after
 // the source was ingested, while the curve is steepest"), then most
 // backlinked, then title.
-export function newCandidates(pages, cards, backlinkCounts, lane = 'mind') {
+//
+// MOCKUP 116 (his ask, 13 Nov 2026): the card leads with a podcast line, so
+// his named shows (Chris Williamson, Alex Hormozi, The Diary of a CEO) come
+// FIRST, and within them a page that has a line to lead with (the speaker's
+// words, and a speaker or a show to put them to) before one that has not.
+// Both read only what the vault says about the page's sources; see
+// reviewQuote.js. Pages with neither keep the order they had.
+export const leadable = (q) => !!q && !!(q.who || q.show);
+export function newCandidates(pages, cards, backlinkCounts, lane = 'mind', ctx = null) {
   const seen = new Set(Object.keys(cards));
   const byTitle = new Map(pages.map((p) => [titleKey(p.title).toLowerCase(), p]));
   const fits = inLane(lane);
+  const qctx = ctx || quoteContext(pages);
+  const quoteRank = (p) => {
+    const r = reviewRank(p, qctx);
+    return { named: !!r.show, lead: r.hasQuote && leadable(quoteFor(p, qctx, { rank: r })) };
+  };
   return pages
     .filter((p) => fits(p) && !seen.has(p.id))
-    .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0, reach: reach(p, byTitle) }))
-    .sort((a, b) => (a.page.type === 'topic') - (b.page.type === 'topic')
+    .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0, reach: reach(p, byTitle), ...quoteRank(p) }))
+    .sort((a, b) => (b.named - a.named)
+      || (b.lead - a.lead)
+      || (a.page.type === 'topic') - (b.page.type === 'topic')
       || Math.min(b.reach.own, 3) - Math.min(a.reach.own, 3)
       || b.reach.bridged - a.reach.bridged
       || dateKey(b.page.date).localeCompare(dateKey(a.page.date))
@@ -348,8 +364,8 @@ export const DISMISS_STEPS = 2;
 // The day's new pick: the best-ranked candidate due its turn, not from the
 // source of the concept he answered last, or simply the best when every
 // candidate is. Without a surfacing record, it is the ranked list as before.
-export function pickNew(pages, cards, backlinkCounts, lane = 'mind', { spacing = {}, nowMs = Date.now() } = {}) {
-  const ranked = newCandidates(pages, cards, backlinkCounts, lane);
+export function pickNew(pages, cards, backlinkCounts, lane = 'mind', { spacing = {}, nowMs = Date.now(), ctx = null } = {}) {
+  const ranked = newCandidates(pages, cards, backlinkCounts, lane, ctx);
   const byId = new Map(ranked.map((c) => [c.id, c]));
   const due = pickDue(ranked.map((c) => c.id), spacing, nowMs, ranked.length, SURFACE_SCHEDULE).map((id) => byId.get(id));
   const pool = due.length ? due : ranked;
@@ -407,14 +423,14 @@ async function spacingFor(pages) {
 
 // The whole day's queue: up to DAILY ids, due cards first (most overdue),
 // one new concept slotted in when fewer than NEW_WHEN_BELOW are due.
-export function buildQueue({ pages, cards, backlinkCounts, today, daily = DAILY, newWhenBelow = NEW_WHEN_BELOW, spacing = {}, nowMs = Date.now() }) {
+export function buildQueue({ pages, cards, backlinkCounts, today, daily = DAILY, newWhenBelow = NEW_WHEN_BELOW, spacing = {}, nowMs = Date.now(), ctx = null }) {
   const pagesById = new Map(pages.map((p) => [p.id, p]));
   const due = dueCards(cards, pagesById, today).filter((d) => !passedOver(d.id, spacing, nowMs));
   const queue = due.slice(0, daily).map((d) => ({ id: d.id, page: d.page, step: d.step, kind: 'due' }));
   if (due.length < newWhenBelow && queue.length < daily) {
     // Sunday's new concept is the body's; an empty body pool falls back
-    const pick = (weekday(today) === BODY_DAY && pickNew(pages, cards, backlinkCounts, 'body', { spacing, nowMs }))
-      || pickNew(pages, cards, backlinkCounts, 'mind', { spacing, nowMs });
+    const pick = (weekday(today) === BODY_DAY && pickNew(pages, cards, backlinkCounts, 'body', { spacing, nowMs, ctx }))
+      || pickNew(pages, cards, backlinkCounts, 'mind', { spacing, nowMs, ctx });
     if (pick) queue.push({ id: pick.id, page: pick.page, step: 0, kind: 'new' });
   }
   return { queue: queue.slice(0, daily), dueCount: due.length };
@@ -512,11 +528,29 @@ export function resolveSource(page, pages) {
 
 // The one card shape every caller below returns — the fields the mockup's
 // card and sheet both read.
-function buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today }) {
+// ONE SENTENCE OF THE IDEA (mockup 116, under "The idea"): the first sentence
+// of the page's own opening paragraph, cut at a word if it runs long. Read
+// from the page, never written by a model.
+export function ideaSentence(paragraph, max = 190) {
+  const text = titleKey(paragraph).replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  const m = text.match(/^(.+?[.!?])(?:\s|$)/);
+  const first = (m ? m[1] : text).trim();
+  if (first.length <= max) return first;
+  const cut = first.slice(0, max).replace(/\s+\S*$/, '').replace(/[,;:\s]+$/, '');
+  return `${cut}…`;
+}
+
+function buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today, ctx }) {
   const card = cards[id] || null;
   const answered = !!card && card.due > today;
+  const qctx = ctx || quoteContext(pages);
   return {
     id, kind, answered,
+    // the speaker's own words, checked against the transcript (null when the
+    // page has none), and the one sentence of the idea behind them
+    quote: quoteFor(page, qctx),
+    idea: { title: page.title, sentence: ideaSentence(page.paragraphs?.[0]) },
     lane: laneOf(page),
     title: page.title, type: page.type,
     gist: page.paragraphs?.[0] || null,
@@ -533,7 +567,7 @@ async function loadVaultView(vaultPath, vault) {
   const titleToId = titleToIdMap(pages);
   const backlinkCounts = await vault.backlinkCounts(pages);
   const { cards, history } = await getReviewState(vaultPath, titleToId);
-  return { pages, backlinkCounts, cards, history };
+  return { pages, backlinkCounts, cards, history, ctx: quoteContext(pages) };
 }
 
 // in-memory only: which ids were picked for today, so the pips ("N of M")
@@ -545,11 +579,11 @@ let todayPick = null;
 export async function reviewToday(vaultPath, vault, now = new Date()) {
   const { localDateISO } = await import('./localDate.js');
   const today = localDateISO(now);
-  const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
+  const { pages, backlinkCounts, cards, history, ctx } = await loadVaultView(vaultPath, vault);
 
   if (!todayPick || todayPick.date !== today) {
     const spacing = await spacingFor(pages);
-    const { queue } = buildQueue({ pages, cards, backlinkCounts, today, spacing, nowMs: now.getTime() });
+    const { queue } = buildQueue({ pages, cards, backlinkCounts, today, spacing, nowMs: now.getTime(), ctx });
     todayPick = { date: today, items: queue.map((q) => ({ id: q.id, kind: q.kind })) };
     // a shown concept steps back, tomorrow the next one gets its turn. A failed
     // write costs a repeat of today's card, never today's card.
@@ -565,7 +599,7 @@ export async function reviewToday(vaultPath, vault, now = new Date()) {
   const items = todayPick.items
     .map(({ id, kind }) => ({ id, kind, page: pagesById.get(id) }))
     .filter((i) => i.page)
-    .map(({ id, kind, page }) => buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today }));
+    .map(({ id, kind, page }) => buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today, ctx }));
 
   const dueCount = dueCards(cards, pagesById, today).length;
   const { ahead, nextDue } = aheadOf(cards, pagesById, today);
@@ -587,11 +621,11 @@ export async function reviewToday(vaultPath, vault, now = new Date()) {
 export async function drawEarly(vaultPath, vault, now = new Date(), lane = 'mind') {
   const { localDateISO } = await import('./localDate.js');
   const today = localDateISO(now);
-  const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
-  const candidates = newCandidates(pages, cards, backlinkCounts, lane);
+  const { pages, backlinkCounts, cards, history, ctx } = await loadVaultView(vaultPath, vault);
+  const candidates = newCandidates(pages, cards, backlinkCounts, lane, ctx);
   if (!candidates.length) return null;
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  return buildItemView({ id: pick.id, kind: 'new', page: pick.page, pages, cards, history, backlinkCounts, today });
+  return buildItemView({ id: pick.id, kind: 'new', page: pick.page, pages, cards, history, backlinkCounts, today, ctx });
 }
 
 // One arbitrary page's card view (used after the reel lands, and by the
@@ -600,11 +634,11 @@ export async function drawEarly(vaultPath, vault, now = new Date(), lane = 'mind
 export async function reviewItemFor(vaultPath, vault, pageId, now = new Date()) {
   const { localDateISO } = await import('./localDate.js');
   const today = localDateISO(now);
-  const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
+  const { pages, backlinkCounts, cards, history, ctx } = await loadVaultView(vaultPath, vault);
   const page = pages.find((p) => p.id === pageId);
   if (!page) return null;
   const kind = cards[pageId] ? 'due' : 'new';
-  return buildItemView({ id: pageId, kind, page, pages, cards, history, backlinkCounts, today });
+  return buildItemView({ id: pageId, kind, page, pages, cards, history, backlinkCounts, today, ctx });
 }
 
 // One tap: write the vault log line, rebuild the schedule, and return the
@@ -640,7 +674,47 @@ export async function submitAnswer(vaultPath, vault, { pageId, grade }, now = ne
   return { record, pageId, grade, step: card?.step ?? 0, due: card?.due ?? null };
 }
 
+// NOT FOR ME (mockup 116, the new line's second button): the page is passed
+// by without any answer. NOTHING is written to the Review Log (its shape and
+// its grades are a contract); the page only steps back on the surfacing
+// record, the same two-step gap Next used to cost it, and today's day drops
+// by one. Undoable on the Inbox rails like every answer.
+export async function skipPage(vaultPath, vault, { pageId }, now = new Date()) {
+  const page = await vault.getPage(pageId).catch(() => null);
+  if (!page) throw new Error('that page is no longer in the vault');
+  const state = await readSurfaced();
+  const before = state[pageId] ?? null;
+  await writeSurfaced(noteDismissed(state, pageId, now.getTime()));
+  const slot = todayPick?.items.find((i) => i.id === pageId) || null;
+  const at = slot ? todayPick.items.findIndex((i) => i.id === pageId) : -1;
+  if (slot) todayPick = { ...todayPick, items: todayPick.items.filter((i) => i.id !== pageId) };
+
+  const { createRecord } = await import('./inboxStore.js');
+  const { randomUUID } = await import('node:crypto');
+  const stamp = now.toISOString();
+  const record = await createRecord({
+    id: randomUUID().slice(0, 8), kind: 'concept-recall',
+    text: `Daily review: ${page.title} — passed by.`,
+    source: 'review', mode: 'auto', status: 'filed', auto: true,
+    createdAt: stamp, filedAt: stamp, destination: 'Daily review — passed by, nothing written to the Review Log',
+    undoData: { route: 'concept-recall', skipped: { pageId, before, slot, at, date: todayPick?.date || null } },
+  });
+  return { record, pageId };
+}
+
 export async function undoConceptAnswer(vaultPath, undo) {
+  if (undo.skipped) {
+    const k = undo.skipped;
+    const state = { ...(await readSurfaced()) };
+    if (k.before) state[k.pageId] = k.before; else delete state[k.pageId];
+    await writeSurfaced(state).catch(() => {});
+    if (k.slot && todayPick && todayPick.date === k.date && !todayPick.items.some((i) => i.id === k.pageId)) {
+      const items = todayPick.items.slice();
+      items.splice(Math.min(Math.max(k.at, 0), items.length), 0, k.slot);
+      todayPick = { ...todayPick, items };
+    }
+    return 'put that page back in today’s review';
+  }
   const removed = await undoAnswer(vaultPath, undo);
   if (undo.surfaced?.pageId) {
     const state = { ...(await readSurfaced()) };

@@ -585,6 +585,8 @@ export const api = {
   reviewSummary: (conn, id) => post(conn, '/api/review/summary', { id }),
   reviewSummaryJob: (conn, jobId) => call(conn, `/api/review/summary/${encodeURIComponent(jobId)}`),
   reviewAnswer: (conn, pageId, grade) => post(conn, '/api/review/answer', { pageId, grade }),
+  // "Not for me" (mockup 116): passed by; nothing is written to the Review Log
+  reviewSkip: (conn, pageId) => post(conn, '/api/review/skip', { pageId }),
   // lane 'body': sleep, stress and health science (conceptReview.js bodyLane)
   reviewDraw: (conn, lane = 'mind') => call(conn, `/api/review/draw${lane === 'body' ? '?lane=body' : ''}`),
   reviewItem: (conn, id) => call(conn, `/api/review/item?id=${encodeURIComponent(id)}`),

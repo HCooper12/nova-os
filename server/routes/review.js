@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { reviewToday, submitAnswer, drawEarly, reviewItemFor, GRADES } from '../lib/conceptReview.js';
+import { reviewToday, submitAnswer, skipPage, drawEarly, reviewItemFor, GRADES } from '../lib/conceptReview.js';
 import { getCachedReviewSummary, startReviewSummaryJob, getReviewSummaryJob, reviewSummaryInput } from '../lib/reviewSummary.js';
 import { logRequestError } from '../lib/requestErrors.js';
 
@@ -11,6 +11,7 @@ import { logRequestError } from '../lib/requestErrors.js';
 //                         and the day's "N of M done" count
 //   POST /review/answer   one tap — Next (grade 'read') or a recall choice;
 //                         files to the Inbox rails, undoable
+//   POST /review/skip     "Not for me": passed by, nothing written to the log
 export function reviewRouter(vaultPath, vault) {
   const router = Router();
 
@@ -71,6 +72,15 @@ export function reviewRouter(vaultPath, vault) {
       if (!pageId) return res.status(400).json({ error: 'pageId is required' });
       if (!GRADES.includes(grade)) return res.status(400).json({ error: `grade must be one of: ${GRADES.join(', ')}` });
       res.json(await submitAnswer(vaultPath, vault, { pageId, grade }));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  // "Not for me" on a new line: passed by, nothing written to the Review Log
+  router.post('/review/skip', async (req, res) => {
+    try {
+      const pageId = typeof req.body?.pageId === 'string' ? req.body.pageId : '';
+      if (!pageId) return res.status(400).json({ error: 'pageId is required' });
+      res.json(await skipPage(vaultPath, vault, { pageId }));
     } catch (err) { res.status(400).json({ error: err.message }); }
   });
 
