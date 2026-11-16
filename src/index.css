@@ -1619,16 +1619,6 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .nv-sum-tabbar, .nv-sum-nova, .nv-sum-search { background: color-mix(in srgb, var(--nv-void) 90%, white); }
 }
-/* THE BENT RIM (15 Nov, after the Glisse reel): src/glassLens.js sets
-   [data-nv-lens] and --nv-lens (an SVG displacement filter for this size)
-   ONLY in Chromium, the one engine that filters a backdrop through url().
-   WebKit never gets the attribute, so these rules never match on his phone.
-   The frost and saturation are today's; the lens bends the frosted backdrop
-   in a band at the rim. The !important reduced-transparency and glass-meter
-   guards still win. */
-.nv-sum-tabbar[data-nv-lens], .nv-sum-nova[data-nv-lens], .nv-sum-search[data-nv-lens] {
-  backdrop-filter: blur(22px) saturate(var(--nv-sum-sat)) var(--nv-lens);
-}
 
 /* THE EDIT SHEET: already .nv-liquid .nv-liquid-thick (PinnedEditSheet.jsx);
    under summary it takes the bar's glass by pointing the liquid tokens at
@@ -1645,10 +1635,6 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   --nv-liquid-drop: var(--nv-sum-float-drop);
 }
 :root[data-nv-style="summary"][data-nv-calm="1"] .nv-liquid.nv-sum-sheet { --nv-liquid-glow: inset 0 0 0 0 rgba(0,0,0,0); }
-/* the sheet's bent rim, Chromium only (see THE BENT RIM above) */
-:root[data-nv-style="summary"] .nv-liquid.nv-sum-sheet[data-nv-lens] {
-  backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat)) var(--nv-lens);
-}
 
 /* ================================================================
    THE SUMMARY TRAIN PAGE (27 Sep 2026) — redesign round 1, variation A,

@@ -4,7 +4,6 @@ import './index.css'
 import './muscleTaxonomy.css'
 import App from './App.jsx'
 import { startDurable } from './durable.js'
-import { startGlassLens } from './glassLens.js'
 import { applyAppearance, getNovaTheme, getCalm, getNovaStyle, getMaterial, startHourClock, applyGlow, getGlow, getGlowQuiet } from './theme.js'
 
 // Nova's saved state is kept twice in the iPhone app (src/durable.js): stamp
@@ -21,9 +20,6 @@ applyGlow(glow, getGlowQuiet())
 // The hour band (dawn/day/dusk/night) that `sky` and Nova glass's aurora
 // read — refreshes itself every 15 minutes and on visibilitychange.
 startHourClock()
-// The bent rim on the floating glass (src/glassLens.js): Chromium only, so on
-// his iPhone (WebKit) this returns at once and nothing changes.
-startGlassLens()
 
 // iOS only paints `:active` on an element while some touchstart listener is
 // installed above it. Nova had three, each mounted by a feature (edge back,
