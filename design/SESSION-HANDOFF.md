@@ -11,6 +11,15 @@ the session log at the foot is append-only.
 
 ---
 
+## 17 Nov (Fable 5.2, watch session): WATCH MOCKUP ROUND TWO (119) SENT FOR HIS APPROVAL. `06c95d04`, local, NOT PUSHED. NOTHING BUILT
+- GOAL: his go-ahead to resume the watch on Fable, answering his 13 Nov notes on 115: more dynamic and closer to Nova's look, food logging as quick as possible, the real animated core, talk to Nova like Siri, the snake-game build from the wrist, what else earns a place there. His watch: Series 7, 45 mm.
+- STATE: `design/mockups/119-nova-wrist-round-two.html` (self-contained, sample content only), published over round one's link https://claude.ai/artifact/1X71qj291NQk5jmqap7KEo as version 2. Nine sections: talk loop (Ask / Log food / Start a build, playable), Fuel (tap a usual, playable, 5 s undo), Forge from the wrist, Train, Inbox + Capture, face + Smart Stack, how he reaches home + offline screens, what else, what Nova needs. `design/WRIST-PLAN.md` is still the architecture.
+- VERIFIED (by looking at stills, headless Chrome): all nine sections at 1280 and 375 wide, no overlapping tiles, no sideways page scroll at 375 or 320; hero rest / listening / thinking / speaking / done for the three chips; fuel undo and done states with the numbers following (96 to 48 to 14 g); the reduced-motion script path lands each chip on its held after-state; no local font or file path in either output.
+- NOT VERIFIED: WebKit or his phone; motion (stills only, nothing recorded); the reduced-motion CSS rule (only the script path was forced); real SF fonts in the published page (shots used this Mac's fonts, the headless repo copy fell back to the web serif).
+- BUILD SOURCES are session scratch and will vanish (old scratchpad `5e8daf4f.../wrist2`: `main_a.html`, `main_b.html`, `new_style.css`, `splice.py`, `build.mjs`). The repo copy is the source of record for a round three.
+- WAITS ON HIM: approve 119 or changes; the front door for watch-alone reach (decision 2 on the page); build order. Then, queued by him: "Search the web with Nova" on 117.
+- DO NOT: write Swift before he approves; stage `ios/App/App.xcodeproj/project.pbxproj` or `ios/App/App/Info.plist` (uncommitted, not this session's); push without his yes (main is 2 ahead of origin: `ddb0f789` the twin's close note, `06c95d04` this).
+
 ## 17 Nov, CLOSE (claude.ai session 01XSEt9h, Opus 5.5, shopping twin): MOCKUP 118 BUILT, PUSHED AND SERVED; SERVER RELOADED. NOT SEEN ON HIS PHONE
 **Newer than the block beneath it: my five shopping commits (up to `2391068b`) were pushed on his yes and the server was reloaded once, which also switched on 116/117's server code. At close `git rev-list --left-right --count origin/main...main` is `0 0` at `91dcff59`. The "NOT PUSHED / main 16 ahead / server not reloaded" lines in the next block are now stale.**
 
@@ -24,7 +33,7 @@ the session log at the foot is append-only.
 - NEXT ACTION: on his phone close Nova from the switcher and reopen. Open Shopping, tap a price on a line used by two meals: expect one row per meal with its amount and a foot "N still to get · M bought". Tick one row: expect the foot to change and the price to re-pick. Remove any line: expect it under "Taken off today" with Undo. Open Cheesy Pizza Bowls and add it again: expect the question "Add only what's missing" (cottage cheese, mozzarella, olive oil, salt, pepper).
 - DO NOT: say 118 is on his phone before he has reopened it; read the history file for anything before 17 Nov (it did not exist); treat the cottage cheese as solved (two causes, no proof); run instruments against 4173 (scratch 4174; Vite must run on 5183 because the server's allowed origins are 5183 and 5173, not 5198); pass an aria-label with ". Open its product" appended into the add path (a junk "6 English muffins. Open its product" item came from a driver bug, scratch copy only); `kill` a background task (the classifier denies it, use TaskStop); push while a peer has unapproved commits on main without naming the commit (`git push origin <sha>:main`).
 
-## 17 Nov (Opus 5.5): 116 AND 117 BUILT, LENS DROPPED, RIM LIVE. 116/117 NOT PUSHED (one question to him)
+## 17 Nov (Opus 5.5): 116 AND 117 BUILT, LENS DROPPED, RIM LIVE. (Corrected later on 17 Nov: 116/117 ARE pushed, origin held `91dcff59`, and the server was reloaded once; the "local only", "HOLD on the push" and "push rule" bullets below are history)
 
 **His answers (17 Nov) to the 15 Nov list:** FRESH_DAYS kept; drop the glass lens "to see what that looks like"; send the rim light; approve 116; approve 117; push yes. Then: "we need to revisit the watch mockup ... Don't resume this work until I give the go ahead as I'll have you do that on fable". **Watch (115): HOLD until his word; that session runs on Fable.**
 
