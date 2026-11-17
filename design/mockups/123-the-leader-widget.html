@@ -1,0 +1,282 @@
+<!doctype html>
+<!--
+  Mockup 123: the Leader widget. FOR APPROVAL, NOTHING BUILT.
+
+  His ask (17 Nov 2026): a "leader" widget focused on leadership and
+  management advice. Same family as The Line (mockup 122): three looks,
+  follows the day, the travelling light, two turn-over dots. Gold and two
+  chevrons are the Leader's. It carries the day's general idea only, never
+  the live work situation. The ideas in this file are sample content.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nova Leader Widget</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --nv-void:#06070d; --pg-ink:#eef1f8; --pg-ink2:rgba(238,241,248,.66); --pg-ink3:rgba(238,241,248,.42);
+  --pg-line:rgba(238,241,248,.12); --nv-gold:#e0b26a;
+  --serif:ui-serif,'New York','Source Serif 4',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,'Helvetica Neue',sans-serif;
+  --ease:cubic-bezier(.23,1,.32,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nv-void);color:var(--pg-ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+.pg{max-width:1180px;margin:0 auto;padding-block:36px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--pg-ink3);margin:0 0 10px}
+h1{font:400 34px/1.1 var(--serif);letter-spacing:-.015em;margin:0 0 12px;text-wrap:balance}
+h2{font:400 24px/1.15 var(--serif);letter-spacing:-.01em;margin:0 0 8px;text-wrap:balance}
+.lede,.sub{color:var(--pg-ink2);max-width:62ch;margin:0}
+.note{color:var(--pg-ink3);font-size:13px;max-width:62ch;margin:14px 0 0}
+section{margin-top:64px}
+.cap{font-size:13px;color:var(--pg-ink2);margin:0 0 10px}
+.cap b{color:var(--pg-ink);font-weight:600}
+
+/* the three looks The Line already has, with the Leader's gold where The Line is violet */
+.wg[data-look="a"]{--ink:#eef1f8;--ink2:rgba(238,241,248,.68);--ink3:rgba(238,241,248,.44);--acc:#e6bd7a;--sep:rgba(238,241,248,.14);--edge:rgba(255,255,255,.09);--ltc:rgba(224,178,106,.30)}
+.wg[data-look="b"]{--ink:#f3ecdf;--ink2:rgba(243,236,223,.64);--ink3:rgba(243,236,223,.42);--acc:#e0b26a;--sep:rgba(243,236,223,.14);--edge:rgba(255,255,255,.10);--ltc:rgba(224,178,106,.16)}
+.wg[data-look="c"]{--ink:#1f1c18;--ink2:rgba(31,28,24,.70);--ink3:rgba(31,28,24,.50);--acc:#8a5200;--sep:rgba(31,28,24,.16);--edge:rgba(255,255,255,.5);--ltc:rgba(255,255,255,.85)}
+
+.wg{position:relative;border-radius:22px;padding:16px;background:#10152f;color:var(--ink);overflow:hidden;
+  display:flex;flex-direction:column;flex:none;box-shadow:0 10px 28px rgba(0,0,0,.34);transition:color 700ms var(--ease)}
+.wg::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 .5px var(--edge);pointer-events:none}
+.wg-s{width:158px;height:158px}
+.wg-m{width:338px;height:158px}
+.wg-l{width:338px;height:354px;padding:20px}
+.gd{position:absolute;inset:0;opacity:0;transition:opacity 700ms var(--ease)}
+.gd-a{background:linear-gradient(135deg,#1d2750,#10152f)}
+.gd-b{background:linear-gradient(160deg,#15161f,#0a0b11)}
+.gd-c{background:linear-gradient(160deg,#f4eee2,#e7decd)}
+.wg[data-look="a"] .gd-a,.wg[data-look="b"] .gd-b,.wg[data-look="c"] .gd-c{opacity:1}
+.lt{position:absolute;left:0;top:0;width:78%;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,var(--ltc),transparent);
+  opacity:var(--lto,1);transform:translate(var(--lx,-38%),var(--ly,-48%));transition:transform 1400ms var(--ease),opacity 700ms var(--ease);pointer-events:none}
+.wg[data-ph="0"]{--lx:-38%;--ly:-48%;--lto:1}
+.wg[data-ph="1"]{--lx:22%;--ly:-60%;--lto:1}
+.wg[data-ph="2"]{--lx:88%;--ly:-26%;--lto:.85}
+.wg[data-ph="3"]{--lx:96%;--ly:40%;--lto:.5}
+.body{position:relative;z-index:1;min-width:0;flex:1;display:flex;flex-direction:column;transition:transform 420ms var(--ease),opacity 300ms var(--ease),filter 300ms var(--ease)}
+.body.out{opacity:0;transform:translateY(-10px);filter:blur(4px)}
+.body.pre{transition:none;opacity:0;transform:translateY(12px);filter:blur(4px)}
+
+/* the Leader's mark: two chevrons, the stripes of whoever is leading the shift */
+.kd{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--acc);margin:0 0 8px;transition:color 700ms var(--ease)}
+.kd svg{width:13px;height:12px;flex:none}
+.kd .day{margin-left:auto;color:var(--ink3);letter-spacing:.06em;font-weight:500;text-transform:none;font-size:11px}
+.tt{font:500 19px/1.14 var(--serif);letter-spacing:-.014em;margin:0;text-wrap:balance}
+.wg-s .tt{font-size:18px;line-height:1.16}
+.wg-l .tt{font-size:27px;line-height:1.1;letter-spacing:-.02em}
+.how{font-size:12px;line-height:1.36;color:var(--ink2);margin:7px 0 0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;transition:color 700ms var(--ease)}
+.wg-l .how{font-size:14px;line-height:1.4;margin-top:12px;-webkit-line-clamp:7}
+.how.two{-webkit-line-clamp:2}
+.why{font-size:12.5px;line-height:1.38;color:var(--ink);margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.ft{margin-top:auto;padding-top:8px;font-size:11px;line-height:1.2;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft b{font-weight:600;font-size:.92em;letter-spacing:.09em;text-transform:uppercase;color:var(--ink2)}
+.wg-s .ft{font-size:10px}
+.sepd{margin-top:16px;padding-top:13px;border-top:.5px solid var(--sep)}
+.sepd .kd{color:var(--ink3);margin-bottom:5px}
+.sepd p{font-size:13px;line-height:1.38;color:var(--ink2);margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+.quiet{font:400 17px/1.2 var(--serif);color:var(--ink2);margin:0;text-wrap:balance}
+.dots{position:absolute;z-index:2;top:0;right:0;width:52px;height:44px;padding:19px 14px 0 0;display:flex;justify-content:flex-end;align-items:flex-start;gap:5px;background:none;border:0;cursor:pointer}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--ink3);transition:background 300ms var(--ease),transform 160ms var(--ease)}
+.dots i:first-child,.wg[data-face="why"] .dots i:last-child{background:var(--ink)}
+.wg[data-face="why"] .dots i:first-child{background:var(--ink3)}
+.dots:active i{transform:scale(.8)}
+
+.wall{background:linear-gradient(170deg,#23202e,#0d0e16 70%);border-radius:30px;padding:16px;width:370px;max-width:100%;display:flex;flex-direction:column;gap:22px}
+.row{display:flex;gap:22px}
+.ic2{width:158px;display:grid;grid-template-columns:1fr 1fr;gap:22px 27px;padding:6px 9px;align-content:space-between}
+.ic2 i{aspect-ratio:1;border-radius:14px;background:rgba(255,255,255,.07)}
+/* the two widgets as a pair: The Line beside it, drawn quiet so the Leader is the subject */
+.line-s{background:linear-gradient(135deg,#1d2750,#10152f);justify-content:center;opacity:.72}
+.line-s .mk{font:500 34px/.74 var(--serif);color:#a493ff;height:15px}
+.line-s p{font:400 14px/1.2 var(--serif);margin:0;color:#eef1f8}
+.line-s small{display:block;margin-top:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:rgba(238,241,248,.6)}
+.demo{display:flex;flex-wrap:wrap;gap:22px 40px;align-items:flex-start;margin-top:22px}
+.side{flex:1 1 260px;min-width:0;max-width:46ch}
+.side p{color:var(--pg-ink2);font-size:14px;margin:0 0 14px}
+.sw{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-top:28px;padding:10px 0 14px;background:linear-gradient(var(--nv-void) 80%,transparent);display:flex;gap:8px 12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:rgba(255,255,255,.07);border-radius:11px;padding:3px;max-width:100%}
+.seg button{font:600 13px var(--sans);color:var(--pg-ink2);background:none;border:0;border-radius:8px;padding:8px 12px;min-height:36px;cursor:pointer;white-space:nowrap;transition:background 180ms var(--ease),color 180ms var(--ease),transform 140ms var(--ease)}
+.seg button:active{transform:scale(.97)}
+.seg button[aria-pressed="true"]{background:rgba(255,255,255,.16);color:var(--pg-ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(338px,100%),1fr));gap:26px 34px;margin-top:20px;align-items:start}
+.pair{display:flex;flex-direction:column;gap:10px;min-width:0}
+.lock{width:370px;max-width:100%;border-radius:30px;padding:26px 24px 30px;background:linear-gradient(180deg,#2b3050,#141829);text-align:center}
+.lock .d{font-size:17px;font-weight:500;color:rgba(255,255,255,.9)}
+.lock .t{font-size:78px;font-weight:600;line-height:1;letter-spacing:-.02em;margin:2px 0 18px;color:#fff}
+.lk{width:170px;text-align:left;color:rgba(255,255,255,.92)}
+.lk small{display:block;margin-bottom:3px;font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+.lk p{font:400 14px/1.2 var(--serif);margin:0}
+dl{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:12px 24px;margin:18px 0 0;max-width:820px}
+dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14px}
+@media (max-width:560px){dl{grid-template-columns:1fr;gap:2px 0} dd{margin-bottom:12px} h1{font-size:29px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<main class="pg">
+  <p class="eyebrow">Mockup 123 · for approval · nothing built</p>
+  <h1>The Leader, on the home screen</h1>
+  <p class="lede">One thing to do as a leader today, in the Leader's gold. The front says what to do. Turn it over and it says why it works and where the idea came from.</p>
+  <p class="note">It shows the idea the Leader already writes each morning. It never shows the live work situation: that stays inside Nova, behind the app.</p>
+  <p class="note">The ideas on this page are sample content. The built widget shows only the idea the Leader really wrote that day.</p>
+
+  <div class="sw">
+    <div class="seg" role="group" aria-label="Time of day">
+      <button type="button" data-t="0">Morning</button><button type="button" data-t="1">Midday</button><button type="button" data-t="2">Evening</button><button type="button" data-t="3">Night</button>
+    </div>
+    <div class="seg" role="group" aria-label="Look">
+      <button type="button" data-set="auto">Follows the day</button><button type="button" data-set="a">Nova</button><button type="button" data-set="b">Ink</button><button type="button" data-set="c">Paper</button>
+    </div>
+  </div>
+
+  <section style="margin-top:26px">
+    <h2>Beside The Line</h2>
+    <div class="demo">
+      <div class="wall">
+        <div data-w="m" data-i="0"></div>
+        <div class="row">
+          <div class="wg wg-s line-s"><div class="mk">“</div><p>The line of the day sits here.</p><small>The Line</small></div>
+          <div class="ic2"><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <div class="side">
+        <p>Same shape, same three looks and the same travelling light as The Line, so the two sit together as a pair. Gold and two chevrons mark this one as the Leader's; violet and a quote mark stay The Line's.</p>
+        <p>Tap the two dots to turn it over. Tap anywhere else and Nova opens on the Leader.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Four sizes</h2>
+    <p class="sub">The small one is the instruction alone. The medium adds how to do it. The large carries the whole idea with its reason, so nothing needs turning over.</p>
+    <div class="grid">
+      <div class="pair"><p class="cap"><b>Small</b> · what to do</p><div data-w="s" data-i="0"></div></div>
+      <div class="pair"><p class="cap"><b>Medium</b> · what to do and how · turns over</p><div data-w="m" data-i="1"></div></div>
+      <div class="pair"><p class="cap"><b>Large</b> · the whole idea</p><div data-w="l" data-i="0"></div></div>
+      <div class="pair"><p class="cap"><b>Lock screen</b> · iOS draws it in one tint</p>
+        <div class="lock"><div class="d" id="lkd"></div><div class="t">9:41</div><div class="lk"><small>Lead</small><p id="lkp"></p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Three kinds of idea, one word each</h2>
+    <p class="sub">The Leader already sorts each day's idea into one of three kinds. The label says which, so a glance tells him whether it is something to do, to keep in mind, or to try.</p>
+    <div class="grid">
+      <div class="pair"><p class="cap"><b>Do today</b> · an action</p><div data-w="m" data-i="0"></div></div>
+      <div class="pair"><p class="cap"><b>Try this</b> · an idea</p><div data-w="m" data-i="2"></div></div>
+      <div class="pair"><p class="cap"><b>Remember</b> · a reminder</p><div data-w="m" data-i="3"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>When there is nothing to show, it says so</h2>
+    <div class="grid">
+      <div class="pair"><p class="cap"><b>Not written yet</b> · yesterday's stays, labelled</p><div data-w="m" data-i="1" data-state="early"></div></div>
+      <div class="pair"><p class="cap"><b>Switched off in Settings</b></p><div data-w="m" data-state="off"></div></div>
+      <div class="pair"><p class="cap"><b>Mac not reached</b> · the last one it had, labelled</p><div data-w="m" data-i="0" data-state="stale"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it is made of</h2>
+    <dl>
+      <dt>The words</dt><dd>The day's idea exactly as the Leader wrote it: its kind, its title, how to do it, why, and the source it drew on. The widget adds no words of its own.</dd>
+      <dt>Never on it</dt><dd>The live work situation, names from it, or anything from the Leader's private picture.</dd>
+      <dt>Medium, front</dt><dd>The first sentence of how to do it. The rest is one tap away in Nova and whole on the large size.</dd>
+      <dt>Looks</dt><dd>Follows the day, Nova, Ink or Paper, chosen by holding the widget, the same as The Line.</dd>
+      <dt>Movement</dt><dd>Only what iOS allows a widget: the light moves four times a day, the new idea blends in each morning, and the turn-over blends.</dd>
+    </dl>
+  </section>
+</main>
+
+<script>
+const LEADS = [
+ {
+  "kind": "action",
+  "title": "Give one person the whole job, not a step",
+  "line": "Before the day starts, pick one task and hand over the outcome instead of the steps. Say what done looks like, then leave the method to them.",
+  "why": "People take more care with work they decide how to do. Handing over the outcome shows trust and frees your attention for the rest of the team.",
+  "src": "Sample note · Handing over outcomes",
+  "day": "Tue 17 Nov"
+ },
+ {
+  "kind": "action",
+  "title": "Ask what they would do first",
+  "line": "When someone brings you a problem today, ask what they would do before you answer. Add only what is missing.",
+  "why": "Asking first shows you what they already know and makes the answer theirs. Telling first hides both.",
+  "src": "Sample note · Ask before you tell",
+  "day": "Mon 16 Nov"
+ },
+ {
+  "kind": "idea",
+  "title": "Say the goal as a picture",
+  "line": "Open the brief with what the finished job looks like, in words the team could see. Then name the one thing that matters most.",
+  "why": "A goal people can picture is easier to remember and to check their own work against than a number.",
+  "src": "Sample note · Goals people can see",
+  "day": "Sun 15 Nov"
+ },
+ {
+  "kind": "reminder",
+  "title": "Calm is part of the job",
+  "line": "When the shift gets busy, slow your voice before you speak. The team reads the pace from you.",
+  "why": "A team takes its sense of how serious things are from the person leading it.",
+  "src": "Sample note · Setting the pace",
+  "day": "Sat 14 Nov"
+ }
+];
+const KIND = { action: 'Do today', idea: 'Try this', reminder: 'Remember' };
+const CHEV = '<svg viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 5.5l5-4 5 4"/><path d="M1.5 10.5l5-4 5 4"/></svg>';
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const first = (s) => { const m = String(s).match(/^.*?[.!?]['"”’]?(?=\s|$)/); return m ? m[0] : s; };
+const kd = (label, day) => `<p class="kd">${CHEV}<span>${label}</span>${day ? `<span class="day">${day}</span>` : ''}</p>`;
+
+function face(size, L, which, state) {
+  if (state === 'off') return `${kd('Lead')}<p class="quiet">The daily idea is switched off in Settings.</p><p class="ft">Nothing is shown until it is back on.</p>`;
+  const label = state === 'early' ? 'Yesterday' : state === 'stale' ? `${KIND[L.kind]} · ${L.day}` : KIND[L.kind];
+  const foot = state === 'early' ? 'Today’s idea has not been written yet.' : state === 'stale' ? 'Mac not reached. The last idea it sent.' : `<b>From</b> ${esc(L.src)}`;
+  if (size === 's') return `${kd(label)}<p class="tt">${esc(L.title)}</p><p class="ft">${state ? foot : esc(L.src)}</p>`;
+  if (size === 'l') return `${kd(label, L.day)}<p class="tt">${esc(L.title)}</p><p class="how">${esc(L.line)}</p><div class="sepd"><p class="kd"><span>Why it works</span></p><p>${esc(L.why)}</p></div><p class="ft">${foot}</p>`;
+  if (which === 'why') return `${kd('Why it works')}<p class="why">${esc(L.why)}</p><p class="ft">${foot}</p>`;
+  return `${kd(label)}<p class="tt">${esc(L.title)}</p><p class="how${state ? ' two' : ''}">${esc(first(L.line))}</p>${state ? `<p class="ft">${foot}</p>` : ''}`;
+}
+
+let phase = 0, set = 'auto';
+const lookFor = () => (set !== 'auto' ? set : phase === 0 || phase === 1 ? 'c' : phase === 2 ? 'a' : 'b');
+const widgets = [];
+document.querySelectorAll('[data-w]').forEach((slot) => {
+  const size = slot.dataset.w, state = slot.dataset.state || '', L = LEADS[+slot.dataset.i || 0];
+  const el = document.createElement('div');
+  el.className = `wg wg-${size}`; el.dataset.face = 'do';
+  const turns = size === 'm' && !state;
+  el.innerHTML = `<div class="gd gd-a"></div><div class="gd gd-b"></div><div class="gd gd-c"></div><div class="lt"></div><div class="body">${face(size, L, 'do', state)}</div>${turns ? '<button class="dots" type="button" aria-label="Turn over"><i></i><i></i></button>' : ''}`;
+  slot.replaceWith(el); widgets.push(el);
+  if (!turns) return;
+  el.querySelector('.dots').addEventListener('click', () => {
+    const body = el.querySelector('.body'), next = el.dataset.face === 'do' ? 'why' : 'do';
+    body.classList.add('out');
+    setTimeout(() => {
+      el.dataset.face = next; body.innerHTML = face(size, L, next, state);
+      body.classList.remove('out'); body.classList.add('pre'); void body.offsetWidth; body.classList.remove('pre');
+    }, 240);
+  });
+});
+function paint() {
+  widgets.forEach((w) => { w.dataset.ph = phase; w.dataset.look = lookFor(); });
+  document.querySelectorAll('[data-t]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.t === phase)));
+  document.querySelectorAll('[data-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.set === set)));
+}
+document.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => { phase = +b.dataset.t; paint(); }));
+document.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', () => { set = b.dataset.set; paint(); }));
+const h = new Date().getHours(); phase = h < 11 ? 0 : h < 16 ? 1 : h < 20 ? 2 : 3;
+document.getElementById('lkd').textContent = LEADS[0].day;
+document.getElementById('lkp').textContent = LEADS[0].title;
+paint();
+</script>
+</body>
+</html>
