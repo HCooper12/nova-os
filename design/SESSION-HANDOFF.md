@@ -11,6 +11,18 @@ the session log at the foot is append-only.
 
 ---
 
+## 17 Nov (Opus 5.5): 116 AND 117 BUILT, LENS DROPPED, RIM LIVE. 116/117 NOT PUSHED (one question to him)
+
+**His answers (17 Nov) to the 15 Nov list:** FRESH_DAYS kept; drop the glass lens "to see what that looks like"; send the rim light; approve 116; approve 117; push yes. Then: "we need to revisit the watch mockup ... Don't resume this work until I give the go ahead as I'll have you do that on fable". **Watch (115): HOLD until his word; that session runs on Fable.**
+
+- PUSHED and served: origin/main `3e93f546` (the 14 approved commits + the lens drop). Served bundle checked: buildId 3e93f5466, no lens, 315deg rim in 7 blocks, pain-check reopen present. NOT checked on his phone (the PWA keeps old JS until reopened).
+- Server reloaded 15 Nov 19:24 by the twin session on his yes (freshness fix + pain reopen live on 4173).
+- BUILT, local only: 116 daily review (`server/lib/reviewQuote.js`: the quote is checked word for word against the transcript, real timecode or none, his named shows first, mind-only; "Not for me" via POST /review/skip, logs nothing, undoable) and 117 search (`searchNotes` in `recall.js` behind GET /api/recall/notes?half=words|meaning; `src/SearchSheet.jsx`, `searchModel.js`, `searchSheet.css`, opened from the Index pill). Merge `fc3be19c` on top of origin/main; twin's five shopping commits (118) replayed on top, main `2391068b`, 16 ahead.
+- Verified at 2391068b: build green, server 5574 pass 0 fail, client tests 47/47, lint no errors. WebKit (Playwright) pairs vs the mockups in `scratchpad/proof116` and `proof117` (session-local, will vanish); I looked at new/reveal/offline/kept (116) and joined/opened (117).
+- HOLD on the 116/117 push: the mockup's Kept line says "Back tomorrow as a question" but the ladder brings a new page back in 3 days; the build says the truth. Mockup-identical rule means asking him first. Also asked: add "Search the web with Nova" to 117's nothing-found state (needs a web action; left out).
+- NOT verified: either build on his phone or in real iOS Safari; his theme/material (live only on his phone, defaults pinned); 116 grouped done/none states never rendered; 117 is unreachable under cupertino (no Index there); reduced motion. Quote quality is uneven (36 of 55 named-show pages have a lead quote; some lead quotes are example lines, not ideas). The expanded workout island card covers the top of any page incl. the opened note; same app-wide behaviour, not new.
+- Push rule while the twin's shopping commits are unapproved: push only up to the approved commit (`git push origin fc3be19c:main`), never plain main. Needs a server reload after the push for /api/recall/notes and /review/skip.
+
 ## 15 Nov (Fable 5.2): THE FRESHNESS FIX, THE GLASS LENS AND MOCKUPS 116 + 117, ALL LOCAL. NOT PUSHED, SERVER NOT RELOADED, NOTHING SEEN BY HIM
 
 **What landed (local commits, in order):** `5edd0be9` mockup 116 (daily review, quote first) · `cc1e4f32` track F, the freshness fix · `6f17d066` the glass lens and the re-aimed rim · `e733ac84` mockup 117 (search that reads the note) · `531a13f5` a no on a pain check can be taken back (twin session).
