@@ -30,8 +30,10 @@ const lean = (days) => (days || []).map((d) => ({
  *  this. Rotation dishes are left out by the phone; the server has no rotation
  *  list here, so none are excluded.
  *  days: [{ date, entries:[{ id, name, time?, macros }] }]  -> at most 6 */
-const asUsual = (f) => {
-  const pl = logPayload(f, f.last.amount);
+const asUsual = (f, times = 1) => {
+  // times scales the amount he last logged; at 1 this is byte-identical to the
+  // plain one-tap log (logPayload returns that entry's own macros)
+  const pl = logPayload(f, f.last.amount * times);
   return { key: f.key, name: pl.name, macros: pl.macros, count: f.count, lastDate: f.last.date };
 };
 
@@ -40,15 +42,15 @@ export function usualsFor({ days = [], now = new Date() } = {}) {
   return R.foods.slice(0, RAIL_MAX)
     .filter((f) => usualNow(f, now))
     .slice(0, USUALS_MAX)
-    .map(asUsual);
+    .map((f) => asUsual(f)); // not .map(asUsual): the index would arrive as `times`
 }
 
 /** One food by its key, whatever the hour. The watch shows a list read a
  *  moment ago; a tap that lands after the hour window has moved on must still
  *  log the row he tapped, so the lookup is not narrowed to "usual right now". */
-export function foodByKey({ days = [], now = new Date(), key } = {}) {
+export function foodByKey({ days = [], now = new Date(), key, times = 1 } = {}) {
   const f = buildRelog({ days, rotationNames: [], now }).foods.find((x) => x.key === key);
-  return f ? asUsual(f) : null;
+  return f ? asUsual(f, times) : null;
 }
 
 async function usualsNow(now) {
@@ -69,8 +71,8 @@ async function totals(vaultPath) {
   return { protein: w.protein, kcal: w.kcal };
 }
 
-export async function logUsual(vaultPath, key, { now = new Date() } = {}) {
-  const usual = foodByKey({ days: lean(await loadRecentDays(HISTORY_DAYS)), now, key });
+export async function logUsual(vaultPath, key, { now = new Date(), times = 1 } = {}) {
+  const usual = foodByKey({ days: lean(await loadRecentDays(HISTORY_DAYS)), now, key, times });
   if (!usual) throw fail('That food is no longer in your recent log.', 'unknown_usual');
   const before = new Set((await getDay()).entries.map((e) => e.id));
   // the same call POST /food-log makes, with the payload the phone's Log again
@@ -91,4 +93,17 @@ export async function undoUsual(vaultPath, id, { date } = {}) {
   if (date) await removeEntryOn(day.date, id); else await removeEntry(id);
   recordDaySnapshot(vaultPath, day.date).catch(() => {});
   return { removed: true, date: day.date, ...(await totals(vaultPath)) };
+}
+
+/** The entry as the watch is told about it, plus the day's running totals. */
+export async function logWatchEntry(vaultPath, entryInput) {
+  const before = new Set((await getDay()).entries.map((e) => e.id));
+  const day = await addEntry({ ...entryInput, source: 'watch' });
+  recordDaySnapshot(vaultPath, day.date).catch(() => {});
+  const added = day.entries.find((e) => !before.has(e.id)) || day.entries.at(-1);
+  return {
+    entry: { id: added.id, name: added.name, macros: added.macros },
+    date: day.date,
+    ...(await totals(vaultPath)),
+  };
 }
