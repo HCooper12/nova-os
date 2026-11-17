@@ -766,6 +766,10 @@ export function voiceRouter(vaultPath) {
   // has answered, returning the plain text. This is what makes a hands-free
   // "Hey Siri, Ask Nova" Shortcut trivial: one request in, the spoken answer
   // out, no client-side polling.
+  // WHICH DOOR A HANDS-FREE TURN CAME THROUGH. The wrist door forwards a
+  // watch's turn here with X-Nova-Via (routes/wristAsk.js); everything else
+  // is the Action Button when a recording was heard, Siri otherwise.
+  const spokenVia = (req) => (req.get('x-nova-via') === 'watch' ? 'watch' : (req.novaHeard ? 'action-button' : 'siri'));
   const askSync = async (req, res) => {
     try {
       // THE EXACT BYTES THE PHONE SENT. The health thread learned this the
@@ -830,7 +834,7 @@ export function voiceRouter(vaultPath) {
       // app's voice chat. No app is involved on this lane, so the server is
       // the only writer that can keep it.
       const { logTurn } = await import('../lib/conversationLog.js');
-      const via = req.novaHeard ? 'action-button' : 'siri';
+      const via = spokenVia(req);
       logTurn({ who: 'you', text: question, via });
       // `extra`: who answered and whom they consulted (lib/consult.js), on the row
       const answered = (text, failed = false, extra = {}) => { if (text) logTurn({ who: failed ? 'system' : 'nova', text, via, ...(failed ? {} : extra) }); };
@@ -1012,7 +1016,7 @@ export function voiceRouter(vaultPath) {
       dropSpokenSession();
       finish({ text: 'Nova took too long to answer that one.', error: 'timeout' });
     } catch (e) {
-      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `Nova hit an error: ${e.message}`, via: req.novaHeard ? 'action-button' : 'siri' })).catch(() => {});
+      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `Nova hit an error: ${e.message}`, via: spokenVia(req) })).catch(() => {});
       if (res.headersSent) { try { res.end(JSON.stringify({ text: `Nova hit an error: ${e.message}`, error: e.message })); } catch { /* gone */ } return; }
       res.status(500).json({ error: e.message });
     }
@@ -1070,23 +1074,26 @@ export function voiceRouter(vaultPath) {
       console.log(`ask/audio REJECTED: ${audio.error} (content-type ${req.get('content-type') || 'none'})`);
       return res.json({ text: `I got the request but not the recording: ${audio.error}.`, error: audio.error });
     }
+    const watch = req.get('x-nova-via') === 'watch';
+    const door = watch ? 'watch' : 'action-button';
+    const doorName = watch ? 'A watch' : 'An Action Button';
     let heard = '';
     try {
       const { transcribeBuffer } = await import('../lib/transcribe.js');
       const { deviceFromUa } = await import('../lib/sttShadow.js');
-      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, source: 'action-button', device: deviceFromUa(req.get('user-agent')), timeoutMs: 20_000 });
+      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, source: door, device: watch ? 'watch' : deviceFromUa(req.get('user-agent')), timeoutMs: 20_000 });
       heard = out.text;
       console.log(`ask/audio heard ${audio.buf.length}B via ${out.provider}${out.fallback ? ` (fallback: ${out.reason})` : ''} in ${out.ms}ms: ${JSON.stringify(heard.slice(0, 80))}`);
     } catch (e) {
       console.log(`ask/audio transcription FAILED: ${e.message}`);
       // he spoke and nothing was heard: that still belongs in the record, so
       // "did you hear me earlier?" has an honest answer
-      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `An Action Button recording could not be turned into words: ${e.message}`, via: 'action-button' })).catch(() => {});
+      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `${doorName} recording could not be turned into words: ${e.message}`, via: door })).catch(() => {});
       return res.json({ text: `I couldn't turn that recording into words: ${e.message}`, error: e.message });
     }
     if (!heard) {
-      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: 'An Action Button recording arrived with no words in it.', via: 'action-button' })).catch(() => {});
-      return res.json({ text: "I didn't catch any words in that one. Try again a little closer to the phone.", heard: '', error: 'silence' });
+      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `${doorName} recording arrived with no words in it.`, via: door })).catch(() => {});
+      return res.json({ text: watch ? "I didn't catch any words in that one. Try again a little closer to your wrist." : "I didn't catch any words in that one. Try again a little closer to the phone.", heard: '', error: 'silence' });
     }
     req.body = { question: heard };
     req.novaHeard = heard;

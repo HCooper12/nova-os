@@ -178,6 +178,7 @@ const VIA_LABEL = {
   reply: 'a reply sheet',
   siri: 'Siri',
   'action-button': 'the Action Button',
+  watch: 'his watch',
   app: 'the app',
 };
 

@@ -527,7 +527,9 @@ async function main() {
   if (process.env.WRIST_DOOR !== '0') {
     const { createWristDoorApp } = await import('./lib/wristDoor.js');
     const wristPort = Number(process.env.WRIST_PORT || 4176);
-    const door = createWristDoorApp({ routers: [wristRouter(process.env.VAULT_PATH)], idempotency: idempotency() });
+    const { wristAskRouter } = await import('./routes/wristAsk.js');
+    // talk rides the SAME spoken lane as Siri, forwarded in-process-to-loopback
+    const door = createWristDoorApp({ routers: [wristRouter(process.env.VAULT_PATH), wristAskRouter({ port, token })], idempotency: idempotency() });
     door.listen(wristPort, '127.0.0.1', () => console.log(`Nova wrist door listening on 127.0.0.1:${wristPort}`))
       .on('error', (e) => console.log(`Nova wrist door did not start on ${wristPort}: ${e.message}`));
   }
