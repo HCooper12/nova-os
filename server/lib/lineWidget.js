@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { localDateISO } from './localDate.js';
 import { quoteFor } from './reviewQuote.js';
 import { inReview, laneOf, leadable, ideaSentence, reviewPool } from './conceptReview.js';
+import { readHarvest, harvestPool, harvestSweep } from './lineHarvest.js';
 
 // "THE LINE", THE HOME-SCREEN WIDGET (his ask, 17 Nov 2026, mockup 122): one
 // real line a day from his own vault. The words are never written by a model:
@@ -120,6 +121,16 @@ export function sentenceFor(paragraph) {
   return s;
 }
 
+// His named voices (18 Nov 2026): Modern Wisdom, The Diary Of A CEO (the SHOWS
+// table) and the two people he named. Decided from the attribution alone.
+const OWN_VOICES = /\b(alex hormozi|james clear)\b/i;
+export const namedVoice = (by) => {
+  if (!by) return false;
+  const pod = String(by.podcast ?? '').toLowerCase();
+  if (pod && SHOWS.some((s) => s.podcast.toLowerCase() === pod)) return true;
+  return OWN_VOICES.test(`${by.who ?? ''} ${by.podcast ?? ''}`);
+};
+
 // Concept pages in the review, mind lane, whose line is checked against the
 // transcript and has a speaker or a show to be put to, short enough to read.
 export function poolFrom(pages, ctx) {
@@ -139,6 +150,7 @@ export function poolFrom(pages, ctx) {
       at: q.at || null,
       idea: page.title,
       sent: sentenceFor(page.paragraphs?.[0]),
+      voice: namedVoice(by),
     });
   }
   return oncePerWording(out);
@@ -183,40 +195,59 @@ const hasValidRecord = (quote, rec) => !!rec && rec.quote === quote;
 
 /* ------------------------------ the day's pick ------------------------------ */
 
-// A stable order that is not alphabetical: by a hash of the id.
-const hashOf = (id) => createHash('sha1').update(String(id)).digest('hex');
-const stableOrder = (pool) => [...pool].sort((a, b) => hashOf(a.id).localeCompare(hashOf(b.id)) || (a.id < b.id ? -1 : 1));
+// A line's own identity: `key` when it has one (a harvested line shares its
+// source page's `id`, which is what the app opens), else its `id`.
+export const keyOf = (p) => p.key ?? p.id;
 
-// The id for `date`, given what was shown on earlier days. Every line is shown
-// once before any repeats; a new cycle never opens on yesterday's line.
+// A stable order that is not alphabetical: by a hash of the key.
+const hashOf = (id) => createHash('sha1').update(String(id)).digest('hex');
+const stableOrder = (pool) => [...pool].sort((a, b) => hashOf(keyOf(a)).localeCompare(hashOf(keyOf(b))) || (keyOf(a) < keyOf(b) ? -1 : 1));
+
+// Two days in three lean on his named voices when any exist (his call, 18 Nov
+// 2026). Deterministic: the day number, not chance.
+export const prefersVoices = (date) => {
+  const [y, m, d] = String(date).split('-').map(Number);
+  const day = Math.floor(Date.UTC(y, (m || 1) - 1, d || 1) / 86400000);
+  return day % 3 !== 2;
+};
+
+// The key for `date`, given what was shown on earlier days. Every line is shown
+// once before any repeats; a new cycle never opens on yesterday's line. On a
+// "voices" day a fresh line by one of his named voices comes first.
 function pickId(date, pool, earlier) {
-  const inPool = new Set(pool.map((p) => p.id));
+  const inPool = new Set(pool.map(keyOf));
   let shown = new Set();
   for (const d of earlier) {
     if (!inPool.has(d.id)) continue;
     shown.add(d.id);
-    if (pool.every((p) => shown.has(p.id))) shown = new Set();
+    if (pool.every((p) => shown.has(keyOf(p)))) shown = new Set();
   }
   const lastId = earlier.length ? earlier[earlier.length - 1].id : null;
   const order = stableOrder(pool);
-  const fresh = order.filter((p) => !shown.has(p.id));
-  return (fresh.find((p) => p.id !== lastId) || fresh[0] || order[0]).id;
+  const fresh = order.filter((p) => !shown.has(keyOf(p)));
+  const notLast = (list) => list.find((p) => keyOf(p) !== lastId);
+  if (prefersVoices(date)) {
+    const voices = fresh.filter((p) => p.voice);
+    const v = notLast(voices) || voices[0];
+    if (v) return keyOf(v);
+  }
+  return keyOf(notLast(fresh) || fresh[0] || order[0]);
 }
 
 function lineOf(item, phrases) {
   const { id, quote, who, host, podcast, origin, byLong, byShort, at, idea, sent } = item;
-  return { id, quote, em: emFor(quote, phrases?.[id]), who, host, podcast, origin, byLong, byShort, at, idea, sent };
+  return { id, quote, em: emFor(quote, phrases?.[keyOf(item)]), who, host, podcast, origin, byLong, byShort, at, idea, sent };
 }
 
 // Pure: { now, pool, days, phrases } -> { payload, days }. `days` in and out is
 // the operational record [{ date, id }], oldest first, last 120 kept.
 export function composeLine({ now = new Date(), pool = [], days = [], phrases = {} } = {}) {
   const date = localDateISO(now);
-  const byId = new Map(pool.map((p) => [p.id, p]));
+  const byId = new Map(pool.map((p) => [keyOf(p), p]));
   const valid = (Array.isArray(days) ? days : []).filter((d) => d && typeof d.date === 'string' && typeof d.id === 'string');
   const earlier = valid.filter((d) => d.date < date).sort((a, b) => a.date.localeCompare(b.date));
   const base = { at: now.toISOString(), date };
-  if (!pool.length) return { payload: { ...base, line: null, previous: null }, days: valid };
+  if (!pool.length) return { payload: { ...base, line: null, previous: null }, days: valid, key: null };
 
   const kept = valid.find((d) => d.date === date);
   const id = kept && byId.has(kept.id) ? kept.id : pickId(date, pool, earlier);
@@ -232,6 +263,7 @@ export function composeLine({ now = new Date(), pool = [], days = [], phrases = 
       previous: prev ? { ...lineOf(byId.get(prev.id), phrases), date: prev.date } : null,
     },
     days: nextDays,
+    key: id, // the picked line's own key (a harvested line shares its page's `id`)
   };
 }
 
@@ -333,7 +365,7 @@ export const readStands = async () => {
 
 // Only a NO recorded against these exact words takes a line out.
 export const standing = (pool, stands) => pool.filter((p) => {
-  const rec = stands?.[p.id];
+  const rec = stands?.[keyOf(p)];
   return !(rec && rec.quote === p.quote && rec.stands === false);
 });
 
@@ -354,10 +386,10 @@ export function judgePool(pool, { runner = defaultJudge } = {}) {
   sweep = (async () => {
     try {
       for (const p of pool) {
-        const rec = (await readStands())[p.id];
+        const rec = (await readStands())[keyOf(p)];
         if (hasValidRecord(p.quote, rec)) continue;
         const stands = acceptVerdict(await runner(p.quote));
-        await writeJsonAtomic(STANDS_FILE(), { ...(await readStands()), [p.id]: { quote: p.quote, stands } });
+        await writeJsonAtomic(STANDS_FILE(), { ...(await readStands()), [keyOf(p)]: { quote: p.quote, stands } });
       }
     } catch (e) {
       console.log(`lineWidget: stand-alone check stopped (${e?.message || e})`);
@@ -371,21 +403,34 @@ export function judgePool(pool, { runner = defaultJudge } = {}) {
 // Reads the vault view and the two files, composes, records today's pick, and
 // (unless `fill` is false) starts a background fill for today's line when it
 // has no record. The caller never waits on a model.
-export async function buildLineWidget(vaultPath, vault, { now = new Date(), fill = true, runner = undefined, judge = undefined } = {}) {
+export async function buildLineWidget(vaultPath, vault, { now = new Date(), fill = true, runner = undefined, judge = undefined, harvest = undefined } = {}) {
   const { pages, ctx } = await reviewPool(vaultPath, vault);
-  const every = poolFrom(pages, ctx);
+  // his own concept-page lines first, then lines harvested from word-for-word
+  // sources (the same wording is one line, the first keeps it)
+  const own = poolFrom(pages, ctx);
+  const every = oncePerWording([...own, ...harvestPool(await readHarvest())]);
   const pool = standing(every, await readStands());
   const stored = await readJson(DAYS_FILE(), { days: [] });
   const phrases = await readPhrases();
-  const { payload, days } = composeLine({ now, pool, days: stored?.days, phrases });
+  const { payload, days, key } = composeLine({ now, pool, days: stored?.days, phrases });
   if (JSON.stringify(days) !== JSON.stringify(stored?.days || [])) {
     try { await writeJsonAtomic(DAYS_FILE(), { days }); } catch (e) { console.log(`lineWidget: record not saved (${e.message})`); }
   }
   const line = payload.line;
-  if (fill && line && !hasValidRecord(line.quote, phrases[line.id])) {
-    fillPhrase({ id: line.id, quote: line.quote, runner }).catch(() => {});
+  if (fill && line && !hasValidRecord(line.quote, phrases[key])) {
+    fillPhrase({ id: key, quote: line.quote, runner }).catch(() => {});
   }
   // today's line is asked about first, so a NO replaces it on the next fetch
-  if (fill) judgePool([...every].sort((a, b) => (b.id === line?.id) - (a.id === line?.id)), judge ? { runner: judge } : {});
+  const judgeAll = (items) => judgePool([...items].sort((a, b) => (keyOf(b) === key) - (keyOf(a) === key)), judge ? { runner: judge } : {});
+  if (fill) {
+    judgeAll(every);
+    // the harvest runs in the background, never inside this call; what it adds
+    // is then put through the same stands-alone check
+    if (harvest !== false) {
+      harvestSweep({ pages, ctx, shows: SHOWS, ...(harvest?.runner ? { runner: harvest.runner } : {}) })
+        .then(async () => judgeAll(oncePerWording([...own, ...harvestPool(await readHarvest())])))
+        .catch(() => {});
+    }
+  }
   return payload;
 }

@@ -456,6 +456,12 @@ export const LANES = [
     off: 'Every checked quote can appear on the widget, pieces of sentences included.',
   },
   {
+    // Claude only; code finds each proposed line in the source word for word and stores the SOURCE's words (lib/lineHarvest.js)
+    id: 'lineHarvest', label: 'The Line, harvest', group: 'daily', def: 'haiku', defEffort: 'low',
+    hint: 'reads his word-for-word transcripts and book once, a chunk at a time, and proposes lines for the widget; code keeps only what it finds in the source',
+    off: 'No new lines are harvested; the ones already found stay.',
+  },
+  {
     id: 'study-lane', label: 'Study lane', group: 'daily', def: 'sonnet', defEffort: 'high',
     hint: 'turns study material into recall questions',
     off: 'The study lane is refused; existing cards are unaffected.',
