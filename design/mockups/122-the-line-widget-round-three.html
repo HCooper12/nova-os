@@ -263,9 +263,9 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
 <script>
 (function () {
   var SAMPLE = {
-    a: { quote: 'Every hour of effort you skip gets added to the bill, and the bill carries interest.', em: 'the bill carries interest', who: 'Mara Ellison', show: 'The Long Table', at: '41:12', idea: 'Effort Debt', sent: 'Small early payments are cheaper than one big late one.' },
-    b: { quote: 'Start so small that stopping would feel silly.', em: 'stopping would feel silly', who: 'Dev Okafor', show: 'Second Draft', at: '18:04', idea: 'The Two-Minute Opening', sent: 'An opening too small to refuse gets him past the hardest part, which is starting.' },
-    c: { quote: 'Attention is the one thing you spend without ever being handed a receipt.', em: 'a receipt', who: null, show: 'Second Draft', at: '1:02:17', idea: 'No Receipt', sent: '' },
+    a: { quote: 'Every hour of effort you skip gets added to the bill, and the bill carries interest.', em: 'the bill carries interest', who: 'Mara Ellison', host: 'Jonah Reyes', show: 'The Long Table', at: '41:12', idea: 'Effort Debt', sent: 'Small early payments are cheaper than one big late one.' },
+    b: { quote: 'Start so small that stopping would feel silly.', em: 'stopping would feel silly', who: 'Dev Okafor', origin: true, host: 'Ines Marlow', show: 'Second Draft', at: '18:04', idea: 'The Two-Minute Opening', sent: 'An opening too small to refuse gets him past the hardest part, which is starting.' },
+    c: { quote: 'Attention is the one thing you spend without ever being handed a receipt.', em: 'a receipt', who: null, host: 'Ines Marlow', show: 'Second Draft', at: '1:02:17', idea: 'No Receipt', sent: '' },
     long: { quote: 'You probably cope with hard days better than you think. What wears you down is the untidy ones, where nothing is difficult and everything is unclear.', em: 'everything is unclear', who: null, show: 'Field Notes', at: '2:01:32', idea: 'Hard Is Not Messy', sent: '' }
   };
   var D = window.__NOVA_LINES || SAMPLE;
@@ -286,7 +286,10 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
 
   function by(d, size, state) {
     var stale = state === 'stale';
-    var left = d.who ? '<b>' + esc(d.who) + '</b>' + (size === 's' || stale ? '' : ' on ' + esc(d.show)) : 'Heard on ' + esc(d.show);
+    // his answer, 17 Nov: the podcast's real name, whose show it is, who said it,
+    // and "heard on" when the line was someone else's being passed on
+    var show = (d.host ? esc(d.host) + '’s ' : '') + esc(d.show);
+    var left = d.who ? '<b>' + esc(d.who) + '</b>' + (size === 's' || stale ? '' : (d.origin ? ', heard on ' : ' on ') + show) : 'Heard on ' + show;
     if (size === 's') return '<div class="by"><span class="l">' + (stale ? 'From Mon 16 Nov' : left) + '</span></div>';
     var right = stale ? 'From Mon 16 Nov' : (d.at || '');
     return '<div class="by"><span class="l">' + left + '</span>' + (right ? '<span class="r">' + right + '</span>' : '') + '</div>';
@@ -329,7 +332,11 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
     if (!ok) { q.textContent = d.idea; q.style.fontSize = steps[1] + 'px'; q.insertAdjacentHTML('afterend', '<p class="sub2">Open for the line</p>'); }
   }
   function fitBy(el, d) {
-    var l = el.querySelector('.by .l');
+    var l = el.querySelector('.by .l'), r = el.querySelector('.by .r');
+    // the podcast's name is never the part that gets cut: the time gives way first
+    if (l && r && !/^From /.test(r.textContent) && l.scrollWidth > l.clientWidth) r.remove();
+    // then the host's name, so the row ends on the podcast and is never cut mid-word
+    if (l && d.host && l.scrollWidth > l.clientWidth) l.innerHTML = l.innerHTML.replace(esc(d.host) + '’s ', '');
     if (l && !d.who && l.scrollWidth > l.clientWidth) l.textContent = d.show;
   }
 
