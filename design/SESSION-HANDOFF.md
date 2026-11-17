@@ -11,6 +11,15 @@ the session log at the foot is append-only.
 
 ---
 
+## 17 Nov (Fable 5.2, widget session, third round): THE LINE WIDGET ROUND THREE, MOCKUP 122 SENT FOR HIS APPROVAL. `916da8c9`, local, NOT PUSHED. NOTHING BUILT
+
+- HIS NOTES ON 121: he likes all three looks "as options to perhaps change between"; he asked for a version "a bit more dynamic", "more engaging to look at". Hiding a returning line's words: NO, the words always show.
+- STATE: `design/mockups/122-the-line-widget-round-three.html` (sample content only; `window.__NOVA_LINES` swaps lines, each may carry `em`). Same private page, now version 3, with his real lines: https://claude.ai/artifact/3UCsH5PGym9SXCSFhQtmyu. Four moves, all inside what WidgetKit really does (set redraws, blends between them, a redraw after an AppIntent tap; no running animation, and the page says so): (1) the look is a setting with a fourth choice, "Follows the day" (Paper at sunrise, Nova by day, Ink at night); (2) the light in the ground sits where the day is, four drawings; (3) one phrase of each line is set in the accent; (4) two dots in the corner turn the line over to the idea behind it and back, a tap anywhere else opens the line in Nova. A new line arrives at midnight.
+- THE PHRASE RULE FOR THE BUILD: the phrase is chosen once when a line joins the pool and is only ever an exact run of the line's own words; code drops it when it is not an exact substring, and the line shows plain. The phrases on the private page were picked by hand and the page says so.
+- WAITING ON HIM: approve to build; keep the accented phrase; default look; keep the turn-over dots; what an unsettled speaker's line should read (his vault's `show` is "Chris Williamson").
+- VERIFIED: headless Chrome stills, 1240 wide top to bottom, each time of day, the end of the Play sequence, 402 wide with no sideways scroll, and the real-lines copy at 1240. NOT verified: WebKit, his phone, the Play sequence in motion (end state only), reduced motion.
+- BUILD NOTES added to the 120 and 121 entries below: an AppIntent look picker (the NovaNumber pattern), four timeline entries a day plus midnight, an AppIntent turn-over button (iOS 17+), the phrase stored per line.
+
 ## 17 Nov (Fable 5.2, widget session, later): THE LINE WIDGET ROUND TWO, MOCKUP 121 SENT FOR HIS APPROVAL. `da52fd36`, local, NOT PUSHED. NOTHING BUILT
 
 - HIS NOTES ON 120: the idea and the kind of quote (Chris Williamson, Alex Hormozi, James Clear) are right; the widget itself must be more beautiful. ONE widget, mainly for quotes for now. All four sizes. He could not picture "hide a returning line's words", so it had to be drawn. The Keep button was left to me.
