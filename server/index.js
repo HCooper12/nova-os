@@ -262,6 +262,9 @@ async function main() {
   const { wristPairOwnerRouter } = await import('./routes/wristPair.js');
   app.use('/api', wristRouter(process.env.VAULT_PATH));
   app.use('/api', wristPairOwnerRouter());
+  // HANDOFF: what he is doing right now, so the other device can offer to carry it on
+  const { handoffRouter, wristHandoffRouter } = await import('./routes/handoff.js');
+  app.use('/api', handoffRouter());
   app.use('/api', artifactsRouter(process.env.VAULT_PATH)); // THE DOCUMENTS — what Nova, Coach and the Leader file to Outputs/Nova
   app.use('/api', eatOutRouter(process.env.VAULT_PATH)); // PICK IT UP — the takeaway/ready-meal catalogue and search
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
@@ -529,7 +532,9 @@ async function main() {
     const wristPort = Number(process.env.WRIST_PORT || 4176);
     const { wristAskRouter } = await import('./routes/wristAsk.js');
     // talk rides the SAME spoken lane as Siri, forwarded in-process-to-loopback
-    const door = createWristDoorApp({ routers: [wristRouter(process.env.VAULT_PATH), wristAskRouter({ port, token })], idempotency: idempotency() });
+    const { wristFoodRouter } = await import('./routes/wristFood.js');
+    // estimate-by-voice and handoff are door-only (raw audio at route level; the watch's own device id)
+    const door = createWristDoorApp({ routers: [wristRouter(process.env.VAULT_PATH), wristFoodRouter(process.env.VAULT_PATH), wristHandoffRouter(), wristAskRouter({ port, token })], idempotency: idempotency() });
     door.listen(wristPort, '127.0.0.1', () => console.log(`Nova wrist door listening on 127.0.0.1:${wristPort}`))
       .on('error', (e) => console.log(`Nova wrist door did not start on ${wristPort}: ${e.message}`));
   }
