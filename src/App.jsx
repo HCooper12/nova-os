@@ -6710,6 +6710,23 @@ export default class App extends Component {
   // or a back-tap does not re-open it forever.
   consumeDeepLink() {
     const { open, id } = hashParams();
+    // "#/line": a tap on The Line widget (novaos://open/line). It is not a
+    // screen: it lands on Home with today's line open on its page, the same
+    // sheet "Open the page" raises. The widget's own route names the line, so
+    // the phone and the home screen can never disagree about which one it is.
+    if (typeof window !== 'undefined' && /^#\/?line(\?|$)/.test(window.location.hash)) {
+      window.history.replaceState(window.history.state, '', '#/mission');
+      const conn = getConnection();
+      if (!conn || this.state.demoMode) return;
+      api.widgetLine(conn)
+        .then((w) => { const lineId = w?.line?.id || w?.previous?.id; if (!lineId) throw new Error('no line today'); return api.reviewItem(conn, lineId); })
+        .then(({ item }) => {
+          this.ensureReviewSummary(item.id);
+          this.setState({ reviewDrawnExtra: item, reviewOpenId: item.id, reviewJust: null, reviewGradesOpen: false }, () => this.openReviewSheet());
+        })
+        .catch((e) => this.toastMsg('Could not open the line: ' + e.message));
+      return;
+    }
     // "#/briefing?id=<recordId>" — the notification's tap lands on the
     // briefing itself, loading it if this is a cold start
     if (screenFromHash() === 'briefing') {

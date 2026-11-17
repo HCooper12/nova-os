@@ -593,6 +593,8 @@ export const api = {
   // lane 'body': sleep, stress and health science (conceptReview.js bodyLane)
   reviewDraw: (conn, lane = 'mind') => call(conn, `/api/review/draw${lane === 'body' ? '?lane=body' : ''}`),
   reviewItem: (conn, id) => call(conn, `/api/review/item?id=${encodeURIComponent(id)}`),
+  // The Line widget's day (server/lib/lineWidget.js): the same line his home screen shows
+  widgetLine: (conn) => call(conn, '/api/widget/line'),
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),
   healthData: (conn, days) => call(conn, `/api/health-data${days ? '?days=' + days : ''}`),
