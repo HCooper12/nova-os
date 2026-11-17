@@ -570,6 +570,12 @@ async function loadVaultView(vaultPath, vault) {
   return { pages, backlinkCounts, cards, history, ctx: quoteContext(pages) };
 }
 
+// Read-only view for callers that must not touch surfaced/review state
+// (the widget's line pool). Same read as the review's own.
+export async function reviewPool(vaultPath, vault) {
+  return loadVaultView(vaultPath, vault);
+}
+
 // in-memory only: which ids were picked for today, so the pips ("N of M")
 // stay stable through the session even once an answer moves a card off
 // today's due list. Lost on restart — the honest fallback is simply picking

@@ -444,6 +444,12 @@ export const LANES = [
     off: 'Pulse topics report honestly that nothing was fetched, rather than showing stale news as new.',
   },
   {
+    // Claude only until its local run is measured (the local list is gated by test); code checks the phrase (lib/lineWidget.js)
+    id: 'linePhrase', label: 'The Line, accent phrase', group: 'daily', def: 'haiku', defEffort: 'low',
+    hint: 'picks the few words of the day’s quote the widget shows in colour; code accepts only words that are really in the quote',
+    off: 'The widget shows the line with no coloured phrase; nothing else changes.',
+  },
+  {
     id: 'study-lane', label: 'Study lane', group: 'daily', def: 'sonnet', defEffort: 'high',
     hint: 'turns study material into recall questions',
     off: 'The study lane is refused; existing cards are unaffected.',

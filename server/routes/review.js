@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { reviewToday, submitAnswer, skipPage, drawEarly, reviewItemFor, GRADES } from '../lib/conceptReview.js';
 import { getCachedReviewSummary, startReviewSummaryJob, getReviewSummaryJob, reviewSummaryInput } from '../lib/reviewSummary.js';
+import { buildLineWidget } from '../lib/lineWidget.js';
 import { logRequestError } from '../lib/requestErrors.js';
 
 // THE DAILY REVIEW — one queue, shared by both Home idioms and the morning
@@ -40,6 +41,14 @@ export function reviewRouter(vaultPath, vault) {
       if (!item) return res.status(404).json({ error: 'not found' });
       res.json({ item });
     } catch (err) { next(err); }
+  });
+
+  // THE LINE widget (mockup 122): one verified quote a day, read-only. Never
+  // waits on a model; the accent phrase is filled in the background.
+  router.get('/widget/line', async (req, res, next) => {
+    try {
+      res.json(await buildLineWidget(vaultPath, vault));
+    } catch (err) { logRequestError(err, req, res, next); }
   });
 
   // The structured summary (mockup 98; rules in lib/reviewSummary.js):
