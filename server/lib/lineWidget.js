@@ -72,15 +72,20 @@ export function attribute({ show, who } = {}) {
   const owned = host && !hostInName ? `${host}’s ${podcast}` : podcast;
   let byLong = null;
   let byShort = null;
+  // His wording (17 Nov): a show he named in the table is heard ON; a personal
+  // account is a person, so a line is heard FROM them.
   if (speaker) {
-    if (podcast) {
+    if (entry) {
       const guest = host && speaker.toLowerCase() !== host.toLowerCase();
       byLong = guest ? `on ${owned}` : `on ${podcast}`;
       byShort = `on ${podcast}`;
+    } else if (podcast) {
+      byLong = `, heard from ${podcast}`;
+      byShort = byLong;
     }
   } else if (podcast) {
-    byLong = `Heard on ${owned}`;
-    byShort = `Heard on ${podcast}`;
+    byLong = entry ? `Heard on ${owned}` : `Heard from ${podcast}`;
+    byShort = entry ? `Heard on ${podcast}` : byLong;
   }
   return { who: speaker, host, podcast, byLong, byShort };
 }

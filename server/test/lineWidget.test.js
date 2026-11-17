@@ -40,7 +40,7 @@ test('attribution: the host speaking, or no host', () => {
   assert.equal(h.byLong, 'on Modern Wisdom');
   assert.equal(h.byShort, 'on Modern Wisdom');
   const n = L.attribute({ show: 'Huberman Lab', who: 'Andrew Huberman' });
-  assert.deepEqual([n.byLong, n.byShort, n.host], ['on Huberman Lab', 'on Huberman Lab', null]);
+  assert.deepEqual([n.byLong, n.byShort, n.host], [', heard from Huberman Lab', ', heard from Huberman Lab', null]);
 });
 
 test('attribution: a speaker with no show says nothing', () => {
@@ -50,7 +50,7 @@ test('attribution: a speaker with no show says nothing', () => {
 
 test('attribution: no speaker', () => {
   const a = L.attribute({ show: 'Huberman Lab', who: null });
-  assert.deepEqual([a.byLong, a.byShort], ['Heard on Huberman Lab', 'Heard on Huberman Lab']);
+  assert.deepEqual([a.byLong, a.byShort], ['Heard from Huberman Lab', 'Heard from Huberman Lab']);
   const none = L.attribute({ show: null, who: null });
   assert.deepEqual([none.byLong, none.byShort, none.podcast], [null, null, null]);
 });
@@ -70,17 +70,17 @@ test('attribution: handles, Instagram and the channel name are not speakers', ()
   const same = L.attribute({ show: 'Some Account', who: 'some account' });
   assert.equal(same.who, null);
   assert.equal(same.podcast, 'Some Account');
-  assert.equal(same.byLong, 'Heard on Some Account');
+  assert.equal(same.byLong, 'Heard from Some Account');
   // in the table, the channel name is the host, a real speaker
   assert.equal(L.attribute({ show: 'Chris Williamson', who: 'Chris Williamson' }).who, 'Chris Williamson');
 });
 
 test('attribution: a tagline or a bracketed handle is not part of a name', () => {
-  assert.equal(L.attribute({ show: 'Nigel Daley | Personal Brand Leadership', who: null }).byLong, 'Heard on Nigel Daley');
+  assert.equal(L.attribute({ show: 'Nigel Daley | Personal Brand Leadership', who: null }).byLong, 'Heard from Nigel Daley');
   assert.equal(L.attribute({ show: 'Health Coach Kayo (MA, INHC, CPT)', who: null }).podcast, 'Health Coach Kayo');
   const c = L.attribute({ show: 'Some Show', who: 'Caitlin (livingwithcait)' });
   assert.equal(c.who, 'Caitlin');
-  assert.equal(c.byLong, 'on Some Show');
+  assert.equal(c.byLong, ', heard from Some Show');
   // the account speaking on its own channel is still not named twice
   assert.equal(L.attribute({ show: 'Nigel Daley | Personal Brand Leadership', who: 'Nigel Daley' }).who, null);
   // a table show is found under its tagline too
