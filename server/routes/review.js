@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { reviewToday, submitAnswer, skipPage, drawEarly, reviewItemFor, GRADES } from '../lib/conceptReview.js';
 import { getCachedReviewSummary, startReviewSummaryJob, getReviewSummaryJob, reviewSummaryInput } from '../lib/reviewSummary.js';
 import { buildLineWidget } from '../lib/lineWidget.js';
+import { buildLeaderWidget } from '../lib/leaderWidget.js';
 import { logRequestError } from '../lib/requestErrors.js';
 
 // THE DAILY REVIEW — one queue, shared by both Home idioms and the morning
@@ -48,6 +49,14 @@ export function reviewRouter(vaultPath, vault) {
   router.get('/widget/line', async (req, res, next) => {
     try {
       res.json(await buildLineWidget(vaultPath, vault));
+    } catch (err) { logRequestError(err, req, res, next); }
+  });
+
+  // THE LEADER widgets (mockup 123): the day's idea and his situation at
+  // work, one payload, read-only. Never runs a model (lib/leaderWidget.js).
+  router.get('/widget/leader', async (req, res, next) => {
+    try {
+      res.json(await buildLeaderWidget());
     } catch (err) { logRequestError(err, req, res, next); }
   });
 
