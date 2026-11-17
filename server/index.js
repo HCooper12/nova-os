@@ -256,6 +256,12 @@ async function main() {
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
   app.use('/api', healthDataRouter(process.env.VAULT_PATH));
   app.use('/api', foodLogRouter(process.env.VAULT_PATH));
+  // THE WRIST: the Apple Watch's small today read and one-tap food, plus the
+  // owner's side of pairing a watch (open the window, approve the code, revoke).
+  const { wristRouter } = await import('./routes/wrist.js');
+  const { wristPairOwnerRouter } = await import('./routes/wristPair.js');
+  app.use('/api', wristRouter(process.env.VAULT_PATH));
+  app.use('/api', wristPairOwnerRouter());
   app.use('/api', artifactsRouter(process.env.VAULT_PATH)); // THE DOCUMENTS — what Nova, Coach and the Leader file to Outputs/Nova
   app.use('/api', eatOutRouter(process.env.VAULT_PATH)); // PICK IT UP — the takeaway/ready-meal catalogue and search
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
@@ -512,6 +518,19 @@ async function main() {
   // one-round-trip sync for the client — self-proxies to this server's own
   // endpoints so every slice shape stays byte-identical to its route
   app.use('/api', snapshotRouter({ port, token }));
+
+  // THE WRIST DOOR: a second, separate listener that serves ONLY the wrist
+  // routes, guarded by per-watch tokens (never API_TOKEN), so it is the one
+  // thing that may be put on the public internet (Tailscale Funnel) for a
+  // watch with no phone nearby. Loopback only, always; whether Funnel points
+  // at it is his switch, not this file's. WRIST_DOOR=0 turns the listener off.
+  if (process.env.WRIST_DOOR !== '0') {
+    const { createWristDoorApp } = await import('./lib/wristDoor.js');
+    const wristPort = Number(process.env.WRIST_PORT || 4176);
+    const door = createWristDoorApp({ routers: [wristRouter(process.env.VAULT_PATH)], idempotency: idempotency() });
+    door.listen(wristPort, '127.0.0.1', () => console.log(`Nova wrist door listening on 127.0.0.1:${wristPort}`))
+      .on('error', (e) => console.log(`Nova wrist door did not start on ${wristPort}: ${e.message}`));
+  }
 
   const host = process.env.HOST || '127.0.0.1';
   app.listen(port, host, () => {

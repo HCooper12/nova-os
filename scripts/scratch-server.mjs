@@ -72,6 +72,7 @@ const server = spawn(process.execPath, ['index.js'], {
   env: {
     ...process.env,
     PORT: String(PORT), HOST: '127.0.0.1',
+    WRIST_PORT: String(PORT + 21), // the wrist door's own listener, clear of the live one on 4176
     NOVA_DATA_DIR: dataCopy, VAULT_PATH: vaultCopy, API_TOKEN: token, NOVA_SEARCH_PROFILE: path.join(scratch, "search-profile"),
     // dotenv never overrides a key that is already set, even to ''
     TELEGRAM_BOT_TOKEN: '', TELEGRAM_CHAT_ID: '', TODOIST_TOKEN: '', NOTION_TOKEN: '',
