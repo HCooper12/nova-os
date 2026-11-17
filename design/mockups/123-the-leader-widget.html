@@ -1,12 +1,14 @@
 <!doctype html>
 <!--
-  Mockup 123: the Leader widget. FOR APPROVAL, NOTHING BUILT.
+  Mockup 123: the Leader widget, round two. FOR APPROVAL, NOTHING BUILT.
 
-  His ask (17 Nov 2026): a "leader" widget focused on leadership and
-  management advice. Same family as The Line (mockup 122): three looks,
-  follows the day, the travelling light, two turn-over dots. Gold and two
-  chevrons are the Leader's. It carries the day's general idea only, never
-  the live work situation. The ideas in this file are sample content.
+  His ask (17 Nov 2026): a "leader" widget for leadership and management
+  advice. On round one he liked "Follows the day", asked to swipe to the idea
+  behind it (iOS gives widgets taps only; the one swipe is between widgets in
+  a stack), and asked for his live work situation on a second screen, with
+  the general advice kept on a screen of its own. So: two widgets in one
+  stack (the idea, gold; the situation, violet, hidden while locked), and a
+  tap anywhere turns the idea over. Sample content only.
 -->
 <html lang="en">
 <head>
@@ -114,16 +116,39 @@ dl{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:12px 24p
 dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14px}
 @media (max-width:560px){dl{grid-template-columns:1fr;gap:2px 0} dd{margin-bottom:12px} h1{font-size:29px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* round two: the situation's hue, the stack, tap anywhere */
+.wg[data-hue="vi"][data-look="a"]{--acc:#b3a6ff;--ltc:rgba(140,120,255,.30)}
+.wg[data-hue="vi"][data-look="b"]{--acc:#a493ff;--ltc:rgba(140,120,255,.16)}
+.wg[data-hue="vi"][data-look="c"]{--acc:#5b45c9}
+.wg.tap{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 160ms var(--ease),color 700ms var(--ease)}
+.wg.tap:active{transform:scale(.97)}
+.dots.mark{pointer-events:none}
+.ask{margin:0;font:400 17px/1.22 var(--serif);letter-spacing:-.01em;color:var(--ink);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;text-wrap:pretty}
+.wg-l .ask{font:italic 400 16px/1.3 var(--serif);-webkit-line-clamp:4}
+.asklbl{display:block;margin:12px 0 2px;font-size:10px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--acc)}
+.stood{font-size:13.5px;line-height:1.4;color:var(--ink2);margin:10px 0 0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+.redact{display:block;height:10px;border-radius:5px;background:rgba(255,255,255,.34);margin-top:6px}
+.stackwrap{position:relative;width:338px;max-width:100%;height:158px;flex:none}
+.stack{width:100%;height:158px;border-radius:22px;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}
+.stack::-webkit-scrollbar{display:none}
+.stack>.wg{scroll-snap-align:start;scroll-snap-stop:always;margin:0}
+.sdots{position:absolute;right:-13px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px}
+.sdots button{width:5px;height:5px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.28);cursor:pointer;transition:background 300ms var(--ease)}
+.sdots button[aria-current="true"]{background:rgba(255,255,255,.9)}
+.said{min-height:20px;font-size:13px;color:var(--pg-ink3);margin:10px 0 0;transition:color 300ms var(--ease)}
+.said.on{color:var(--pg-ink)}
+@media (max-width:400px){.wall{padding:12px;gap:16px}.stackwrap{width:100%}.stack>.wg{width:100%}.sdots{right:-9px}}
+.callout{border-left:2px solid rgba(255,255,255,.18);padding:2px 0 2px 14px;color:var(--pg-ink2);font-size:14px;max-width:62ch;margin:18px 0 0}
 </style>
 </head>
 <body>
 
 <main class="pg">
-  <p class="eyebrow">Mockup 123 · for approval · nothing built</p>
+  <p class="eyebrow">Mockup 123 · round two · for approval · nothing built</p>
   <h1>The Leader, on the home screen</h1>
-  <p class="lede">One thing to do as a leader today, in the Leader's gold. The front says what to do. Turn it over and it says why it works and where the idea came from.</p>
-  <p class="note">It shows the idea the Leader already writes each morning. It never shows the live work situation: that stays inside Nova, behind the app.</p>
-  <p class="note">The ideas on this page are sample content. The built widget shows only the idea the Leader really wrote that day.</p>
+  <p class="lede">Two widgets in one stack. Swipe up and down between today's leadership idea and your situation at work. Tap the idea and it turns over to why it works.</p>
+  <p class="note">Everything on this page is sample content. The built widgets show only what the Leader really wrote.</p>
+  <p class="callout">iOS lets a widget answer a tap, never a swipe. The one swipe it gives you is between widgets stacked on top of each other, so the idea and your situation are two widgets you stack. Turning an idea over is a tap anywhere on it, so the dots are only a mark now. The Line works the same way.</p>
 
   <div class="sw">
     <div class="seg" role="group" aria-label="Time of day">
@@ -135,28 +160,47 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
   </div>
 
   <section style="margin-top:26px">
-    <h2>Beside The Line</h2>
+    <h2>Swipe between the idea and your situation</h2>
     <div class="demo">
       <div class="wall">
-        <div data-w="m" data-i="0"></div>
+        <div class="stackwrap">
+          <div class="stack" id="stack"><div data-w="m" data-i="0" data-tap="turn"></div><div data-w="m" data-face="sit"></div></div>
+          <div class="sdots" aria-label="Stack"><button type="button" aria-label="The idea" aria-current="true"></button><button type="button" aria-label="Your situation"></button></div>
+        </div>
         <div class="row">
           <div class="wg wg-s line-s"><div class="mk">“</div><p>The line of the day sits here.</p><small>The Line</small></div>
           <div class="ic2"><i></i><i></i><i></i><i></i></div>
         </div>
       </div>
       <div class="side">
-        <p>Same shape, same three looks and the same travelling light as The Line, so the two sit together as a pair. Gold and two chevrons mark this one as the Leader's; violet and a quote mark stay The Line's.</p>
-        <p>Tap the two dots to turn it over. Tap anywhere else and Nova opens on the Leader.</p>
+        <p><b>Swipe up</b> on the top widget to reach your situation, down to come back. The dots at the side are the ones iOS draws for a stack.</p>
+        <p><b>Tap the idea</b> and it turns over to why it works. Tap the back and Nova opens on it.</p>
+        <p><b>Tap your situation</b> and Nova opens on its question, ready for your answer by voice or typing. Each answer brings Nova's picture of where things stand up to date.</p>
+        <p>Turn off Smart Rotate on the stack if you don't want iOS to switch between them on its own.</p>
+        <p class="said" id="said" aria-live="polite"></p>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>Four sizes</h2>
-    <p class="sub">The small one is the instruction alone. The medium adds how to do it. The large carries the whole idea with its reason, so nothing needs turning over.</p>
+    <h2>Your situation, four sizes</h2>
+    <p class="sub">Violet, as it is in Nova's Leader box. It names the thread and when you last told Nova about it. The medium size is the Leader's one question, because answering it is what keeps Nova current.</p>
     <div class="grid">
-      <div class="pair"><p class="cap"><b>Small</b> · what to do</p><div data-w="s" data-i="0"></div></div>
-      <div class="pair"><p class="cap"><b>Medium</b> · what to do and how · turns over</p><div data-w="m" data-i="1"></div></div>
+      <div class="pair"><p class="cap"><b>Small</b> · the thread</p><div data-w="s" data-face="sit"></div></div>
+      <div class="pair"><p class="cap"><b>Medium</b> · the question to answer</p><div data-w="m" data-face="sit"></div></div>
+      <div class="pair"><p class="cap"><b>Large</b> · where it stands, and the question</p><div data-w="l" data-face="sit"></div></div>
+      <div class="pair"><p class="cap"><b>Lock screen</b> · hidden until you unlock</p>
+        <div class="lock"><div class="d" id="lkd2"></div><div class="t">9:41</div><div class="lk"><small>Your situation</small><span class="redact" style="width:150px"></span><span class="redact" style="width:96px"></span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The idea, four sizes</h2>
+    <p class="sub">Tap any of these to turn it over. The large one carries the whole idea with its reason, so it has no back.</p>
+    <div class="grid">
+      <div class="pair"><p class="cap"><b>Small</b> · what to do</p><div data-w="s" data-i="0" data-tap="turn"></div></div>
+      <div class="pair"><p class="cap"><b>Medium</b> · what to do and how</p><div data-w="m" data-i="1" data-tap="turn"></div></div>
       <div class="pair"><p class="cap"><b>Large</b> · the whole idea</p><div data-w="l" data-i="0"></div></div>
       <div class="pair"><p class="cap"><b>Lock screen</b> · iOS draws it in one tint</p>
         <div class="lock"><div class="d" id="lkd"></div><div class="t">9:41</div><div class="lk"><small>Lead</small><p id="lkp"></p></div></div>
@@ -166,19 +210,18 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
 
   <section>
     <h2>Three kinds of idea, one word each</h2>
-    <p class="sub">The Leader already sorts each day's idea into one of three kinds. The label says which, so a glance tells him whether it is something to do, to keep in mind, or to try.</p>
     <div class="grid">
-      <div class="pair"><p class="cap"><b>Do today</b> · an action</p><div data-w="m" data-i="0"></div></div>
-      <div class="pair"><p class="cap"><b>Try this</b> · an idea</p><div data-w="m" data-i="2"></div></div>
-      <div class="pair"><p class="cap"><b>Remember</b> · a reminder</p><div data-w="m" data-i="3"></div></div>
+      <div class="pair"><p class="cap"><b>Do today</b> · an action</p><div data-w="m" data-i="0" data-tap="turn"></div></div>
+      <div class="pair"><p class="cap"><b>Try this</b> · an idea</p><div data-w="m" data-i="2" data-tap="turn"></div></div>
+      <div class="pair"><p class="cap"><b>Remember</b> · a reminder</p><div data-w="m" data-i="3" data-tap="turn"></div></div>
     </div>
   </section>
 
   <section>
     <h2>When there is nothing to show, it says so</h2>
     <div class="grid">
-      <div class="pair"><p class="cap"><b>Not written yet</b> · yesterday's stays, labelled</p><div data-w="m" data-i="1" data-state="early"></div></div>
-      <div class="pair"><p class="cap"><b>Switched off in Settings</b></p><div data-w="m" data-state="off"></div></div>
+      <div class="pair"><p class="cap"><b>Idea not written yet</b> · yesterday's stays, labelled</p><div data-w="m" data-i="1" data-state="early"></div></div>
+      <div class="pair"><p class="cap"><b>Nothing open at work</b></p><div data-w="m" data-face="sit" data-state="clear"></div></div>
       <div class="pair"><p class="cap"><b>Mac not reached</b> · the last one it had, labelled</p><div data-w="m" data-i="0" data-state="stale"></div></div>
     </div>
   </section>
@@ -186,11 +229,12 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
   <section>
     <h2>What it is made of</h2>
     <dl>
-      <dt>The words</dt><dd>The day's idea exactly as the Leader wrote it: its kind, its title, how to do it, why, and the source it drew on. The widget adds no words of its own.</dd>
-      <dt>Never on it</dt><dd>The live work situation, names from it, or anything from the Leader's private picture.</dd>
-      <dt>Medium, front</dt><dd>The first sentence of how to do it. The rest is one tap away in Nova and whole on the large size.</dd>
+      <dt>The idea</dt><dd>The day's idea exactly as the Leader wrote it: its kind, title, how to do it, why, and the source it drew on. Nothing about your situation, so the advice stays general.</dd>
+      <dt>Your situation</dt><dd>The thread the Leader is following, the day you last told Nova about it, counted by code, and the Leader's one question. Its own widget, so the two never mix.</dd>
+      <dt>Privacy</dt><dd>Your situation is hidden while the phone is locked and shows once you unlock. The idea shows either way.</dd>
+      <dt>Taps</dt><dd>The idea: a tap turns it over, a tap on the back opens Nova on it. Your situation: a tap opens Nova on its question.</dd>
       <dt>Looks</dt><dd>Follows the day, Nova, Ink or Paper, chosen by holding the widget, the same as The Line.</dd>
-      <dt>Movement</dt><dd>Only what iOS allows a widget: the light moves four times a day, the new idea blends in each morning, and the turn-over blends.</dd>
+      <dt>Movement</dt><dd>Only what iOS allows a widget: the light moves four times a day, a new idea blends in each morning, the turn-over blends, and the stack slides.</dd>
     </dl>
   </section>
 </main>
@@ -230,42 +274,71 @@ const LEADS = [
   "day": "Sat 14 Nov"
  }
 ];
+const SIT = {
+ "headline": "Covering two departments on one roster",
+ "stands": "As of 2 days ago, you said the late shift is one person short and the team is starting to cut corners on the close.",
+ "question": "Since you last told me, did you raise the gap with your manager, or cover it again yourself?",
+ "days": 2
+};
 const KIND = { action: 'Do today', idea: 'Try this', reminder: 'Remember' };
 const CHEV = '<svg viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 5.5l5-4 5 4"/><path d="M1.5 10.5l5-4 5 4"/></svg>';
+const HERE = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.6" stroke="currentColor" stroke-width="1.4"/><circle cx="6" cy="6" r="1.8" fill="currentColor"/></svg>';
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const first = (s) => { const m = String(s).match(/^.*?[.!?]['"”’]?(?=\s|$)/); return m ? m[0] : s; };
-const kd = (label, day) => `<p class="kd">${CHEV}<span>${label}</span>${day ? `<span class="day">${day}</span>` : ''}</p>`;
+const kd = (label, day, mark = CHEV) => `<p class="kd">${mark}<span>${label}</span>${day ? `<span class="day">${day}</span>` : ''}</p>`;
+const since = (d) => (d === 0 ? 'told today' : d === 1 ? 'told yesterday' : `told ${d} days ago`);
 
-function face(size, L, which, state) {
-  if (state === 'off') return `${kd('Lead')}<p class="quiet">The daily idea is switched off in Settings.</p><p class="ft">Nothing is shown until it is back on.</p>`;
+function lead(size, L, which, state) {
   const label = state === 'early' ? 'Yesterday' : state === 'stale' ? `${KIND[L.kind]} · ${L.day}` : KIND[L.kind];
   const foot = state === 'early' ? 'Today’s idea has not been written yet.' : state === 'stale' ? 'Mac not reached. The last idea it sent.' : `<b>From</b> ${esc(L.src)}`;
+  if (which === 'why') return `${kd('Why it works')}<p class="why">${esc(L.why)}</p><p class="ft">Tap to open it in Nova</p>`;
   if (size === 's') return `${kd(label)}<p class="tt">${esc(L.title)}</p><p class="ft">${state ? foot : esc(L.src)}</p>`;
   if (size === 'l') return `${kd(label, L.day)}<p class="tt">${esc(L.title)}</p><p class="how">${esc(L.line)}</p><div class="sepd"><p class="kd"><span>Why it works</span></p><p>${esc(L.why)}</p></div><p class="ft">${foot}</p>`;
-  if (which === 'why') return `${kd('Why it works')}<p class="why">${esc(L.why)}</p><p class="ft">${foot}</p>`;
   return `${kd(label)}<p class="tt">${esc(L.title)}</p><p class="how${state ? ' two' : ''}">${esc(first(L.line))}</p>${state ? `<p class="ft">${foot}</p>` : ''}`;
+}
+function sit(size, state) {
+  if (state === 'clear') return `${kd('Your situation', '', HERE)}<p class="quiet">Nothing open at work that you’ve told Nova about.</p><p class="ft">Tap to tell Nova what’s going on</p>`;
+  const top = kd('Your situation', size === 's' ? '' : since(SIT.days), HERE);
+  if (size === 's') return `${top}<p class="tt">${esc(SIT.headline)}</p><p class="ft">${since(SIT.days)}</p>`;
+  if (size === 'l') return `${top}<p class="tt">${esc(SIT.headline)}</p><p class="stood">${esc(first(SIT.stands))}</p><span class="asklbl">Nova asks</span><p class="ask" style="margin-top:0">${esc(SIT.question)}</p><p class="ft">Tap to answer, by voice or typing</p>`;
+  return `${top}<p class="ask">${esc(SIT.question)}</p>`;
 }
 
 let phase = 0, set = 'auto';
 const lookFor = () => (set !== 'auto' ? set : phase === 0 || phase === 1 ? 'c' : phase === 2 ? 'a' : 'b');
+const said = document.getElementById('said');
+let saidT;
+const say = (t) => { said.textContent = t; said.classList.add('on'); clearTimeout(saidT); saidT = setTimeout(() => said.classList.remove('on'), 1600); };
 const widgets = [];
 document.querySelectorAll('[data-w]').forEach((slot) => {
-  const size = slot.dataset.w, state = slot.dataset.state || '', L = LEADS[+slot.dataset.i || 0];
+  const size = slot.dataset.w, state = slot.dataset.state || '', isSit = slot.dataset.face === 'sit';
+  const L = LEADS[+slot.dataset.i || 0];
   const el = document.createElement('div');
   el.className = `wg wg-${size}`; el.dataset.face = 'do';
-  const turns = size === 'm' && !state;
-  el.innerHTML = `<div class="gd gd-a"></div><div class="gd gd-b"></div><div class="gd gd-c"></div><div class="lt"></div><div class="body">${face(size, L, 'do', state)}</div>${turns ? '<button class="dots" type="button" aria-label="Turn over"><i></i><i></i></button>' : ''}`;
+  if (isSit) el.dataset.hue = 'vi';
+  const turns = slot.dataset.tap === 'turn' && size !== 'l';
+  const draw = (which) => (isSit ? sit(size, state) : lead(size, L, which, state));
+  el.innerHTML = `<div class="gd gd-a"></div><div class="gd gd-b"></div><div class="gd gd-c"></div><div class="lt"></div><div class="body">${draw('do')}</div>${turns && size === 'm' ? '<span class="dots mark" aria-hidden="true"><i></i><i></i></span>' : ''}`;
   slot.replaceWith(el); widgets.push(el);
-  if (!turns) return;
-  el.querySelector('.dots').addEventListener('click', () => {
+  if (turns || isSit) { el.classList.add('tap'); el.setAttribute('role', 'button'); el.tabIndex = 0; }
+  const act = () => {
+    if (isSit) { say(state === 'clear' ? 'Nova would open on the Leader, ready to hear what is going on.' : 'Nova would open on this question, ready for your answer.'); return; }
+    if (!turns) return;
+    if (el.dataset.face === 'why') { say('Nova would open on this idea. The widget faces front again when you come back.'); }
     const body = el.querySelector('.body'), next = el.dataset.face === 'do' ? 'why' : 'do';
     body.classList.add('out');
     setTimeout(() => {
-      el.dataset.face = next; body.innerHTML = face(size, L, next, state);
+      el.dataset.face = next; body.innerHTML = draw(next);
       body.classList.remove('out'); body.classList.add('pre'); void body.offsetWidth; body.classList.remove('pre');
     }, 240);
-  });
+  };
+  el.addEventListener('click', act);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
 });
+const stack = document.getElementById('stack'), sd = [...document.querySelectorAll('.sdots button')];
+const mark = () => { const i = Math.round(stack.scrollTop / stack.clientHeight); sd.forEach((b, j) => b.setAttribute('aria-current', String(i === j))); };
+stack.addEventListener('scroll', () => requestAnimationFrame(mark), { passive: true });
+sd.forEach((b, j) => b.addEventListener('click', () => stack.scrollTo({ top: j * stack.clientHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })));
 function paint() {
   widgets.forEach((w) => { w.dataset.ph = phase; w.dataset.look = lookFor(); });
   document.querySelectorAll('[data-t]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.t === phase)));
@@ -275,6 +348,7 @@ document.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click',
 document.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', () => { set = b.dataset.set; paint(); }));
 const h = new Date().getHours(); phase = h < 11 ? 0 : h < 16 ? 1 : h < 20 ? 2 : 3;
 document.getElementById('lkd').textContent = LEADS[0].day;
+document.getElementById('lkd2').textContent = LEADS[0].day;
 document.getElementById('lkp').textContent = LEADS[0].title;
 paint();
 </script>
