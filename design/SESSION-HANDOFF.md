@@ -11,6 +11,16 @@ the session log at the foot is append-only.
 
 ---
 
+## 18 Nov (Fable 5.2, mentors session): MENTORS PLAN WRITTEN (`design/MENTORS-PLAN.md`), NOTHING BUILT, HIS ANSWERS OWED
+
+- HIS ASK: Nova studies a person he chooses (first Jefferson Fisher; then Williamson, Hormozi, Serhant, Bartlett): find their videos, podcasts and interviews, get transcripts, analyse into the vault, keep going as new material appears, use it across every agent and the Daily review; know what was already read and be willing to read it again.
+- MEASURED 18 Nov (yt-dlp, own channel, long videos): Fisher 235 videos / 160 h (+567 shorts), Serhant 278 / 56 h, Hormozi 530 / 227 h, DOAC 550 / 993 h, Williamson 2,338 / 1,936 h. One caption fetch: 3.9 s, 98,724 chars for 97 min, free. NOT measured: guest appearances, audio-only podcasts, Stage 2 cost.
+- THE PLAN'S CORE: two stages. Stage 1 reads each transcript into cached structured notes (no Wiki writes). Stage 2 weaves per person in batches, one at a time, so a repeated idea becomes one Concept page and 235 weaves do not collide. Plus a register of every source read (backfilled from the vault), a durable queue on the Projects scheduler pattern, person-aware retrieval, a screen (mockup first).
+- FOUND IN THE CODE (checked): `vaultRetrieve.js` FOLDERS has no `Wiki/Entities/`; `NAMED_SHOWS` (`reviewQuote.js:30`), `OWN_CHANNELS` and `BOOK_AUTHORS` (`lineHarvest.js:31-33`) are hard-coded; ingest jobs do not resume after a restart and have no concurrency limit; `scout.js` already makes a one-off person dossier; Projects kernel caps 20 open jobs and has no watch kind.
+- WAITS ON HIM: how much of a huge catalogue to weave; host's ideas or the whole show's guests; file automatically with Undo or review; go-ahead for the five-video Fisher pilot and its spend; where it lives and the name; whether he owns files of their books.
+- NEXT: on his answers, step 0 of the plan: five Fisher videos through both stages by hand, real cost and the pages shown to him. Cost figures in the plan are estimates from August rates, not quotes.
+- DO NOT: start a bulk run before the pilot is measured and he has said go; weave one video at a time at this scale; put a person's name under a line captions cannot prove he said.
+
 ## 18 Nov (Opus 5.5, widget session): LEADER WIDGETS + LINE HARVEST BUILT, PUSHED, SERVER RELOADED; NOT INSTALLED (phone unavailable); MOCKUP 124 SENT
 
 - HIS ANSWERS: 123 round two APPROVED; yes to harvesting his full transcripts; yes to "heard on <show>, <guest> and <host>". NEW ASK: make it easier for the Leader to know his situation and for him to update it, especially replying to what it asks/notices/suggests; possibly a Leader chat like Coach, and still through the Nova chat.
