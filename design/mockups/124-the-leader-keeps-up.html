@@ -1,0 +1,348 @@
+<!doctype html>
+<!--
+  Mockup 124: the Leader keeps up with work. FOR APPROVAL, NOTHING BUILT.
+
+  His ask (18 Nov 2026): "We need to make it easier for the leader to be aware
+  of my overall situation so I can update it easier and more directly.
+  Especially when I am responding to things it is asking or noticing or
+  suggesting. Possibly through a leader chat just like coach ... but also
+  capable still through the general Nova chat."
+
+  Found that day: a Leader chat exists (used twice, October); a consulted
+  Leader may not REFLECT (consult.js), so work told to Nova never reaches
+  leader.json; 18 struggles open, none ever resolved; the page shows them as
+  blank dots. Sample content only.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Leader Keeps Up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap">
+<style>
+:root{--bg:#070914;--pg-ink:#e8ecf6;--pg-ink2:rgba(232,236,246,.66);--pg-ink3:rgba(232,236,246,.42);--mg:#ff7ad9;--mg2:rgba(255,122,217,.16);--vi:#8f7bff;--gold:#e0b26a;--good:#7ed6a4;--glass:rgba(255,255,255,.055);--edge:rgba(255,255,255,.10);--edge2:rgba(255,255,255,.06);--serif:"Source Serif 4",Georgia,"Times New Roman",serif;--ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;--ease:cubic-bezier(.23,1,.32,1);--spring:cubic-bezier(.34,1.36,.64,1);color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--pg-ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased}
+.pg{max-width:1120px;margin:0 auto;padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--pg-ink3);margin:0 0 10px}
+h1{font:400 34px/1.15 var(--serif);letter-spacing:-.015em;margin:0 0 12px;text-wrap:balance}
+h2{font:400 24px/1.2 var(--serif);margin:0 0 8px;text-wrap:balance}
+.lede{font-size:16px;color:var(--pg-ink2);max-width:62ch;margin:0 0 10px}
+.note{font-size:13px;color:var(--pg-ink3);max-width:62ch;margin:0}
+section{margin-top:64px}
+.row{display:flex;flex-wrap:wrap;gap:28px 48px;align-items:flex-start;margin-top:22px}
+.side{flex:1 1 280px;min-width:0;max-width:48ch}
+.side p{color:var(--pg-ink2);font-size:14px;margin:0 0 14px}
+.side b{color:var(--pg-ink);font-weight:600}
+/* the phone */
+.phone{width:375px;max-width:100%;flex:none;border-radius:38px;padding:14px 14px 18px;background:radial-gradient(120% 60% at 90% 0%,rgba(143,123,255,.20),transparent 60%),radial-gradient(90% 50% at 0% 100%,rgba(255,122,217,.10),transparent 60%),linear-gradient(180deg,#0d1020,#0a0c1a);border:1px solid var(--edge2);box-shadow:0 30px 60px -30px rgba(0,0,0,.8);display:flex;flex-direction:column;gap:12px;min-height:520px}
+.bar{display:flex;align-items:center;gap:10px;padding:6px 4px 2px}
+.face{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,rgba(255,122,217,.35),rgba(255,122,217,.08));border:1px solid rgba(255,122,217,.45)}
+.face i{display:flex;gap:4px}.face i::before,.face i::after{content:"";width:4px;height:5px;border-radius:2px;background:#fff}
+.face.sm{width:20px;height:20px}.face.sm i{gap:3px}.face.sm i::before,.face.sm i::after{width:3px;height:3px}
+.face.nova{background:radial-gradient(circle at 50% 40%,rgba(89,230,255,.45),rgba(89,230,255,.06));border-color:rgba(89,230,255,.5)}
+.bar b{font-weight:600;font-size:15px}.bar small{display:block;color:var(--pg-ink3);font-size:12px}
+.card{background:var(--glass);border:1px solid var(--edge);border-radius:18px;padding:14px 14px}
+.card.mg{background:linear-gradient(160deg,rgba(255,122,217,.12),rgba(143,123,255,.06));border-color:rgba(255,122,217,.32)}
+.lbl{font-size:12px;font-weight:600;color:var(--mg);margin:0 0 4px}.lbl span{color:var(--pg-ink3);font-weight:400}
+.q{font:400 18px/1.3 var(--serif);margin:0}
+.meta{font-size:12px;color:var(--pg-ink3)}
+/* chat */
+.msg{max-width:84%;padding:9px 12px;border-radius:18px;font-size:14.5px;line-height:1.4}
+.me{align-self:flex-end;background:linear-gradient(180deg,#3a3f8f,#2c3070);border-bottom-right-radius:6px}
+.nova{align-self:flex-start;background:var(--glass);border:1px solid var(--edge);border-bottom-left-radius:6px}
+.noted{align-self:flex-start;display:flex;gap:9px;align-items:flex-start;max-width:92%;padding:9px 11px;border-radius:14px;background:var(--mg2);border:1px solid rgba(255,122,217,.28);font-size:13px;line-height:1.4;transition:opacity 300ms var(--ease),transform 400ms var(--spring)}
+.noted b{color:var(--mg);font-weight:600}
+.noted .ch{display:block;color:var(--pg-ink2);margin-top:3px}
+.noted.gone{opacity:.45}
+.noted.in{animation:rise 520ms var(--spring) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+.lnk{appearance:none;border:0;background:none;padding:0;color:var(--mg);font:600 13px var(--ui);cursor:pointer}
+.lnk:active{transform:scale(.96)}
+.compose{margin-top:auto;display:flex;gap:8px;align-items:center;padding:6px;border-radius:24px;border:1px solid rgba(255,122,217,.35);background:rgba(255,255,255,.04)}
+.compose span{flex:1;color:var(--pg-ink3);font-size:15px;padding-left:10px}
+.compose i{width:34px;height:34px;border-radius:50%;background:rgba(255,122,217,.4);display:grid;place-items:center;font-style:normal;font-size:15px}
+/* dots */
+.dots{display:flex;align-items:center;gap:14px;width:100%;appearance:none;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.dots .bk{display:grid;grid-template-columns:repeat(9,9px);gap:5px}
+.dots .bk i{width:9px;height:9px;border-radius:50%;border:1.4px solid rgba(232,236,246,.7)}
+.dots .bk i.f{background:var(--pg-ink);border-color:var(--pg-ink)}
+.dots .bk i.ez{border-color:var(--gold)}
+.dots .n{font-size:20px;font-weight:600}.dots .n small{font-size:13px;font-weight:400;color:var(--pg-ink2)}
+.dots .open{margin-left:auto;color:var(--mg);font-size:12.5px;font-weight:600;white-space:nowrap}
+/* threads */
+.th{border-top:1px solid var(--edge2)}
+.th:first-child{border-top:0}
+.thb{appearance:none;background:none;border:0;color:inherit;font:inherit;width:100%;text-align:left;display:grid;grid-template-columns:10px 1fr auto;gap:4px 10px;align-items:center;padding:11px 2px;cursor:pointer}
+.st{width:10px;height:10px;border-radius:50%;border:1.6px solid var(--pg-ink)}
+.st.ez{border-color:var(--gold);background:radial-gradient(circle,var(--gold) 0 2px,transparent 3px)}
+.st.dn{background:var(--good);border-color:var(--good)}
+.thb b{font-weight:600;font-size:14.5px}
+.thb .tag{font-size:12px;color:var(--pg-ink3);text-align:right}
+.thb .sub{grid-column:2/4;font-size:12px;color:var(--pg-ink3)}
+.thx{display:grid;grid-template-rows:0fr;transition:grid-template-rows 380ms var(--ease)}
+.th.on .thx{grid-template-rows:1fr}
+.thx>div{overflow:hidden}
+.said{margin:0 0 8px 20px;padding:0;list-style:none}
+.said li{font-size:13px;color:var(--pg-ink2);padding:5px 0 5px 12px;border-left:1.5px solid rgba(255,122,217,.35)}
+.said li small{display:block;color:var(--pg-ink3);font-size:11px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px 20px}
+.pill{appearance:none;border:1px solid var(--edge);background:rgba(255,255,255,.05);color:var(--pg-ink);font:500 13px var(--ui);padding:7px 12px;border-radius:999px;cursor:pointer;transition:transform 140ms var(--ease),background 200ms}
+.pill:active{transform:scale(.96)}
+.pill.mg{border-color:rgba(255,122,217,.45);color:var(--mg)}
+.pill.ok{border-color:rgba(126,214,164,.45);color:var(--good)}
+/* tidy */
+.tidy li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--edge2);font-size:14px}
+.tidy li:first-child{border-top:0}
+.tidy ul{list-style:none;margin:8px 0 10px;padding:0}
+.tidy li span{flex:1;min-width:0}.tidy li small{display:block;color:var(--pg-ink3);font-size:12px}
+.tk{appearance:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--edge);background:rgba(255,255,255,.04);color:var(--pg-ink2);font:600 14px var(--ui);cursor:pointer;flex:none;transition:transform 160ms var(--spring),background 200ms,color 200ms}
+.tk:active{transform:scale(.9)}
+.tk.y[aria-pressed="true"]{background:var(--good);color:#06240f;border-color:var(--good)}
+.tk.n[aria-pressed="true"]{background:rgba(255,255,255,.18);color:var(--pg-ink)}
+.done-line{font-size:13px;color:var(--good);min-height:20px;margin:6px 0 0}
+/* quote */
+.quote{border-left:2px solid var(--gold);padding:4px 0 4px 10px;margin:0 0 4px;font-size:13px;color:var(--pg-ink2)}
+.quote b{display:block;color:var(--gold);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.idea .t{font:400 18px/1.25 var(--serif);margin:2px 0 6px}
+.idea .k{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.idea p{font-size:13.5px;color:var(--pg-ink2);margin:0 0 10px}
+.say{font-size:12.5px;color:var(--pg-ink3);text-align:center;min-height:18px;margin:0}
+dl{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:12px 24px;margin:18px 0 0;max-width:860px}
+dt{font-weight:600;font-size:14px}dd{margin:0;color:var(--pg-ink2);font-size:14px}
+@media (max-width:560px){dl{grid-template-columns:1fr;gap:4px}dd{margin-bottom:12px}h1{font-size:29px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<main class="pg">
+  <p class="eyebrow">Mockup 124 · for approval · nothing built</p>
+  <h1>The Leader keeps up with work</h1>
+  <p class="lede">Whatever you tell Nova about work reaches the Leader. You can see what the Leader thinks is going on, correct it in a tap, and reply to anything it says.</p>
+  <p class="note">Everything on this page is sample content.</p>
+
+  <section>
+    <h2>Tell Nova, and the Leader hears it</h2>
+    <div class="row">
+      <div class="phone" id="chat">
+        <div class="bar"><div class="face nova"><i></i></div><div><b>Nova</b><small>Wednesday</small></div></div>
+        <div class="msg me" id="his"></div>
+        <div class="msg nova" id="novasays"></div>
+        <div class="noted in" id="noted"><div class="face sm"><i></i></div><div><b>Leader noted</b> · <span id="nsum"></span><span class="ch" id="nchange"></span><button class="lnk" id="undo" type="button" style="margin-top:4px">Undo</button></div></div>
+        <div class="compose"><span>Ask Nova</span><i>↑</i></div>
+      </div>
+      <div class="side">
+        <p>Today, when you tell Nova about work, Nova can ask the Leader, but nothing gets written down. Your record has had nothing new since <b id="lastTold"></b>, and none of the 18 problems has ever been closed.</p>
+        <p><b>With this,</b> anything you say about work in any of Nova's places reaches the Leader's record: the Nova chat, voice, Siri or Telegram. A line under Nova's answer says what the Leader wrote down and which problem it changed.</p>
+        <p><b>Undo is right there.</b> Tap it and the record goes back to how it was. Nova's model reads what you said; code makes the change and keeps the receipt.</p>
+        <p class="say" id="undoSaid" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The dots open into what the Leader knows</h2>
+    <div class="row">
+      <div class="phone">
+        <div class="bar"><div class="face"><i></i></div><div><b>Leader</b><small>What I know about work</small></div></div>
+        <button class="card dots" type="button" id="dotsBtn" aria-expanded="true"><span class="n" id="openN"></span><span class="bk" id="bk"></span><span class="open">Grouped below</span></button>
+        <div class="card" id="threads"></div>
+      </div>
+      <div class="side">
+        <p>On the Leader page today, your 18 problems are 18 blank dots, so you can't see what the Leader believes.</p>
+        <p><b>The dots become a short list of threads</b>, each one thing going on at work, with when you last mentioned it. The Leader groups what you've said into threads, and code keeps the list.</p>
+        <p><b>Tap a thread</b> to see your own words as the Leader wrote them down. Then <b>That's done</b>, <b>Not right anymore</b> (say what is), or <b>Talk about this</b>, which opens the Leader with that thread quoted.</p>
+        <p>A thread you haven't mentioned in a month shows its age, and the Leader asks before treating it as current.</p>
+        <p class="say" id="thSaid" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>One tidy-up, the first time</h2>
+    <div class="row">
+      <div class="phone">
+        <div class="bar"><div class="face"><i></i></div><div><b>Leader</b><small>Before we go on</small></div></div>
+        <div class="card mg tidy" id="tidy">
+          <p class="lbl">The Leader asks</p>
+          <p class="q" id="tidyQ"></p>
+          <ul id="tidyList"></ul>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="pill ok" type="button" id="tidyAll">Set them all down</button><button class="pill" type="button" id="tidyTalk">Tell me where they're at</button></div>
+          <p class="done-line" id="tidyDone" aria-live="polite"></p>
+        </div>
+        <div class="compose"><span>Answer the Leader</span><i>↑</i></div>
+      </div>
+      <div class="side">
+        <p>Some of the open problems are from September and you haven't brought them up since. The Leader asks once whether to set them down instead of quietly carrying them.</p>
+        <p><b>A tick sets one down, a cross keeps it.</b> One button does all of them, or you can just talk. Everything set down can be undone and stays in the record as settled.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Reply to anything the Leader says</h2>
+    <div class="row">
+      <div class="phone" id="replyPhone">
+        <div class="bar"><div class="face"><i></i></div><div><b>Leader</b><small>Today's idea</small></div></div>
+        <div class="card idea" id="ideaCard"><p class="k" id="ideaK"></p><p class="t" id="ideaT"></p><p id="ideaL"></p><button class="pill mg" type="button" id="replyBtn">Reply</button></div>
+        <div id="convo" hidden style="display:flex;flex-direction:column;gap:10px">
+          <div class="msg me"><div class="quote"><b>Today's idea</b><span id="qT"></span></div><span id="qSaid"></span></div>
+          <div class="msg nova" style="border-color:rgba(255,122,217,.3)"><span class="meta" style="color:var(--mg);font-weight:600">Leader</span><br>That's worth trying on a slow night first. Who on the team would you pick?</div>
+        </div>
+        <div class="compose"><span>Answer the Leader</span><i>↑</i></div>
+      </div>
+      <div class="side">
+        <p>Every card the Leader shows gets a <b>Reply</b>: today's idea, a question, anything it noticed or suggested. Reply opens the Leader's conversation with that card quoted, so it knows what you mean.</p>
+        <p>Tap <b>Reply</b> on the left to see it.</p>
+        <p>The same happens from the widgets. A tap on your situation opens here with the question quoted, ready to answer by voice or typing.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Talking to the Leader directly</h2>
+    <div class="row">
+      <div class="phone" style="min-height:0">
+        <div class="msg me">Leader, the store manager wants us on the back dock tonight as well</div>
+        <div class="msg nova" style="border-color:rgba(255,122,217,.3)"><span class="meta" style="color:var(--mg);font-weight:600">Leader</span><br>What would the team have to drop to cover it?</div>
+        <div class="noted"><div class="face sm"><i></i></div><div><b>Leader noted</b> · Store manager pressure: the back dock asked for tonight<button class="lnk" type="button" style="display:block;margin-top:4px">Undo</button></div></div>
+      </div>
+      <div class="side">
+        <p><b>Start with "Leader"</b> in the Nova chat, by voice or typing, and the Leader answers you itself, with its own face, the way Coach does. Without it, Nova answers and the Leader still hears what matters.</p>
+        <p><b>Its own chat</b> stays on the Leader page, and the Leader box on Home gets a <b>Talk</b> button so it is one tap from Home, not four.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it is made of</h2>
+    <dl>
+      <dt>Hearing it</dt><dd>When something you say in any of Nova's places is about work, a cheap model reads it once and says what is new, what is easing and what is done, in your words. Code checks that each item is a sentence you actually said something about, applies it, and keeps an Undo.</dd>
+      <dt>The threads</dt><dd>The Leader groups the problems into threads once and again when a new one arrives; code stores which problem belongs to which. A thread's age is the date you last mentioned it, counted by code.</dd>
+      <dt>The tidy-up</dt><dd>Code picks the threads you haven't mentioned in 30 days; the Leader only words the question. Nothing is set down without your tick.</dd>
+      <dt>The daily idea</dt><dd>Still general and separate. The threads feed the Leader's questions about your situation, never the daily idea, so the September problem that filled every idea can't happen again.</dd>
+      <dt>Privacy</dt><dd>The threads live on your Mac in the Leader's own record. The situation widget stays hidden on the lock screen.</dd>
+    </dl>
+  </section>
+</main>
+
+<script>
+const D = {
+ "lastTold": "three weeks ago",
+ "tidySince": "last month",
+ "threads": [
+  {
+   "name": "The new closing roster",
+   "status": "open",
+   "old": true,
+   "last": "2 Oct",
+   "items": [
+    {
+     "text": "He wrote a new closing roster and is unsure the late team will follow it.",
+     "at": "28 Sep"
+    },
+    {
+     "text": "Two people swapped shifts without telling him and the close ran late.",
+     "at": "2 Oct"
+    }
+   ]
+  },
+  {
+   "name": "Saying no when he means no",
+   "status": "open",
+   "old": false,
+   "last": "14 Oct",
+   "items": [
+    {
+     "text": "He agrees to extra work in the moment and regrets it later.",
+     "at": "9 Oct"
+    },
+    {
+     "text": "He wants a sentence ready for when he is asked to cover more.",
+     "at": "14 Oct"
+    }
+   ]
+  },
+  {
+   "name": "Coaching the new starter",
+   "status": "open",
+   "old": false,
+   "last": "16 Oct",
+   "items": [
+    {
+     "text": "The new starter is quick but skips the checklist.",
+     "at": "16 Oct"
+    }
+   ]
+  }
+ ],
+ "chat": {
+  "his": "Told my manager we can only cover the front half tonight. She was fine with it.",
+  "nova": "Good. You said it plainly and it held.",
+  "noted": "You said no to extra cover, and it was accepted.",
+  "change": "\"Saying no when he means no\" moves to easing."
+ },
+ "idea": {
+  "kind": "Try this",
+  "title": "Ask what they would do first",
+  "line": "When someone brings you a problem today, ask what they would do before you answer.",
+  "reply": "I could try this with the new starter on Thursday."
+ }
+};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+$('his').textContent = D.chat.his; $('novasays').textContent = D.chat.nova;
+$('nsum').textContent = D.chat.noted; $('nchange').textContent = D.chat.change; $('lastTold').textContent = D.lastTold;
+let undone = false;
+$('undo').addEventListener('click', () => {
+  undone = !undone; $('noted').classList.toggle('gone', undone);
+  $('undo').textContent = undone ? 'Redo' : 'Undo';
+  $('undoSaid').textContent = undone ? 'Undone. The record is back to how it was.' : 'Written down again.';
+});
+const open = D.threads.reduce((n, t) => n + (t.status === 'done' ? 0 : t.items.length), 0);
+$('openN').innerHTML = `${open} <small>open</small>`;
+function drawDots() {
+  const bk = $('bk'); bk.innerHTML = '';
+  D.threads.forEach((t) => t.items.forEach(() => { const i = document.createElement('i'); if (t.status === 'done') i.className = 'f'; else if (t.status === 'easing') i.className = 'ez'; bk.appendChild(i); }));
+}
+const ST = { open: '', easing: 'ez', done: 'dn' };
+const TAG = { open: 'Open', easing: 'Easing', done: 'Set down' };
+function drawThreads() {
+  $('threads').innerHTML = D.threads.map((t, i) => `<div class="th" data-i="${i}"><button class="thb" type="button" aria-expanded="false"><span class="st ${ST[t.status]}"></span><b>${esc(t.name)}</b><span class="tag">${TAG[t.status]}</span><span class="sub">${t.items.length} ${t.items.length === 1 ? 'note' : 'notes'} · last mentioned ${esc(t.last)}</span></button><div class="thx"><div><ul class="said">${t.items.map((s) => `<li>${esc(s.text)}<small>${esc(s.at)}</small></li>`).join('')}</ul><div class="acts"><button class="pill ok" type="button" data-a="done">That's done</button><button class="pill" type="button" data-a="wrong">Not right anymore</button><button class="pill mg" type="button" data-a="talk">Talk about this</button></div></div></div></div>`).join('');
+  drawDots();
+}
+drawThreads();
+$('threads').addEventListener('click', (e) => {
+  const th = e.target.closest('.th'); if (!th) return; const t = D.threads[+th.dataset.i];
+  const a = e.target.closest('[data-a]');
+  if (!a) { const on = th.classList.toggle('on'); th.querySelector('.thb').setAttribute('aria-expanded', String(on)); return; }
+  if (a.dataset.a === 'done') { t.status = t.status === 'done' ? 'open' : 'done'; drawThreads(); $('thSaid').textContent = t.status === 'done' ? `"${t.name}" set down, with Undo.` : `"${t.name}" open again.`; }
+  else if (a.dataset.a === 'wrong') $('thSaid').textContent = 'The Leader would open, asking what is true now about this thread.';
+  else $('thSaid').textContent = 'The Leader would open with this thread quoted.';
+});
+$('dotsBtn').addEventListener('click', () => { const t = $('threads'); const hide = !t.hidden; t.hidden = hide; $('dotsBtn').setAttribute('aria-expanded', String(!hide)); });
+const old = D.threads.filter((t) => t.old);
+$('tidyQ').textContent = `${old.length === 1 ? 'One thread' : old.length === 2 ? 'Two threads' : old.length + ' threads'} you haven't mentioned since ${D.tidySince}. Should I set ${old.length === 1 ? 'it' : 'them'} down?`;
+$('tidyList').innerHTML = old.map((t, i) => `<li><span>${esc(t.name)}<small>${t.items.length} ${t.items.length === 1 ? 'note' : 'notes'} · last mentioned ${esc(t.last)}</small></span><button class="tk y" type="button" aria-pressed="false" aria-label="Set down" data-i="${i}">✓</button><button class="tk n" type="button" aria-pressed="false" aria-label="Keep" data-i="${i}">✕</button></li>`).join('');
+const tidyState = old.map(() => null);
+function tidySay() {
+  const y = tidyState.filter((v) => v === true).length, n = tidyState.filter((v) => v === false).length;
+  $('tidyDone').textContent = y || n ? `${y ? `${y} set down` : ''}${y && n ? ', ' : ''}${n ? `${n} kept` : ''}. Undo is in the Leader's receipts.` : '';
+}
+$('tidyList').addEventListener('click', (e) => {
+  const b = e.target.closest('.tk'); if (!b) return; const i = +b.dataset.i; const yes = b.classList.contains('y');
+  tidyState[i] = tidyState[i] === yes ? null : yes;
+  $('tidyList').querySelectorAll(`[data-i="${i}"]`).forEach((x) => x.setAttribute('aria-pressed', String(tidyState[i] === x.classList.contains('y') && tidyState[i] !== null)));
+  tidySay();
+});
+$('tidyAll').addEventListener('click', () => { tidyState.fill(true); $('tidyList').querySelectorAll('.tk').forEach((x) => x.setAttribute('aria-pressed', String(x.classList.contains('y')))); tidySay(); });
+$('tidyTalk').addEventListener('click', () => { $('tidyDone').textContent = 'Type or say where they are at in the box below; the Leader updates each one.'; });
+$('ideaK').textContent = D.idea.kind; $('ideaT').textContent = D.idea.title; $('ideaL').textContent = D.idea.line;
+$('qT').textContent = D.idea.title; $('qSaid').textContent = D.idea.reply;
+$('replyBtn').addEventListener('click', () => { $('ideaCard').hidden = true; const c = $('convo'); c.hidden = false; c.querySelectorAll('.msg').forEach((m, i) => { m.style.animation = `rise 520ms var(--spring) ${i * 140}ms both`; }); });
+</script>
+</body>
+</html>
