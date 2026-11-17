@@ -11,6 +11,15 @@ the session log at the foot is append-only.
 
 ---
 
+## 17 Nov (Fable 5.2, widget session, later): THE LINE WIDGET ROUND TWO, MOCKUP 121 SENT FOR HIS APPROVAL. `da52fd36`, local, NOT PUSHED. NOTHING BUILT
+
+- HIS NOTES ON 120: the idea and the kind of quote (Chris Williamson, Alex Hormozi, James Clear) are right; the widget itself must be more beautiful. ONE widget, mainly for quotes for now. All four sizes. He could not picture "hide a returning line's words", so it had to be drawn. The Keep button was left to me.
+- STATE: `design/mockups/121-the-line-widget-round-two.html` (sample content only; `window.__NOVA_LINES` swaps in other lines, keys a/b/c/long + note). Same private page, now version 2, with his real lines: https://claude.ai/artifact/3UCsH5PGym9SXCSFhQtmyu. The face is the line and who said it, nothing else. Three looks via `[data-look]`: A Nova (my pick, `WInk.ground` plus violet light, hanging mark), B Ink (near black, italic, one violet rule), C Paper (cream). Small, medium, large (adds the idea), lock rectangle. Type steps down per size (`FIT`), a short line never runs past three rows, a line too long for small shows its idea and "Open for the line". Hidden-or-shown drawn side by side (my pick: always shown). Keep button left out, with a drawing of why.
+- WAITING ON HIM: which look; hidden or shown; approve to build or another round.
+- VERIFIED: headless Chrome stills at 1240 and 402 in all three looks, no sideways scroll at 402. NOT verified in WebKit or on his phone.
+- NOTICED: his vault's `show` for these lines is "Chris Williamson", so an unsettled speaker reads "Heard on Chris Williamson". The build may want the show's real name there.
+- BUILD NOTES stand from the 120 entry below (read without marking surfaced, verified + length gate, `.systemLarge` is new, its own deep link).
+
 ## 17 Nov (Fable 5.2, widget session): THE LINE WIDGET, MOCKUP 120 SENT FOR HIS APPROVAL. `04aa8f18`, local, NOT PUSHED. NOTHING BUILT
 - GOAL: his ask, "a Nova widget that displays the daily review and/or a deep/philosophical daily quote", simple, elegant, attractive.
 - STATE: `design/mockups/120-the-line-widget.html` (sample content only; a `window.__NOVA_LINES` hook swaps in other lines). Published privately with five REAL verified lines from his vault at https://claude.ai/artifact/3UCsH5PGym9SXCSFhQtmyu. One widget, "The Line": the day's review line while one waits (new: shown; returning: idea title as the cue, words veiled; done: the first line stays with a tick and the next date), else a library line chosen by date. Small, medium, large, lock rectangle. Edge states: speaker unsettled names the show only, Mac not reached shows yesterday's line dated, never connected says so. Optional "Keep" button drawn as an option.
