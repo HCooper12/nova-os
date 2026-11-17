@@ -231,3 +231,34 @@ test('attribution: a passed-on line names whose words they are, then who he hear
   assert.deepEqual([p.who, p.byLong, p.byShort], ['Tomas Verhoeven', ', heard from Some Account', ', heard from Some Account']);
   assert.equal(L.attribute({ show: 'Some Account', who: null }).origin, null);
 });
+
+test('only YES or NO is a verdict', () => {
+  assert.equal(L.acceptVerdict(' yes. '), true);
+  assert.equal(L.acceptVerdict('"NO"'), false);
+  assert.equal(L.acceptVerdict('Yes, because it is whole'), null);
+  assert.equal(L.acceptVerdict(''), null);
+});
+
+test('a recorded NO takes a line out; unasked, unclear and reworded lines stay', () => {
+  const pool = [{ id: 'a', quote: 'one' }, { id: 'b', quote: 'two' }, { id: 'c', quote: 'three' }, { id: 'd', quote: 'four' }];
+  const stands = { a: { quote: 'one', stands: false }, b: { quote: 'two', stands: null }, c: { quote: 'older words', stands: false } };
+  assert.deepEqual(L.standing(pool, stands).map((p) => p.id), ['b', 'c', 'd']);
+});
+
+test('judgePool asks once per wording, in order, and survives a runner that throws', async () => {
+  const asked = [];
+  const pool = [{ id: 'ja', quote: 'whole thought.' }, { id: 'jb', quote: 'a piece of' }, { id: 'jc', quote: 'unclear one' }];
+  await L.judgePool(pool, { runner: async (q) => { asked.push(q); return q === 'whole thought.' ? 'YES' : q === 'a piece of' ? 'no' : 'hmm'; } });
+  const s = await L.readStands();
+  assert.deepEqual([s.ja.stands, s.jb.stands, s.jc.stands], [true, false, null]);
+  await L.judgePool(pool, { runner: async (q) => { asked.push(q); return 'NO'; } });
+  assert.equal(asked.length, 3);
+  await L.judgePool([{ id: 'jd', quote: 'new' }], { runner: async () => { throw new Error('model down'); } });
+  assert.equal((await L.readStands()).jd, undefined);
+});
+
+test('a blockquote mark inside a quote is removed, and the same words twice are one line', () => {
+  assert.equal(L.unquoteMarks('Guard your > inputs like it matters'), 'Guard your inputs like it matters');
+  const kept = L.oncePerWording([{ id: 'a', quote: 'People hate being sold.' }, { id: 'b', quote: 'people hate being sold' }, { id: 'c', quote: 'Another.' }]);
+  assert.deepEqual(kept.map((p) => p.id), ['a', 'c']);
+});

@@ -450,6 +450,12 @@ export const LANES = [
     off: 'The widget shows the line with no coloured phrase; nothing else changes.',
   },
   {
+    // Claude only until its local run is measured; code accepts YES or NO and nothing else (lib/lineWidget.js)
+    id: 'lineStands', label: 'The Line, stands on its own', group: 'daily', def: 'haiku', defEffort: 'low',
+    hint: 'asks once per quote whether it reads as a whole thought on a card; a piece of a sentence or of a story is kept off the widget',
+    off: 'Every checked quote can appear on the widget, pieces of sentences included.',
+  },
+  {
     id: 'study-lane', label: 'Study lane', group: 'daily', def: 'sonnet', defEffort: 'high',
     hint: 'turns study material into recall questions',
     off: 'The study lane is refused; existing cards are unaffected.',

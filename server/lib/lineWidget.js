@@ -21,6 +21,7 @@ import { inReview, laneOf, leadable, ideaSentence, reviewPool } from './conceptR
 const dataDir = () => process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const DAYS_FILE = () => path.join(dataDir(), 'lineWidget.json');
 const PHRASES_FILE = () => path.join(dataDir(), 'linePhrases.json');
+const STANDS_FILE = () => path.join(dataDir(), 'lineStands.json');
 const KEEP_DAYS = 120;
 const MAX_QUOTE = 200;
 
@@ -133,14 +134,30 @@ export function poolFrom(pages, ctx) {
     if (!by.who && !by.podcast) continue;
     out.push({
       id: page.id,
-      quote: q.text,
+      quote: unquoteMarks(q.text),
       ...by, // origin is set only for a line the transcript proves was passed on
       at: q.at || null,
       idea: page.title,
       sent: sentenceFor(page.paragraphs?.[0]),
     });
   }
-  return out;
+  return oncePerWording(out);
+}
+
+// A quote that ran over two lines of a markdown blockquote carries the next
+// line's "> " inside it; nobody said that.
+export const unquoteMarks = (text) => String(text).replace(/\s+>\s+/g, ' ');
+
+// The same words on two pages are one line (the first page keeps it), or the
+// widget would show it on two days.
+export function oncePerWording(items) {
+  const seen = new Set();
+  return items.filter((p) => {
+    const k = p.quote.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 /* --------------------------- the accent phrase --------------------------- */
@@ -273,14 +290,91 @@ export async function fillPhrase({ id, quote, runner = defaultRunner } = {}) {
   }
 }
 
+/* ------------------------- does it stand on its own ------------------------- */
+
+// HIS REPORT, 17 Nov 2026, looking at the first line on his phone ("A home, a
+// style, a set of interests and a way of speaking that feels like its own
+// universe"): "doesn't feel like the vibe of what I want". The review's quote
+// is whatever the page marked, and many are a piece of a sentence or of a
+// story. On a card with nothing around it, only a whole thought reads as a
+// line. A model answers one question per line, once; code accepts YES or NO
+// and nothing else. A line not yet asked about stays in, so with the lane off
+// the widget behaves as it did before.
+
+const STANDS_PROMPT = (quote) => `You sort lines for a daily quote card. Each line was spoken in a podcast or a video. The card shows the line alone, in large type, with the speaker's name under it.
+
+YES means: a reader who never heard the source gets a whole idea from it. It states a principle, a claim about people or life, an instruction, or a question worth asking yourself. Capital letters and a full stop do not matter. Blunt or informal wording is fine.
+Examples of YES:
+- You do not rise to the level of your goals. You fall to the level of your systems.
+- what would this look like if it were easy?
+- Discipline is choosing what you want most over what you want now
+
+NO means: read alone, it is not an idea yet. It is a piece of a sentence, a description with no claim, a moment from a story, or a script of what someone might say out loud.
+Examples of NO:
+- the kind of person who shows up early
+- which is why it usually falls apart
+- And then he told me to come back on Monday.
+- Hi, I'm Sam, and I help busy parents get fit.
+
+The line:
+"${quote}"
+
+Reply with the single word YES or NO.`;
+
+export function acceptVerdict(raw) {
+  const t = String(raw ?? '').trim().replace(EDGE_RE, '').toUpperCase();
+  return t === 'YES' ? true : t === 'NO' ? false : null;
+}
+
+export const readStands = async () => {
+  const v = await readJson(STANDS_FILE(), {});
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+};
+
+// Only a NO recorded against these exact words takes a line out.
+export const standing = (pool, stands) => pool.filter((p) => {
+  const rec = stands?.[p.id];
+  return !(rec && rec.quote === p.quote && rec.stands === false);
+});
+
+const defaultJudge = async (quote) => {
+  const { runTextLane } = await import('./textLane.js');
+  const out = await runTextLane('lineStands', STANDS_PROMPT(quote), { maxTokens: 8 });
+  return out?.text ?? '';
+};
+
+let sweep = null;
+
+// One line at a time, in the order given, each asked once per wording (an
+// unreadable answer is stored as null: the line stays and is not asked again).
+// A runner that throws ends this pass; the next fetch starts another. Never
+// throws. One pass at a time.
+export function judgePool(pool, { runner = defaultJudge } = {}) {
+  if (sweep) return sweep;
+  sweep = (async () => {
+    try {
+      for (const p of pool) {
+        const rec = (await readStands())[p.id];
+        if (hasValidRecord(p.quote, rec)) continue;
+        const stands = acceptVerdict(await runner(p.quote));
+        await writeJsonAtomic(STANDS_FILE(), { ...(await readStands()), [p.id]: { quote: p.quote, stands } });
+      }
+    } catch (e) {
+      console.log(`lineWidget: stand-alone check stopped (${e?.message || e})`);
+    } finally { sweep = null; }
+  })();
+  return sweep;
+}
+
 /* ---------------------------------- the build ---------------------------------- */
 
 // Reads the vault view and the two files, composes, records today's pick, and
 // (unless `fill` is false) starts a background fill for today's line when it
 // has no record. The caller never waits on a model.
-export async function buildLineWidget(vaultPath, vault, { now = new Date(), fill = true, runner = undefined } = {}) {
+export async function buildLineWidget(vaultPath, vault, { now = new Date(), fill = true, runner = undefined, judge = undefined } = {}) {
   const { pages, ctx } = await reviewPool(vaultPath, vault);
-  const pool = poolFrom(pages, ctx);
+  const every = poolFrom(pages, ctx);
+  const pool = standing(every, await readStands());
   const stored = await readJson(DAYS_FILE(), { days: [] });
   const phrases = await readPhrases();
   const { payload, days } = composeLine({ now, pool, days: stored?.days, phrases });
@@ -291,5 +385,7 @@ export async function buildLineWidget(vaultPath, vault, { now = new Date(), fill
   if (fill && line && !hasValidRecord(line.quote, phrases[line.id])) {
     fillPhrase({ id: line.id, quote: line.quote, runner }).catch(() => {});
   }
+  // today's line is asked about first, so a NO replaces it on the next fetch
+  if (fill) judgePool([...every].sort((a, b) => (b.id === line?.id) - (a.id === line?.id)), judge ? { runner: judge } : {});
   return payload;
 }
