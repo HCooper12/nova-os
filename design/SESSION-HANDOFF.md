@@ -11,6 +11,17 @@ the session log at the foot is append-only.
 
 ---
 
+## 17 Nov (Fable 5.2, widget session, the build): THE LINE WIDGET, MOCKUP 122 APPROVED, BUILD UNDER WAY. Server `89b6e58e` + opener `3db86e97`, local, NOT PUSHED, SERVER NOT RELOADED. SWIFT HALF NOT YET COMMITTED
+
+- HIS FIVE ANSWERS: 1 approved to build (122 is the contract). 2 keep the accented phrase. 3 default look is Follows the day. 4 keep the two turn-over dots. 5 the attribution names the podcast by its real name and who spoke the line, and when a host passes on someone else's line it should say so ("as heard from Chris Williamson and spoken by X, on Modern Wisdom").
+- BUILT, SERVER (`89b6e58e`): `GET /api/widget/line` from `server/lib/lineWidget.js`. Payload `{ at, date, line, previous }`; a line carries `quote, em, who, host, podcast, origin (always null), byLong, byShort, at, idea, sent`. The day's pick lives in `lineWidget.json` (every line once before a repeat, never yesterday's); the accent phrase in `linePhrases.json`, filled in the background on lane `linePhrase` (haiku, low) and accepted by code only as an exact 2 to 6 word piece of the quote. GET never waits on a model. `SHOWS` maps exactly two channels to a podcast and host: "Chris Williamson" (Modern Wisdom) and "The Diary Of A CEO" (Steven Bartlett). 21 tests in `server/test/lineWidget.test.js`.
+- BUILT, APP (`3db86e97`): `novaos://open/line` arrives as `#/line`; `consumeDeepLink()` in `src/App.jsx` asks the widget route for today's id, loads it with `api.reviewItem` and raises its review page over Home. NOT exercised in a browser or on his phone.
+- SWIFT HALF: a subagent (opus) is writing the "THE LINE" section inside `ios/App/NovaLiveActivity/NovaWidgets.swift` and registering it in `NovaLiveActivityBundle.swift` (kind `NovaLine`; small, medium, large, lock-screen rectangle). Its proof is a Mac render harness in the session scratch folder with side-by-side images against 122. Read its diff, LOOK at the images, then commit those two files only. `project.pbxproj` and `Info.plist` carry someone else's uncommitted changes: never stage them.
+- REAL-VAULT FINDINGS (read-only run, scratch data folder): 46 lines in the pool after two with neither speaker nor show were left out. 13 read "Heard on Chris Williamson's Modern Wisdom" with no speaker. Most other "shows" are personal Instagram accounts and read "Heard on <account>". Five lines on the channel "blind spot" name the fictional Harvey Specter as speaker. The vault has NO record of a quote's original author, so "spoken by X" for a passed-on line cannot be shown yet (`origin` stays null).
+- TESTS: full server suite 5642, 2 fail, both in `exerciseAtlas.test.js` (they read his real exercise library; not this diff). Lint clean, build green.
+- NOT VERIFIED: anything on his phone (the widget, the turn-over tap, the lock screen, the tap opener). The private page (version 4) carries the new attribution wording but its header still says "for approval".
+- WAITING ON HIM: reload the server, push, install on his phone; whether to record original authors; the Harvey Specter lines; more channels in the podcast table.
+
 ## 17 Nov (Fable 5.2, widget session, third round): THE LINE WIDGET ROUND THREE, MOCKUP 122 SENT FOR HIS APPROVAL. `916da8c9`, local, NOT PUSHED. NOTHING BUILT
 
 - HIS NOTES ON 121: he likes all three looks "as options to perhaps change between"; he asked for a version "a bit more dynamic", "more engaging to look at". Hiding a returning line's words: NO, the words always show.
