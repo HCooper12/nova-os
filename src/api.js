@@ -197,6 +197,8 @@ export const api = {
   libraryItem: (conn, id) => call(conn, `/api/library/item?id=${encodeURIComponent(id)}`),
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
   recall: (conn, q) => call(conn, `/api/recall?q=${encodeURIComponent(q)}`),
+  // K1 (mockup 117): the line, its marks, a date, words apart from meaning. `half` is 'words' | 'meaning' | 'both'.
+  recallNotes: (conn, q, half = 'both') => call(conn, `/api/recall/notes?q=${encodeURIComponent(q)}&half=${half}`),
   learning: (conn) => call(conn, '/api/learning'),
   profile: (conn) => call(conn, '/api/profile'),
   setProfile: (conn, body) => put(conn, '/api/profile', body),

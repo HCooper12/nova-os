@@ -167,8 +167,19 @@ export function valsIndex(app, ctx, v) {
   }));
 
   const waiting = Number(v.inboxPendingCount) || 0;
+  // what the search sheet (src/SearchSheet.jsx, mockup 117) may say about the
+  // Mac: the note count only when the Notes row has one, the last time the app
+  // reached the Mac only when it did. Nothing here is made up.
+  const notesValue = groups.flatMap((g) => g.rows).find((r) => r.key === 'notes')?.value || '';
+  const notesTotal = /^\d+/.test(notesValue) ? Number(notesValue.match(/^\d+/)[0]) : null;
   return {
     indexPage: {
+      search: {
+        total: notesTotal,
+        lastReached: st.lastSyncAt ? dtf('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(st.lastSyncAt)) : null,
+        isOffline: !!ctx.isOffline,
+        demoMode: !!ctx.demoMode,
+      },
       date: dtf('en-GB', DATE_FMT).format(new Date()).replace(/,/g, ''),
       you: {
         name: ctx.userName || '',
