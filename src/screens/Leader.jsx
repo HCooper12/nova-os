@@ -328,6 +328,20 @@ function LeaderPage({ P, A, pad }) {
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 20_000); return () => clearInterval(t); }, []);
   const [roundupOff, setRoundupOff] = useState(readOff);
   const [expanded, setExpanded] = useState(null);
+  // A tap on a Leader widget (mockup 123) lands as #/leader/ask (Your
+  // situation: its question opens, ready for his answer) or #/leader/idea
+  // (Lead: today's idea opens). Read once, then the hash goes back to #/leader.
+  useEffect(() => {
+    const take = () => {
+      const m = /^#\/leader\/(ask|idea)(?:[?/]|$)/.exec(window.location.hash);
+      if (!m) return;
+      try { window.history.replaceState(window.history.state, '', '#/leader'); } catch { /* sandboxed */ }
+      setExpanded(m[1] === 'ask' ? 'question' : 'idea');
+    };
+    take();
+    window.addEventListener('hashchange', take);
+    return () => window.removeEventListener('hashchange', take);
+  }, []);
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState(null);       // { quote } while the conversation is up
   const [stage, setStage] = useState(false);

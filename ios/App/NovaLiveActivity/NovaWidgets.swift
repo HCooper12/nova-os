@@ -122,10 +122,17 @@ struct NovaProvider: TimelineProvider {
 
 /// Where a tap lands. The app registers the novaos scheme (Info.plist) and
 /// SceneDelegate turns the path into a screen hash; "recipes" is Fuel.
+/// Opening any of these also turns The Line and Lead face up again.
 enum NovaLink {
     static let fuel = URL(string: "novaos://open/recipes")
     /// The Line (mockup 122): the day's line, opened in Nova
     static let line = URL(string: "novaos://open/line")
+    /// Lead (mockup 123): the Leader, with today's idea open
+    static let lead = URL(string: "novaos://open/leader/idea")
+    /// Your situation (mockup 123): the Leader, its question open for his answer
+    static let situation = URL(string: "novaos://open/leader/ask")
+    /// the Leader as it is
+    static let leader = URL(string: "novaos://open/leader")
 }
 
 // MARK: - the one-number widget's choice
@@ -778,7 +785,7 @@ enum NovaLineStore {
     }
 
     /// (the payload to draw, whether the Mac answered). Right after a tap on
-    /// the dots, today's kept answer is used as it is, so the line turns at
+    /// the front, today's kept answer is used as it is, so the line turns at
     /// once instead of waiting on the network.
     static func load(now: Date = .now) async -> (NovaLinePayload?, Bool) {
         let d = NovaShared.defaults
@@ -924,7 +931,8 @@ struct NovaLineIntent: WidgetConfigurationIntent {
     @Parameter(title: "Look", default: .day) var look: LineLookChoice
 }
 
-/// The two dots: turn the line over to its idea, and back.
+/// A tap on the front: turn the line over to its idea. Opening Nova from the
+/// back turns it face up again.
 struct LineTurnIntent: AppIntent {
     static var title: LocalizedStringResource = "Turn the line over"
     static var isDiscoverable: Bool = false
@@ -947,7 +955,7 @@ struct LineEntry: TimelineEntry {
     var phase: Int
     var look: LineLook
     var turned = false
-    /// "<id>|<day>" for the dots; nil draws them without a tap
+    /// "<id>|<day>" for the turn; nil draws the dots without a tap
     var turnKey: String? = nil
 
     /// The gallery's stand-in when nothing has been fetched: plainly not a
@@ -995,6 +1003,11 @@ enum LineFont {
     }
     static func sans(_ size: CGFloat, bold: Bool) -> LinePlatformFont {
         UIFont.systemFont(ofSize: size, weight: bold ? .semibold : .regular)
+    }
+    /// the serif at weight 500 (the Leader's titles)
+    static func serifMedium(_ size: CGFloat) -> LinePlatformFont {
+        let base = UIFont.systemFont(ofSize: size, weight: .medium).fontDescriptor
+        return UIFont(descriptor: base.withDesign(.serif) ?? base, size: size)
     }
     /// a font's own line height per point of size
     static let serifLine: CGFloat = { let f = serif(100, italic: false); return f.lineHeight / 100 }()
@@ -1395,22 +1408,17 @@ struct LineFace: View {
 
     // MARK: the dots
 
-    @ViewBuilder private var dots: some View {
-        let face = HStack(spacing: 5) {
+    /// A mark only (mockup 123, round two): the whole front face is the turn
+    /// button (NovaLineView), so the dots just say there is a second face.
+    private var dots: some View {
+        HStack(spacing: 5) {
             Circle().fill(entry.turned ? look.ink3 : look.ink).frame(width: 5, height: 5)
             Circle().fill(entry.turned ? look.ink : look.ink3).frame(width: 5, height: 5)
         }
         .padding(.top, 14)
         .padding(.trailing, 14)
         .frame(width: 52, height: 44, alignment: .topTrailing)
-        .contentShape(Rectangle())
-        if let key = entry.turnKey {
-            Button(intent: LineTurnIntent(slot: size.slot, key: key)) { face }
-                .buttonStyle(.plain)
-                .accessibilityLabel(entry.turned ? "Turn the line back" : "Turn the line over")
-        } else {
-            face.accessibilityHidden(true)
-        }
+        .accessibilityHidden(true)
     }
 
     // MARK: lock screen: one tint, so the phrase is in italic
@@ -1555,11 +1563,23 @@ struct NovaLineView: View {
         // tinted and clear home screens draw in one colour over no ground:
         // the light-on-dark look keeps every weight legible there
         let look = mode == .fullColor ? entry.look : .nova
-        LineFace(entry: entry, size: size, look: look)
-            .containerBackground(for: .widget) {
-                if size != .lock { LineGround(look: look, phase: entry.phase) }
+        let face = LineFace(entry: entry, size: size, look: look)
+        // A tap anywhere on the front turns it over; on the back a tap opens
+        // the line in Nova, and opening Nova turns it face up again
+        // (NovaDeepLink.faceFront, SceneDelegate).
+        Group {
+            if size != .lock, !entry.turned, let key = entry.turnKey {
+                Button(intent: LineTurnIntent(slot: size.slot, key: key)) { face }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Turns the line over to the idea behind it")
+            } else {
+                face
             }
-            .widgetURL(NovaLink.line)
+        }
+        .containerBackground(for: .widget) {
+            if size != .lock { LineGround(look: look, phase: entry.phase) }
+        }
+        .widgetURL(NovaLink.line)
     }
 }
 
@@ -1569,10 +1589,938 @@ struct NovaLineWidget: Widget {
             NovaLineView(entry: entry)
         }
         .configurationDisplayName("The Line")
-        .description("One line a day from what you have listened to, in the speaker's own words. Tap the dots for the idea behind it.")
+        .description("One line a day from what you have listened to, in the speaker's own words. Tap it for the idea behind it.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
         .contentMarginsDisabled()
     }
 }
 
 // MARK: - END THE LINE
+
+// MARK: - THE LEADER ==========================================================
+//
+// Two widgets he stacks (his ask, 17 Nov 2026; mockup 123, round two,
+// APPROVED: design/mockups/123-the-leader-widget.html). "Lead" is the day's
+// general leadership idea, gold, with the two chevrons; a tap anywhere on its
+// front turns it over to why it works, and a tap on the back opens Nova on the
+// Leader. "Your situation" is the thread at work the Leader is following,
+// violet, hidden while the phone is locked; a tap opens Nova on its question,
+// ready for his answer. iOS gives a widget taps only: the swipe between them
+// is the Smart Stack's.
+//
+// One read-only payload feeds both: GET /api/widget/leader (server/lib/
+// leaderWidget.js). The idea never carries anything about his situation. The
+// looks, the light and the type setting are The Line's; the CSS of 123 is the
+// contract for every number below.
+
+// MARK: leader data
+
+struct NovaLead: Codable, Equatable {
+    var date: String
+    var kind: String
+    var title: String
+    var line: String
+    var why: String? = nil
+    var src: String? = nil
+
+    enum CodingKeys: String, CodingKey { case date, kind, title, line, why, src }
+
+    init(date: String, kind: String, title: String, line: String, why: String? = nil, src: String? = nil) {
+        self.date = date; self.kind = kind; self.title = title; self.line = line; self.why = why; self.src = src
+    }
+
+    /// Lenient: a field of the wrong type or only spaces is absent; an idea
+    /// without its day, title or line is not an idea.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func s(_ k: CodingKeys) -> String? {
+            guard let v = (try? c.decodeIfPresent(String.self, forKey: k)) ?? nil,
+                  !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return v
+        }
+        guard let date = s(.date), let title = s(.title), let line = s(.line) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: c.codingPath, debugDescription: "an idea needs date, title and line"))
+        }
+        self.init(date: date, kind: s(.kind) ?? "idea", title: title, line: line, why: s(.why), src: s(.src))
+    }
+
+    /// one word each (the mockup's KIND)
+    var kindLabel: String {
+        switch kind { case "action": return "Do today"; case "reminder": return "Remember"; default: return "Try this" }
+    }
+}
+
+struct NovaSituation: Codable, Equatable {
+    var headline: String? = nil
+    var question: String? = nil
+    var stands: String? = nil
+    /// whole days since he last told Nova anything, counted by the Mac's code
+    var days: Int? = nil
+    var openCount: Int? = nil
+
+    init(headline: String? = nil, question: String? = nil, stands: String? = nil, days: Int? = nil, openCount: Int? = nil) {
+        self.headline = headline; self.question = question; self.stands = stands; self.days = days; self.openCount = openCount
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func s(_ k: CodingKeys) -> String? {
+            guard let v = (try? c.decodeIfPresent(String.self, forKey: k)) ?? nil,
+                  !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return v
+        }
+        headline = s(.headline); question = s(.question); stands = s(.stands)
+        days = (try? c.decodeIfPresent(Int.self, forKey: .days)) ?? nil
+        openCount = (try? c.decodeIfPresent(Int.self, forKey: .openCount)) ?? nil
+    }
+}
+
+struct NovaLeaderOff: Codable, Equatable {
+    var lead: Bool? = nil
+    var situation: Bool? = nil
+}
+
+struct NovaLeaderPayload: Codable {
+    var at: String?
+    var date: String?
+    var lead: NovaLead?
+    var previous: NovaLead?
+    var situation: NovaSituation?
+    var off: NovaLeaderOff?
+
+    init(at: String? = nil, date: String? = nil, lead: NovaLead? = nil, previous: NovaLead? = nil,
+         situation: NovaSituation? = nil, off: NovaLeaderOff? = nil) {
+        self.at = at; self.date = date; self.lead = lead; self.previous = previous; self.situation = situation; self.off = off
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        at = (try? c.decodeIfPresent(String.self, forKey: .at)) ?? nil
+        date = (try? c.decodeIfPresent(String.self, forKey: .date)) ?? nil
+        lead = (try? c.decodeIfPresent(NovaLead.self, forKey: .lead)) ?? nil
+        previous = (try? c.decodeIfPresent(NovaLead.self, forKey: .previous)) ?? nil
+        situation = (try? c.decodeIfPresent(NovaSituation.self, forKey: .situation)) ?? nil
+        off = (try? c.decodeIfPresent(NovaLeaderOff.self, forKey: .off)) ?? nil
+    }
+}
+
+/// The last good answer, in the App Group under its own keys; the Lead's
+/// turned-over flag one per size, as The Line keeps its own.
+enum NovaLeaderStore {
+    static let key = "nova.leader", atKey = "nova.leaderAt", turnAtKey = "nova.leadTurnAt", turnedPrefix = "nova.leadTurned."
+
+    static func cached() -> (NovaLeaderPayload, Date)? {
+        guard let d = NovaShared.defaults, let data = d.data(forKey: key),
+              let p = try? JSONDecoder().decode(NovaLeaderPayload.self, from: data) else { return nil }
+        return (p, d.object(forKey: atKey) as? Date ?? .distantPast)
+    }
+
+    /// (the payload to draw, whether the Mac answered). Right after a turn,
+    /// today's kept answer is used as it is, so the idea turns at once.
+    static func load(now: Date = .now) async -> (NovaLeaderPayload?, Bool) {
+        let d = NovaShared.defaults
+        if let (p, _) = cached(), p.date == LineDay.iso(now),
+           let tapped = d?.object(forKey: turnAtKey) as? Date, now.timeIntervalSince(tapped) < 20 {
+            return (p, true)
+        }
+        if let d, let base = d.string(forKey: "nova.baseUrl"), let token = d.string(forKey: "nova.token"),
+           let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/widget/leader") {
+            var req = URLRequest(url: url, timeoutInterval: 12)
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               (resp as? HTTPURLResponse)?.statusCode == 200,
+               let p = try? JSONDecoder().decode(NovaLeaderPayload.self, from: data) {
+                d.set(data, forKey: key)
+                d.set(Date(), forKey: atKey)
+                return (p, true)
+            }
+        }
+        return (cached()?.0, false)
+    }
+
+    static func turned(slot: String, key k: String) -> Bool {
+        NovaShared.defaults?.string(forKey: turnedPrefix + slot) == k
+    }
+
+    /// Only ever turns it over: the way back is opening Nova from the back,
+    /// which clears every turned flag (NovaDeepLink.faceFront), or a new day.
+    static func turn(slot: String, key k: String) {
+        guard let d = NovaShared.defaults else { return }
+        d.set(k, forKey: turnedPrefix + slot)
+        d.set(Date(), forKey: turnAtKey)
+    }
+}
+
+/// Days for the Leader's labels: "Tue 17 Nov", yesterday, and whole days apart.
+enum LeadDay {
+    static func date(_ iso: String?) -> Date? {
+        let p = (iso ?? "").split(separator: "-").compactMap { Int($0) }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        guard p.count == 3 else { return nil }
+        return cal.date(from: DateComponents(year: p[0], month: p[1], day: p[2]))
+    }
+    static func short(_ iso: String?) -> String? {
+        guard let d = date(iso) else { return nil }
+        let cal = Calendar(identifier: .gregorian)
+        let days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        let c = cal.dateComponents([.weekday, .day, .month], from: d)
+        return "\(days[(c.weekday ?? 1) - 1]) \(c.day ?? 0) \(months[max(0, min(11, (c.month ?? 1) - 1))])"
+    }
+    /// whole days from a to b (b later is positive); nil when either is not a day
+    static func apart(_ a: String?, _ b: String?) -> Int? {
+        guard let x = date(a), let y = date(b) else { return nil }
+        return Calendar(identifier: .gregorian).dateComponents([.day], from: x, to: y).day
+    }
+    /// "told today", "told yesterday", "told 4 days ago"
+    static func told(_ d: Int?) -> String? {
+        guard let d, d >= 0 else { return nil }
+        return d == 0 ? "told today" : d == 1 ? "told yesterday" : "told \(d) days ago"
+    }
+}
+
+enum LeadState { case today, early, stale, off, none }
+
+/// What the Lead shows on a day: today's idea; an earlier one, labelled, when
+/// today's is not written yet or the Mac was not reached; the switch; nothing.
+enum LeadPick {
+    static func choose(_ p: NovaLeaderPayload?, reached: Bool, on day: String) -> (lead: NovaLead?, state: LeadState) {
+        guard let p else { return (nil, .none) }
+        if p.date == day, let l = p.lead { return (l, .today) }
+        if p.off?.lead == true { return (nil, .off) }
+        if p.date == day {
+            if let prev = p.previous { return (prev, .early) }
+            return (nil, .none)
+        }
+        // an answer from an earlier day: the drawing that dates it, or the Mac not reached
+        guard let l = p.lead ?? p.previous else { return (nil, .none) }
+        return (l, reached ? .early : .stale)
+    }
+}
+
+// MARK: leader looks (123's tokens: The Line's three, gold for the idea, violet for the situation)
+
+enum LeadHue { case gold, violet }
+
+extension LineLook {
+    static func leader(_ base: LineLook, _ hue: LeadHue) -> LineLook {
+        let gold = Color(hex: "#e0b26a"), vi = Color(hex: "#8c78ff")
+        switch base.name {
+        case "ink":
+            return LineLook(name: "lead-ink-\(hue)",
+                ink: Color(hex: "#f3ecdf"), ink2: Color(hex: "#f3ecdf").opacity(0.64), ink3: Color(hex: "#f3ecdf").opacity(0.42),
+                acc: hue == .gold ? Color(hex: "#e0b26a") : Color(hex: "#a493ff"), em: .clear, sep: Color(hex: "#f3ecdf").opacity(0.14),
+                edge: Color.white.opacity(0.10), light: (hue == .gold ? gold : vi).opacity(0.16),
+                emItalic: false, bodyItalic: false, mark: false, bar: 0, pad: 0,
+                ground: [Color(hex: "#15161f"), Color(hex: "#0a0b11")], angle: 160)
+        case "paper":
+            return LineLook(name: "lead-paper-\(hue)",
+                ink: Color(hex: "#1f1c18"), ink2: Color(hex: "#1f1c18").opacity(0.70), ink3: Color(hex: "#1f1c18").opacity(0.50),
+                acc: hue == .gold ? Color(hex: "#8a5200") : Color(hex: "#5b45c9"), em: .clear, sep: Color(hex: "#1f1c18").opacity(0.16),
+                edge: Color.white.opacity(0.5), light: Color.white.opacity(0.85),
+                emItalic: false, bodyItalic: false, mark: false, bar: 0, pad: 0,
+                ground: [Color(hex: "#f4eee2"), Color(hex: "#e7decd")], angle: 160)
+        default:
+            return LineLook(name: "lead-nova-\(hue)",
+                ink: Color(hex: "#eef1f8"), ink2: Color(hex: "#eef1f8").opacity(0.68), ink3: Color(hex: "#eef1f8").opacity(0.44),
+                acc: hue == .gold ? Color(hex: "#e6bd7a") : Color(hex: "#b3a6ff"), em: .clear, sep: Color(hex: "#eef1f8").opacity(0.14),
+                edge: Color.white.opacity(0.09), light: (hue == .gold ? gold : vi).opacity(0.30),
+                emItalic: false, bodyItalic: false, mark: false, bar: 0, pad: 0,
+                ground: [Color(hex: "#1d2750"), Color(hex: "#10152f")], angle: 135)
+        }
+    }
+}
+
+enum LeaderLookChoice: String, AppEnum {
+    case day, nova, ink, paper
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
+    static var caseDisplayRepresentations: [LeaderLookChoice: DisplayRepresentation] = [
+        .day: DisplayRepresentation(title: "Follows the day", subtitle: "Paper by day, Nova in the evening, Ink at night"),
+        .nova: "Nova", .ink: "Ink", .paper: "Paper",
+    ]
+    /// 123's lookFor: morning and midday Paper, evening Nova, night Ink
+    func look(_ phase: Int, _ hue: LeadHue) -> LineLook {
+        let base: LineLook
+        switch self {
+        case .nova: base = .nova
+        case .ink: base = .ink
+        case .paper: base = .paper
+        case .day: base = [LineLook.paper, .paper, .nova, .ink][max(0, min(3, phase))]
+        }
+        return .leader(base, hue)
+    }
+}
+
+struct NovaLeaderIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Leader"
+    static var description = IntentDescription("Choose the look. Follows the day goes from Paper by day to Ink at night.")
+    @Parameter(title: "Look", default: .day) var look: LeaderLookChoice
+}
+
+/// A tap anywhere on the Lead's front: turn it over to why it works.
+struct LeadTurnIntent: AppIntent {
+    static var title: LocalizedStringResource = "Turn the idea over"
+    static var isDiscoverable: Bool = false
+    @Parameter(title: "Size") var slot: String
+    @Parameter(title: "Idea") var key: String
+    init() {}
+    init(slot: String, key: String) { self.slot = slot; self.key = key }
+    func perform() async throws -> some IntentResult {
+        NovaLeaderStore.turn(slot: slot, key: key)
+        WidgetCenter.shared.reloadTimelines(ofKind: "NovaLead")
+        return .result()
+    }
+}
+
+struct LeadEntry: TimelineEntry {
+    let date: Date
+    let lead: NovaLead?
+    var state: LeadState
+    var phase: Int
+    var look: LineLook
+    /// the day this drawing is for (yyyy-MM-dd), for "Yesterday"
+    var day: String
+    var turned = false
+    /// "<idea day>|<day>"; nil when this drawing has no back
+    var turnKey: String? = nil
+
+    static func placeholder(_ choice: LeaderLookChoice = .day, at date: Date = .now) -> LeadEntry {
+        let ph = LineDay.phase(date)
+        return LeadEntry(date: date, lead: NovaLead(date: LineDay.iso(date), kind: "action", title: "Your idea for the day will sit here.",
+                                                    line: "How to do it sits under it.", why: "And why it works on the back."),
+                         state: .today, phase: ph, look: choice.look(ph, .gold), day: LineDay.iso(date))
+    }
+}
+
+struct SituationEntry: TimelineEntry {
+    let date: Date
+    let situation: NovaSituation?
+    /// nothing was ever fetched: say so instead of "nothing open"
+    var never = false
+    /// days since he told Nova, counted on to this drawing's day
+    var days: Int?
+    var phase: Int
+    var look: LineLook
+
+    static func placeholder(_ choice: LeaderLookChoice = .day, at date: Date = .now) -> SituationEntry {
+        let ph = LineDay.phase(date)
+        return SituationEntry(date: date, situation: NovaSituation(headline: "Your situation at work will sit here.",
+                                                                   question: "The Leader's question about it will sit here."),
+                              days: nil, phase: ph, look: choice.look(ph, .violet))
+    }
+}
+
+// MARK: leader type
+
+/// Text set as the mockup sets it: CoreText finds the breaks with the fonts
+/// the views draw with, each line exactly the CSS line height, and a clamped
+/// last line ends in an ellipsis (-webkit-line-clamp).
+enum LeadType {
+    static func lines(_ text: String, _ font: LinePlatformFont, kern: CGFloat, width: CGFloat, balance: Bool) -> [String] {
+        let a = NSAttributedString(string: text, attributes: [.font: font, .kern: kern])
+        var ranges = LineSetter.breaks(a, width)
+        if balance, ranges.count > 1, ranges.count <= 10, let even = LineSetter.balanced(a, width, ranges.count) { ranges = even }
+        let ns = text as NSString
+        return ranges.map { ns.substring(with: $0).replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) }
+    }
+
+    /// at most n lines; the rest runs into the last, which the view cuts with "…"
+    static func clamp(_ lines: [String], _ n: Int) -> (lines: [String], cut: Bool) {
+        guard n > 0 else { return ([], !lines.isEmpty) }
+        if lines.count <= n { return (lines, false) }
+        return (Array(lines.prefix(n - 1)) + [lines[(n - 1)...].joined(separator: " ")], true)
+    }
+
+    /// the mockup's first(): up to the first . ! or ? that ends a word
+    static func first(_ s: String) -> String {
+        guard let re = try? NSRegularExpression(pattern: "^.*?[.!?]['\"\u{201D}\u{2019}]?(?=\\s|$)", options: [.dotMatchesLineSeparators]),
+              let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)), let r = Range(m.range, in: s) else { return s }
+        return String(s[r])
+    }
+}
+
+/// A block of set lines.
+struct LeadLines: View {
+    let lines: [String]
+    var cut = false
+    let font: Font
+    var italic = false
+    let kern: CGFloat
+    /// the line box, in points (CSS font-size x line-height)
+    let box: CGFloat
+    let color: Color
+    let width: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { i, l in
+                let t = Text(l).font(font).italic(italic).kerning(kern).foregroundStyle(color).lineLimit(1)
+                Group {
+                    if cut && i == lines.count - 1 { t.truncationMode(.tail).frame(maxWidth: width, alignment: .leading) }
+                    else { t.fixedSize() }
+                }
+                .frame(height: box)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(lines.joined(separator: " "))
+    }
+}
+
+/// The Leader's mark: two chevrons (the idea), or "you are here" (the situation).
+struct LeadChevrons: Shape {
+    func path(in r: CGRect) -> Path {
+        let sx = r.width / 13, sy = r.height / 12
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * sx, y: r.minY + y * sy) }
+        var path = Path()
+        path.move(to: p(1.5, 5.5)); path.addLine(to: p(6.5, 1.5)); path.addLine(to: p(11.5, 5.5))
+        path.move(to: p(1.5, 10.5)); path.addLine(to: p(6.5, 6.5)); path.addLine(to: p(11.5, 10.5))
+        return path
+    }
+}
+
+enum LeadMark { case chevrons, here, none }
+
+struct LeadMarkView: View {
+    let mark: LeadMark
+    var body: some View {
+        switch mark {
+        case .chevrons:
+            LeadChevrons().stroke(style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)).frame(width: 13, height: 12)
+        case .here:
+            // a 12 by 12 drawing centred in the 13 by 12 box, as the SVG sits
+            ZStack {
+                Circle().strokeBorder(lineWidth: 1.4).frame(width: 10.6, height: 10.6)
+                Circle().frame(width: 3.6, height: 3.6)
+            }
+            .frame(width: 13, height: 12)
+        case .none:
+            EmptyView()
+        }
+    }
+}
+
+// MARK: leader faces
+
+/// Every Leader face. `what` picks the widget; the look carries the hue.
+struct LeaderFace: View {
+    enum What { case lead(LeadEntry), situation(SituationEntry) }
+    let what: What
+    let size: LineSize
+    let look: LineLook
+    /// the lock screen's rectangle while the phone is locked, drawn as iOS
+    /// redacts it (for the render harness; the widget uses .privacySensitive)
+    var redacted = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { g in
+            if size == .lock { lock(g.size) } else { home(g.size) }
+        }
+    }
+
+    private var pad: CGFloat { size == .large ? 20 : 16 }
+
+    @ViewBuilder private func home(_ s: CGSize) -> some View {
+        let w = s.width - pad * 2, h = s.height - pad * 2
+        ZStack(alignment: .topTrailing) {
+            Group {
+                switch what {
+                case .lead(let e): leadFace(e, w, h)
+                case .situation(let e): situationFace(e, w, h)
+                }
+            }
+            .frame(width: w, height: h, alignment: .topLeading)
+            .padding(pad)
+            .id(faceID)
+            .transition(reduceMotion ? .opacity : .asymmetric(insertion: .opacity.combined(with: .offset(y: 12)),
+                                                               removal: .opacity.combined(with: .offset(y: -10))))
+            if case .lead(let e) = what, size == .medium, e.turnKey != nil { dots(e.turned) }
+        }
+        .frame(width: s.width, height: s.height)
+    }
+
+    private var faceID: String {
+        switch what {
+        case .lead(let e): return "lead|\(e.lead?.date ?? "-")|\(e.turned)"
+        case .situation(let e): return "sit|\(e.situation?.question ?? "-")"
+        }
+    }
+
+    // MARK: pieces
+
+    /// .kd: the mark, the label in capitals, the day on the right
+    private func kicker(_ label: String, day: String? = nil, mark: LeadMark, color: Color? = nil) -> some View {
+        HStack(spacing: 7) {
+            if mark != .none { LeadMarkView(mark: mark).foregroundStyle(color ?? look.acc).widgetAccentable() }
+            Text(label.uppercased())
+                .font(.system(size: 10, weight: .semibold)).kerning(1.1)
+                .foregroundStyle(color ?? look.acc).lineLimit(1).fixedSize()
+            Spacer(minLength: 0)
+            if let day {
+                Text(day).font(.system(size: 11, weight: .medium)).kerning(0.66).monospacedDigit()
+                    .foregroundStyle(look.ink3).lineLimit(1).fixedSize().padding(.leading, 8)
+            }
+        }
+        .frame(height: day == nil ? 15 : 16.5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func kickerHeight(_ day: Bool) -> CGFloat { (day ? 16.5 : 15) + 8 }
+
+    /// .tt: the serif at 500, balanced
+    private func titleLines(_ t: String, _ fs: CGFloat, _ w: CGFloat) -> [String] {
+        LeadType.lines(t, LineFont.serifMedium(fs), kern: titleKern(fs), width: w, balance: true)
+    }
+    private func titleKern(_ fs: CGFloat) -> CGFloat { (size == .large ? -0.02 : -0.014) * fs }
+    private func title(_ lines: [String], cut: Bool, _ fs: CGFloat, _ lh: CGFloat, _ w: CGFloat) -> some View {
+        LeadLines(lines: lines, cut: cut, font: .system(size: fs, weight: .medium, design: .serif), kern: titleKern(fs),
+                  box: fs * lh, color: look.ink, width: w)
+    }
+
+    /// sans text (WebKit fits a hair more than CoreText, as on The Line)
+    private func sansLines(_ t: String, _ fs: CGFloat, _ w: CGFloat) -> [String] {
+        LeadType.lines(t, LineFont.sans(fs, bold: false), kern: 0, width: w + 1, balance: false)
+    }
+    private func sans(_ lines: [String], cut: Bool, _ fs: CGFloat, _ lh: CGFloat, _ color: Color, _ w: CGFloat) -> some View {
+        LeadLines(lines: lines, cut: cut, font: .system(size: fs), kern: 0, box: fs * lh, color: color, width: w)
+    }
+
+    /// .ft: one line at the foot, never wrapped. It is a <p>, so it keeps its
+    /// 1em bottom margin under it unless the content above needs that room
+    /// (`above`: the height of everything over it, `h`: the face's height).
+    private func foot(_ text: String, bold: String? = nil, fs: CGFloat, above: CGFloat, _ h: CGFloat) -> some View {
+        var t = Text("")
+        if let bold {
+            t = t + Text(bold.uppercased()).font(.system(size: fs * 0.92, weight: .semibold)).kerning(fs * 0.92 * 0.09).foregroundStyle(look.ink2)
+                + Text(" ")
+        }
+        t = t + Text(text).font(.system(size: fs)).foregroundStyle(look.ink3)
+        return VStack(spacing: 0) {
+            t.lineLimit(1).truncationMode(.tail)
+                .frame(height: fs * 1.2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+            Color.clear.frame(height: max(0, min(fs, h - above - footHeight(fs))))
+        }
+    }
+    private func footHeight(_ fs: CGFloat) -> CGFloat { fs * 1.2 + 8 }
+    /// how far content may run into the bottom padding before a line gives
+    /// way (the mockup's own samples run up to 5.2 pt into it)
+    private let slack: CGFloat = 6
+    private func fit(_ room: CGFloat, _ box: CGFloat) -> Int { max(1, Int((room + slack) / box)) }
+
+    /// .quiet: the serif at 17, for a face with nothing to show
+    private func quietLines(_ t: String, _ w: CGFloat, maxH: CGFloat) -> (lines: [String], cut: Bool) {
+        LeadType.clamp(LeadType.lines(t, LineFont.serif(17, italic: false), kern: 0, width: w, balance: true), fit(maxH, 17 * 1.2))
+    }
+    private func quiet(_ q: (lines: [String], cut: Bool), _ w: CGFloat) -> some View {
+        LeadLines(lines: q.lines, cut: q.cut, font: .system(size: 17, design: .serif), kern: 0, box: 17 * 1.2, color: look.ink2, width: w)
+    }
+
+    /// a face with nothing to show: the label, one serif sentence, the foot
+    private func quietFace(_ label: String, mark: LeadMark, _ say: String, foot note: String, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let ffs: CGFloat = size == .small ? 10 : 11
+        let q = quietLines(say, w, maxH: h - kickerHeight(false) - footHeight(ffs))
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker(label, mark: mark).padding(.bottom, 8)
+            quiet(q, w)
+            Spacer(minLength: 0)
+            foot(note, fs: ffs, above: kickerHeight(false) + CGFloat(q.lines.count) * 17 * 1.2, h)
+        }
+    }
+
+    private func dots(_ turned: Bool) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(turned ? look.ink3 : look.ink).frame(width: 5, height: 5)
+            Circle().fill(turned ? look.ink : look.ink3).frame(width: 5, height: 5)
+        }
+        .padding(.top, 19)
+        .padding(.trailing, 14)
+        .frame(width: 52, height: 44, alignment: .topTrailing)
+        .accessibilityHidden(true)
+    }
+
+    // MARK: the idea
+
+    private func leadLabel(_ e: LeadEntry, _ l: NovaLead) -> String {
+        switch e.state {
+        case .early:
+            if LeadDay.apart(l.date, e.day) == 1 { return "Yesterday" }
+            return LeadDay.short(l.date) ?? "Yesterday"
+        case .stale: return "\(l.kindLabel) · \(LeadDay.short(l.date) ?? "")"
+        default: return l.kindLabel
+        }
+    }
+    private func leadFootNote(_ e: LeadEntry) -> String? {
+        switch e.state {
+        case .early: return "Today\u{2019}s idea has not been written yet."
+        case .stale: return "Mac not reached. The last idea it sent."
+        default: return nil
+        }
+    }
+
+    @ViewBuilder private func leadFace(_ e: LeadEntry, _ w: CGFloat, _ h: CGFloat) -> some View {
+        if let l = e.lead {
+            if e.turned && size != .large { whyFace(l, w, h) }
+            else if size == .small { leadSmall(e, l, w, h) }
+            else if size == .large { leadLarge(e, l, w, h) }
+            else { leadMedium(e, l, w, h) }
+        } else if e.state == .off {
+            quietFace("Lead", mark: .chevrons, "The daily idea is switched off in Settings.", foot: "Tap to open Nova", w, h)
+        } else {
+            quietFace("Lead", mark: .chevrons, "No idea yet.", foot: "Open Nova once and he will bring one.", w, h)
+        }
+    }
+
+    private func leadSmall(_ e: LeadEntry, _ l: NovaLead, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 18, box: CGFloat = 18 * 1.16
+        let note = leadFootNote(e) ?? l.src
+        let room = h - kickerHeight(false) - (note == nil ? 0 : footHeight(10))
+        let t = LeadType.clamp(titleLines(l.title, fs, w), fit(room, box))
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker(leadLabel(e, l), mark: .chevrons).padding(.bottom, 8)
+            title(t.lines, cut: t.cut, fs, 1.16, w)
+            Spacer(minLength: 0)
+            if let note { foot(note, fs: 10, above: kickerHeight(false) + CGFloat(t.lines.count) * box, h) }
+        }
+    }
+
+    private func leadMedium(_ e: LeadEntry, _ l: NovaLead, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 19, box: CGFloat = 19 * 1.14, howBox: CGFloat = 12 * 1.36
+        let note = leadFootNote(e)
+        let room = h - kickerHeight(false) - (note == nil ? 0 : footHeight(11))
+        let t = LeadType.clamp(titleLines(l.title, fs, w), fit(room, box))
+        let howRoom = room - CGFloat(t.lines.count) * box - 7
+        let howMax = min(note == nil ? 3 : 2, Int((howRoom + slack) / howBox))
+        let how = LeadType.clamp(sansLines(LeadType.first(l.line), 12, w), howMax)
+        let above = kickerHeight(false) + CGFloat(t.lines.count) * box + (how.lines.isEmpty ? 0 : 7 + CGFloat(how.lines.count) * howBox)
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker(leadLabel(e, l), mark: .chevrons).padding(.bottom, 8)
+            title(t.lines, cut: t.cut, fs, 1.14, w)
+            if !how.lines.isEmpty { sans(how.lines, cut: how.cut, 12, 1.36, look.ink2, w).padding(.top, 7) }
+            Spacer(minLength: 0)
+            if let note { foot(note, fs: 11, above: above, h) }
+        }
+    }
+
+    private func leadLarge(_ e: LeadEntry, _ l: NovaLead, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 27, box: CGFloat = 27 * 1.1
+        let note = leadFootNote(e)
+        let footLine = note ?? l.src
+        var room = h - kickerHeight(true) - (footLine == nil ? 0 : footHeight(11)) + slack
+        let t = LeadType.clamp(titleLines(l.title, fs, w), fit(room - slack, box))
+        room -= CGFloat(t.lines.count) * box
+        // .sepd: its label is set by `.sepd p` (13px, line-height 1.38), the
+        // kicker's own rule loses on specificity
+        let whyAll = l.why.map { sansLines($0, 13, w) } ?? []
+        let whyBox: CGFloat = 13 * 1.38
+        let whyFixed: CGFloat = whyAll.isEmpty ? 0 : 16 + 13 + whyBox + 5
+        let howAll = sansLines(l.line, 14, w)
+        let howBox: CGFloat = 14 * 1.4
+        var whyN = min(4, whyAll.count)
+        var howN = min(7, howAll.count)
+        // the why keeps its lines first; the line gives way to it
+        while howN > 1 && 12 + CGFloat(howN) * howBox + whyFixed + CGFloat(whyN) * whyBox > room { howN -= 1 }
+        while whyN > 1 && 12 + CGFloat(howN) * howBox + whyFixed + CGFloat(whyN) * whyBox > room { whyN -= 1 }
+        let how = LeadType.clamp(howAll, howN)
+        let why = LeadType.clamp(whyAll, whyN)
+        let above = kickerHeight(true) + CGFloat(t.lines.count) * box + 12 + CGFloat(how.lines.count) * howBox
+            + (why.lines.isEmpty ? 0 : whyFixed + CGFloat(why.lines.count) * whyBox)
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker(leadLabel(e, l), day: LeadDay.short(l.date), mark: .chevrons).padding(.bottom, 8)
+            title(t.lines, cut: t.cut, fs, 1.1, w)
+            sans(how.lines, cut: how.cut, 14, 1.4, look.ink2, w).padding(.top, 12)
+            if !why.lines.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Why it works".uppercased()).font(.system(size: 13, weight: .semibold)).kerning(1.43)
+                        .foregroundStyle(look.ink3).lineLimit(1).frame(height: whyBox).padding(.bottom, 5)
+                    sans(why.lines, cut: why.cut, 13, 1.38, look.ink2, w)
+                }
+                .padding(.top, 13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .top) { Rectangle().fill(look.sep).frame(height: 0.5) }
+                .padding(.top, 16)
+            }
+            Spacer(minLength: 0)
+            if let note { foot(note, fs: 11, above: above, h) } else if let src = l.src { foot(src, bold: "From", fs: 11, above: above, h) }
+        }
+    }
+
+    /// the back: why it works
+    private func whyFace(_ l: NovaLead, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 12.5, box: CGFloat = 12.5 * 1.38
+        let ffs: CGFloat = size == .small ? 10 : 11
+        let room = h - kickerHeight(false) - footHeight(ffs)
+        let why = LeadType.clamp(sansLines(l.why ?? l.line, fs, w), min(5, fit(room, box)))
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker("Why it works", mark: .chevrons).padding(.bottom, 8)
+            sans(why.lines, cut: why.cut, fs, 1.38, look.ink, w)
+            Spacer(minLength: 0)
+            foot("Tap to open it in Nova", fs: ffs, above: kickerHeight(false) + CGFloat(why.lines.count) * box, h)
+        }
+    }
+
+    // MARK: the situation
+
+    @ViewBuilder private func situationFace(_ e: SituationEntry, _ w: CGFloat, _ h: CGFloat) -> some View {
+        if let s = e.situation {
+            switch size {
+            case .small: sitSmall(e, s, w, h)
+            case .large: sitLarge(e, s, w, h)
+            default: sitMedium(e, s, w, h)
+            }
+        } else if e.never {
+            quietFace("Your situation", mark: .here, "Your situation shows here once Nova has it.", foot: "Open Nova once and he will bring it.", w, h)
+        } else {
+            quietFace("Your situation", mark: .here, "Nothing open at work that you\u{2019}ve told Nova about.",
+                      foot: "Tap to tell Nova what\u{2019}s going on", w, h)
+        }
+    }
+
+    private func sitSmall(_ e: SituationEntry, _ s: NovaSituation, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 18, box: CGFloat = 18 * 1.16
+        let since = LeadDay.told(e.days)
+        let room = h - kickerHeight(false) - (since == nil ? 0 : footHeight(10))
+        let t = LeadType.clamp(titleLines(s.headline ?? openWords(s.openCount), fs, w), fit(room, box))
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker("Your situation", mark: .here).padding(.bottom, 8)
+            title(t.lines, cut: t.cut, fs, 1.16, w)
+            Spacer(minLength: 0)
+            if let since { foot(since, fs: 10, above: kickerHeight(false) + CGFloat(t.lines.count) * box, h) }
+        }
+    }
+
+    /// the question in the serif; 123 sets it with text-wrap: pretty, which
+    /// WebKit evens out across the lines, so it is balanced here
+    private func askLines(_ q: String, _ fs: CGFloat, italic: Bool, kern: CGFloat, _ w: CGFloat) -> [String] {
+        LeadType.lines(q, LineFont.serif(fs, italic: italic), kern: kern, width: w, balance: true)
+    }
+
+    /// medium: the Leader's one question is the hero
+    private func sitMedium(_ e: SituationEntry, _ s: NovaSituation, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 17, lh: CGFloat = 1.22, kern: CGFloat = -0.17
+        let room = h - kickerHeight(true)
+        let a = LeadType.clamp(askLines(s.question ?? s.headline ?? openWords(s.openCount), fs, italic: false, kern: kern, w),
+                               min(4, fit(room, fs * lh)))
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker("Your situation", day: LeadDay.told(e.days), mark: .here).padding(.bottom, 8)
+            LeadLines(lines: a.lines, cut: a.cut, font: .system(size: fs, design: .serif), kern: kern, box: fs * lh, color: look.ink, width: w)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// large: the thread, where it stands, and the question
+    private func sitLarge(_ e: SituationEntry, _ s: NovaSituation, _ w: CGFloat, _ h: CGFloat) -> some View {
+        let fs: CGFloat = 27, box: CGFloat = 27 * 1.1
+        var room = h - kickerHeight(true) - footHeight(11) + slack
+        let t = LeadType.clamp(titleLines(s.headline ?? openWords(s.openCount), fs, w), fit(room - slack, box))
+        room -= CGFloat(t.lines.count) * box
+        let askAll = s.question.map { askLines($0, 16, italic: true, kern: 0, w) } ?? []
+        let askFixed: CGFloat = askAll.isEmpty ? 0 : 12 + 15 + 2
+        let stoodAll = s.stands.map { sansLines($0, 13.5, w) } ?? []
+        var askN = min(4, askAll.count), stoodN = min(4, stoodAll.count)
+        func need(_ a: Int, _ b: Int) -> CGFloat { (b > 0 ? 10 + CGFloat(b) * 13.5 * 1.4 : 0) + askFixed + CGFloat(a) * 16 * 1.3 }
+        while stoodN > 0 && need(askN, stoodN) > room { stoodN -= 1 }
+        while askN > 1 && need(askN, stoodN) > room { askN -= 1 }
+        let stood = LeadType.clamp(stoodAll, stoodN), ask = LeadType.clamp(askAll, askN)
+        let above = kickerHeight(true) + CGFloat(t.lines.count) * box + need(ask.lines.count, stood.lines.count)
+        return VStack(alignment: .leading, spacing: 0) {
+            kicker("Your situation", day: LeadDay.told(e.days), mark: .here).padding(.bottom, 8)
+            title(t.lines, cut: t.cut, fs, 1.1, w)
+            if !stood.lines.isEmpty { sans(stood.lines, cut: stood.cut, 13.5, 1.4, look.ink2, w).padding(.top, 10) }
+            if !ask.lines.isEmpty {
+                Text("Nova asks".uppercased()).font(.system(size: 10, weight: .semibold)).kerning(1.1)
+                    .foregroundStyle(look.acc).frame(height: 15).padding(.top, 12).padding(.bottom, 2)
+                LeadLines(lines: ask.lines, cut: ask.cut, font: .system(size: 16, design: .serif), italic: true, kern: 0,
+                          box: 16 * 1.3, color: look.ink, width: w)
+            }
+            Spacer(minLength: 0)
+            foot("Tap to answer, by voice or typing", fs: 11, above: above, h)
+        }
+    }
+
+    /// when the Leader has not yet written a headline: the count, said plainly
+    private func openWords(_ n: Int?) -> String {
+        guard let n, n > 0 else { return "Open at work" }
+        return n == 1 ? "One thing open at work" : "\(n) things open at work"
+    }
+
+    // MARK: lock screen: iOS draws it in one tint
+
+    private func lock(_ s: CGSize) -> some View {
+        let fs: CGFloat = 14, box: CGFloat = 14 * 1.2
+        var label = "Lead", text: String? = nil, isSituation = false
+        switch what {
+        case .lead(let e): text = e.lead?.title ?? (e.state == .off ? "The daily idea is switched off." : nil)
+        case .situation(let e):
+            label = "Your situation"; isSituation = true
+            text = e.situation.map { $0.headline ?? openWords($0.openCount) } ?? (e.never ? nil : "Nothing open at work.")
+        }
+        let n = max(1, Int((s.height - 18) / box))
+        let c = LeadType.clamp(LeadType.lines(text ?? "Open Nova once.", LineFont.serif(fs, italic: false), kern: 0, width: s.width, balance: false), n)
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(label.uppercased()).font(.system(size: 10, weight: .semibold)).kerning(0.9)
+                .foregroundStyle(Color.white.opacity(0.62)).lineLimit(1).frame(height: 15).padding(.bottom, 3)
+            if redacted && isSituation {
+                // what iOS shows in place of privacy-sensitive words while locked
+                VStack(alignment: .leading, spacing: 6) {
+                    Capsule().fill(Color.white.opacity(0.34)).frame(width: min(150, s.width), height: 10)
+                    Capsule().fill(Color.white.opacity(0.34)).frame(width: 96, height: 10)
+                }
+                .padding(.top, 6)
+            } else {
+                LeadLines(lines: c.lines, cut: c.cut, font: .system(size: fs, design: .serif), kern: 0, box: box,
+                          color: Color.white.opacity(0.92), width: s.width)
+                    .privacySensitive(isSituation)
+            }
+        }
+        .frame(width: s.width, height: s.height, alignment: .topLeading)
+    }
+}
+
+// LEADER-HARNESS-END (the Mac render harness compiles "THE LEADER" up to here)
+
+struct LeadProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> LeadEntry { .placeholder() }
+
+    func snapshot(for configuration: NovaLeaderIntent, in context: Context) async -> LeadEntry {
+        if context.isPreview, let (p, _) = NovaLeaderStore.cached(), LeadPick.choose(p, reached: true, on: LineDay.iso(.now)).lead != nil {
+            return make(p, reached: true, at: .now, configuration.look, LineSize(context.family))
+        }
+        if context.isPreview { return .placeholder(configuration.look) }
+        let (p, reached) = await NovaLeaderStore.load()
+        return make(p, reached: reached, at: .now, configuration.look, LineSize(context.family))
+    }
+
+    /// One drawing now, one at each remaining time of day, one at midnight.
+    /// Asked again at midnight when today's idea is in; until it is written
+    /// (from 06:00 on the Mac), or when the Mac was not reached, within the hour.
+    func timeline(for configuration: NovaLeaderIntent, in context: Context) async -> Timeline<LeadEntry> {
+        let now = Date()
+        let (p, reached) = await NovaLeaderStore.load(now: now)
+        let turns = LineDay.turns(after: now)
+        let size = LineSize(context.family)
+        let entries = ([now] + turns).map { make(p, reached: reached, at: $0, configuration.look, size) }
+        let midnight = turns.last ?? now.addingTimeInterval(3600)
+        let settled = reached && p?.date == LineDay.iso(now) && (p?.lead != nil || p?.off?.lead == true)
+        return Timeline(entries: entries, policy: .after(settled ? midnight : min(midnight, now.addingTimeInterval(3600))))
+    }
+
+    private func make(_ p: NovaLeaderPayload?, reached: Bool, at date: Date, _ choice: LeaderLookChoice, _ size: LineSize) -> LeadEntry {
+        let day = LineDay.iso(date)
+        let ph = LineDay.phase(date)
+        let pick = LeadPick.choose(p, reached: reached, on: day)
+        var e = LeadEntry(date: date, lead: pick.lead, state: pick.state, phase: ph, look: choice.look(ph, .gold), day: day)
+        // only today's idea, drawn plainly, turns over; the large one has no back
+        if let l = pick.lead, pick.state == .today, size == .small || size == .medium {
+            let key = "\(l.date)|\(day)"
+            e.turnKey = key
+            e.turned = NovaLeaderStore.turned(slot: size.slot, key: key)
+        }
+        return e
+    }
+}
+
+struct SituationProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> SituationEntry { .placeholder() }
+
+    func snapshot(for configuration: NovaLeaderIntent, in context: Context) async -> SituationEntry {
+        if context.isPreview, let (p, _) = NovaLeaderStore.cached(), p.situation != nil {
+            return make(p, at: .now, configuration.look)
+        }
+        if context.isPreview { return .placeholder(configuration.look) }
+        let (p, _) = await NovaLeaderStore.load()
+        return make(p, at: .now, configuration.look)
+    }
+
+    /// The same drawings as the Lead's. "Told N days ago" counts on at
+    /// midnight from the Mac's number; answering in Nova redraws it at once
+    /// (the app reloads every widget when it syncs).
+    func timeline(for configuration: NovaLeaderIntent, in context: Context) async -> Timeline<SituationEntry> {
+        let now = Date()
+        let (p, reached) = await NovaLeaderStore.load(now: now)
+        let turns = LineDay.turns(after: now)
+        let entries = ([now] + turns).map { make(p, at: $0, configuration.look) }
+        let midnight = turns.last ?? now.addingTimeInterval(3600)
+        return Timeline(entries: entries, policy: .after(reached ? midnight : min(midnight, now.addingTimeInterval(3600))))
+    }
+
+    private func make(_ p: NovaLeaderPayload?, at date: Date, _ choice: LeaderLookChoice) -> SituationEntry {
+        let ph = LineDay.phase(date)
+        var days = p?.situation?.days
+        if let d = days, let gap = LeadDay.apart(p?.date, LineDay.iso(date)), gap > 0 { days = d + gap }
+        return SituationEntry(date: date, situation: p?.situation, never: p == nil, days: days, phase: ph, look: choice.look(ph, .violet))
+    }
+}
+
+struct NovaLeadView: View {
+    @Environment(\.widgetFamily) var family
+    @Environment(\.widgetRenderingMode) var mode
+    let entry: LeadEntry
+
+    var body: some View {
+        let size = LineSize(family)
+        let look = mode == .fullColor ? entry.look : .leader(.nova, .gold)
+        let face = LeaderFace(what: .lead(entry), size: size, look: look)
+        // a tap anywhere on the front turns it over; on the back (and on the
+        // large one, which has no back) a tap opens Nova on the idea, and
+        // opening Nova turns it face up again (NovaDeepLink.faceFront)
+        Group {
+            if let key = entry.turnKey, !entry.turned {
+                Button(intent: LeadTurnIntent(slot: size.slot, key: key)) { face }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Turns the idea over to why it works")
+            } else {
+                face
+            }
+        }
+        .containerBackground(for: .widget) {
+            if size != .lock { LineGround(look: look, phase: entry.phase) }
+        }
+        .widgetURL(entry.lead == nil ? NovaLink.leader : NovaLink.lead)
+    }
+}
+
+struct NovaSituationView: View {
+    @Environment(\.widgetFamily) var family
+    @Environment(\.widgetRenderingMode) var mode
+    let entry: SituationEntry
+
+    var body: some View {
+        let size = LineSize(family)
+        let look = mode == .fullColor ? entry.look : .leader(.nova, .violet)
+        LeaderFace(what: .situation(entry), size: size, look: look)
+            // his work, so hidden whenever the phone is locked, in every size
+            .privacySensitive()
+            .containerBackground(for: .widget) {
+                if size != .lock { LineGround(look: look, phase: entry.phase) }
+            }
+            .widgetURL(entry.situation == nil ? NovaLink.leader : NovaLink.situation)
+    }
+}
+
+struct NovaLeadWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "NovaLead", intent: NovaLeaderIntent.self, provider: LeadProvider()) { entry in
+            NovaLeadView(entry: entry)
+        }
+        .configurationDisplayName("Lead")
+        .description("The Leader's idea for today. Tap it for why it works. Stack it with Your situation.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
+        .contentMarginsDisabled()
+    }
+}
+
+struct NovaSituationWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "NovaSituation", intent: NovaLeaderIntent.self, provider: SituationProvider()) { entry in
+            NovaSituationView(entry: entry)
+        }
+        .configurationDisplayName("Your situation")
+        .description("What is going on at work, and the Leader's question about it. Hidden while your phone is locked.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
+        .contentMarginsDisabled()
+    }
+}
+
+// MARK: - END THE LEADER
