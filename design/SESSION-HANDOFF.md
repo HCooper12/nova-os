@@ -11,6 +11,15 @@ the session log at the foot is append-only.
 
 ---
 
+## 17 Nov (Fable 5.2, widget session): THE LINE WIDGET, MOCKUP 120 SENT FOR HIS APPROVAL. `04aa8f18`, local, NOT PUSHED. NOTHING BUILT
+- GOAL: his ask, "a Nova widget that displays the daily review and/or a deep/philosophical daily quote", simple, elegant, attractive.
+- STATE: `design/mockups/120-the-line-widget.html` (sample content only; a `window.__NOVA_LINES` hook swaps in other lines). Published privately with five REAL verified lines from his vault at https://claude.ai/artifact/3UCsH5PGym9SXCSFhQtmyu. One widget, "The Line": the day's review line while one waits (new: shown; returning: idea title as the cue, words veiled; done: the first line stays with a tick and the next date), else a library line chosen by date. Small, medium, large, lock rectangle. Edge states: speaker unsettled names the show only, Mac not reached shows yesterday's line dated, never connected says so. Optional "Keep" button drawn as an option.
+- VERIFIED (stills, headless Chrome, 402 wide top to bottom, 1100 wide for the real-line copy): every section looked at; ground matches the shipped widgets' diagonal `WInk.ground`; type steps down and never cuts a line; the five real lines checked against the pool records (text, who, show, time, verified true).
+- NOT VERIFIED: WebKit, his phone, the hero crossfade in motion (stills only), reduced motion.
+- FOUND, FOR THE BUILD: the real pool is uneven (135 quotes, 51 verified, most with no settled speaker, idea sentences often fragments). The build needs a gate: verified only, a length cap per size, show-only attribution when `who` is null, and the large size drops the idea sentence when it is a fragment. `reviewToday()` writes "surfaced" state on the first call of a day, so the widget payload must read without marking seen. Only `novaos://open/recipes` exists as a deep link; the widget needs its own.
+- WAITS ON HIM: the five decisions listed in the session reply (one widget or two; sizes; veil on returning lines; the Keep button; show-only when the speaker is unknown).
+- DO NOT: write Swift or server code before he approves; stage the two iOS files; push without his yes (main is 3 ahead of origin).
+
 ## 17 Nov (Fable 5.2, watch session): WATCH MOCKUP ROUND TWO (119) SENT FOR HIS APPROVAL. `06c95d04`, local, NOT PUSHED. NOTHING BUILT
 - GOAL: his go-ahead to resume the watch on Fable, answering his 13 Nov notes on 115: more dynamic and closer to Nova's look, food logging as quick as possible, the real animated core, talk to Nova like Siri, the snake-game build from the wrist, what else earns a place there. His watch: Series 7, 45 mm.
 - STATE: `design/mockups/119-nova-wrist-round-two.html` (self-contained, sample content only), published over round one's link https://claude.ai/artifact/1X71qj291NQk5jmqap7KEo as version 2. Nine sections: talk loop (Ask / Log food / Start a build, playable), Fuel (tap a usual, playable, 5 s undo), Forge from the wrist, Train, Inbox + Capture, face + Smart Stack, how he reaches home + offline screens, what else, what Nova needs. `design/WRIST-PLAN.md` is still the architecture.
