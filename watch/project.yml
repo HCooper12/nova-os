@@ -1,0 +1,100 @@
+name: NovaWatch
+options:
+  bundleIdPrefix: com.haydencooper.novaos
+  deploymentTarget:
+    watchOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: Q4N3XZ4J9T
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "6.0"
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GENERATE_INFOPLIST_FILE: NO
+
+targets:
+  NovaWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: NovaWatch
+        excludes: ["Info*.plist"]
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haydencooper.novaos.watch
+        PRODUCT_NAME: Nova
+        INFOPLIST_FILE: NovaWatch/Info.plist
+        CODE_SIGN_ENTITLEMENTS: NovaWatch/NovaWatch.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "4"
+      configs:
+        Debug:
+          INFOPLIST_FILE: NovaWatch/Info-Debug.plist
+    dependencies:
+      - target: NovaWatchWidgets
+        embed: true
+        codeSign: true
+
+  NovaWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: NovaWatchWidgets
+        excludes: ["Info*.plist"]
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haydencooper.novaos.watch.widgets
+        PRODUCT_NAME: NovaWatchWidgets
+        INFOPLIST_FILE: NovaWatchWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: NovaWatchWidgets/NovaWatchWidgets.entitlements
+        TARGETED_DEVICE_FAMILY: "4"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+      configs:
+        Debug:
+          INFOPLIST_FILE: NovaWatchWidgets/Info-Debug.plist
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+
+  NovaWatchTests:
+    type: bundle.unit-test
+    platform: watchOS
+    sources:
+      - path: NovaWatchTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haydencooper.novaos.watch.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Nova.app/Nova"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TARGETED_DEVICE_FAMILY: "4"
+    dependencies:
+      - target: NovaWatch
+
+schemes:
+  NovaWatch:
+    build:
+      targets:
+        NovaWatch: all
+        NovaWatchTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - NovaWatchTests
+    archive:
+      config: Release

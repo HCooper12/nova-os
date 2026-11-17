@@ -1,0 +1,3 @@
+#include "Shared.xcconfig"
+// Debug talks to the scratch server's door on this Mac (node scripts/scratch-server.mjs --port 4174).
+NOVA_DOOR_URL = http:/$()/127.0.0.1:4195

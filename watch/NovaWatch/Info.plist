@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Nova</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.haydencooper.novaos.watch</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>novawatch</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.haydencooper.novaos.talk</string>
+		<string>com.haydencooper.novaos.fuel</string>
+	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Nova records what you say and sends it to your Mac, which hears it and answers.</string>
+	<key>NovaDoorURL</key>
+	<string>$(NOVA_DOOR_URL)</string>
+	<key>NovaAppGroup</key>
+	<string>group.com.haydencooper.novaos.watch</string>
+	<key>NovaKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)com.haydencooper.novaos.watch.shared</string>
+	<key>WKApplication</key>
+	<true/>
+	<key>WKWatchOnly</key>
+	<true/>
+</dict>
+</plist>

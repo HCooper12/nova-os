@@ -1,0 +1,3 @@
+#include "Shared.xcconfig"
+// Release talks to the locked wrist door on his Mac through Tailscale.
+NOVA_DOOR_URL = https:/$()/haydens-macbook-pro.taild050ac.ts.net:10000

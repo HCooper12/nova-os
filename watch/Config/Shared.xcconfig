@@ -1,0 +1,2 @@
+// Build configuration shared by every target. The door URL is set here, never typed on the watch.
+// The double slash in a URL starts an xcconfig comment, so the scheme is split with $()
