@@ -124,6 +124,8 @@ struct NovaProvider: TimelineProvider {
 /// SceneDelegate turns the path into a screen hash; "recipes" is Fuel.
 enum NovaLink {
     static let fuel = URL(string: "novaos://open/recipes")
+    /// The Line (mockup 122): the day's line, opened in Nova
+    static let line = URL(string: "novaos://open/line")
 }
 
 // MARK: - the one-number widget's choice
@@ -677,3 +679,900 @@ struct NovaTodayView: View {
         return parts.isEmpty ? "Nova" : parts.joined(separator: " · ")
     }
 }
+
+// MARK: - THE LINE ============================================================
+//
+// "The Line" (his ask, 17 Nov 2026; mockup 122, round three, APPROVED: design/
+// mockups/122-the-line-widget-round-three.html). One real line a day from his
+// own vault, the speaker's words exactly, from the Mac's GET /api/widget/line
+// (server/lib/lineWidget.js). The look is a setting (Follows the day, Nova,
+// Ink, Paper); the light in the ground sits where the day is (four drawings,
+// 05:00, 11:00, 17:00, 21:00); the two dots turn the line over to its idea.
+//
+// Every number below is the mockup's: its CSS is the contract. The quote is
+// set line by line (CoreText finds the breaks, balanced like the mockup's
+// text-wrap: balance) so its line height is the mockup's 1.2, which SwiftUI's
+// lineSpacing cannot reach below the font's own. The words are never cut: the
+// type steps down, and a line too long for the size shows its idea instead.
+//
+// Honest by shape: nothing here invents a line. A line from an earlier day
+// says "From Mon 16 Nov"; nothing ever fetched says so.
+
+// MARK: line data
+
+struct NovaLine: Codable, Equatable {
+    var id: String
+    var quote: String
+    var em: String? = nil
+    var who: String? = nil
+    var host: String? = nil
+    var podcast: String? = nil
+    var origin: String? = nil
+    var byLong: String? = nil
+    var byShort: String? = nil
+    var at: String? = nil
+    var idea: String
+    var sent: String? = nil
+    /// only on `previous`: the day it was the line
+    var date: String? = nil
+
+    enum CodingKeys: String, CodingKey { case id, quote, em, who, host, podcast, origin, byLong, byShort, at, idea, sent, date }
+
+    init(id: String, quote: String, em: String? = nil, who: String? = nil, host: String? = nil, podcast: String? = nil,
+         byLong: String? = nil, byShort: String? = nil, at: String? = nil, idea: String, sent: String? = nil, date: String? = nil) {
+        self.id = id; self.quote = quote; self.em = em; self.who = who; self.host = host; self.podcast = podcast
+        self.byLong = byLong; self.byShort = byShort; self.at = at; self.idea = idea; self.sent = sent; self.date = date
+    }
+
+    /// Lenient: a field of the wrong type or only spaces is absent; a line
+    /// without its words, id or idea is not a line.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func s(_ k: CodingKeys) -> String? {
+            guard let v = (try? c.decodeIfPresent(String.self, forKey: k)) ?? nil,
+                  !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return v
+        }
+        guard let id = s(.id), let quote = s(.quote), let idea = s(.idea) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: c.codingPath, debugDescription: "a line needs id, quote and idea"))
+        }
+        self.init(id: id, quote: quote, em: s(.em), who: s(.who), host: s(.host), podcast: s(.podcast),
+                  byLong: s(.byLong), byShort: s(.byShort), at: s(.at), idea: idea, sent: s(.sent), date: s(.date))
+        origin = s(.origin)
+    }
+
+    /// The accent phrase, only when it is an exact run of the line's own words.
+    var emRange: NSRange? {
+        guard let em, !em.isEmpty, let r = quote.range(of: em) else { return nil }
+        return NSRange(r, in: quote)
+    }
+}
+
+struct NovaLinePayload: Codable {
+    var at: String?
+    var date: String?
+    var line: NovaLine?
+    var previous: NovaLine?
+
+    init(at: String? = nil, date: String? = nil, line: NovaLine? = nil, previous: NovaLine? = nil) {
+        self.at = at; self.date = date; self.line = line; self.previous = previous
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        at = (try? c.decodeIfPresent(String.self, forKey: .at)) ?? nil
+        date = (try? c.decodeIfPresent(String.self, forKey: .date)) ?? nil
+        line = (try? c.decodeIfPresent(NovaLine.self, forKey: .line)) ?? nil
+        previous = (try? c.decodeIfPresent(NovaLine.self, forKey: .previous)) ?? nil
+    }
+}
+
+/// The last good answer lives in the App Group beside today's numbers, under
+/// its own keys; the turned-over flag too, one per widget size.
+enum NovaLineStore {
+    static let lineKey = "nova.line", atKey = "nova.lineAt", turnAtKey = "nova.lineTurnAt"
+
+    static func cached() -> (NovaLinePayload, Date)? {
+        guard let d = NovaShared.defaults, let data = d.data(forKey: lineKey),
+              let p = try? JSONDecoder().decode(NovaLinePayload.self, from: data) else { return nil }
+        return (p, d.object(forKey: atKey) as? Date ?? .distantPast)
+    }
+
+    /// (the payload to draw, whether the Mac answered). Right after a tap on
+    /// the dots, today's kept answer is used as it is, so the line turns at
+    /// once instead of waiting on the network.
+    static func load(now: Date = .now) async -> (NovaLinePayload?, Bool) {
+        let d = NovaShared.defaults
+        if let (p, _) = cached(), p.date == LineDay.iso(now),
+           let tapped = d?.object(forKey: turnAtKey) as? Date, now.timeIntervalSince(tapped) < 20 {
+            return (p, true)
+        }
+        if let d, let base = d.string(forKey: "nova.baseUrl"), let token = d.string(forKey: "nova.token"),
+           let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/widget/line") {
+            var req = URLRequest(url: url, timeoutInterval: 12)
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               (resp as? HTTPURLResponse)?.statusCode == 200,
+               let p = try? JSONDecoder().decode(NovaLinePayload.self, from: data) {
+                d.set(data, forKey: lineKey)
+                d.set(Date(), forKey: atKey)
+                return (p, true)
+            }
+        }
+        return (cached()?.0, false)
+    }
+
+    static func turned(slot: String, key: String) -> Bool {
+        NovaShared.defaults?.string(forKey: "nova.lineTurned." + slot) == key
+    }
+
+    /// The flag holds "<line id>|<day>", so a new line or a new day always
+    /// arrives face up.
+    static func toggle(slot: String, key: String) {
+        guard let d = NovaShared.defaults else { return }
+        let k = "nova.lineTurned." + slot
+        if d.string(forKey: k) == key { d.removeObject(forKey: k) } else { d.set(key, forKey: k) }
+        d.set(Date(), forKey: turnAtKey)
+    }
+}
+
+/// Days, the four times of day, and the "From Mon 16 Nov" label.
+enum LineDay {
+    /// local day, the same yyyy-MM-dd the Mac writes
+    static func iso(_ d: Date) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: d)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    static func from(_ iso: String?) -> String {
+        let p = (iso ?? "").split(separator: "-").compactMap { Int($0) }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        guard p.count == 3, let d = cal.date(from: DateComponents(year: p[0], month: p[1], day: p[2])) else {
+            return "From an earlier day"
+        }
+        let days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        return "From \(days[cal.component(.weekday, from: d) - 1]) \(p[2]) \(months[max(0, min(11, p[1] - 1))])"
+    }
+
+    /// 0 morning (05:00), 1 midday (11:00), 2 evening (17:00), 3 night (21:00 until 05:00)
+    static let starts = [5, 11, 17, 21]
+    static func phase(_ d: Date) -> Int {
+        let h = Calendar.current.component(.hour, from: d)
+        return h < 5 ? 3 : h < 11 ? 0 : h < 17 ? 1 : h < 21 ? 2 : 3
+    }
+
+    /// The remaining phase boundaries today, then the next local midnight (last).
+    static func turns(after now: Date) -> [Date] {
+        let cal = Calendar.current
+        let day = cal.startOfDay(for: now)
+        var out = starts.compactMap { cal.date(byAdding: .hour, value: $0, to: day) }.filter { $0 > now }
+        if let midnight = cal.date(byAdding: .day, value: 1, to: day) { out.append(midnight) }
+        return out
+    }
+}
+
+/// What a widget shows on a day: today's line, or an earlier one said to be
+/// earlier, or nothing.
+enum LinePick {
+    static func choose(_ p: NovaLinePayload?, on day: String) -> (line: NovaLine, from: String?)? {
+        guard let p else { return nil }
+        if p.date == day, let l = p.line { return (l, nil) }
+        if p.date != day, let l = p.line { return (l, LineDay.from(p.date)) }
+        if let prev = p.previous { return (prev, LineDay.from(prev.date)) }
+        return nil
+    }
+}
+
+// MARK: line looks (the mockup's three, and the setting)
+
+struct LineLook: Equatable {
+    let name: String
+    let ink: Color, ink2: Color, ink3: Color, acc: Color, em: Color, sep: Color, edge: Color, light: Color
+    let emItalic: Bool, bodyItalic: Bool, mark: Bool
+    let bar: CGFloat, pad: CGFloat
+    let ground: [Color]
+    let angle: Double
+
+    static func == (a: LineLook, b: LineLook) -> Bool { a.name == b.name }
+
+    static let nova = LineLook(name: "nova",
+        ink: Color(hex: "#eef1f8"), ink2: Color(hex: "#eef1f8").opacity(0.64), ink3: Color(hex: "#eef1f8").opacity(0.42),
+        acc: Color(hex: "#a493ff"), em: Color(hex: "#cdc4ff"), sep: Color(hex: "#eef1f8").opacity(0.14),
+        edge: Color.white.opacity(0.09), light: Color(hex: "#8f7bff").opacity(0.44),
+        emItalic: true, bodyItalic: false, mark: true, bar: 0, pad: 0,
+        ground: [Color(hex: "#1d2750"), Color(hex: "#10152f")], angle: 135)
+    static let ink = LineLook(name: "ink",
+        ink: Color(hex: "#f3ecdf"), ink2: Color(hex: "#f3ecdf").opacity(0.62), ink3: Color(hex: "#f3ecdf").opacity(0.40),
+        acc: Color(hex: "#8f7bff"), em: Color(hex: "#b9acff"), sep: Color(hex: "#f3ecdf").opacity(0.14),
+        edge: Color.white.opacity(0.10), light: Color(hex: "#8f7bff").opacity(0.20),
+        emItalic: false, bodyItalic: true, mark: false, bar: 2, pad: 14,
+        ground: [Color(hex: "#15161f"), Color(hex: "#0a0b11")], angle: 160)
+    static let paper = LineLook(name: "paper",
+        ink: Color(hex: "#1f1c18"), ink2: Color(hex: "#1f1c18").opacity(0.66), ink3: Color(hex: "#1f1c18").opacity(0.46),
+        acc: Color(hex: "#5a45d6"), em: Color(hex: "#5a45d6"), sep: Color(hex: "#1f1c18").opacity(0.16),
+        edge: Color.white.opacity(0.5), light: Color.white.opacity(0.85),
+        emItalic: true, bodyItalic: false, mark: true, bar: 0, pad: 0,
+        ground: [Color(hex: "#f4eee2"), Color(hex: "#e7decd")], angle: 160)
+
+    /// where the light sits at each time of day: offset as a share of its own
+    /// size (the mockup's --lx/--ly), and its opacity
+    static let lights: [(x: CGFloat, y: CGFloat, o: Double)] = [(-0.38, -0.48, 1), (0.22, -0.60, 1), (0.88, -0.26, 0.85), (0.96, 0.40, 0.5)]
+}
+
+enum LineLookChoice: String, AppEnum {
+    case day, nova, ink, paper
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
+    static var caseDisplayRepresentations: [LineLookChoice: DisplayRepresentation] = [
+        .day: DisplayRepresentation(title: "Follows the day", subtitle: "Paper at sunrise, Nova by day, Ink at night"),
+        .nova: "Nova", .ink: "Ink", .paper: "Paper",
+    ]
+    /// Follows the day: morning Paper, midday and evening Nova, night Ink
+    func look(_ phase: Int) -> LineLook {
+        switch self {
+        case .nova: return .nova
+        case .ink: return .ink
+        case .paper: return .paper
+        case .day: return [LineLook.paper, .nova, .nova, .ink][max(0, min(3, phase))]
+        }
+    }
+}
+
+struct NovaLineIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "The Line"
+    static var description = IntentDescription("Choose the look. Follows the day goes from Paper at sunrise to Ink at night.")
+    @Parameter(title: "Look", default: .day) var look: LineLookChoice
+}
+
+/// The two dots: turn the line over to its idea, and back.
+struct LineTurnIntent: AppIntent {
+    static var title: LocalizedStringResource = "Turn the line over"
+    static var isDiscoverable: Bool = false
+    @Parameter(title: "Size") var slot: String
+    @Parameter(title: "Line") var key: String
+    init() {}
+    init(slot: String, key: String) { self.slot = slot; self.key = key }
+    func perform() async throws -> some IntentResult {
+        NovaLineStore.toggle(slot: slot, key: key)
+        WidgetCenter.shared.reloadTimelines(ofKind: "NovaLine")
+        return .result()
+    }
+}
+
+struct LineEntry: TimelineEntry {
+    let date: Date
+    let line: NovaLine?
+    /// "From Mon 16 Nov" when the line is not today's
+    var staleFrom: String? = nil
+    var phase: Int
+    var look: LineLook
+    var turned = false
+    /// "<id>|<day>" for the dots; nil draws them without a tap
+    var turnKey: String? = nil
+
+    /// The gallery's stand-in when nothing has been fetched: plainly not a
+    /// line, and nobody's.
+    static func placeholder(_ choice: LineLookChoice = .day, at date: Date = .now) -> LineEntry {
+        let ph = LineDay.phase(date)
+        return LineEntry(date: date, line: NovaLine(id: "placeholder", quote: "Your line for the day will sit here.", idea: "The idea behind it"),
+                         phase: ph, look: choice.look(ph))
+    }
+}
+
+// MARK: line sizes and type
+
+enum LineSize {
+    case small, medium, large, lock
+
+    var slot: String { switch self { case .small: "small"; case .medium: "medium"; case .large: "large"; case .lock: "lock" } }
+    var pad: CGFloat { self == .large ? 20 : 16 }
+    /// the mockup's FIT steps
+    var steps: [CGFloat] {
+        switch self {
+        case .small: [19, 17, 15, 13.5]
+        case .medium: [24, 21, 18.5, 16.5, 15]
+        case .large: [36, 32, 28, 24, 21]
+        case .lock: [14, 13, 12]
+        }
+    }
+    var ideaSize: CGFloat { switch self { case .small: 17; case .large: 30; case .medium: 22; case .lock: 14 } }
+    var lineHeight: CGFloat { self == .large ? 1.14 : 1.2 }
+    var tracking: CGFloat { self == .large ? -0.018 : self == .lock ? 0 : -0.012 }
+    var byFont: CGFloat { self == .large ? 12 : 11 }
+    var byTop: CGFloat { self == .large ? 16 : 10 }
+}
+
+struct LineRun: Hashable { let text: String; let em: Bool }
+
+// LINE-FONT-BEGIN (the Mac render harness swaps this block for AppKit)
+typealias LinePlatformFont = UIFont
+enum LineFont {
+    static func serif(_ size: CGFloat, italic: Bool) -> LinePlatformFont {
+        let base = UIFont.systemFont(ofSize: size).fontDescriptor
+        var d = base.withDesign(.serif) ?? base
+        if italic, let i = d.withSymbolicTraits(.traitItalic) { d = i }
+        return UIFont(descriptor: d, size: size)
+    }
+    static func sans(_ size: CGFloat, bold: Bool) -> LinePlatformFont {
+        UIFont.systemFont(ofSize: size, weight: bold ? .semibold : .regular)
+    }
+    /// a font's own line height per point of size
+    static let serifLine: CGFloat = { let f = serif(100, italic: false); return f.lineHeight / 100 }()
+}
+// LINE-FONT-END
+
+/// Where the quote breaks. CoreText finds the breaks with the same fonts the
+/// views draw with; `balance` is the mockup's text-wrap: balance, as WebKit
+/// (his iPhone's engine) does it.
+enum LineSetter {
+    static func lines(_ text: String, em: NSRange?, size: CGFloat, kern: CGFloat, bodyItalic: Bool, emItalic: Bool,
+                      width: CGFloat, balance: Bool, sansBold: Bool? = nil) -> [[LineRun]] {
+        let body: LinePlatformFont = sansBold.map { LineFont.sans(size, bold: $0) } ?? LineFont.serif(size, italic: bodyItalic)
+        let a = NSMutableAttributedString(string: text, attributes: [.font: body, .kern: kern])
+        if let em { a.addAttribute(.font, value: LineFont.serif(size, italic: emItalic), range: em) }
+        var ranges = breaks(a, width)
+        if balance, ranges.count > 1, ranges.count <= 10, let even = balanced(a, width, ranges.count) { ranges = even }
+        let ns = text as NSString
+        return ranges.map { r in
+            var cuts = [r.location, r.location + r.length]
+            if let em {
+                for c in [em.location, em.location + em.length] where c > r.location && c < r.location + r.length { cuts.append(c) }
+            }
+            cuts.sort()
+            var runs: [LineRun] = []
+            for i in 0..<(cuts.count - 1) where cuts[i + 1] > cuts[i] {
+                let piece = NSRange(location: cuts[i], length: cuts[i + 1] - cuts[i])
+                let inEm = em.map { NSLocationInRange(piece.location, $0) } ?? false
+                runs.append(LineRun(text: ns.substring(with: piece), em: inEm))
+            }
+            // the space a line ends on is not drawn
+            if let last = runs.last {
+                let t = last.text.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression)
+                runs[runs.count - 1] = LineRun(text: t, em: last.em)
+            }
+            return runs
+        }
+    }
+
+    /// WebKit's balance: the same number of lines, broken where the squared
+    /// distance of each line from an even share of the whole is least.
+    static func balanced(_ a: NSAttributedString, _ width: CGFloat, _ k: Int) -> [NSRange]? {
+        let ns = a.string as NSString
+        let space = CharacterSet.whitespacesAndNewlines
+        func isSpace(_ c: unichar) -> Bool { UnicodeScalar(c).map { space.contains($0) } ?? false }
+        var cuts = [0]
+        if ns.length > 1 {
+            for i in 1..<ns.length {
+                let p = ns.character(at: i - 1), c = ns.character(at: i)
+                if !isSpace(c) && (isSpace(p) || p == 0x2D) { cuts.append(i) }
+            }
+        }
+        cuts.append(ns.length)
+        let n = cuts.count - 1
+        guard n >= k else { return nil }
+        var memo: [Int: CGFloat] = [:]
+        func w(_ i: Int, _ j: Int) -> CGFloat {
+            if let v = memo[i * 4096 + j] { return v }
+            let line = CTLineCreateWithAttributedString(a.attributedSubstring(from: NSRange(location: cuts[i], length: cuts[j] - cuts[i])))
+            let v = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil) - CTLineGetTrailingWhitespaceWidth(line))
+            memo[i * 4096 + j] = v
+            return v
+        }
+        let ideal = w(0, n) / CGFloat(k)
+        let inf = CGFloat.greatestFiniteMagnitude
+        var cost = Array(repeating: Array(repeating: inf, count: k + 1), count: n + 1)
+        var from = Array(repeating: Array(repeating: -1, count: k + 1), count: n + 1)
+        cost[0][0] = 0
+        for m in 1...k {
+            for j in m...n {
+                var i = j - 1
+                while i >= m - 1 {
+                    let lw = w(i, j)
+                    if lw > width { break }
+                    if cost[i][m - 1] < inf {
+                        let c = cost[i][m - 1] + (ideal - lw) * (ideal - lw)
+                        if c < cost[j][m] { cost[j][m] = c; from[j][m] = i }
+                    }
+                    i -= 1
+                }
+            }
+        }
+        guard cost[n][k] < inf else { return nil }
+        var out: [NSRange] = []
+        var j = n, m = k
+        while m > 0 {
+            let i = from[j][m]
+            out.insert(NSRange(location: cuts[i], length: cuts[j] - cuts[i]), at: 0)
+            j = i; m -= 1
+        }
+        return out
+    }
+
+    static func breaks(_ a: NSAttributedString, _ width: CGFloat) -> [NSRange] {
+        let ts = CTTypesetterCreateWithAttributedString(a)
+        var out: [NSRange] = []
+        var start = 0
+        while start < a.length {
+            let n = max(1, CTTypesetterSuggestLineBreak(ts, start, Double(width)))
+            out.append(NSRange(location: start, length: n))
+            start += n
+        }
+        return out
+    }
+}
+
+/// A set quote: one Text per line, each line exactly the mockup's line height.
+struct LineLines: View {
+    let lines: [[LineRun]]
+    let size: CGFloat
+    let lineHeight: CGFloat
+    let kern: CGFloat
+    let look: LineLook
+    var plainColor: Color? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, runs in
+                runs.reduce(Text("")) { t, r in
+                    t + Text(r.text)
+                        .font(.system(size: size, design: .serif))
+                        .italic(r.em ? look.emItalic : look.bodyItalic)
+                        .kerning(kern)
+                        .foregroundStyle(r.em ? look.em : (plainColor ?? look.ink))
+                }
+                .lineLimit(1)
+                .fixedSize()
+                .frame(height: size * lineHeight)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(lines.map { $0.map(\.text).joined() }.joined(separator: " "))
+    }
+}
+
+/// One attribution row: who, then whose show, then the time.
+private struct LineBy: Hashable { var who: String?; var rest: String?; var right: String? }
+
+// MARK: line faces
+
+struct LineFace: View {
+    let entry: LineEntry
+    let size: LineSize
+    let look: LineLook
+
+    var body: some View {
+        GeometryReader { g in
+            if size == .lock { lockFace(g.size) } else { home(g.size) }
+        }
+    }
+
+    // MARK: home screen
+
+    private var padL: CGFloat { size == .small ? look.pad * 0.6 : look.pad }
+
+    private func textWidth(_ w: CGFloat) -> CGFloat {
+        w - size.pad * 2 - (size == .medium && look.mark ? 32 : 0) - look.bar - padL
+    }
+
+    private func set(_ text: String, em: NSRange?, _ fs: CGFloat, _ width: CGFloat) -> [[LineRun]] {
+        LineSetter.lines(text, em: em, size: fs, kern: size.tracking * fs, bodyItalic: look.bodyItalic,
+                         emItalic: look.emItalic, width: width, balance: true)
+    }
+
+    private func quote(_ lines: [[LineRun]], _ fs: CGFloat) -> LineLines {
+        LineLines(lines: lines, size: fs, lineHeight: size.lineHeight, kern: size.tracking * fs, look: look)
+    }
+
+    @ViewBuilder private func home(_ s: CGSize) -> some View {
+        let tw = textWidth(s.width)
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let line = entry.line {
+                    if entry.turned { ideaFace(line, tw) } else { front(line, tw) }
+                } else {
+                    noneFace(tw)
+                }
+            }
+            .padding(size.pad)
+            .frame(width: s.width, height: s.height, alignment: .leading)
+            if entry.line != nil { dots }
+        }
+    }
+
+    /// the line, at the largest step that fits whole
+    @ViewBuilder private func front(_ line: NovaLine, _ tw: CGFloat) -> some View {
+        let em = line.emRange
+        // a short line never runs past three rows: the type steps down first
+        let short = line.quote.count <= 60
+        let steps = size.steps.enumerated().filter { i, fs in
+            !(short && i < size.steps.count - 1 && set(line.quote, em: em, fs, tw).count > 3)
+        }.map(\.element)
+        ViewThatFits(in: .vertical) {
+            ForEach(steps, id: \.self) { fs in
+                inBox(tw) {
+                    quote(set(line.quote, em: em, fs, tw), fs)
+                    byRow(line)
+                    if size == .large, let sent = line.sent { ideaBlock(line.idea, sent, tw) }
+                }
+            }
+            // too long for this size: its idea, waiting to be opened
+            inBox(tw) {
+                quote(set(line.idea, em: nil, size.steps[1], tw), size.steps[1])
+                sub2("Open for the line", tw)
+                byRow(line)
+            }
+        }
+    }
+
+    /// turned over: the idea behind it
+    @ViewBuilder private func ideaFace(_ line: NovaLine, _ tw: CGFloat) -> some View {
+        ViewThatFits(in: .vertical) {
+            ForEach([1, 0.85, 0.72] as [CGFloat], id: \.self) { k in
+                let fs = (size.ideaSize * k).rounded()
+                inBox(tw) {
+                    kicker
+                    quote(set(line.idea, em: nil, fs, tw), fs)
+                    if size != .small { sub2(line.sent ?? "Open for the note", tw) }
+                    byRow(line)
+                }
+            }
+            inBox(tw) {
+                kicker
+                quote(set(line.idea, em: nil, size.ideaSize * 0.72, tw), size.ideaSize * 0.72)
+                byRow(line)
+            }
+        }
+    }
+
+    private func noneFace(_ tw: CGFloat) -> some View {
+        inBox(tw, dim: true) {
+            quote(set("No line yet.", em: nil, 19, tw), 19)
+            sub2("Open Nova once and he will bring one.", tw)
+        }
+    }
+
+    /// the mockup's .in: the mark beside (medium) or above (small, large) the
+    /// words, or Ink's rule down the left
+    @ViewBuilder private func inBox<C: View>(_ tw: CGFloat, dim: Bool = false, @ViewBuilder _ content: () -> C) -> some View {
+        // the column's width is known: pinned, so a stack's measuring pass
+        // never offers it less and shortens the attribution for nothing
+        let col = VStack(alignment: .leading, spacing: 0, content: content).frame(width: max(0, tw), alignment: .leading)
+        Group {
+            if size == .medium {
+                HStack(alignment: .top, spacing: 10) {
+                    if look.mark { mark(dim) }
+                    col
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    if look.mark { mark(dim) }
+                    col
+                }
+            }
+        }
+        .padding(.leading, look.bar + padL)
+        .overlay(alignment: .leading) {
+            if look.bar > 0 { Rectangle().fill(look.acc).frame(width: look.bar).widgetAccentable() }
+        }
+    }
+
+    /// the opening quote mark: the mockup's 500-weight serif glyph in a short
+    /// box (line-height .74), so it hangs above the first line's cap height
+    private func mark(_ dim: Bool) -> some View {
+        let g: CGFloat = size == .small ? 34 : size == .large ? 64 : 44
+        let h: CGFloat = size == .small ? 15 : size == .large ? 30 : 20
+        let top: CGFloat = size == .small ? 2 : size == .large ? 6 : 3
+        return Text("\u{201C}")
+            .font(.system(size: g, weight: .medium, design: .serif))
+            .foregroundStyle(look.acc)
+            .fixedSize()
+            .offset(y: (0.74 - LineFont.serifLine) * g / 2)
+            .frame(width: 22, height: h, alignment: .topLeading)
+            .padding(.top, top)
+            .opacity(dim ? 0.45 : 1)
+            .widgetAccentable()
+            .accessibilityHidden(true)
+    }
+
+    private var kicker: some View {
+        Text("The idea behind it".uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .kerning(1)
+            .foregroundStyle(look.ink3)
+            .lineLimit(1)
+            .frame(height: 15)
+            .padding(.bottom, 5)
+    }
+
+    /// Sans text at the mockup's CSS line height, broken by CoreText as the
+    /// quote is (SwiftUI's own wrap ran a word short and its leading wide).
+    private func sansLines(_ s: String, _ fs: CGFloat, _ lh: CGFloat, bold: Bool = false, color: Color, width: CGFloat) -> some View {
+        let lines = LineSetter.lines(s, em: nil, size: fs, kern: 0, bodyItalic: false, emItalic: false,
+                                     width: width + 1, balance: false, sansBold: bold)  // WebKit fits a hair more
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, runs in
+                Text(runs.map(\.text).joined())
+                    .font(.system(size: fs, weight: bold ? .semibold : .regular))
+                    .foregroundStyle(color)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .frame(height: fs * lh)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(s)
+    }
+
+    private func sub2(_ s: String, _ tw: CGFloat) -> some View {
+        sansLines(s, 12, 1.35, color: look.ink2, width: tw).padding(.top, 4)
+    }
+
+    /// large only: the idea under a hairline
+    private func ideaBlock(_ idea: String, _ sent: String, _ tw: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            sansLines(idea, 13, 1.5, bold: true, color: look.ink, width: tw)
+            sansLines(sent, 13, 1.35, color: look.ink2, width: tw)
+        }
+        .padding(.top, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .top) { Rectangle().fill(look.sep).frame(height: 0.5) }
+        .padding(.top, 18)
+    }
+
+    // MARK: the attribution row
+
+    /// His wording rule (17 Nov): WHO then whose show, then the time; one row,
+    /// never wrapped, never cut mid-name. Each variant is tried in turn.
+    private func byVariants(_ l: NovaLine) -> [LineBy] {
+        var v: [LineBy] = []
+        if let stale = entry.staleFrom {
+            if size == .small { return [LineBy(rest: stale)] }
+            if let who = l.who { v.append(LineBy(who: who, right: stale)) } else {
+                for r in [l.byLong, l.byShort, l.podcast].compactMap({ $0 }) { v.append(LineBy(rest: r, right: stale)) }
+            }
+            v.append(LineBy(right: stale))
+        } else if size == .small {
+            if let who = l.who { v.append(LineBy(who: who)) } else {
+                for r in [l.byLong, l.byShort, l.podcast].compactMap({ $0 }) { v.append(LineBy(rest: r)) }
+            }
+        } else if let who = l.who {
+            if let long = l.byLong {
+                if let at = l.at { v.append(LineBy(who: who, rest: long, right: at)) }
+                v.append(LineBy(who: who, rest: long))
+            }
+            if let short = l.byShort { v.append(LineBy(who: who, rest: short)) }
+            v.append(LineBy(who: who))
+            if let p = l.podcast { v.append(LineBy(rest: p)) }
+        } else {
+            if let long = l.byLong {
+                if let at = l.at { v.append(LineBy(rest: long, right: at)) }
+                v.append(LineBy(rest: long))
+            }
+            for r in [l.byShort, l.podcast].compactMap({ $0 }) { v.append(LineBy(rest: r)) }
+            if v.isEmpty, let at = l.at { v.append(LineBy(right: at)) }
+        }
+        var seen = Set<LineBy>()
+        return v.filter { seen.insert($0).inserted }
+    }
+
+    private func byText(_ b: LineBy) -> Text {
+        let fs = size.byFont
+        var t = Text("")
+        if let who = b.who {
+            t = t + Text(who.uppercased()).font(.system(size: fs * 0.92, weight: .semibold)).kerning(fs * 0.92 * 0.09).foregroundStyle(look.ink)
+        }
+        if let rest = b.rest {
+            let gap = b.who != nil && !rest.hasPrefix(",") ? " " : ""
+            t = t + Text(gap + rest).font(.system(size: fs)).foregroundStyle(look.ink2)
+        }
+        return t
+    }
+
+    @ViewBuilder private func byRow(_ l: NovaLine) -> some View {
+        let variants = byVariants(l)
+        if !variants.isEmpty {
+            ViewThatFits(in: .horizontal) {
+                ForEach(Array(variants.enumerated()), id: \.offset) { i, b in
+                    let last = i == variants.count - 1
+                    // the 10 pt gap belongs to the time alone: a stack's spacing
+                    // would also charge it against the spacer when there is no time
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        if b.who != nil || b.rest != nil {
+                            if last { byText(b).lineLimit(1).minimumScaleFactor(0.6) } else { byText(b).lineLimit(1).fixedSize() }
+                        }
+                        Spacer(minLength: 0)
+                        if let r = b.right {
+                            Text(r).font(.system(size: size.byFont)).monospacedDigit().foregroundStyle(look.ink3).lineLimit(1).fixedSize()
+                                .padding(.leading, b.who != nil || b.rest != nil ? 10 : 0)
+                        }
+                    }
+                }
+            }
+            .frame(height: size.byFont * 1.2)
+            .padding(.top, size.byTop)
+        }
+    }
+
+    // MARK: the dots
+
+    @ViewBuilder private var dots: some View {
+        let face = HStack(spacing: 5) {
+            Circle().fill(entry.turned ? look.ink3 : look.ink).frame(width: 5, height: 5)
+            Circle().fill(entry.turned ? look.ink : look.ink3).frame(width: 5, height: 5)
+        }
+        .padding(.top, 14)
+        .padding(.trailing, 14)
+        .frame(width: 52, height: 44, alignment: .topTrailing)
+        .contentShape(Rectangle())
+        if let key = entry.turnKey {
+            Button(intent: LineTurnIntent(slot: size.slot, key: key)) { face }
+                .buttonStyle(.plain)
+                .accessibilityLabel(entry.turned ? "Turn the line back" : "Turn the line over")
+        } else {
+            face.accessibilityHidden(true)
+        }
+    }
+
+    // MARK: lock screen: one tint, so the phrase is in italic
+
+    @ViewBuilder private func lockFace(_ s: CGSize) -> some View {
+        let lockLook = LineLook(name: "lock", ink: Color.white.opacity(0.92), ink2: Color.white.opacity(0.62), ink3: Color.white.opacity(0.62),
+                                acc: .white, em: Color.white.opacity(0.92), sep: .clear, edge: .clear, light: .clear,
+                                emItalic: true, bodyItalic: false, mark: false, bar: 0, pad: 0, ground: [], angle: 0)
+        let w = s.width
+        let set = { (t: String, em: NSRange?, fs: CGFloat) in
+            LineSetter.lines(t, em: em, size: fs, kern: 0, bodyItalic: false, emItalic: true, width: w, balance: false)
+        }
+        Group {
+            if let line = entry.line {
+                let label = entry.staleFrom ?? line.who ?? line.podcast
+                ViewThatFits(in: .vertical) {
+                    ForEach(size.steps, id: \.self) { fs in
+                        lockBlock(LineLines(lines: set(line.quote, line.emRange, fs), size: fs, lineHeight: 1.2, kern: 0, look: lockLook), label)
+                    }
+                    lockBlock(LineLines(lines: set(line.idea, nil, 14), size: 14, lineHeight: 1.2, kern: 0, look: lockLook), label)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    LineLines(lines: set("No line yet.", nil, 14), size: 14, lineHeight: 1.2, kern: 0, look: lockLook)
+                    Text("Open Nova once and he will bring one.").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.62))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(width: s.width, height: s.height, alignment: .topLeading)
+    }
+
+    private func lockBlock(_ lines: LineLines, _ label: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            lines
+            if let label {
+                Text(label.uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .kerning(0.9)
+                    .foregroundStyle(Color.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(height: 15)
+                    .padding(.top, 4)
+            }
+        }
+    }
+}
+
+/// The ground: the look's gradient, at the mockup's CSS angle, and the light
+/// where the day is.
+struct LineGround: View {
+    let look: LineLook
+    let phase: Int
+    var edge = true
+
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width, h = g.size.height
+            let d = w * 0.78
+            let p = LineLook.lights[max(0, min(3, phase))]
+            let (a, b) = Self.cssPoints(look.angle, w, h)
+            ZStack(alignment: .topLeading) {
+                LinearGradient(colors: look.ground, startPoint: a, endPoint: b)
+                RadialGradient(colors: [look.light, look.light.opacity(0)], center: .center, startRadius: 0, endRadius: d / 2)
+                    .frame(width: d, height: d)
+                    .offset(x: p.x * d, y: p.y * d)
+                    .opacity(p.o)
+                if edge { ContainerRelativeShape().strokeBorder(look.edge, lineWidth: 0.5) }
+            }
+        }
+    }
+
+    /// CSS linear-gradient(<deg>) start and end on a w by h box
+    static func cssPoints(_ deg: Double, _ w: CGFloat, _ h: CGFloat) -> (UnitPoint, UnitPoint) {
+        let r = deg * .pi / 180
+        let dx = CGFloat(sin(r)), dy = CGFloat(-cos(r))
+        let len = abs(w * dx) + abs(h * dy)
+        let ux = dx * len / 2 / max(w, 1), uy = dy * len / 2 / max(h, 1)
+        return (UnitPoint(x: 0.5 - ux, y: 0.5 - uy), UnitPoint(x: 0.5 + ux, y: 0.5 + uy))
+    }
+}
+
+// LINE-HARNESS-END (the Mac render harness compiles everything above, from
+// "THE LINE", and nothing below)
+
+struct LineProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> LineEntry { .placeholder() }
+
+    func snapshot(for configuration: NovaLineIntent, in context: Context) async -> LineEntry {
+        if context.isPreview, let (p, _) = NovaLineStore.cached(), LinePick.choose(p, on: LineDay.iso(.now)) != nil {
+            return make(p, at: .now, configuration.look, LineSize(context.family))
+        }
+        if context.isPreview { return .placeholder(configuration.look) }
+        let (p, _) = await NovaLineStore.load()
+        return make(p, at: .now, configuration.look, LineSize(context.family))
+    }
+
+    /// One drawing now, one at each remaining time of day, one at midnight.
+    /// At midnight the drawing honestly dates yesterday's line and asks for a
+    /// reload, which fetches the new day's; a failed fetch retries within the hour.
+    func timeline(for configuration: NovaLineIntent, in context: Context) async -> Timeline<LineEntry> {
+        let now = Date()
+        let (p, reached) = await NovaLineStore.load(now: now)
+        let turns = LineDay.turns(after: now)
+        let size = LineSize(context.family)
+        let entries = ([now] + turns).map { make(p, at: $0, configuration.look, size) }
+        let midnight = turns.last ?? now.addingTimeInterval(3600)
+        return Timeline(entries: entries, policy: .after(reached ? midnight : min(midnight, now.addingTimeInterval(3600))))
+    }
+
+    private func make(_ p: NovaLinePayload?, at date: Date, _ choice: LineLookChoice, _ size: LineSize) -> LineEntry {
+        let day = LineDay.iso(date)
+        let ph = LineDay.phase(date)
+        guard let pick = LinePick.choose(p, on: day) else {
+            return LineEntry(date: date, line: nil, phase: ph, look: choice.look(ph))
+        }
+        let key = "\(pick.line.id)|\(day)"
+        return LineEntry(date: date, line: pick.line, staleFrom: pick.from, phase: ph, look: choice.look(ph),
+                         turned: NovaLineStore.turned(slot: size.slot, key: key), turnKey: key)
+    }
+}
+
+extension LineSize {
+    init(_ family: WidgetFamily) {
+        switch family {
+        case .systemSmall: self = .small
+        case .systemMedium: self = .medium
+        case .accessoryRectangular, .accessoryInline, .accessoryCircular: self = .lock
+        default: self = .large
+        }
+    }
+}
+
+struct NovaLineView: View {
+    @Environment(\.widgetFamily) var family
+    @Environment(\.widgetRenderingMode) var mode
+    let entry: LineEntry
+
+    var body: some View {
+        let size = LineSize(family)
+        // tinted and clear home screens draw in one colour over no ground:
+        // the light-on-dark look keeps every weight legible there
+        let look = mode == .fullColor ? entry.look : .nova
+        LineFace(entry: entry, size: size, look: look)
+            .containerBackground(for: .widget) {
+                if size != .lock { LineGround(look: look, phase: entry.phase) }
+            }
+            .widgetURL(NovaLink.line)
+    }
+}
+
+struct NovaLineWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "NovaLine", intent: NovaLineIntent.self, provider: LineProvider()) { entry in
+            NovaLineView(entry: entry)
+        }
+        .configurationDisplayName("The Line")
+        .description("One line a day from what you have listened to, in the speaker's own words. Tap the dots for the idea behind it.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
+        .contentMarginsDisabled()
+    }
+}
+
+// MARK: - END THE LINE

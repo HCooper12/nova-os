@@ -9,5 +9,6 @@ struct NovaLiveActivityBundle: WidgetBundle {
         NovaNumberWidget()
         NovaFuelWidget()
         NovaTodayWidget()
+        NovaLineWidget()
     }
 }
