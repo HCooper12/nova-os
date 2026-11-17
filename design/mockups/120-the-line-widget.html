@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nova Line Widget</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<!--
+  Mockup 120. The Line: a home-screen widget for the daily review and the day's quote. 17 Nov 2026.
+  For his approval. Nothing here is built.
+  Why: he asked for a widget that shows the daily review and/or a deep daily quote, simple and
+  good to look at. The daily review already leads with the speaker's real words (mockup 116), so
+  this is one widget with one job: hold one line. While the review has a line waiting, it is that
+  line. When the review is done, or nothing is due, it is a line from his library.
+  Ground, ink tiers and the serif are the ones the four shipped widgets use
+  (ios/App/NovaLiveActivity/NovaWidgets.swift); the violet mark and the veil are 116's.
+  Widgets are drawn at iPhone 14 point sizes: small 158 x 158, medium 338 x 158, large 338 x 354,
+  lock-screen rectangle 160 x 72. The serif on his phone is New York; a browser without it falls
+  back to Source Serif 4.
+  SAMPLE CONTENT ONLY in this file. The repo is public. No line, person or show here is real or his.
+  A page may set window.__NOVA_LINES before the script to swap the content.
+-->
+<style>
+:root{
+  color-scheme:dark;
+  --nv-void:#06070d; --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.66); --nv-ink40:rgba(232,236,246,.5); --nv-line:rgba(232,236,246,.12);
+  --w-g1:#1d2750; --w-g2:#10152f; --w-ink:#eef1f8; --w-ink2:rgba(238,241,248,.62); --w-ink3:rgba(238,241,248,.4); --w-sep:rgba(238,241,248,.14);
+  --w-mind:#8f7bff;
+  --ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
+  --serif:ui-serif,'New York','Source Serif 4',Georgia,serif;
+  --ease:cubic-bezier(.23,1,.32,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nv-void);color:var(--nv-ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased}
+.page{max-width:760px;margin:0 auto;padding-block:36px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font:600 12px/1 var(--ui);letter-spacing:.08em;text-transform:uppercase;color:var(--nv-ink40);margin:0 0 14px}
+h1{font:400 34px/1.1 var(--serif);letter-spacing:-.015em;margin:0 0 12px;text-wrap:balance}
+.deck{max-width:60ch;color:var(--nv-ink60);margin:0 0 28px}
+h2{font:400 23px/1.2 var(--serif);letter-spacing:-.01em;margin:56px 0 6px}
+.sec{max-width:62ch;color:var(--nv-ink60);margin:0 0 22px}
+.cap{font:500 13px/1.4 var(--ui);color:var(--nv-ink60);margin:0 0 10px}
+.cap b{color:var(--nv-ink);font-weight:600}
+.note{font:400 13px/1.45 var(--ui);color:var(--nv-ink40);margin:10px 0 0;max-width:60ch}
+
+/* the home screen it sits on */
+.home{width:min(390px,100%);border-radius:38px;padding:26px 0 28px;background:linear-gradient(180deg,#0a0e1c,#131933 62%,#1d1a36);display:grid;justify-items:center;row-gap:24px}
+.icons{width:338px;max-width:calc(100% - 20px);display:flex;justify-content:space-between}
+.icons i{width:60px;height:60px;border-radius:14px;background:rgba(232,236,246,.07)}
+.ctl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px}
+.btn{font:600 14px/1 var(--ui);color:var(--nv-ink);background:rgba(232,236,246,.09);border:0;border-radius:999px;padding:12px 18px;cursor:pointer;transition:transform 140ms var(--ease)}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible{outline:2px solid var(--w-mind);outline-offset:3px}
+.now{font:500 13px/1.4 var(--ui);color:var(--nv-ink60);min-width:0;flex:1 1 200px}
+
+/* the widget */
+.wg{position:relative;flex:none;display:flex;flex-direction:column;overflow:hidden;border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--w-g1),var(--w-g2));color:var(--w-ink);font-family:var(--ui);text-align:left}
+.wg-s{width:158px;height:158px}
+.wg-m{width:338px;height:158px}
+.wg-l{width:338px;height:354px}
+.wg-in{display:flex;flex-direction:column;flex:1;min-height:0;transition:opacity 420ms var(--ease),filter 420ms var(--ease)}
+.wg-in.out{opacity:0;filter:blur(3px);transition-duration:170ms}
+.wg-h{display:flex;justify-content:space-between;align-items:flex-start;height:14px;margin-bottom:6px;flex:none}
+.qm{font:400 38px/1 var(--serif);color:var(--w-mind);height:14px;margin:-3px 0 0 -2px}
+.qm.dim{color:var(--w-ink3)}
+.tick{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:var(--w-mind);background:rgba(143,123,255,.2);margin-top:-1px}
+.tick svg{width:11px;height:11px}
+.kick{font:600 11px/14px var(--ui);color:var(--w-ink2);white-space:nowrap;letter-spacing:.01em}
+.q{flex:1;min-height:0;margin:0;overflow:hidden;font-family:var(--serif);font-weight:400;letter-spacing:-.005em;color:var(--w-ink);text-wrap:pretty}
+.cue{flex:none;margin:0 0 5px;font:400 19px/1.2 var(--serif);letter-spacing:-.008em;color:var(--w-ink);text-wrap:balance}
+.wg-s .cue{font-size:16px}
+.veil{font-size:15px;line-height:1.27;filter:blur(5px);opacity:.5;user-select:none}
+.wg-s .veil{font-size:13.5px}
+.more{flex:1;margin:0;font:500 12px/1.3 var(--ui);color:var(--w-ink2)}
+.wg-f{flex:none;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;min-height:14px;font:500 12px/14px var(--ui);color:var(--w-ink2)}
+.wg-s .wg-f{font-size:11px}
+.who{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who b{font-weight:600;color:var(--w-ink)}
+.at{flex:none;font-size:11px;font-variant-numeric:tabular-nums}
+.keep{flex:none;display:inline-flex;align-items:center;gap:5px;height:24px;margin:-5px 0;padding:0 10px 0 8px;border-radius:999px;font:600 12px/1 var(--ui);color:#d9d2ff;background:rgba(143,123,255,.22)}
+.keep svg{width:11px;height:11px}
+.none-t{margin:0 0 4px;font:400 19px/1.2 var(--serif);color:var(--w-ink)}
+.wg-s .none-t{font-size:16px}
+.none-s{flex:1;margin:0;font:400 12px/1.35 var(--ui);color:var(--w-ink2)}
+/* large only: the idea behind the line, and today's path */
+.sep{flex:none;height:1px;background:var(--w-sep);margin:12px 0}
+.idea-t{flex:none;margin:0 0 3px;font:600 13px/1.3 var(--ui);color:var(--w-ink)}
+.idea-s{flex:none;margin:0;font:400 14px/1.42 var(--ui);color:var(--w-ink2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.path{flex:none;display:flex;align-items:center;margin-top:14px;font:500 11px/1 var(--ui);color:var(--w-ink2)}
+.pip{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--w-ink3)}
+.pip.on{border-color:var(--w-ink)}
+.pip.done{border-color:var(--w-mind);background:var(--w-mind)}
+.pj{width:16px;height:1.5px;background:var(--w-ink3)}
+.pj.done{background:var(--w-mind)}
+.path span{margin-left:10px}
+
+/* the day as one path */
+.step{margin:0}
+.step .cap{display:flex;align-items:baseline;gap:10px}
+.step .cap::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--w-mind);transform:translateY(-1px)}
+.join{width:1.5px;height:26px;margin:10px 0 8px 3.75px;background:var(--nv-line)}
+.pair{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,338px),max-content));gap:28px 24px;align-items:start}
+.cell{min-width:0}
+
+/* lock screen */
+.lock{width:min(390px,100%);border-radius:38px;padding:30px 26px 28px;background:linear-gradient(180deg,#27304f,#0f1326);color:#fff}
+.lock .d{font:500 17px/1 var(--ui);text-align:center;opacity:.85;margin:0 0 6px}
+.lock .t{font:600 78px/1 ui-rounded,'SF Pro Rounded',var(--ui);text-align:center;letter-spacing:-.02em;margin:0 0 22px;font-variant-numeric:tabular-nums}
+.lk{width:160px;height:72px;display:flex;flex-direction:column;justify-content:center}
+.lk .lq{margin:0;font:400 14px/1.2 var(--serif);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.lk .lw{margin:3px 0 0;font:500 11px/1.2 var(--ui);opacity:.68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+dl.build{margin:0;display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:12px 20px;max-width:680px}
+dl.build dt{font:600 13px/1.45 var(--ui);color:var(--nv-ink)}
+dl.build dd{margin:0;font:400 14px/1.5 var(--ui);color:var(--nv-ink60)}
+@media (max-width:520px){h1{font-size:29px}dl.build{grid-template-columns:1fr;gap:2px 0}dl.build dd{margin-bottom:12px}}
+@media (prefers-reduced-motion:reduce){.wg-in,.wg-in.out{filter:none;transition:opacity 150ms linear}.btn{transition:none}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="eyebrow">Mockup 120 · for approval · nothing built</p>
+  <h1>The Line</h1>
+  <p class="deck">One widget, one job: hold a single line worth carrying through the day. While the daily review has a line waiting, it is that line, in the speaker’s own words. Once the review is done, it is a line from his library.</p>
+
+  <div class="home" id="hero"></div>
+  <div class="ctl">
+    <button type="button" class="btn" id="turn">Next moment</button>
+    <span class="now" id="now" aria-live="polite"></span>
+  </div>
+  <p class="note" id="content-note"></p>
+
+  <h2>Through a day</h2>
+  <p class="sec">The same widget at each point. A tap anywhere opens the review on that line.</p>
+  <div id="day"></div>
+
+  <h2>When things are not ideal</h2>
+  <p class="sec">Each of these says what is true and still looks like the same object.</p>
+  <div class="grid" id="edge"></div>
+
+  <h2>How a line fits</h2>
+  <p class="sec">The type steps down for a longer line and never cuts one short. A line too long for the small size shows its idea and waits to be opened.</p>
+  <div class="grid" id="fit"></div>
+
+  <h2>Large, and the lock screen</h2>
+  <p class="sec">The large size has room for the idea behind the line and for today’s path. The lock screen takes the system’s single tint, so it carries the words alone.</p>
+  <div class="grid" id="big"></div>
+
+  <h2>What gets built, once approved</h2>
+  <dl class="build">
+    <dt>Real words only</dt><dd>Every line is the speaker’s own, found by code in his vault and checked against the transcript. Nova never writes one.</dd>
+    <dt>The time is proof</dt><dd>The timecode shows only when the transcript gives it. No time, no stamp.</dd>
+    <dt>Speaker unknown</dt><dd>When the vault cannot settle who spoke, the widget names the show and stops there.</dd>
+    <dt>Reading is not reviewing</dt><dd>The widget only reads. Showing a line on the home screen never marks it as seen in the review.</dd>
+    <dt>A new line daily</dt><dd>With nothing due, the library line changes at midnight and holds all day, chosen by the date so every size agrees.</dd>
+    <dt>Sizes</dt><dd>Small, medium, large, and the lock-screen rectangle, as a fifth widget beside Rings, One number, Fuel and Today.</dd>
+  </dl>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  // SAMPLE CONTENT ONLY: every person, show and line here is fictional (the first three are mockup 116's).
+  var SAMPLE = {
+    note: 'Sample content. Every line, person and show on this page is invented; the built widget shows only real lines from his vault.',
+    a: { quote: 'Every hour of effort you skip gets added to the bill, and the bill carries interest.', who: 'Mara Ellison', show: 'The Long Table', at: '41:12',
+         idea: 'Effort Debt', sent: 'Small early payments are cheaper than one big late one.' },
+    b: { quote: 'Start so small that stopping would feel silly.', who: 'Dev Okafor', show: 'Second Draft', at: '18:04',
+         idea: 'The Two-Minute Opening', sent: 'A task begun for two minutes is usually a task continued.' },
+    lib: { quote: 'A plan you cannot say in one breath will not survive a bad day.', who: 'Ines Marchetti', show: 'Field Notes', at: '27:40',
+         idea: 'One-Breath Plans', sent: 'If the plan needs a page, the tired version of you will skip it.' },
+    anon: { quote: 'Attention is the one thing you spend without ever being handed a receipt.', who: null, show: 'Second Draft', at: '1:02:17',
+         idea: 'The Missing Receipt', sent: 'What you cannot see leaving, you do not think to guard.' },
+    long: { quote: 'You probably cope with hard days better than you think. What wears you down is the untidy ones, where nothing is difficult and everything is unclear.', who: null, show: 'Field Notes', at: '2:01:32',
+         idea: 'Hard Is Not Messy', sent: 'Difficulty asks for effort. Mess asks for a decision about what matters.' }
+  };
+  var D = window.__NOVA_LINES || SAMPLE;
+
+  var STATES = {
+    new:   { kick: 'New today · 1 of 3' },
+    ret:   { kick: 'Seen twice · last Tue 10 Nov' },
+    kept:  { kick: 'Kept today · 3 of 3', right: 'Next Wed 18 Nov' },
+    lib:   { kick: 'From your library' },
+    stale: { kick: 'From Mon 16 Nov · Mac not reached' }
+  };
+  var FIT = { s: '17,15,13.5', m: '22,19,17,15', l: '28,24,21,18' };
+  var TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.6 8.5l2.8 2.8L12.4 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function who(c, size) {
+    if (c.who) return size === 's' ? esc(c.who) : '<b>' + esc(c.who) + '</b> · ' + esc(c.show);
+    return (size === 's' ? 'via ' : 'Heard on ') + esc(c.show);
+  }
+  function inner(size, state, c, o) {
+    o = o || {};
+    if (state === 'none') {
+      return '<div class="wg-h"><span class="qm dim" aria-hidden="true">“</span></div>' +
+        '<p class="none-t">No line yet.</p><p class="none-s">Open Nova once and he will bring one.</p>';
+    }
+    var S = STATES[state];
+    var head = '<div class="wg-h">' + (state === 'kept' ? '<span class="tick">' + TICK + '</span>' : '<span class="qm" aria-hidden="true">“</span>') +
+      (size === 's' ? '' : '<span class="kick">' + S.kick + '</span>') + '</div>';
+    var body = state === 'ret'
+      ? '<p class="cue">' + esc(c.idea) + '</p><blockquote class="q veil" aria-label="The line is hidden until he opens it.">' + esc(c.quote) + '</blockquote>'
+      : '<blockquote class="q" data-fit="' + FIT[size] + '" data-idea="' + esc(c.idea) + '">' + esc(c.quote) + '</blockquote>';
+    var right = o.keep ? '<span class="keep">' + TICK + 'Keep</span>'
+      : size === 's' ? ''
+      : S.right ? '<span class="at">' + S.right + '</span>'
+      : c.at ? '<span class="at">' + esc(c.at) + '</span>' : '';
+    var left = size === 's' && state === 'stale' ? 'From Mon 16 Nov' : who(c, size);
+    var foot = '<div class="wg-f"><span class="who">' + left + '</span>' + right + '</div>';
+    if (size !== 'l') return head + body + foot;
+    var n = state === 'kept' ? 3 : 0;
+    var path = '<div class="path" role="img" aria-label="' + (n ? 'All 3 of today’s lines kept' : 'Line 1 of 3 today') + '">';
+    for (var i = 0; i < 3; i++) {
+      path += (i ? '<i class="pj' + (i <= n - 1 || i < n ? ' done' : '') + '"></i>' : '') + '<i class="pip' + (i < n ? ' done' : i === n ? ' on' : '') + '"></i>';
+    }
+    path += '<span>' + (n ? 'All 3 kept today' : '1 of 3 today') + '</span></div>';
+    return head + body + foot + '<div class="sep"></div><p class="idea-t">' + esc(c.idea) + '</p><p class="idea-s">' + esc(c.sent) + '</p>' + path;
+  }
+  function widget(size, state, c, o) {
+    return '<article class="wg wg-' + size + '" data-state="' + state + '"><div class="wg-in">' + inner(size, state, c, o) + '</div></article>';
+  }
+  // The largest step that holds the whole line. The build does the same with ViewThatFits.
+  function fit(root) {
+    (root || document).querySelectorAll('.q[data-fit]').forEach(function (q) {
+      var sizes = q.getAttribute('data-fit').split(',').map(Number), ok = false;
+      for (var i = 0; i < sizes.length && !ok; i++) {
+        var s = sizes[i];
+        q.style.fontSize = s + 'px';
+        q.style.lineHeight = s >= 24 ? '1.16' : s >= 19 ? '1.22' : '1.27';
+        ok = q.scrollHeight <= q.clientHeight + 1;
+      }
+      if (!ok) {
+        var cue = document.createElement('p'); cue.className = 'cue'; cue.textContent = q.getAttribute('data-idea');
+        var more = document.createElement('p'); more.className = 'more'; more.textContent = 'Open for the line';
+        q.replaceWith(cue, more);
+      }
+    });
+  }
+  function cell(cap, html) { return '<div class="cell"><p class="cap">' + cap + '</p>' + html + '</div>'; }
+
+  // hero
+  var MOMENTS = [
+    ['new', D.a, 'Morning. A new line is waiting in his review.'],
+    ['kept', D.a, 'After the review. The line stays, marked kept.'],
+    ['lib', D.lib, 'A day with nothing due. A line from his library.']
+  ];
+  var hero = document.getElementById('hero'), now = document.getElementById('now'), at = 0;
+  hero.innerHTML = widget('m', MOMENTS[0][0], MOMENTS[0][1]) + '<div class="icons" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="icons" aria-hidden="true"><i></i><i></i><i></i><i></i></div>';
+  now.textContent = MOMENTS[0][2];
+  document.getElementById('content-note').textContent = D.note;
+  document.getElementById('turn').addEventListener('click', function () {
+    at = (at + 1) % MOMENTS.length;
+    var m = MOMENTS[at], wg = hero.querySelector('.wg'), box = wg.querySelector('.wg-in');
+    box.classList.add('out');
+    setTimeout(function () {
+      wg.setAttribute('data-state', m[0]);
+      box.innerHTML = inner('m', m[0], m[1]);
+      fit(wg);
+      now.textContent = m[2];
+      requestAnimationFrame(function () { box.classList.remove('out'); });
+    }, 180);
+  });
+
+  // the day
+  var DAY = [
+    ['<b>A new line</b> the review has not shown him yet', 'new', D.a],
+    ['<b>A returning line</b> asks first: the idea is the cue, the words wait under a veil', 'ret', D.b],
+    ['<b>Review done</b> and the day’s first line stays', 'kept', D.a],
+    ['<b>Nothing due</b> so it holds a line from his library', 'lib', D.lib]
+  ];
+  document.getElementById('day').innerHTML = DAY.map(function (s, i) {
+    return (i ? '<div class="join" aria-hidden="true"></div>' : '') + '<section class="step"><p class="cap"><span>' + s[0] + '</span></p><div class="pair">' +
+      widget('m', s[1], s[2]) + widget('s', s[1], s[2]) + '</div></section>';
+  }).join('');
+
+  document.getElementById('edge').innerHTML =
+    cell('<b>Speaker not settled.</b> It names the show only.', '<div class="pair">' + widget('m', 'new', D.anon) + widget('s', 'new', D.anon) + '</div>') +
+    cell('<b>Mac not reached.</b> Yesterday’s line, dated.', '<div class="pair">' + widget('m', 'stale', D.lib) + widget('s', 'stale', D.lib) + '</div>') +
+    cell('<b>Never connected.</b>', '<div class="pair">' + widget('m', 'none') + widget('s', 'none') + '</div>') +
+    cell('<b>Option: keep from the home screen.</b> One tap files a new line as kept, with undo in Nova.', widget('m', 'new', D.a, { keep: true }));
+
+  document.getElementById('fit').innerHTML =
+    cell('<b>Short</b>', '<div class="pair">' + widget('m', 'lib', D.b) + widget('s', 'lib', D.b) + '</div>') +
+    cell('<b>Middling</b>', '<div class="pair">' + widget('m', 'lib', D.a) + widget('s', 'lib', D.a) + '</div>') +
+    cell('<b>Long</b>, and too long for the small', '<div class="pair">' + widget('m', 'lib', D.long) + widget('s', 'lib', D.long) + '</div>');
+
+  document.getElementById('big').innerHTML =
+    cell('<b>Large</b>', widget('l', 'new', D.a)) +
+    cell('<b>Lock screen</b>', '<div class="lock"><p class="d">Tuesday 17 November</p><p class="t">9:41</p><div class="lk"><p class="lq">' + esc(D.b.quote) + '</p><p class="lw">' + esc(D.b.who || D.b.show) + '</p></div></div>');
+
+  fit();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
+    // a late font changes the measure: reset and fit again
+    document.querySelectorAll('.q[data-fit]').forEach(function (q) { q.style.fontSize = ''; });
+    fit();
+  });
+})();
+</script>
+</body>
+</html>
