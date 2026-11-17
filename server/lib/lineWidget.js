@@ -54,7 +54,7 @@ const bareName = (v) => {
 };
 
 // { who, host, podcast, byLong, byShort } from the vault's channel and speaker.
-export function attribute({ show, who } = {}) {
+export function attribute({ show, who, origin } = {}) {
   const raw = clean(show);
   const entry = showEntry(raw) || showEntry(bareName(raw));
   const channel = entry ? raw : bareName(raw);
@@ -65,7 +65,11 @@ export function attribute({ show, who } = {}) {
     // an account handle or the channel's own name is not a person who spoke;
     // naming the account twice is noise
     if (speaker.startsWith('@') || /\bon Instagram\b/i.test(speaker)) speaker = null;
-    else if (!entry && channel && speaker.toLowerCase() === channel.toLowerCase()) speaker = null;
+    else if (!entry && channel) {
+      // "Kayo" on "Health Coach Kayo" is the account itself, said once
+      const ch = channel.toLowerCase().split(/\s+/);
+      if (speaker.toLowerCase().split(/\s+/).every((w) => ch.includes(w))) speaker = null;
+    }
   }
   // a host whose name is already in the show's name is not said twice
   const hostInName = !!host && !!podcast && podcast.toLowerCase().includes(host.toLowerCase());
@@ -87,7 +91,22 @@ export function attribute({ show, who } = {}) {
     byLong = entry ? `Heard on ${owned}` : `Heard from ${podcast}`;
     byShort = entry ? `Heard on ${podcast}` : byLong;
   }
-  return { who: speaker, host, podcast, byLong, byShort };
+  // A PASSED-ON LINE (his wording, 17 Nov): the name on the card is whose words
+  // they are; then who he heard them from, and on which show.
+  const author = bareName(origin);
+  if (author) {
+    const passer = speaker || host;
+    if (entry) {
+      byLong = passer ? `, heard from ${passer} on ${podcast}` : `, heard on ${podcast}`;
+      byShort = `, heard on ${podcast}`;
+    } else {
+      const from = speaker || podcast;
+      byLong = from ? `, heard from ${from}` : null;
+      byShort = byLong;
+    }
+    return { who: author, host, podcast, origin: author, byLong, byShort };
+  }
+  return { who: speaker, host, podcast, origin: null, byLong, byShort };
 }
 
 /* ------------------------------- the pool ------------------------------- */
@@ -108,15 +127,14 @@ export function poolFrom(pages, ctx) {
     if (!inReview(page) || laneOf(page) !== 'mind') continue;
     const q = quoteFor(page, ctx);
     if (!q || !q.verified || !leadable(q) || q.text.length > MAX_QUOTE) continue;
-    const by = attribute({ show: q.show, who: q.who });
+    const by = attribute({ show: q.show, who: q.who, origin: q.origin });
     // a line that can be put to nobody and no show has no place on the card
     // (mockup 122 has no unattributed face); it stays in the review itself
     if (!by.who && !by.podcast) continue;
     out.push({
       id: page.id,
       quote: q.text,
-      ...by,
-      origin: null, // the vault cannot yet prove an original author for a quoted line
+      ...by, // origin is set only for a line the transcript proves was passed on
       at: q.at || null,
       idea: page.title,
       sent: sentenceFor(page.paragraphs?.[0]),

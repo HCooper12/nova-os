@@ -104,7 +104,26 @@ export function findInTranscript(quote, words) {
     if (first == null) first = at;
     from = at + piece.length;
   }
-  return { atSeconds: words[first].t };
+  return { atSeconds: words[first].t, start: first, end: from };
+}
+
+// A PASSED-ON LINE (his ask, 17 Nov 2026): a host often says somebody else's
+// words. The page marks it at capture as  "the line" (originally Carl Jung).
+// Code decides whether that stands: the name has to be said in the verbatim
+// transcript close to the line itself, since a speaker names whose words they
+// are right before or right after saying them. Anything else is not recorded.
+const ORIGIN_RE = /^\s*\((?:originally|original(?:ly)? (?:by|from))\s+([^()]{2,60}?)\)/i;
+const ORIGIN_BEFORE = 120;
+const ORIGIN_AFTER = 60;
+export function originSaidNear(origin, words, hit) {
+  if (!origin || !words?.length || !hit || hit.start == null) return false;
+  const name = normWords(origin).filter((w) => w.length > 1);
+  if (!name.length) return false;
+  const last = name[name.length - 1];
+  const from = Math.max(0, hit.start - ORIGIN_BEFORE);
+  const to = Math.min(words.length, (hit.end ?? hit.start) + ORIGIN_AFTER);
+  for (let i = from; i < to; i += 1) if (words[i].w === last || words[i].w === `${last}'s`) return true;
+  return false;
 }
 function indexOfRun(hay, run, from) {
   const head = run[0];
@@ -166,9 +185,15 @@ export function extractQuotes(raw, { people = new Set() } = {}) {
       // means the words are not the speaker's own
       const before = text.slice(Math.max(0, m.index - 110), m.index);
       const clause = before.split(/(?<=[.!?])\s+/).pop() || '';
-      if (REPORTING_RE.test(clause)) continue;
-      if (thirdParty(clause, people)) continue;
-      out.push({ text: q, paragraph: text, marker, before: clause });
+      // a line the page marks as passed on is kept WITH its original author;
+      // an unmarked reported line is still not the speaker's own
+      const tag = text.slice(m.index + m[0].length).match(ORIGIN_RE);
+      const origin = tag ? tag[1].trim().replace(/\s+/g, ' ') : null;
+      if (!origin) {
+        if (REPORTING_RE.test(clause)) continue;
+        if (thirdParty(clause, people)) continue;
+      }
+      out.push({ text: q, paragraph: text, marker, before: clause, origin });
     }
   }
   return out;
@@ -256,7 +281,9 @@ function peopleIn(text, people) {
 }
 
 export function speakerFor({ quote, source, people }) {
-  const outside = quote.paragraph.replace(quote.text, ' ');
+  let outside = quote.paragraph.replace(quote.text, ' ');
+  // the original author of a passed-on line is not the one who said it here
+  if (quote.origin) outside = outside.split(quote.origin).join(' ');
   const near = peopleIn(outside, people);
   if (near.length === 1) return near[0];
   if (source?.guest) {
@@ -319,7 +346,10 @@ export function quoteFor(page, ctx, { rank } = {}) {
       if (found) { hit = found; source = s; break; }
     }
     return { q, hit, source, verified: !!hit };
-  });
+  })
+    // a passed-on line stands only when the transcript names its author beside it
+    .filter((s) => !s.q.origin || (s.hit && originSaidNear(s.q.origin, wordsOf(ctx, s.source.rawPage), s.hit)));
+  if (!scored.length) return null;
   const best = scored
     .map((s) => ({ ...s, rankScore: score({ verified: s.verified, marker: s.q.marker }) * 1000 + (wholeSentence(s.q.text) ? 400 : 0) - Math.abs(s.q.text.length - 110) }))
     .sort((a, b) => b.rankScore - a.rankScore)[0];
@@ -329,6 +359,7 @@ export function quoteFor(page, ctx, { rank } = {}) {
   return {
     text: best.q.text,
     who: source ? speakerFor({ quote: best.q, source, people: ctx.people }) : null,
+    origin: best.q.origin || null,
     show: source?.show || null,
     episode: source?.title || null,
     sourcePage: source?.episode || null,

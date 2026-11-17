@@ -71,6 +71,7 @@ test('attribution: handles, Instagram and the channel name are not speakers', ()
   assert.equal(same.who, null);
   assert.equal(same.podcast, 'Some Account');
   assert.equal(same.byLong, 'Heard from Some Account');
+  assert.deepEqual([L.attribute({ show: 'Health Coach Kayo (MA)', who: 'Kayo' }).who, L.attribute({ show: 'Health Coach Kayo (MA)', who: 'Kayo' }).byLong], [null, 'Heard from Health Coach Kayo']);
   // in the table, the channel name is the host, a real speaker
   assert.equal(L.attribute({ show: 'Chris Williamson', who: 'Chris Williamson' }).who, 'Chris Williamson');
 });
@@ -219,4 +220,14 @@ test('sentenceFor keeps whole sentences only', () => {
   assert.equal(L.sentenceFor('Too short.'), null);
   assert.equal(L.sentenceFor('A fragment with no end'), null);
   assert.equal(L.sentenceFor(''), null);
+});
+
+test('attribution: a passed-on line names whose words they are, then who he heard them from', () => {
+  const a = L.attribute({ show: 'Chris Williamson', who: null, origin: 'Tomas Verhoeven' });
+  assert.deepEqual([a.who, a.origin, a.byLong, a.byShort], ['Tomas Verhoeven', 'Tomas Verhoeven', ', heard from Chris Williamson on Modern Wisdom', ', heard on Modern Wisdom']);
+  const g = L.attribute({ show: 'Chris Williamson', who: 'Some Guest', origin: 'Tomas Verhoeven' });
+  assert.equal(g.byLong, ', heard from Some Guest on Modern Wisdom');
+  const p = L.attribute({ show: 'Some Account', who: null, origin: 'Tomas Verhoeven' });
+  assert.deepEqual([p.who, p.byLong, p.byShort], ['Tomas Verhoeven', ', heard from Some Account', ', heard from Some Account']);
+  assert.equal(L.attribute({ show: 'Some Account', who: null }).origin, null);
 });

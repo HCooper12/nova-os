@@ -40,7 +40,7 @@ test('rolling captions are read once, each word at the time of the line that fir
 test('a quote is found word for word and gets the REAL moment of its first word', () => {
   const w = transcriptWords(CAPTIONS);
   const hit = findInTranscript('Every hour of effort you skip gets added to the bill, and the bill carries interest.', w);
-  assert.deepEqual(hit, { atSeconds: 5 });
+  assert.equal(hit.atSeconds, 5);
   assert.equal(secondsToTime(hit.atSeconds), '0:05');
   assert.equal(secondsToTime(3910), '1:05:10');
   assert.equal(timeToSeconds('200:04'), 12004);
@@ -55,7 +55,7 @@ test('fillers in the captions do not break a hit; a changed word does', () => {
 
 test('an ellipsis is checked piece by piece, in order', () => {
   const w = transcriptWords(CAPTIONS);
-  assert.deepEqual(findInTranscript('Every hour of effort you skip ... small early payments are cheaper than one big late one.', w), { atSeconds: 5 });
+  assert.equal(findInTranscript('Every hour of effort you skip ... small early payments are cheaper than one big late one.', w).atSeconds, 5);
   assert.equal(findInTranscript('Small early payments are cheaper ... every hour of effort you skip', w), null, 'out of order is not a hit');
 });
 
@@ -247,4 +247,48 @@ test('Not for me writes nothing to the Review Log, drops the day by one, and Und
   await undoConceptAnswer(dir, record.undoData);
   assert.equal((await reviewToday(dir, vault, when)).total, 1);
   assert.ok(existsSync(path.join(dir, LOG_REL)));
+});
+
+/* ------------------------------ a passed-on line ------------------------------ */
+
+test('a passed-on line: the page marks its author, and the transcript has to say the name beside it', async () => {
+  const { originSaidNear } = await import('../lib/reviewQuote.js');
+  const caps = [
+    '[00:02] There is an old line from Tomas Verhoeven that I love.',
+    '[00:06] The door you avoid is the room you most need to enter today.',
+    '[00:10] And I think about that a lot.',
+  ].join('\n');
+  const words = transcriptWords(caps);
+  const text = 'The door you avoid is the room you most need to enter today.';
+  const hit = findInTranscript(text, words);
+  assert.equal(originSaidNear('Tomas Verhoeven', words, hit), true);
+  assert.equal(originSaidNear('Ilse Brandt', words, hit), false, 'a name the transcript never says is not recorded');
+  assert.equal(originSaidNear('Tomas Verhoeven', words, null), false, 'no transcript hit, no author');
+
+  // the marked line is kept with its author; the same line unmarked is still a reported line
+  const marked = extractQuotes(`As Tomas Verhoeven wrote: "${text}" (originally Tomas Verhoeven)`, {});
+  assert.deepEqual(marked.map((q) => [q.text, q.origin]), [[text, 'Tomas Verhoeven']]);
+  assert.equal(extractQuotes(`As Tomas Verhoeven wrote: "${text}"`, {}).length, 0);
+  assert.equal(extractQuotes(`She says "${text}"`, {})[0].origin, null);
+});
+
+test('a passed-on line reaches the card only when verified; who said it here stays the speaker', async () => {
+  const dir = await fixtureVault();
+  const w = async (rel, text) => { await mkdir(path.dirname(path.join(dir, rel)), { recursive: true }); await writeFile(path.join(dir, rel), text); };
+  const line = 'Every hour of effort you skip gets added to the bill, and the bill carries interest.';
+  await w('Wiki/Concepts/Borrowed Bill.md', [
+    '---', 'type: concept', 'tags: [mindset]', 'created: 2026-11-13', 'sources: ["[[The Long Table ep 112]]"]', '---',
+    '# Borrowed Bill', '', `Mara Ellison passes on a line: "${line}" (originally Nobody Named)`, '',
+  ].join('\n'));
+  const pages = await new Vault(dir).listPages();
+  const ctx = quoteContext(pages);
+  assert.equal(quoteFor(pages.find((p) => p.title === 'Borrowed Bill'), ctx), null, 'the transcript never names that author, so the line is not shown as theirs or anyone’s');
+  await w('Wiki/Concepts/Borrowed Bill.md', [
+    '---', 'type: concept', 'tags: [mindset]', 'created: 2026-11-13', 'sources: ["[[The Long Table ep 112]]"]', '---',
+    '# Borrowed Bill', '', `Mara Ellison passes on a line: "${line}" (originally The Show)`, '',
+  ].join('\n'));
+  const pages2 = await new Vault(dir).listPages();
+  const q = quoteFor(pages2.find((p) => p.title === 'Borrowed Bill'), quoteContext(pages2));
+  assert.equal(q.origin, 'The Show', 'the captions say "show" right before the line');
+  assert.equal(q.who, 'Mara Ellison');
 });

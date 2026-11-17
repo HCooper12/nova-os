@@ -159,11 +159,13 @@ export function buildReview(app, ctx) {
   const qt = item?.quote || null;
   const returning = !!item && (item.history || []).length > 0;
   const quote = qt ? (() => {
-    const who = qt.who || null;
+    // a passed-on line is put to whose words they are, then who he heard them from
+    const passedBy = qt.origin && qt.who && qt.who !== qt.origin ? `heard from ${qt.who}` : null;
+    const who = qt.origin || qt.who || null;
     const show = qt.show && qt.show !== who ? qt.show : null;
     const ep = qt.episode && qt.episode !== who && qt.episode !== show ? qt.episode : null;
     const primary = who || qt.show || qt.episode || 'From your notes';
-    const rest = who ? [show, ep] : [qt.show ? ep : null, 'speaker not named'];
+    const rest = who ? [passedBy, show, ep] : [qt.show ? ep : null, 'speaker not named'];
     const secondary = (qt.show || qt.episode || who) ? rest.filter(Boolean).join(', ') : 'the page does not say which source';
     const href = qt.url ? playFromUrl(qt.url, qt.at) : null;
     return {
@@ -194,7 +196,7 @@ export function buildReview(app, ctx) {
   } : null;
   // TODAY'S LINE on the done card: the first line of the day that has one
   const lineItem = items.find((i) => i.quote?.text);
-  const todayLine = lineItem ? { text: lineItem.quote.text, by: [lineItem.quote.who, lineItem.quote.show].filter(Boolean).join(' · ') || null } : null;
+  const todayLine = lineItem ? { text: lineItem.quote.text, by: [lineItem.quote.origin || lineItem.quote.who, lineItem.quote.show].filter(Boolean).join(' · ') || null } : null;
 
   const connected = (item?.connected || []).map((c) => {
     const type = (c.type || '').toLowerCase();
