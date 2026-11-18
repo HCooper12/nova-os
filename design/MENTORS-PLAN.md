@@ -179,8 +179,65 @@ none of this is a quote. The pilot produces the real figure.
 7. The ongoing check and the weekly digest.
 8. Guest appearances, audio-only podcasts, shorts on other platforms.
 
-## His calls (owed)
+## His decisions, 19 Nov ("Fantastic, I love this plan")
 
-Listed in the session reply of 18 Nov and in SESSION-HANDOFF: how much of a
-huge catalogue; host or whole show; file automatically or review; the
-spend; where it lives and its name; whether he owns files of their books.
+1. **Full catalogue, always available.** Every source a person has is
+   found and listed. Before a huge read (Williamson), Nova FIRST shows the
+   estimated cost and the share of his Claude usage, and he chooses:
+   everything, or narrowed to most watched, the past 12 months and
+   everything new. He can widen it later. Where relevant an idea cites
+   every video that makes it, more than 40 when that is the truth.
+2. **Everyone's ideas.** On an interview show, each person who speaks gets
+   their own catalogued pages, ideas and extracts. The host also gets a
+   separate playbook, which includes what the host took from his guests.
+3. **Filed automatically**, with a weekly summary per person and Undo.
+4. **Pilot: yes** (five Fisher videos, measured, pages shown to him).
+5. **It lives in the Library** under its own category filter, "Mentors",
+   so he can open and revise any time. Mockup first.
+6. **Books:** he does not own the files yet and will source them. Nova
+   must ASK for a book file when it sees the person wrote or contributed
+   to a book.
+7. **No Fable.** The reading and weaving never run on Fable. (Read:
+   Sonnet. Weave: Sonnet or Opus, measured in the pilot.)
+
+## What he added on 19 Nov
+
+**The playbook is a multi-page document.** Summaries and key takeaways he
+can revise at a glance, diagrams, references, and motion or video where it
+helps. Design consequence: the weave must write STRUCTURE, and code draws
+it. Each framework carries a `Shape` (steps, cycle, ladder, versus, matrix,
+funnel, single) chosen at reading time; a fixed set of code-drawn, animated
+diagrams renders them. A clip reference is the real video at the real
+minute, never a generated one.
+
+Nova already has topical playbooks that agents APPLY (`playbooks.js`, 7
+Nov: `Wiki/Playbooks/<Topic>.md`, trigger words, `applied.jsonl`). A
+person's playbook is therefore a book of them: an At a glance page, then
+one chapter per framework in the existing playbook format (so the matcher
+and the applied log work unchanged), then Scripts, Takeaways, and Sources.
+`AGENT_IDS` there is `nova, coach, studio`; the Leader must join it.
+
+**Guest appearances come after the main weave.** When a person's own
+catalogue is done, Nova goes looking for where they were a guest
+(podcasts, interviews), confirms with him the first time, and reads those.
+
+**News.** New videos, new appearances, new books from the people he
+follows are reported to him like news, on a page of their own that can
+later carry other things Nova watches for him. In the feed, styled as
+content, no push unless he asks (his notification policy).
+
+**Every agent uses it.** Each agent and feature has access, and uses it
+where that fits its job. Route: person-aware retrieval for all, playbook
+chapters matched into turns, the Librarian consult for the rest.
+
+## Found while running the pilot
+
+- YouTube answered 429 (too many requests) on the SECOND caption fetch of
+  a session that had also listed five channels. The queue must fetch one
+  language, pace itself, and back off. A full catalogue is fetched over
+  hours, never in a burst.
+- "Share of his Claude usage" is not something Nova can read today: it
+  only recognises the limit once it is hit (`usageLimitNotice` in
+  `modelSpend.js`). The estimate can state dollars and compare them with
+  his own measured monthly spend from the ledger; a true percentage of the
+  plan limit needs a source that is NOT yet found.
