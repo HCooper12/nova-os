@@ -230,12 +230,63 @@ content, no push unless he asks (his notification policy).
 where that fits its job. Route: person-aware retrieval for all, playbook
 chapters matched into turns, the Librarian consult for the rest.
 
+## The pilot, measured 19 Nov (step 0, done)
+
+Scripts, prompts and sample output: `design/mentors-pilot/`. Everything ran
+in the session scratchpad on a COPY of `Wiki/`; the real vault was only
+read. Four Fisher videos, 103 minutes of talk (three solo, one with Chris
+Voss). The fifth, an 84 minute guest episode, could not be fetched: YouTube
+refused it more than twenty times.
+
+| Stage | Model | Cost | Time | Result |
+|---|---|---|---|---|
+| Read (`read-v1`) | Sonnet, low | $0.40 total, $0.09 to $0.13 each | 28 to 47 s each | 51k characters of notes; 32 of 33 Lines found word for word |
+| Weave (`weave-v1`) | Sonnet, high | $3.75 | 18 min, 154 turns | 31 pages created, 16 edited, none deleted |
+
+- Reading costs about **$0.23 per hour of talk**. At that rate: Fisher
+  about $37, Williamson about $445.
+- Weaving costs about **$0.94 per video** here, nine times the reading.
+  It is the cost that matters. At that rate Fisher's 235 videos are about
+  $220 and Williamson's 2,338 about $2,200, and long episodes will cost
+  more. The cause is the shape of the run: 154 tool turns re-reading a
+  large context (10 million cached tokens read). **Build consequence: the
+  weave should return structured output that CODE writes into pages, in
+  few turns, and be measured again before any large run.**
+- The weave made: 4 Source pages, 18 Concept pages (Voss's ideas filed
+  under Voss, two pages citing both speakers), 8 playbook chapters, the
+  mentor book (7 principles each with "in N of 4", 8 chapters with a
+  diagram spec, 50 scripts, 15 revision cards, 7 things he took from
+  Voss), and edits to 10 existing concepts and both people.
+- Checked by code: all 8 chapters parse with Nova's own `parsePlaybook`
+  (77 rules, each with a source and a minute). 61 of 63 phrases and 49 of
+  50 scripts are word for word in the transcripts; the misses are captions
+  the reader tidied ("it sounds like we need to have another discussion").
+  The build must run this check and hold back what fails.
+- Not byte-identical on a `formatPlaybook` round trip, so in the build
+  code writes the chapter from the parsed structure, never the model.
+- The weave edited the vault's `CLAUDE.md` (two lines for the new folders)
+  without being asked. The build must make that file read-only to it.
+- It found four real tensions with existing vault pages and recorded them
+  without resolving them (Voss now prefers a statement to a "what"
+  question; the vault's Calibrated Questions page says the opposite).
+- NOT measured: an Opus weave, a batch larger than four, a long episode,
+  the chunked read for a transcript over 150k characters.
+
 ## Found while running the pilot
 
-- YouTube answered 429 (too many requests) on the SECOND caption fetch of
-  a session that had also listed five channels. The queue must fetch one
-  language, pace itself, and back off. A full catalogue is fetched over
-  hours, never in a burst.
+- **YouTube throttles caption downloads hard.** About 40 requests in an
+  hour from this Mac got 4 transcripts; after that every request was
+  refused (429) for at least 20 minutes, with the newest yt-dlp
+  (2026.10.26) and browser impersonation too, so it is the connection
+  being limited, not the tool. Listing a channel was never refused. The
+  `srv1` caption format got through at moments when `vtt` and `json3` were
+  refused, and Nova's watcher asks for `vtt` (`download.py`). The
+  sustainable rate is NOT yet known. Options, in order: slow pacing
+  measured over a night; his signed-in YouTube cookies (Nova already has a
+  jar at `~/.config/watch/yt-cookies.txt`; his account, so his call);
+  downloading audio and transcribing on the Mac (`sttLocal.js`, slow,
+  free); a paid transcript service. 235 videos at even one every ten
+  minutes is under two days, which fits "days or weeks is fine".
 - "Share of his Claude usage" is not something Nova can read today: it
   only recognises the limit once it is hit (`usageLimitNotice` in
   `modelSpend.js`). The estimate can state dollars and compare them with
