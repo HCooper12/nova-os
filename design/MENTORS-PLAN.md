@@ -287,8 +287,15 @@ refused it more than twenty times.
   downloading audio and transcribing on the Mac (`sttLocal.js`, slow,
   free); a paid transcript service. 235 videos at even one every ten
   minutes is under two days, which fits "days or weeks is fine".
-- "Share of his Claude usage" is not something Nova can read today: it
-  only recognises the limit once it is hit (`usageLimitNotice` in
-  `modelSpend.js`). The estimate can state dollars and compare them with
-  his own measured monthly spend from the ledger; a true percentage of the
-  plan limit needs a source that is NOT yet found.
+- **Nova can read his Claude usage, free, before any run** (verified 19
+  Nov on CLI 2.1.326): `echo "/usage" | claude -p --output-format
+  stream-json --verbose` returns an assistant message carrying
+  `usage_report.rate_limits.limits[]` with `kind` (`session`,
+  `weekly_all`, `weekly_scoped` per model), `percent`, `resets_at`. Cost
+  $0. Nova today only notices the limit once it is hit (`usageLimitNotice`
+  in `modelSpend.js`). So the estimate gate can show the week's percentage
+  now, and the queue can stop before the week runs out. NOT yet known: how
+  many percent a dollar of Sonnet reading moves the week. Calibrate it by
+  reading the percentages before and after a real batch while nothing else
+  is running (the pilot could not: this session and a design agent were
+  spending at the same time).
