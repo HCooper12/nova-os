@@ -110,6 +110,10 @@ the session log at the foot is append-only.
 - WAITS ON HIM: the five decisions listed in the session reply (one widget or two; sizes; veil on returning lines; the Keep button; show-only when the speaker is unknown).
 - DO NOT: write Swift or server code before he approves; stage the two iOS files; push without his yes (main is 3 ahead of origin).
 
+## 20 Nov (watch session): FUNNEL ON FOR THE DOOR ONLY; INSTALL BLOCKED ON HIS WATCH'S DEVELOPER MODE
+- FUNNEL: his yes. `tailscale funnel --bg --https=10000 http://127.0.0.1:4176`. Checked through public DNS (`curl --resolve` to 43.245.48.235): /wrist/health 200, /wrist/today 401, pair/start "Pairing is closed", 443 unreachable publicly. Off with `tailscale funnel --https=10000 off`. X-Forwarded-For per-caller limit still unverified.
+- BLOCKER: watch on watchOS 26.6.1, no Developer Mode entry anywhere. Xcode 27.2 Device Hub never sees it (remotepairingd pairs the iPhone only). Failed: wired phone + trust, Device Hub + Pair Nearby Device, restarts, forgetting/rejoining Wi-Fi on the iPhone. Untried: iPhone Developer Mode off/on, Clear Trusted Computers, Apple Developer Support, Xcode 26 side by side.
+
 ## 17 Nov, late night (Fable 5.2, watch session): WATCH APP COMMITTED `3802591e`, PUSHED, SERVER RELOADED. NOT ON HIS WATCH. FUNNEL OFF, WAITS ON HIS YES
 - STATE: `watch/` committed and on origin/main (32 files). `a211bfcd` (times + estimate), `de28b4c9` (handoff record) also pushed. Live server reloaded with `scripts/reload-server.mjs`; `127.0.0.1:4176/wrist/health` answers `{"ok":true}`, `/wrist/today` and `/wrist/handoff` answer 401 without a token.
 - VERIFIED BY ME: `xcodegen generate` + `xcodebuild test` on "Nova S9 45": 17 tests pass. All side-by-sides against the WebKit render of 119 looked at. HIS CALLS: honest offline wording kept ("I can't reach the Mac. I will send this when it is back." / "Logging still works here. Questions need the Mac awake."); pairing screen approved as built; "ready to pair: yes".
