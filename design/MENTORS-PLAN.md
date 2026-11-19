@@ -299,3 +299,44 @@ refused it more than twenty times.
   reading the percentages before and after a real batch while nothing else
   is running (the pilot could not: this session and a design agent were
   spending at the same time).
+
+## His feedback on mockup 125, 19 Nov (first look, on his phone)
+
+"Decent first attempt at the design." What he asked for:
+
+- **Colour coding and design that shows where the process is at**, for
+  the found / transcripts / read / woven strip on the person's page.
+- **More distinct design details** and a better look across the rest.
+- **Less clutter.** The principles page (document page 1) was his
+  example. His bar: "quickly glanceable without feeling overwhelming but
+  also capable of presenting the entire content scope."
+- **The Mentors screens may leave Nova's Summary card look** where that
+  improves them ("It's okay to steer away from the nova specific summary
+  design approach").
+- **Use the design skills, always.** The brief for any mockup names them.
+- **News is a separate build run.** It leaves this build. It gets its own
+  mockup and its own approval. Step 7 above keeps only the ongoing check
+  and the weekly summary; the News page and the Home line wait for that
+  run.
+
+What version 2 of the mockup does about it:
+
+- **One state language** wherever a process is shown: done (mint, tick),
+  working now (cyan, the one live pulse), waiting on something outside
+  (amber, clock, says when it resumes), paused by him (slate), needs him
+  or a problem (coral), not started (dim). Always colour, icon and word.
+- **The pipeline card**: the number in his vault as the hero, one state
+  sentence, a map of the whole catalogue (one cell per video, coloured by
+  how far it has got), and the four stages as a joined path where only the
+  stuck or active stage draws the eye. A stage opens the list of its
+  videos. This replaces the four circles and the separate wait card.
+- **The document is glance first**: each page has a layer that fits about
+  one screen, and the rest opens in place. One Glance / Full switch.
+  Principles become a short numbered ledger. A chapter leads with its
+  diagram and three takeaways; method, rules, phrases, mistakes and limits
+  open on a tap. The position bar shows the book's structure.
+- **The build consequence**: the register must hold a per-video stage
+  (found, transcript, read, woven, refused, held) so the map and the
+  stage lists are real. The mentor book needs the principle counts as
+  structure (not words inside the sentence), which the structured weave
+  already calls for.
