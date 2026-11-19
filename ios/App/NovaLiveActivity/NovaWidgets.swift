@@ -911,23 +911,24 @@ enum LineLookChoice: String, AppEnum {
     case day, nova, ink, paper
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
     static var caseDisplayRepresentations: [LineLookChoice: DisplayRepresentation] = [
-        .day: DisplayRepresentation(title: "Follows the day", subtitle: "Paper at sunrise, Nova by day, Ink at night"),
+        .day: DisplayRepresentation(title: "Follows the day", subtitle: "Paper by day, Nova in the evening, Ink at night"),
         .nova: "Nova", .ink: "Ink", .paper: "Paper",
     ]
-    /// Follows the day: morning Paper, midday and evening Nova, night Ink
+    /// Follows the day: morning and midday Paper, evening Nova, night Ink.
+    /// Midday was Nova until 19 Nov; his call matched it to the Leader's Paper.
     func look(_ phase: Int) -> LineLook {
         switch self {
         case .nova: return .nova
         case .ink: return .ink
         case .paper: return .paper
-        case .day: return [LineLook.paper, .nova, .nova, .ink][max(0, min(3, phase))]
+        case .day: return [LineLook.paper, .paper, .nova, .ink][max(0, min(3, phase))]
         }
     }
 }
 
 struct NovaLineIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "The Line"
-    static var description = IntentDescription("Choose the look. Follows the day goes from Paper at sunrise to Ink at night.")
+    static var description = IntentDescription("Choose the look. Follows the day goes from Paper by day to Ink at night.")
     @Parameter(title: "Look", default: .day) var look: LineLookChoice
 }
 
@@ -1208,10 +1209,10 @@ struct LineFace: View {
                     if size == .large, let sent = line.sent { ideaBlock(line.idea, sent, tw) }
                 }
             }
-            // too long for this size: its idea, waiting to be opened
+            // too long for this size: its idea, and a tap turns it over
             inBox(tw) {
                 quote(set(line.idea, em: nil, size.steps[1], tw), size.steps[1])
-                sub2("Open for the line", tw)
+                sub2("Tap to turn it over", tw)
                 byRow(line)
             }
         }

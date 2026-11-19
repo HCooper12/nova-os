@@ -160,7 +160,7 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
 
   <section style="margin-top:26px">
     <h2>It moves with the day</h2>
-    <p class="sub">Paper at sunrise, Nova through the day, Ink at night. Inside each, the light sits where the day is. At midnight the next line arrives.</p>
+    <p class="sub">Paper by day, Nova in the evening, Ink at night. Inside each, the light sits where the day is. At midnight the next line arrives.</p>
     <div class="demo">
       <div class="wall">
         <div class="wg wg-m" data-k="b" data-next="c"></div>
@@ -205,7 +205,7 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
         <p class="cap"><b>The setting.</b> It works here too.</p>
         <div class="sheet">
           <h3>The Line</h3><p>Hold the widget, then Edit Widget</p>
-          <button type="button" data-set="auto"><span>Follows the day<small>Paper at sunrise, Nova by day, Ink at night</small></span><i>✓</i></button>
+          <button type="button" data-set="auto"><span>Follows the day<small>Paper by day, Nova in the evening, Ink at night</small></span><i>✓</i></button>
           <button type="button" data-set="a"><span>Nova</span><i>✓</i></button>
           <button type="button" data-set="b"><span>Ink</span><i>✓</i></button>
           <button type="button" data-set="c"><span>Paper</span><i>✓</i></button>
@@ -272,7 +272,7 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
   if (D.note) document.getElementById('note').textContent = D.note;
   var FIT = { s: [19, 17, 15, 13.5], m: [24, 21, 18.5, 16.5, 15], l: [36, 32, 28, 24, 21] };
   var IDEA = { s: 17, m: 22, l: 30 };
-  var MAP = ['c', 'a', 'a', 'b'], CLOCK = ['7:00 am', '12:30 pm', '6:30 pm', '10:00 pm'], NAME = { a: 'Nova', b: 'Ink', c: 'Paper' };
+  var MAP = ['c', 'c', 'a', 'b'], CLOCK = ['7:00 am', '12:30 pm', '6:30 pm', '10:00 pm'], NAME = { a: 'Nova', b: 'Ink', c: 'Paper' };
   var L = 'auto', P = 1, playing = false;
   var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
@@ -329,7 +329,7 @@ dt{font-weight:600;font-size:14px} dd{margin:0;color:var(--pg-ink2);font-size:14
       if (box.offsetHeight <= room && !(short && lines > 3 && i < steps.length - 1)) { ok = true; break; }
     }
     fitBy(el, d);
-    if (!ok) { q.textContent = d.idea; q.style.fontSize = steps[1] + 'px'; q.insertAdjacentHTML('afterend', '<p class="sub2">Open for the line</p>'); }
+    if (!ok) { q.textContent = d.idea; q.style.fontSize = steps[1] + 'px'; q.insertAdjacentHTML('afterend', '<p class="sub2">Tap to turn it over</p>'); }
   }
   function fitBy(el, d) {
     var l = el.querySelector('.by .l'), r = el.querySelector('.by .r');
