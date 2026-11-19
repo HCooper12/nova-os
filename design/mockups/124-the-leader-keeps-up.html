@@ -1,348 +1,510 @@
-<!doctype html>
-<!--
-  Mockup 124: the Leader keeps up with work. FOR APPROVAL, NOTHING BUILT.
-
-  His ask (18 Nov 2026): "We need to make it easier for the leader to be aware
-  of my overall situation so I can update it easier and more directly.
-  Especially when I am responding to things it is asking or noticing or
-  suggesting. Possibly through a leader chat just like coach ... but also
-  capable still through the general Nova chat."
-
-  Found that day: a Leader chat exists (used twice, October); a consulted
-  Leader may not REFLECT (consult.js), so work told to Nova never reaches
-  leader.json; 18 struggles open, none ever resolved; the page shows them as
-  blank dots. Sample content only.
--->
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Leader Keeps Up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap">
 <style>
-:root{--bg:#070914;--pg-ink:#e8ecf6;--pg-ink2:rgba(232,236,246,.66);--pg-ink3:rgba(232,236,246,.42);--mg:#ff7ad9;--mg2:rgba(255,122,217,.16);--vi:#8f7bff;--gold:#e0b26a;--good:#7ed6a4;--glass:rgba(255,255,255,.055);--edge:rgba(255,255,255,.10);--edge2:rgba(255,255,255,.06);--serif:"Source Serif 4",Georgia,"Times New Roman",serif;--ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;--ease:cubic-bezier(.23,1,.32,1);--spring:cubic-bezier(.34,1.36,.64,1);color-scheme:dark}
+/* The page is the night outside; each phone is the Leader's lit room, in the looks his widgets already wear. */
+:root{
+  color-scheme:dark;
+  --pg:#080b18; --pg-ink:#e9ecf5; --pg-ink2:rgba(233,236,245,.66); --pg-ink3:rgba(233,236,245,.42); --pg-line:rgba(233,236,245,.10);
+  --pg-gold:#e6bd7a;
+  --serif:ui-serif,'New York','Source Serif 4',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,'Helvetica Neue',sans-serif;
+  --out:cubic-bezier(.23,1,.32,1);
+  --spring:cubic-bezier(.34,1.32,.64,1);
+}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--pg-ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased}
-.pg{max-width:1120px;margin:0 auto;padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--pg-ink3);margin:0 0 10px}
-h1{font:400 34px/1.15 var(--serif);letter-spacing:-.015em;margin:0 0 12px;text-wrap:balance}
-h2{font:400 24px/1.2 var(--serif);margin:0 0 8px;text-wrap:balance}
-.lede{font-size:16px;color:var(--pg-ink2);max-width:62ch;margin:0 0 10px}
-.note{font-size:13px;color:var(--pg-ink3);max-width:62ch;margin:0}
-section{margin-top:64px}
-.row{display:flex;flex-wrap:wrap;gap:28px 48px;align-items:flex-start;margin-top:22px}
-.side{flex:1 1 280px;min-width:0;max-width:48ch}
-.side p{color:var(--pg-ink2);font-size:14px;margin:0 0 14px}
-.side b{color:var(--pg-ink);font-weight:600}
-/* the phone */
-.phone{width:375px;max-width:100%;flex:none;border-radius:38px;padding:14px 14px 18px;background:radial-gradient(120% 60% at 90% 0%,rgba(143,123,255,.20),transparent 60%),radial-gradient(90% 50% at 0% 100%,rgba(255,122,217,.10),transparent 60%),linear-gradient(180deg,#0d1020,#0a0c1a);border:1px solid var(--edge2);box-shadow:0 30px 60px -30px rgba(0,0,0,.8);display:flex;flex-direction:column;gap:12px;min-height:520px}
-.bar{display:flex;align-items:center;gap:10px;padding:6px 4px 2px}
-.face{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,rgba(255,122,217,.35),rgba(255,122,217,.08));border:1px solid rgba(255,122,217,.45)}
-.face i{display:flex;gap:4px}.face i::before,.face i::after{content:"";width:4px;height:5px;border-radius:2px;background:#fff}
-.face.sm{width:20px;height:20px}.face.sm i{gap:3px}.face.sm i::before,.face.sm i::after{width:3px;height:3px}
-.face.nova{background:radial-gradient(circle at 50% 40%,rgba(89,230,255,.45),rgba(89,230,255,.06));border-color:rgba(89,230,255,.5)}
-.bar b{font-weight:600;font-size:15px}.bar small{display:block;color:var(--pg-ink3);font-size:12px}
-.card{background:var(--glass);border:1px solid var(--edge);border-radius:18px;padding:14px 14px}
-.card.mg{background:linear-gradient(160deg,rgba(255,122,217,.12),rgba(143,123,255,.06));border-color:rgba(255,122,217,.32)}
-.lbl{font-size:12px;font-weight:600;color:var(--mg);margin:0 0 4px}.lbl span{color:var(--pg-ink3);font-weight:400}
-.q{font:400 18px/1.3 var(--serif);margin:0}
-.meta{font-size:12px;color:var(--pg-ink3)}
-/* chat */
-.msg{max-width:84%;padding:9px 12px;border-radius:18px;font-size:14.5px;line-height:1.4}
-.me{align-self:flex-end;background:linear-gradient(180deg,#3a3f8f,#2c3070);border-bottom-right-radius:6px}
-.nova{align-self:flex-start;background:var(--glass);border:1px solid var(--edge);border-bottom-left-radius:6px}
-.noted{align-self:flex-start;display:flex;gap:9px;align-items:flex-start;max-width:92%;padding:9px 11px;border-radius:14px;background:var(--mg2);border:1px solid rgba(255,122,217,.28);font-size:13px;line-height:1.4;transition:opacity 300ms var(--ease),transform 400ms var(--spring)}
-.noted b{color:var(--mg);font-weight:600}
-.noted .ch{display:block;color:var(--pg-ink2);margin-top:3px}
-.noted.gone{opacity:.45}
-.noted.in{animation:rise 520ms var(--spring) both}
-@keyframes rise{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
-.lnk{appearance:none;border:0;background:none;padding:0;color:var(--mg);font:600 13px var(--ui);cursor:pointer}
-.lnk:active{transform:scale(.96)}
-.compose{margin-top:auto;display:flex;gap:8px;align-items:center;padding:6px;border-radius:24px;border:1px solid rgba(255,122,217,.35);background:rgba(255,255,255,.04)}
-.compose span{flex:1;color:var(--pg-ink3);font-size:15px;padding-left:10px}
-.compose i{width:34px;height:34px;border-radius:50%;background:rgba(255,122,217,.4);display:grid;place-items:center;font-style:normal;font-size:15px}
-/* dots */
-.dots{display:flex;align-items:center;gap:14px;width:100%;appearance:none;text-align:left;color:inherit;font:inherit;cursor:pointer}
-.dots .bk{display:grid;grid-template-columns:repeat(9,9px);gap:5px}
-.dots .bk i{width:9px;height:9px;border-radius:50%;border:1.4px solid rgba(232,236,246,.7)}
-.dots .bk i.f{background:var(--pg-ink);border-color:var(--pg-ink)}
-.dots .bk i.ez{border-color:var(--gold)}
-.dots .n{font-size:20px;font-weight:600}.dots .n small{font-size:13px;font-weight:400;color:var(--pg-ink2)}
-.dots .open{margin-left:auto;color:var(--mg);font-size:12.5px;font-weight:600;white-space:nowrap}
-/* threads */
-.th{border-top:1px solid var(--edge2)}
-.th:first-child{border-top:0}
-.thb{appearance:none;background:none;border:0;color:inherit;font:inherit;width:100%;text-align:left;display:grid;grid-template-columns:10px 1fr auto;gap:4px 10px;align-items:center;padding:11px 2px;cursor:pointer}
-.st{width:10px;height:10px;border-radius:50%;border:1.6px solid var(--pg-ink)}
-.st.ez{border-color:var(--gold);background:radial-gradient(circle,var(--gold) 0 2px,transparent 3px)}
-.st.dn{background:var(--good);border-color:var(--good)}
-.thb b{font-weight:600;font-size:14.5px}
-.thb .tag{font-size:12px;color:var(--pg-ink3);text-align:right}
-.thb .sub{grid-column:2/4;font-size:12px;color:var(--pg-ink3)}
-.thx{display:grid;grid-template-rows:0fr;transition:grid-template-rows 380ms var(--ease)}
+body{margin:0;background:var(--pg);color:var(--pg-ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+.pg{max-width:1000px;margin:0 auto;padding-block:48px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* ---------- page type ---------- */
+.mast{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px;justify-content:space-between}
+.mast .who{display:flex;align-items:center;gap:10px;color:var(--pg-gold);font-size:13px;font-weight:600;margin:0 0 18px}
+.mast .who svg{width:16px;height:15px}
+h1{font:400 44px/1.04 var(--serif);letter-spacing:-.025em;margin:0;max-width:15ch;text-wrap:balance}
+.lede{font-size:17px;line-height:1.5;color:var(--pg-ink2);max-width:52ch;margin:16px 0 0}
+.fine{font-size:13px;color:var(--pg-ink3);max-width:60ch;margin:12px 0 0}
+h2{font:400 30px/1.1 var(--serif);letter-spacing:-.018em;margin:0 0 14px;text-wrap:balance}
+.copy p{color:var(--pg-ink2);margin:0 0 14px;max-width:42ch}
+.copy b{color:var(--pg-ink);font-weight:600}
+.said{font-size:13px;color:var(--pg-gold);min-height:20px;margin:4px 0 0}
+.copy .tlink{color:var(--pg-gold)}
+.copy .homebox p{color:inherit;max-width:none;margin-bottom:0}
+.copy .homebox p.tt{margin:8px 0 14px}
+
+/* the look switch: one pill that slides */
+.look{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
+.look button{position:relative;z-index:1;appearance:none;border:0;background:none;padding:8px 18px;font-size:13.5px;font-weight:600;color:var(--pg-ink2);cursor:pointer;transition:color 240ms var(--out)}
+.look button[aria-pressed="true"]{color:#1d1a14}
+.look .knob{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--pg-gold);transition:transform 420ms var(--spring)}
+.look[data-at="1"] .knob{transform:translateX(100%)}
+.looklbl{font-size:12.5px;color:var(--pg-ink3);margin:0 0 8px}
+
+.scene{display:grid;grid-template-columns:minmax(0,1fr) 375px;gap:40px 72px;align-items:start;margin-top:120px}
+.scene .copy{padding-top:40px;min-width:0}
+@media (max-width:880px){.scene{grid-template-columns:minmax(0,1fr);margin-top:88px}.scene .copy{padding-top:0}h1{font-size:36px}}
+
+/* ---------- the phone ---------- */
+.phone{width:375px;max-width:100%;border-radius:50px;padding:9px;background:#05060b;box-shadow:0 0 0 1px rgba(255,255,255,.10),0 40px 80px -40px rgba(0,0,0,.9);justify-self:end}
+@media (max-width:880px){.phone{justify-self:start}}
+.scr{--bgA:#1d2750;--bgB:#0f1430;--ink:#eef1f8;--ink2:rgba(238,241,248,.68);--ink3:rgba(238,241,248,.44);--gold:#e6bd7a;--vio:#b3a6ff;--sage:#9fd3b4;
+  --line:rgba(238,241,248,.12);--card:rgba(255,255,255,.06);--edge:rgba(255,255,255,.10);--lamp:rgba(224,178,106,.20);--lamp2:rgba(140,120,255,.16);--me:rgba(179,166,255,.20);--goldink:#1d1a14;--field:rgba(0,0,0,.18);
+  position:relative;overflow:hidden;border-radius:42px;min-height:620px;padding:54px 18px 20px;color:var(--ink);
+  background:linear-gradient(165deg,var(--bgA),var(--bgB) 70%);display:flex;flex-direction:column;gap:14px;transition:color 600ms var(--out)}
+body[data-look="paper"] .scr{--bgA:#f5efe3;--bgB:#e6dccb;--ink:#1f1c18;--ink2:rgba(31,28,24,.72);--ink3:rgba(31,28,24,.50);--gold:#8a5200;--vio:#5b45c9;--sage:#2f7a52;
+  --line:rgba(31,28,24,.14);--card:rgba(255,255,255,.55);--edge:rgba(255,255,255,.85);--lamp:rgba(255,255,255,.75);--lamp2:rgba(255,255,255,.0);--me:rgba(91,69,201,.12);--goldink:#fff8ec;--field:rgba(255,255,255,.6)}
+.scr::before{content:"";position:absolute;left:-30%;top:-26%;width:90%;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,var(--lamp),transparent);pointer-events:none}
+.scr::after{content:"";position:absolute;right:-40%;bottom:-30%;width:90%;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,var(--lamp2),transparent);pointer-events:none}
+.scr>*{position:relative;z-index:1}
+.island{position:absolute!important;top:12px;left:50%;width:112px;height:32px;margin-left:-56px;border-radius:20px;background:#000;z-index:3!important}
+.scr.short{min-height:0}
+
+/* app header */
+.hd{display:flex;align-items:center;gap:11px}
+.mk{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--gold);background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge)}
+.mk svg{width:14px;height:13px}
+.mk.sm{width:24px;height:24px}.mk.sm svg{width:10px;height:10px}
+.mk.nova{color:#59e6ff}
+.nv{display:flex;gap:4px}.nv::before,.nv::after{content:"";width:4px;height:6px;border-radius:2px;background:currentColor}
+.hd b{display:block;font-size:15px;font-weight:600;line-height:1.2}
+.hd small{display:block;font-size:12px;color:var(--ink3)}
+.kick{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--gold);margin:0}
+.kick svg{width:12px;height:11px}
+.kick .r{margin-left:auto;font-size:11px;letter-spacing:.02em;text-transform:none;font-weight:500;color:var(--ink3)}
+
+/* bubbles: Nova talks in bubbles, the Leader in its own serif */
+.msg{max-width:84%;padding:10px 13px;border-radius:20px;font-size:15px;line-height:1.38}
+.me{align-self:flex-end;background:var(--me);border-bottom-right-radius:6px}
+.nova{align-self:flex-start;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-bottom-left-radius:6px}
+.lv{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;max-width:92%}
+.lv p{margin:0;font:400 18px/1.32 var(--serif);letter-spacing:-.01em}
+.lv .who{display:block;font:600 12px var(--sans);color:var(--gold);margin:0 0 2px;letter-spacing:0}
+
+/* the receipt */
+.slip{align-self:stretch;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:18px;padding:12px 14px 10px;transform-origin:top left}
+.slip .top{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--gold)}
+.slip .top svg{width:11px;height:10px}
+.slip .what{margin:5px 0 10px;font-size:14.5px;line-height:1.35}
+.slip .tn{display:flex;align-items:baseline;gap:8px;font-size:12px;color:var(--ink2)}
+.slip .tn span:first-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slip .ft{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.slip .ft small{font-size:11.5px;color:var(--ink3)}
+.slip.gone{opacity:.5}
+.tlink{appearance:none;border:0;background:none;padding:6px 0;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;transition:transform 140ms var(--out)}
+.tlink:active{transform:scale(.95)}
+
+/* a status word that rolls */
+.roll{display:inline-grid;height:1.3em;overflow:hidden;vertical-align:bottom;font-weight:600;color:var(--vio)}
+.roll i{grid-area:1/1;font-style:normal;transition:transform 520ms var(--spring),opacity 300ms var(--out)}
+.roll i:nth-child(2){transform:translateY(110%);opacity:0;color:var(--gold)}
+.roll.on i:first-child{transform:translateY(-110%);opacity:0}
+.roll.on i:nth-child(2){transform:none;opacity:1}
+
+/* ---------- the thread rail: the signature ---------- */
+.axis{position:relative;height:16px;margin:0 30px 0 6px;font-size:10.5px;color:var(--ink3)}
+.axis span{position:absolute;top:0;transform:translateX(-50%)}
+.axis span.now{transform:translateX(-50%);color:var(--gold);font-weight:600}
+.rail{display:block;position:relative;height:18px;margin:0 30px 0 6px}
+.rail .base{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+.rail .span{position:absolute;top:50%;height:2px;margin-top:-1px;background:var(--vio);opacity:.55;border-radius:2px}
+.rail .quiet{position:absolute;top:50%;margin-top:-.75px;border-top:1.5px dotted var(--vio);opacity:.45}
+.rail .dot{position:absolute;top:50%;width:var(--s,8px);height:var(--s,8px);border-radius:50%;background:var(--vio);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--bgB)}
+.rail .dot.new{background:var(--gold);transition:transform 560ms var(--spring),opacity 260ms var(--out)}
+.rail .dot.new.up{transform:translate(-50%,-260%) scale(.6);opacity:0}
+.rail .now{position:absolute;right:-4px;top:2px;bottom:2px;width:1px;background:var(--gold);opacity:.6}
+.rail.easing .dot{background:var(--bgB);box-shadow:inset 0 0 0 1.6px var(--vio),0 0 0 2px var(--bgB)}
+.rail.easing .dot.new{background:var(--gold);box-shadow:0 0 0 2px var(--bgB)}
+
+.page-t{font:400 27px/1.12 var(--serif);letter-spacing:-.02em;margin:6px 0 4px}
+.page-s{font-size:13.5px;color:var(--ink2);margin:0}
+.threads{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:22px;padding:14px 12px 4px}
+.th{border-top:.5px solid var(--line)}
+.th:first-of-type{border-top:0}
+.thb{appearance:none;border:0;background:none;width:100%;text-align:left;padding:12px 2px 10px;cursor:pointer;display:block;transition:transform 140ms var(--out)}
+.thb:active{transform:scale(.985)}
+.thb .nm{display:flex;align-items:baseline;gap:10px;margin:0 0 7px}
+.thb .nm b{flex:1;min-width:0;font:400 16.5px/1.22 var(--serif);letter-spacing:-.01em}
+.thb .nm small{font-size:11.5px;color:var(--ink3);white-space:nowrap}
+.thb .q{display:block;text-align:right;font-size:11.5px;color:var(--ink3);margin:4px 30px 0 0}
+.th.old .thb .q{color:var(--gold)}
+.th.easing .nm small{color:var(--gold)}
+.thx{display:grid;grid-template-rows:0fr;transition:grid-template-rows 420ms var(--out)}
 .th.on .thx{grid-template-rows:1fr}
 .thx>div{overflow:hidden}
-.said{margin:0 0 8px 20px;padding:0;list-style:none}
-.said li{font-size:13px;color:var(--pg-ink2);padding:5px 0 5px 12px;border-left:1.5px solid rgba(255,122,217,.35)}
-.said li small{display:block;color:var(--pg-ink3);font-size:11px}
-.acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px 20px}
-.pill{appearance:none;border:1px solid var(--edge);background:rgba(255,255,255,.05);color:var(--pg-ink);font:500 13px var(--ui);padding:7px 12px;border-radius:999px;cursor:pointer;transition:transform 140ms var(--ease),background 200ms}
+.notes{list-style:none;margin:4px 0 12px;padding:0 0 0 2px}
+.notes li{position:relative;display:grid;grid-template-columns:46px 1fr;gap:10px;padding:0 0 10px;font-size:13.5px;line-height:1.38;color:var(--ink2)}
+.notes li time{font-size:11.5px;color:var(--ink3);padding-top:1px}
+.notes li::before{content:"";position:absolute;left:52px;top:6px;width:6px;height:6px;border-radius:50%;background:var(--vio)}
+.notes li::after{content:"";position:absolute;left:54.5px;top:14px;bottom:-2px;width:1px;background:var(--line)}
+.notes li:last-child::after{display:none}
+.notes li span{padding-left:14px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.pill{appearance:none;border:0;padding:8px 13px;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);font-size:13px;font-weight:600;cursor:pointer;transition:transform 140ms var(--out),background 200ms}
 .pill:active{transform:scale(.96)}
-.pill.mg{border-color:rgba(255,122,217,.45);color:var(--mg)}
-.pill.ok{border-color:rgba(126,214,164,.45);color:var(--good)}
+.pill.ok{color:var(--sage)}
+.pill.gold{color:var(--gold)}
+.pill.fill{background:var(--gold);color:var(--goldink);box-shadow:none}
+.downs{margin:6px 2px 10px;font-size:12px;color:var(--ink3)}
+.downs b{font-weight:600;color:var(--ink2)}
+.th.down .thb .nm b{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:1px}
+.th.down .rail .dot,.th.down .rail .span{background:var(--ink3)}
+.th.down .rail .quiet{border-color:var(--ink3)}
+.bar{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);font-size:13px;min-height:44px;transition:opacity 260ms var(--out),transform 420ms var(--spring)}
+.bar.idle{opacity:0;transform:translateY(10px)}
+.bar span{flex:1;min-width:0}
+
 /* tidy */
-.tidy li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--edge2);font-size:14px}
-.tidy li:first-child{border-top:0}
-.tidy ul{list-style:none;margin:8px 0 10px;padding:0}
-.tidy li span{flex:1;min-width:0}.tidy li small{display:block;color:var(--pg-ink3);font-size:12px}
-.tk{appearance:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--edge);background:rgba(255,255,255,.04);color:var(--pg-ink2);font:600 14px var(--ui);cursor:pointer;flex:none;transition:transform 160ms var(--spring),background 200ms,color 200ms}
-.tk:active{transform:scale(.9)}
-.tk.y[aria-pressed="true"]{background:var(--good);color:#06240f;border-color:var(--good)}
-.tk.n[aria-pressed="true"]{background:rgba(255,255,255,.18);color:var(--pg-ink)}
-.done-line{font-size:13px;color:var(--good);min-height:20px;margin:6px 0 0}
-/* quote */
-.quote{border-left:2px solid var(--gold);padding:4px 0 4px 10px;margin:0 0 4px;font-size:13px;color:var(--pg-ink2)}
-.quote b{display:block;color:var(--gold);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
-.idea .t{font:400 18px/1.25 var(--serif);margin:2px 0 6px}
-.idea .k{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
-.idea p{font-size:13.5px;color:var(--pg-ink2);margin:0 0 10px}
-.say{font-size:12.5px;color:var(--pg-ink3);text-align:center;min-height:18px;margin:0}
-dl{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:12px 24px;margin:18px 0 0;max-width:860px}
-dt{font-weight:600;font-size:14px}dd{margin:0;color:var(--pg-ink2);font-size:14px}
-@media (max-width:560px){dl{grid-template-columns:1fr;gap:4px}dd{margin-bottom:12px}h1{font-size:29px}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.ask{font:400 21px/1.26 var(--serif);letter-spacing:-.012em;margin:4px 0 0;text-wrap:pretty}
+.tidy{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.tidy li{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:18px;padding:12px 12px 12px 14px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;transition:opacity 300ms var(--out)}
+.tidy li .t b{display:block;font:400 16px/1.22 var(--serif)}
+.tidy li .t small{display:block;font-size:12px;color:var(--gold);margin-top:3px}
+.tidy li .t small.k{color:var(--sage)}
+.tk{appearance:none;border:0;width:38px;height:38px;border-radius:50%;background:var(--field);box-shadow:inset 0 0 0 .5px var(--edge);display:grid;place-items:center;cursor:pointer;color:var(--ink2);transition:transform 220ms var(--spring),background 220ms,color 220ms}
+.tk svg{width:15px;height:15px}
+.tk:active{transform:scale(.88)}
+.tk.y[aria-pressed="true"]{background:var(--sage);color:var(--bgB);box-shadow:none}
+.tk.n[aria-pressed="true"]{background:var(--ink);color:var(--bgB);box-shadow:none}
+.row2{display:flex;gap:8px;flex-wrap:wrap}
+.compose{margin-top:auto;display:flex;align-items:center;gap:8px;min-height:48px;padding:6px 6px 6px 14px;border-radius:26px;background:var(--field);box-shadow:inset 0 0 0 1px var(--line);transition:box-shadow 300ms var(--out)}
+.compose.lead{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.compose .txt{flex:1;min-width:0;font-size:15px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compose .txt.has{color:var(--ink)}
+.compose .send{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--gold);color:var(--goldink)}
+.compose .send svg{width:14px;height:14px}
+.to{display:inline-flex;align-items:center;gap:5px;flex:none;padding:4px 9px 4px 7px;border-radius:999px;background:var(--gold);color:var(--goldink);font-size:11.5px;font-weight:700;transition:transform 420ms var(--spring),opacity 200ms var(--out)}
+.to svg{width:9px;height:9px}
+.to.off{opacity:0;transform:scale(.7);position:absolute;pointer-events:none}
+
+/* the idea card, the large widget's face */
+.idea{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:24px;padding:18px 18px 14px;transition:transform 380ms var(--out),opacity 260ms var(--out),filter 260ms var(--out);transform-origin:top center}
+.idea .tt{font:500 26px/1.1 var(--serif);letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance}
+.idea p.how{font-size:15px;line-height:1.42;color:var(--ink2);margin:0 0 14px}
+.idea .acts{margin:0}
+.idea.away{transform:scale(.9) translateY(-14px);opacity:0;filter:blur(3px)}
+.rep{display:inline-flex;align-items:center;gap:6px}
+.rep svg{width:13px;height:13px}
+.quote{display:block;border-left:2px solid var(--gold);padding:2px 0 2px 10px;margin:0 0 8px;font:italic 400 14.5px/1.3 var(--serif);color:var(--ink2)}
+.quote small{display:block;font:600 10px var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--gold);font-style:normal;margin-bottom:2px}
+.in{animation:rise 560ms var(--spring) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+
+/* Home's Leader box */
+.homebox{width:343px;max-width:100%;margin-top:22px;border-radius:24px;padding:16px;background:linear-gradient(165deg,#1d2750,#0f1430);color:#eef1f8;box-shadow:0 0 0 .5px rgba(255,255,255,.12),0 20px 40px -24px rgba(0,0,0,.8)}
+body[data-look="paper"] .homebox{background:linear-gradient(165deg,#f5efe3,#e6dccb);color:#1f1c18}
+.homebox .kick{color:var(--hb-gold,#e6bd7a)}
+body[data-look="paper"] .homebox .kick{--hb-gold:#8a5200}
+.homebox .tt{font:500 20px/1.16 var(--serif);letter-spacing:-.015em;margin:8px 0 14px}
+.homebox .row2 .pill{background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14)}
+.homebox .row2 .pill.fill{background:var(--hb-gold,#e6bd7a);color:#1d1a14;box-shadow:none}
+body[data-look="paper"] .homebox .row2 .pill{background:rgba(255,255,255,.6);box-shadow:inset 0 0 0 .5px rgba(31,28,24,.12)}
+body[data-look="paper"] .homebox .row2 .pill.fill{color:#fff8ec}
+.cap{font-size:12.5px;color:var(--pg-ink3);margin:10px 0 0}
+
+/* what it is made of */
+.made{margin-top:128px;border-top:1px solid var(--pg-line);padding-top:40px}
+.made dl{display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:18px 40px;margin:24px 0 0;max-width:820px}
+.made dt{font:400 18px/1.3 var(--serif)}
+.made dd{margin:0;color:var(--pg-ink2);font-size:14.5px}
+@media (max-width:560px){.made dl{grid-template-columns:1fr;gap:4px}.made dd{margin-bottom:16px}}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
-</head>
-<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="chev" viewBox="0 0 13 12"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5.5l5-4 5 4"/><path d="M1.5 10.5l5-4 5 4"/></g></symbol>
+  <symbol id="tick" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="cross" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="up" viewBox="0 0 16 16"><path d="M8 13V3.5M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="reply" viewBox="0 0 16 16"><path d="M6.5 3.5L2.5 7.5l4 4M3 7.5h6.5a4 4 0 014 4v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
 
 <main class="pg">
-  <p class="eyebrow">Mockup 124 · for approval · nothing built</p>
-  <h1>The Leader keeps up with work</h1>
-  <p class="lede">Whatever you tell Nova about work reaches the Leader. You can see what the Leader thinks is going on, correct it in a tap, and reply to anything it says.</p>
-  <p class="note">Everything on this page is sample content.</p>
-
-  <section>
-    <h2>Tell Nova, and the Leader hears it</h2>
-    <div class="row">
-      <div class="phone" id="chat">
-        <div class="bar"><div class="face nova"><i></i></div><div><b>Nova</b><small>Wednesday</small></div></div>
-        <div class="msg me" id="his"></div>
-        <div class="msg nova" id="novasays"></div>
-        <div class="noted in" id="noted"><div class="face sm"><i></i></div><div><b>Leader noted</b> · <span id="nsum"></span><span class="ch" id="nchange"></span><button class="lnk" id="undo" type="button" style="margin-top:4px">Undo</button></div></div>
-        <div class="compose"><span>Ask Nova</span><i>↑</i></div>
-      </div>
-      <div class="side">
-        <p>Today, when you tell Nova about work, Nova can ask the Leader, but nothing gets written down. Your record has had nothing new since <b id="lastTold"></b>, and none of the 18 problems has ever been closed.</p>
-        <p><b>With this,</b> anything you say about work in any of Nova's places reaches the Leader's record: the Nova chat, voice, Siri or Telegram. A line under Nova's answer says what the Leader wrote down and which problem it changed.</p>
-        <p><b>Undo is right there.</b> Tap it and the record goes back to how it was. Nova's model reads what you said; code makes the change and keeps the receipt.</p>
-        <p class="say" id="undoSaid" aria-live="polite"></p>
-      </div>
+  <header class="mast">
+    <div>
+      <p class="who"><svg><use href="#chev"/></svg>Mockup 124, round two, for your approval</p>
+      <h1>The Leader keeps up with work</h1>
+      <p class="lede">Tell Nova anything about work and the Leader writes it down. You can see what it thinks is going on, set things down in a tap, and answer anything it says.</p>
+      <p class="fine">Everything on this page is sample content.</p>
     </div>
+    <div>
+      <p class="looklbl">The Leader's look follows the day, like its widgets</p>
+      <div class="look" id="look" data-at="0"><span class="knob"></span><button type="button" aria-pressed="true" data-l="night">Evening</button><button type="button" aria-pressed="false" data-l="paper">Midday</button></div>
+    </div>
+  </header>
+
+  <!-- 1 -->
+  <section class="scene">
+    <div class="copy">
+      <h2>Tell Nova, and the Leader hears it</h2>
+      <p>Anything you say about work, in the Nova chat, by voice, Siri or Telegram, reaches the Leader's record. <b>No asking first.</b> A note lands under Nova's answer saying what was written down and which thread it moved.</p>
+      <p>The new mark lands on the thread's line at today. <b>Undo</b> takes it back off.</p>
+      <p class="said" id="s1" aria-live="polite"></p>
+    </div>
+    <div class="phone"><div class="scr" id="p1">
+      <span class="island"></span>
+      <div class="hd"><span class="mk nova"><i class="nv"></i></span><div><b>Nova</b><small id="p1day"></small></div></div>
+      <div class="msg me" id="c1his"></div>
+      <div class="msg nova" id="c1nova"></div>
+      <div class="slip" id="slip">
+        <div class="top"><svg><use href="#chev"/></svg>Leader noted</div>
+        <p class="what" id="c1noted"></p>
+        <div class="tn"><span id="c1thread"></span><span class="roll" id="roll"><i>Open</i><i>Easing</i></span></div>
+        <div class="rail" id="c1rail"></div>
+        <div class="ft"><small id="c1when"></small><button class="tlink" type="button" id="undo1">Undo</button></div>
+      </div>
+      <div class="compose"><span class="txt">Ask Nova</span><span class="send"><svg><use href="#up"/></svg></span></div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>The dots open into what the Leader knows</h2>
-    <div class="row">
-      <div class="phone">
-        <div class="bar"><div class="face"><i></i></div><div><b>Leader</b><small>What I know about work</small></div></div>
-        <button class="card dots" type="button" id="dotsBtn" aria-expanded="true"><span class="n" id="openN"></span><span class="bk" id="bk"></span><span class="open">Grouped below</span></button>
-        <div class="card" id="threads"></div>
-      </div>
-      <div class="side">
-        <p>On the Leader page today, your 18 problems are 18 blank dots, so you can't see what the Leader believes.</p>
-        <p><b>The dots become a short list of threads</b>, each one thing going on at work, with when you last mentioned it. The Leader groups what you've said into threads, and code keeps the list.</p>
-        <p><b>Tap a thread</b> to see your own words as the Leader wrote them down. Then <b>That's done</b>, <b>Not right anymore</b> (say what is), or <b>Talk about this</b>, which opens the Leader with that thread quoted.</p>
-        <p>A thread you haven't mentioned in a month shows its age, and the Leader asks before treating it as current.</p>
-        <p class="say" id="thSaid" aria-live="polite"></p>
-      </div>
+  <!-- 2 -->
+  <section class="scene">
+    <div class="copy">
+      <h2>See what the Leader thinks is going on</h2>
+      <p>The dots on the Leader page become <b>threads</b>, one for each thing going on at work. Each has a line across the weeks: a mark for every time you raised it, and a dotted tail for how long it has been quiet.</p>
+      <p><b>Tap a thread</b> for what the Leader wrote down. Then <b>That's done</b>, <b>Not right anymore</b>, or <b>Talk about this</b>.</p>
+      <p class="said" id="s2" aria-live="polite"></p>
     </div>
+    <div class="phone"><div class="scr" id="p2">
+      <span class="island"></span>
+      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Your situation</small></div></div>
+      <div><p class="page-t">What I know about work</p><p class="page-s" id="p2sum"></p></div>
+      <div class="threads"><div class="axis" id="axis"></div><div id="thr"></div><p class="downs" id="downs" hidden></p></div>
+      <div class="bar idle" id="bar2"><span id="bar2t"></span><button class="tlink" type="button" id="bar2u">Undo</button></div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>One tidy-up, the first time</h2>
-    <div class="row">
-      <div class="phone">
-        <div class="bar"><div class="face"><i></i></div><div><b>Leader</b><small>Before we go on</small></div></div>
-        <div class="card mg tidy" id="tidy">
-          <p class="lbl">The Leader asks</p>
-          <p class="q" id="tidyQ"></p>
-          <ul id="tidyList"></ul>
-          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="pill ok" type="button" id="tidyAll">Set them all down</button><button class="pill" type="button" id="tidyTalk">Tell me where they're at</button></div>
-          <p class="done-line" id="tidyDone" aria-live="polite"></p>
-        </div>
-        <div class="compose"><span>Answer the Leader</span><i>↑</i></div>
-      </div>
-      <div class="side">
-        <p>Some of the open problems are from September and you haven't brought them up since. The Leader asks once whether to set them down instead of quietly carrying them.</p>
-        <p><b>A tick sets one down, a cross keeps it.</b> One button does all of them, or you can just talk. Everything set down can be undone and stays in the record as settled.</p>
-      </div>
+  <!-- 3 -->
+  <section class="scene">
+    <div class="copy">
+      <h2>One tidy-up, the first time</h2>
+      <p>The Leader asks once about threads that have gone quiet for over a month, instead of carrying them into every answer.</p>
+      <p><b>A tick sets one down, a cross keeps it.</b> One button does them all, or you just say where they're at. Anything set down can be undone.</p>
+      <p class="said" id="s3" aria-live="polite"></p>
     </div>
+    <div class="phone"><div class="scr" id="p3">
+      <span class="island"></span>
+      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Before we go on</small></div></div>
+      <p class="ask" id="tidyQ"></p>
+      <ul class="tidy" id="tidy"></ul>
+      <div class="row2"><button class="pill fill" type="button" id="tidyAll">Set them all down</button><button class="pill gold" type="button" id="tidyTalk">Tell it where they're at</button></div>
+      <div class="compose" id="tcomp"><span class="txt">Answer the Leader</span><span class="send"><svg><use href="#up"/></svg></span></div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>Reply to anything the Leader says</h2>
-    <div class="row">
-      <div class="phone" id="replyPhone">
-        <div class="bar"><div class="face"><i></i></div><div><b>Leader</b><small>Today's idea</small></div></div>
-        <div class="card idea" id="ideaCard"><p class="k" id="ideaK"></p><p class="t" id="ideaT"></p><p id="ideaL"></p><button class="pill mg" type="button" id="replyBtn">Reply</button></div>
-        <div id="convo" hidden style="display:flex;flex-direction:column;gap:10px">
-          <div class="msg me"><div class="quote"><b>Today's idea</b><span id="qT"></span></div><span id="qSaid"></span></div>
-          <div class="msg nova" style="border-color:rgba(255,122,217,.3)"><span class="meta" style="color:var(--mg);font-weight:600">Leader</span><br>That's worth trying on a slow night first. Who on the team would you pick?</div>
-        </div>
-        <div class="compose"><span>Answer the Leader</span><i>↑</i></div>
-      </div>
-      <div class="side">
-        <p>Every card the Leader shows gets a <b>Reply</b>: today's idea, a question, anything it noticed or suggested. Reply opens the Leader's conversation with that card quoted, so it knows what you mean.</p>
-        <p>Tap <b>Reply</b> on the left to see it.</p>
-        <p>The same happens from the widgets. A tap on your situation opens here with the question quoted, ready to answer by voice or typing.</p>
-      </div>
+  <!-- 4 -->
+  <section class="scene">
+    <div class="copy">
+      <h2>Reply to anything it says</h2>
+      <p>Every card the Leader shows gets a <b>Reply</b>: today's idea, a question, anything it noticed. The conversation opens with the card quoted, so it knows what you mean.</p>
+      <p>Tapping your situation widget does the same with its question.</p>
+      <p><button class="tlink" type="button" id="again4" hidden>Show the card again</button></p>
     </div>
+    <div class="phone"><div class="scr" id="p4">
+      <span class="island"></span>
+      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Today's idea</small></div></div>
+      <div class="idea" id="idea">
+        <p class="kick"><svg><use href="#chev"/></svg><span id="ik"></span><span class="r" id="iday"></span></p>
+        <p class="tt" id="it"></p>
+        <p class="how" id="il"></p>
+        <div class="acts"><button class="pill gold rep" type="button" id="replyBtn"><svg><use href="#reply"/></svg>Reply</button></div>
+      </div>
+      <div id="convo" hidden style="display:flex;flex-direction:column;gap:14px">
+        <div class="msg me"><span class="quote"><small>Today's idea</small><span id="qt"></span></span><span id="qs"></span></div>
+        <div class="lv"><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader</span><span id="qa"></span></p></div>
+      </div>
+      <div class="compose"><span class="txt">Answer the Leader</span><span class="send"><svg><use href="#up"/></svg></span></div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>Talking to the Leader directly</h2>
-    <div class="row">
-      <div class="phone" style="min-height:0">
-        <div class="msg me">Leader, the store manager wants us on the back dock tonight as well</div>
-        <div class="msg nova" style="border-color:rgba(255,122,217,.3)"><span class="meta" style="color:var(--mg);font-weight:600">Leader</span><br>What would the team have to drop to cover it?</div>
-        <div class="noted"><div class="face sm"><i></i></div><div><b>Leader noted</b> · Store manager pressure: the back dock asked for tonight<button class="lnk" type="button" style="display:block;margin-top:4px">Undo</button></div></div>
+  <!-- 5 -->
+  <section class="scene">
+    <div class="copy">
+      <h2>Talk to the Leader directly</h2>
+      <p><b>Start with "Leader"</b> in the Nova chat, typed or spoken, and the Leader answers you itself, the way Coach does. Without it, Nova answers and the Leader still hears what matters.</p>
+      <p>Its own chat stays on the Leader page, and the Leader box on Home gets a <b>Talk</b> button, one tap from Home.</p>
+      <div class="homebox">
+        <p class="kick"><svg><use href="#chev"/></svg>Leader</p>
+        <p class="tt" id="ht"></p>
+        <div class="row2"><button class="pill fill" type="button" id="hTalk">Talk</button><button class="pill" type="button">Why it works</button></div>
       </div>
-      <div class="side">
-        <p><b>Start with "Leader"</b> in the Nova chat, by voice or typing, and the Leader answers you itself, with its own face, the way Coach does. Without it, Nova answers and the Leader still hears what matters.</p>
-        <p><b>Its own chat</b> stays on the Leader page, and the Leader box on Home gets a <b>Talk</b> button so it is one tap from Home, not four.</p>
-      </div>
+      <p class="cap">The Leader box on Home, with Talk added.</p>
+      <p><button class="tlink" type="button" id="again5">Play it again</button></p>
     </div>
+    <div class="phone"><div class="scr" id="p5">
+      <span class="island"></span>
+      <div class="hd" id="hd5"></div>
+      <div id="d5" style="display:flex;flex-direction:column;gap:14px"></div>
+      <div class="compose" id="comp5"><span class="to off" id="to5"><svg><use href="#chev"/></svg>Leader</span><span class="txt" id="txt5">Ask Nova</span><span class="send"><svg><use href="#up"/></svg></span></div>
+    </div></div>
   </section>
 
-  <section>
+  <section class="made">
     <h2>What it is made of</h2>
     <dl>
-      <dt>Hearing it</dt><dd>When something you say in any of Nova's places is about work, a cheap model reads it once and says what is new, what is easing and what is done, in your words. Code checks that each item is a sentence you actually said something about, applies it, and keeps an Undo.</dd>
-      <dt>The threads</dt><dd>The Leader groups the problems into threads once and again when a new one arrives; code stores which problem belongs to which. A thread's age is the date you last mentioned it, counted by code.</dd>
-      <dt>The tidy-up</dt><dd>Code picks the threads you haven't mentioned in 30 days; the Leader only words the question. Nothing is set down without your tick.</dd>
-      <dt>The daily idea</dt><dd>Still general and separate. The threads feed the Leader's questions about your situation, never the daily idea, so the September problem that filled every idea can't happen again.</dd>
+      <dt>Hearing it</dt><dd>When something you say anywhere in Nova is about work, a cheap model reads it once and says what is new, what is easing and what is done. Code checks each item against what you actually said, writes it, and keeps an Undo.</dd>
+      <dt>The threads</dt><dd>The Leader groups your notes into threads, and again when a new one arrives. Code stores which note belongs where and counts each thread's quiet days from the date you last raised it.</dd>
+      <dt>The tidy-up</dt><dd>Code picks the threads quiet for over 30 days; the Leader only words the question. Nothing is set down without your tick.</dd>
+      <dt>The daily idea</dt><dd>Stays general and separate. Threads feed the Leader's questions about your situation, never the daily idea.</dd>
       <dt>Privacy</dt><dd>The threads live on your Mac in the Leader's own record. The situation widget stays hidden on the lock screen.</dd>
     </dl>
   </section>
 </main>
 
 <script>
-const D = {
- "lastTold": "three weeks ago",
- "tidySince": "last month",
- "threads": [
-  {
-   "name": "The new closing roster",
-   "status": "open",
-   "old": true,
-   "last": "2 Oct",
-   "items": [
-    {
-     "text": "He wrote a new closing roster and is unsure the late team will follow it.",
-     "at": "28 Sep"
-    },
-    {
-     "text": "Two people swapped shifts without telling him and the close ran late.",
-     "at": "2 Oct"
-    }
-   ]
-  },
-  {
-   "name": "Saying no when he means no",
-   "status": "open",
-   "old": false,
-   "last": "14 Oct",
-   "items": [
-    {
-     "text": "He agrees to extra work in the moment and regrets it later.",
-     "at": "9 Oct"
-    },
-    {
-     "text": "He wants a sentence ready for when he is asked to cover more.",
-     "at": "14 Oct"
-    }
-   ]
-  },
-  {
-   "name": "Coaching the new starter",
-   "status": "open",
-   "old": false,
-   "last": "16 Oct",
-   "items": [
-    {
-     "text": "The new starter is quick but skips the checklist.",
-     "at": "16 Oct"
-    }
-   ]
-  }
- ],
- "chat": {
-  "his": "Told my manager we can only cover the front half tonight. She was fine with it.",
-  "nova": "Good. You said it plainly and it held.",
-  "noted": "You said no to extra cover, and it was accepted.",
-  "change": "\"Saying no when he means no\" moves to easing."
- },
- "idea": {
-  "kind": "Try this",
-  "title": "Ask what they would do first",
-  "line": "When someone brings you a problem today, ask what they would do before you answer.",
-  "reply": "I could try this with the new starter on Thursday."
- }
-};
+const D = {"threads": [{"name": "The new closing roster", "notes": [{"text": "He wrote a new closing roster and is unsure the late team will follow it.", "at": "2026-09-22"}, {"text": "Two people swapped shifts without telling him and the close ran late.", "at": "2026-10-02"}]}, {"name": "Saying no when he means no", "notes": [{"text": "He agrees to extra work in the moment and regrets it later.", "at": "2026-10-09"}, {"text": "He wants a sentence ready for when he is asked to cover more.", "at": "2026-10-14"}, {"text": "He held a no on extra cover and it was accepted.", "at": "2026-11-12"}]}, {"name": "Coaching the new starter", "notes": [{"text": "The new starter is quick but skips the checklist.", "at": "2026-10-16"}, {"text": "He showed the new starter the checklist once, start to finish.", "at": "2026-11-10"}]}, {"name": "A late delivery every Monday", "notes": [{"text": "The Monday delivery keeps arriving an hour late and pushes the whole close back.", "at": "2026-09-15"}]}], "chat": {"his": "Told my manager we can only cover the front half tonight. She was fine with it.", "nova": "Good. You said it plainly and it held.", "noted": "You said no to extra cover, and it was accepted.", "thread": 1}, "direct": {"his": "Leader, my manager wants us on the back dock tonight as well", "leader": "What would the team have to drop to cover it?", "noted": "The back dock asked for tonight, on top of the front half.", "thread": 1}, "idea": {"kind": "Try this", "title": "Ask what they would do first", "line": "When someone brings you a problem today, ask what they would do before you answer.", "reply": "I could try this with the new starter on Thursday.", "answer": "Good pick. Ask before you look at the problem yourself, so the answer is theirs."}, "home": {"title": "Ask what they would do first"}};
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-$('his').textContent = D.chat.his; $('novasays').textContent = D.chat.nova;
-$('nsum').textContent = D.chat.noted; $('nchange').textContent = D.chat.change; $('lastTold').textContent = D.lastTold;
-let undone = false;
-$('undo').addEventListener('click', () => {
-  undone = !undone; $('noted').classList.toggle('gone', undone);
-  $('undo').textContent = undone ? 'Redo' : 'Undo';
-  $('undoSaid').textContent = undone ? 'Undone. The record is back to how it was.' : 'Written down again.';
-});
-const open = D.threads.reduce((n, t) => n + (t.status === 'done' ? 0 : t.items.length), 0);
-$('openN').innerHTML = `${open} <small>open</small>`;
-function drawDots() {
-  const bk = $('bk'); bk.innerHTML = '';
-  D.threads.forEach((t) => t.items.forEach(() => { const i = document.createElement('i'); if (t.status === 'done') i.className = 'f'; else if (t.status === 'easing') i.className = 'ez'; bk.appendChild(i); }));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DAY = 86400000;
+const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const dt = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const short = (d) => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+const days = (d) => Math.round((today - d) / DAY);
+const all = D.threads.flatMap((t) => t.notes.map((n) => dt(n.at)));
+const first = new Date(Math.min(...all)); const start = new Date(first.getFullYear(), first.getMonth(), 1);
+const pct = (d) => Math.max(0, Math.min(100, ((d - start) / (today - start)) * 100));
+const lastOf = (t) => new Date(Math.max(...t.notes.map((n) => dt(n.at))));
+const quietWords = (n) => n <= 0 ? 'Raised today' : n === 1 ? 'Raised yesterday' : n < 14 ? `Raised ${n} days ago` : `Quiet for ${n} days`;
+const n2w = (n) => ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][n] || String(n);
+
+function rail(t, extra) {
+  const ds = t.notes.map((n) => dt(n.at)); const a = new Date(Math.min(...ds)), b = new Date(Math.max(...ds));
+  const by = {}; ds.forEach((d) => { const k = +d; by[k] = (by[k] || 0) + 1; });
+  let h = `<span class="base"></span><span class="span" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%"></span>`;
+  if (days(b) > 0) h += `<span class="quiet" style="left:${pct(b)}%;width:${100 - pct(b)}%"></span>`;
+  for (const k in by) h += `<span class="dot" style="left:${pct(new Date(+k))}%;--s:${6 + by[k] * 2.5}px"></span>`;
+  if (extra) h += extra;
+  return h + '<span class="now"></span>';
 }
-const ST = { open: '', easing: 'ez', done: 'dn' };
-const TAG = { open: 'Open', easing: 'Easing', done: 'Set down' };
+function axis() {
+  let h = ''; const d = new Date(start);
+  while (d < today) { const p = pct(d); if (p < 88) h += `<span style="left:${p}%">${d.toLocaleDateString('en-AU', { month: 'short' })}</span>`; d.setMonth(d.getMonth() + 1); }
+  return h + `<span class="now" style="left:100%">Today</span>`;
+}
+
+/* the look switch */
+const look = $('look');
+look.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.body.dataset.look = b.dataset.l; look.dataset.at = b.dataset.l === 'paper' ? '1' : '0';
+  look.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+});
+
+/* 1: Leader noted */
+const T1 = D.threads[D.chat.thread];
+$('p1day').textContent = today.toLocaleDateString('en-AU', { weekday: 'long' });
+$('c1his').textContent = D.chat.his; $('c1nova').textContent = D.chat.nova; $('c1noted').textContent = D.chat.noted;
+$('c1thread').textContent = T1.name; $('c1when').textContent = 'Written to the Leader’s record just now';
+const r1 = $('c1rail'); r1.innerHTML = rail(T1, `<span class="dot new up" id="nd" style="left:100%;--s:10px"></span>`);
+let noted = false;
+function setNoted(on) {
+  noted = on; $('nd').classList.toggle('up', !on); $('roll').classList.toggle('on', on); r1.classList.toggle('easing', on);
+  $('slip').classList.toggle('gone', !on); $('undo1').textContent = on ? 'Undo' : 'Redo';
+}
+$('undo1').addEventListener('click', () => { setNoted(!noted); $('s1').textContent = noted ? 'Written down again.' : 'Undone. The record is back to how it was.'; });
+const io = (el, fn) => { const o = new IntersectionObserver((es) => { if (es[0].isIntersecting) { o.disconnect(); fn(); } }, { threshold: 0.55 }); o.observe(el); };
+$('slip').classList.add('gone');
+io($('p1'), () => { $('slip').classList.add('in'); setTimeout(() => setNoted(true), calm ? 0 : 520); });
+
+/* 2: threads */
+$('axis').innerHTML = axis();
+const state = D.threads.map(() => 'open'); const opened = new Set(); let lastAct = null;
 function drawThreads() {
-  $('threads').innerHTML = D.threads.map((t, i) => `<div class="th" data-i="${i}"><button class="thb" type="button" aria-expanded="false"><span class="st ${ST[t.status]}"></span><b>${esc(t.name)}</b><span class="tag">${TAG[t.status]}</span><span class="sub">${t.items.length} ${t.items.length === 1 ? 'note' : 'notes'} · last mentioned ${esc(t.last)}</span></button><div class="thx"><div><ul class="said">${t.items.map((s) => `<li>${esc(s.text)}<small>${esc(s.at)}</small></li>`).join('')}</ul><div class="acts"><button class="pill ok" type="button" data-a="done">That's done</button><button class="pill" type="button" data-a="wrong">Not right anymore</button><button class="pill mg" type="button" data-a="talk">Talk about this</button></div></div></div></div>`).join('');
-  drawDots();
+  const order = D.threads.map((t, i) => i).sort((a, b) => (state[a] === 'down') - (state[b] === 'down') || lastOf(D.threads[b]) - lastOf(D.threads[a]));
+  $('thr').innerHTML = order.map((i) => {
+    const t = D.threads[i]; const q = days(lastOf(t)); const old = q > 30 && state[i] !== 'down';
+    return `<div class="th ${old ? 'old' : ''} ${state[i] === 'down' ? 'down' : ''} ${opened.has(i) ? 'on' : ''}" data-i="${i}">
+      <button class="thb" type="button" aria-expanded="${opened.has(i)}"><span class="nm"><b>${esc(t.name)}</b><small>${state[i] === 'down' ? 'Set down' : t.notes.length + (t.notes.length === 1 ? ' note' : ' notes')}</small></span>
+      <span class="rail">${rail(t)}</span><span class="q">${quietWords(q)}</span></button>
+      <div class="thx"><div><ul class="notes">${t.notes.map((n) => `<li><time>${short(dt(n.at))}</time><span>${esc(n.text)}</span></li>`).join('')}</ul>
+      <div class="acts">${state[i] === 'down' ? '<button class="pill ok" type="button" data-a="open">Open it again</button>' : '<button class="pill ok" type="button" data-a="down">That’s done</button><button class="pill" type="button" data-a="wrong">Not right anymore</button><button class="pill gold" type="button" data-a="talk">Talk about this</button>'}</div></div></div></div>`;
+  }).join('');
+  const quiet = D.threads.filter((t, i) => state[i] !== 'down' && days(lastOf(t)) > 30).length;
+  const live = state.filter((s) => s !== 'down').length; const notes = D.threads.reduce((n, t, i) => n + (state[i] === 'down' ? 0 : t.notes.length), 0);
+  $('p2sum').textContent = `${n2w(live)} ${live === 1 ? 'thread' : 'threads'} from ${notes} notes.${quiet ? ` ${n2w(quiet)} ${quiet === 1 ? 'has' : 'have'} been quiet for over a month.` : ''}`;
+}
+function flip(fn) {
+  const before = new Map([...document.querySelectorAll('#thr .th')].map((el) => [el.dataset.i, el.getBoundingClientRect().top]));
+  fn();
+  if (calm) return;
+  document.querySelectorAll('#thr .th').forEach((el) => { const b = before.get(el.dataset.i); if (b == null) return; const dy = b - el.getBoundingClientRect().top; if (dy) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 560, easing: 'cubic-bezier(.34,1.18,.64,1)' }); });
 }
 drawThreads();
-$('threads').addEventListener('click', (e) => {
-  const th = e.target.closest('.th'); if (!th) return; const t = D.threads[+th.dataset.i];
-  const a = e.target.closest('[data-a]');
-  if (!a) { const on = th.classList.toggle('on'); th.querySelector('.thb').setAttribute('aria-expanded', String(on)); return; }
-  if (a.dataset.a === 'done') { t.status = t.status === 'done' ? 'open' : 'done'; drawThreads(); $('thSaid').textContent = t.status === 'done' ? `"${t.name}" set down, with Undo.` : `"${t.name}" open again.`; }
-  else if (a.dataset.a === 'wrong') $('thSaid').textContent = 'The Leader would open, asking what is true now about this thread.';
-  else $('thSaid').textContent = 'The Leader would open with this thread quoted.';
+function bar(text, undo) { $('bar2t').textContent = text; $('bar2u').hidden = !undo; lastAct = undo; $('bar2').classList.remove('idle'); }
+$('thr').addEventListener('click', (e) => {
+  const th = e.target.closest('.th'); if (!th) return; const i = +th.dataset.i; const t = D.threads[i]; const a = e.target.closest('[data-a]');
+  if (!a) { const on = th.classList.toggle('on'); if (on) opened.add(i); else opened.delete(i); th.querySelector('.thb').setAttribute('aria-expanded', String(on)); return; }
+  if (a.dataset.a === 'down' || a.dataset.a === 'open') {
+    const was = state[i]; flip(() => { state[i] = a.dataset.a === 'down' ? 'down' : 'open'; drawThreads(); });
+    bar(state[i] === 'down' ? `Set down: ${t.name}` : `Open again: ${t.name}`, () => flip(() => { state[i] = was; drawThreads(); }));
+  } else if (a.dataset.a === 'wrong') bar('The Leader asks what is true now, with this thread quoted.', null);
+  else bar('The Leader’s chat opens with this thread quoted.', null);
 });
-$('dotsBtn').addEventListener('click', () => { const t = $('threads'); const hide = !t.hidden; t.hidden = hide; $('dotsBtn').setAttribute('aria-expanded', String(!hide)); });
-const old = D.threads.filter((t) => t.old);
-$('tidyQ').textContent = `${old.length === 1 ? 'One thread' : old.length === 2 ? 'Two threads' : old.length + ' threads'} you haven't mentioned since ${D.tidySince}. Should I set ${old.length === 1 ? 'it' : 'them'} down?`;
-$('tidyList').innerHTML = old.map((t, i) => `<li><span>${esc(t.name)}<small>${t.items.length} ${t.items.length === 1 ? 'note' : 'notes'} · last mentioned ${esc(t.last)}</small></span><button class="tk y" type="button" aria-pressed="false" aria-label="Set down" data-i="${i}">✓</button><button class="tk n" type="button" aria-pressed="false" aria-label="Keep" data-i="${i}">✕</button></li>`).join('');
-const tidyState = old.map(() => null);
-function tidySay() {
-  const y = tidyState.filter((v) => v === true).length, n = tidyState.filter((v) => v === false).length;
-  $('tidyDone').textContent = y || n ? `${y ? `${y} set down` : ''}${y && n ? ', ' : ''}${n ? `${n} kept` : ''}. Undo is in the Leader's receipts.` : '';
+$('bar2u').addEventListener('click', () => { if (lastAct) { lastAct(); $('bar2t').textContent = 'Undone.'; $('bar2u').hidden = true; lastAct = null; } });
+
+/* 3: tidy-up */
+const oldI = D.threads.map((t, i) => i).filter((i) => days(lastOf(D.threads[i])) > 30);
+const since = oldI.length ? new Date(Math.max(...oldI.map((i) => lastOf(D.threads[i])))).toLocaleDateString('en-AU', { month: 'long' }) : '';
+$('tidyQ').textContent = oldI.length ? `${n2w(oldI.length)} ${oldI.length === 1 ? 'thread has' : 'threads have'} gone quiet since ${since}. Should I set ${oldI.length === 1 ? 'it' : 'them'} down?` : 'Nothing has gone quiet for over a month, so there is nothing to tidy.';
+const pick = oldI.map(() => null);
+function drawTidy() {
+  $('tidy').innerHTML = oldI.map((i, k) => { const t = D.threads[i]; const p = pick[k];
+    return `<li><span class="t"><b>${esc(t.name)}</b><small class="${p === true ? 'k' : ''}" style="${p === false ? 'color:var(--ink2)' : ''}">${p === true ? 'Set down' : p === false ? 'Kept open' : quietWords(days(lastOf(t)))}</small></span>
+      <button class="tk y" type="button" aria-label="Set down" aria-pressed="${p === true}" data-k="${k}" data-v="1"><svg><use href="#tick"/></svg></button>
+      <button class="tk n" type="button" aria-label="Keep" aria-pressed="${p === false}" data-k="${k}" data-v="0"><svg><use href="#cross"/></svg></button></li>`; }).join('');
+  const y = pick.filter((v) => v === true).length, n = pick.filter((v) => v === false).length;
+  $('s3').textContent = y || n ? `${y ? `${y} set down` : ''}${y && n ? ', ' : ''}${n ? `${n} kept` : ''}. Each can be undone from the Leader's record.` : '';
 }
-$('tidyList').addEventListener('click', (e) => {
-  const b = e.target.closest('.tk'); if (!b) return; const i = +b.dataset.i; const yes = b.classList.contains('y');
-  tidyState[i] = tidyState[i] === yes ? null : yes;
-  $('tidyList').querySelectorAll(`[data-i="${i}"]`).forEach((x) => x.setAttribute('aria-pressed', String(tidyState[i] === x.classList.contains('y') && tidyState[i] !== null)));
-  tidySay();
+drawTidy();
+$('tidy').addEventListener('click', (e) => { const b = e.target.closest('.tk'); if (!b) return; const k = +b.dataset.k, v = b.dataset.v === '1'; pick[k] = pick[k] === v ? null : v; drawTidy(); });
+$('tidyAll').addEventListener('click', () => { pick.fill(true); drawTidy(); });
+$('tidyTalk').addEventListener('click', () => { $('tcomp').classList.add('lead'); $('tcomp').querySelector('.txt').textContent = 'Say where they’re at, by voice or typing'; });
+
+/* 4: reply */
+$('ik').textContent = D.idea.kind; $('iday').textContent = short(today); $('it').textContent = D.idea.title; $('il').textContent = D.idea.line;
+$('qt').textContent = D.idea.title; $('qs').textContent = D.idea.reply; $('qa').textContent = D.idea.answer;
+$('replyBtn').addEventListener('click', () => {
+  $('idea').classList.add('away');
+  setTimeout(() => { $('idea').hidden = true; const c = $('convo'); c.hidden = false; [...c.children].forEach((m, i) => { m.style.animation = calm ? 'none' : `rise 560ms var(--spring) ${i * 380}ms both`; }); $('again4').hidden = false; }, calm ? 0 : 260);
 });
-$('tidyAll').addEventListener('click', () => { tidyState.fill(true); $('tidyList').querySelectorAll('.tk').forEach((x) => x.setAttribute('aria-pressed', String(x.classList.contains('y')))); tidySay(); });
-$('tidyTalk').addEventListener('click', () => { $('tidyDone').textContent = 'Type or say where they are at in the box below; the Leader updates each one.'; });
-$('ideaK').textContent = D.idea.kind; $('ideaT').textContent = D.idea.title; $('ideaL').textContent = D.idea.line;
-$('qT').textContent = D.idea.title; $('qSaid').textContent = D.idea.reply;
-$('replyBtn').addEventListener('click', () => { $('ideaCard').hidden = true; const c = $('convo'); c.hidden = false; c.querySelectorAll('.msg').forEach((m, i) => { m.style.animation = `rise 520ms var(--spring) ${i * 140}ms both`; }); });
+$('again4').addEventListener('click', () => { $('convo').hidden = true; const c = $('idea'); c.hidden = false; c.classList.add('away'); requestAnimationFrame(() => requestAnimationFrame(() => c.classList.remove('away'))); $('again4').hidden = true; });
+
+/* 5: "Leader," in the Nova chat */
+$('ht').textContent = D.home.title;
+const HD_NOVA = '<span class="mk nova"><i class="nv"></i></span><div><b>Nova</b><small>Chat</small></div>';
+const HD_LEAD = '<span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Opened from Home</small></div>';
+$('hd5').innerHTML = HD_NOVA;
+$('hTalk').addEventListener('click', () => {
+  run5++; $('d5').innerHTML = ''; $('hd5').innerHTML = HD_LEAD; $('hd5').classList.add('in');
+  $('to5').classList.add('off'); $('comp5').classList.add('lead'); const t = $('txt5'); t.classList.remove('has'); t.textContent = 'Talk to the Leader';
+  $('d5').insertAdjacentHTML('beforeend', `<div class="lv in"><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader</span>What\u2019s on your mind about work?</p></div>`);
+});
+const T5 = D.threads[D.direct.thread];
+let run5 = 0;
+async function play5() {
+  const me = ++run5; const wait = (ms) => new Promise((r) => setTimeout(r, calm ? 0 : ms)); const alive = () => me === run5;
+  const d5 = $('d5'), txt = $('txt5'), to = $('to5'), comp = $('comp5');
+  d5.innerHTML = ''; $('hd5').innerHTML = HD_NOVA; $('hd5').classList.remove('in'); txt.textContent = 'Ask Nova'; txt.classList.remove('has'); to.classList.add('off'); comp.classList.remove('lead');
+  const words = D.direct.his; const cut = words.indexOf(',') + 1;
+  await wait(400);
+  for (let i = 1; i <= words.length; i++) {
+    if (!alive()) return;
+    if (i === cut) { to.classList.remove('off'); comp.classList.add('lead'); }
+    const shown = i >= cut ? words.slice(cut).trimStart() : words.slice(0, i);
+    txt.textContent = shown || ' '; txt.classList.add('has');
+    if (!calm) await wait(i < cut ? 70 : 26);
+  }
+  await wait(500); if (!alive()) return;
+  txt.textContent = 'Ask Nova'; txt.classList.remove('has'); to.classList.add('off'); comp.classList.remove('lead');
+  d5.insertAdjacentHTML('beforeend', `<div class="msg me in">${esc(words)}</div>`);
+  await wait(900); if (!alive()) return;
+  d5.insertAdjacentHTML('beforeend', `<div class="lv in"><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader</span>${esc(D.direct.leader)}</p></div>`);
+  await wait(800); if (!alive()) return;
+  d5.insertAdjacentHTML('beforeend', `<div class="slip in"><div class="top"><svg><use href="#chev"/></svg>Leader noted</div><p class="what">${esc(D.direct.noted)}</p><div class="tn"><span>${esc(T5.name)}</span></div><div class="ft"><small>Added to the thread</small><button class="tlink" type="button">Undo</button></div></div>`);
+}
+$('again5').addEventListener('click', play5);
+io($('p5'), play5);
 </script>
-</body>
-</html>
