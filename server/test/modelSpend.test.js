@@ -278,7 +278,9 @@ test('every spawn site in server/lib is wired to the model spend ledger', async 
     // model ALIASES directly ('opus'/'sonnet'/'haiku'/'fable') to find out
     // what they currently resolve to — a weekly, practically-free CLI
     // version check, not a lane with a cost worth tracking on the board.
-    if (!name.endsWith('.js') || name === 'modelWatch.js') continue;
+    // claudeUsage.js runs `/usage`, answered by the CLI itself with no model
+    // turn: nothing is spent, so there is nothing to record.
+    if (!name.endsWith('.js') || name === 'modelWatch.js' || name === 'claudeUsage.js') continue;
     const src = await read(path.join(libDir, name), 'utf8');
     const spawns = (src.match(/spawn\(CLAUDE_BIN/g) || []).length;
     if (!spawns) continue;

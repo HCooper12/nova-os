@@ -76,7 +76,9 @@ async function guardedFiles() {
 // a working claude job: the weekly alias probe is a one-word informational
 // call (a hung CLI must not hold the daily tick), and the other three time out
 // their yt-dlp / ffmpeg / whisper helpers (the header's "external tools").
-const KILL_TIMER_ALLOWED = new Set(['modelWatch.js', 'studyLane.js', 'repertoireLane.js', 'watcher.js']);
+// claudeUsage.js: its 20 s kill guards a `/usage` probe the CLI answers itself
+// with no model turn, not a working job.
+const KILL_TIMER_ALLOWED = new Set(['modelWatch.js', 'studyLane.js', 'repertoireLane.js', 'watcher.js', 'claudeUsage.js']);
 
 test('the dollar-budget flag does not come back into any lane that spawns the model', async () => {
   const offenders = [];

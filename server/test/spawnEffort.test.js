@@ -22,6 +22,8 @@ const EXEMPT = [
   { file: 'leader.js', snippet: 'spawn(CLAUDE_BIN, args, { cwd, stdio', why: 'runClaude(args, cwd, lane): its three callers each spread effortArgs into args' },
   { file: 'mediaLane.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp/ffmpeg, not the CLI' },
   { file: 'repertoireLane.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp/ffmpeg, not the CLI' },
+  { file: 'claudeUsage.js', snippet: 'spawn(CLAUDE_BIN', why: '`/usage` is answered by the CLI itself with no model turn: costs nothing, carries no model or effort' },
+  { file: 'mentorDiscover.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp/ffmpeg, not the CLI' },
   { file: 'studyLane.js', snippet: 'spawn(bin, args', why: 'runs yt-dlp, not the CLI' },
   { file: 'localModel.js', snippet: "spawn(bin, ['serve']", why: 'starts `ollama serve`, the local model server (27 Oct 2026), not the CLI' },
   { file: 'localModel.js', snippet: "spawn(bin, [], { stdio: ['pipe'", why: "starts the Apple on-device model helper (server/apple-llm, 1 Nov 2026), not the CLI" },

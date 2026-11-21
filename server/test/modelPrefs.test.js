@@ -203,7 +203,9 @@ test('every spawn site in server/lib names its model through the board', async (
     // exception — its whole job is probing the four RAW aliases directly to
     // find out what they currently mean, which is a different question from
     // "which model does lane X run" and can't go through modelFor().
-    if (!name.endsWith('.js') || name === 'modelPrefs.js' || name === 'modelWatch.js') continue;
+    // claudeUsage.js runs `/usage`, which the CLI answers itself with no model
+    // turn (no cost, no model, no effort), so there is no model to name.
+    if (!name.endsWith('.js') || name === 'modelPrefs.js' || name === 'modelWatch.js' || name === 'claudeUsage.js') continue;
     const src = await readFile(path.join(libDir, name), 'utf8');
     const spawns = (src.match(/spawn\(CLAUDE_BIN/g) || []).length;
     if (!spawns) continue;

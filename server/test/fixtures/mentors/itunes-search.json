@@ -1,0 +1,10 @@
+
+
+
+{
+ "resultCount":1,
+ "results": [
+{"wrapperType":"track", "kind":"podcast", "collectionId":1754592060, "trackId":1754592060, "artistName":"Civility Media", "collectionName":"The Jefferson Fisher Podcast", "trackName":"The Jefferson Fisher Podcast", "collectionCensoredName":"The Jefferson Fisher Podcast", "trackCensoredName":"The Jefferson Fisher Podcast", "collectionViewUrl":"https://podcasts.apple.com/us/podcast/the-jefferson-fisher-podcast/id1754592060?uo=4", "feedUrl":"https://feeds.megaphone.fm/CIVILITYMEDIALLC9599576334", "trackViewUrl":"https://podcasts.apple.com/us/podcast/the-jefferson-fisher-podcast/id1754592060?uo=4", "artworkUrl30":"https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/0c/65/c8/0c65c825-7d21-3a13-665c-79ed8a52daf6/mza_5851506895133185612.jpeg/30x30bb.jpg", "artworkUrl60":"https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/0c/65/c8/0c65c825-7d21-3a13-665c-79ed8a52daf6/mza_5851506895133185612.jpeg/60x60bb.jpg", "artworkUrl100":"https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/0c/65/c8/0c65c825-7d21-3a13-665c-79ed8a52daf6/mza_5851506895133185612.jpeg/100x100bb.jpg", "collectionPrice":0.00, "trackPrice":0.00, "collectionHdPrice":0, "releaseDate":"2026-11-17T15:00:00Z", "collectionExplicitness":"notExplicit", "trackExplicitness":"cleaned", "trackCount":143, "trackTimeMillis":5915, "country":"USA", "currency":"USD", "primaryGenreName":"Self-Improvement", "contentAdvisoryRating":"Clean", "artworkUrl600":"https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/0c/65/c8/0c65c825-7d21-3a13-665c-79ed8a52daf6/mza_5851506895133185612.jpeg/600x600bb.jpg", "genreIds":["1500", "26", "1304", "1324", "1544"], "genres":["Self-Improvement", "Podcasts", "Education", "Society & Culture", "Relationships"]}]
+}
+
+

@@ -16,6 +16,7 @@ import { briefingRouter } from './routes/briefing.js';
 import { leaderRouter } from './routes/leader.js';
 import { practiceRouter } from './routes/practice.js';
 import { learnRouter } from './routes/learn.js';
+import { mentorsRouter } from './routes/mentors.js';
 import { reviewRouter } from './routes/review.js';
 import { startLeaderScheduler } from './lib/leader.js';
 import { calendarRouter } from './routes/calendar.js';
@@ -278,6 +279,7 @@ async function main() {
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
   app.use('/api', leaderRouter(process.env.VAULT_PATH));
   app.use('/api', learnRouter(process.env.VAULT_PATH)); // PLAYBOOKS: a method learned from videos and podcasts, applied once he approves it
+  app.use('/api', mentorsRouter(process.env.VAULT_PATH)); // MENTORS — the people Nova studies, the register of what he has read, finding a new one (lib/mentorPeople.js)
   app.use('/api', practiceRouter(process.env.VAULT_PATH)); // PRACTICE — a skill prepared from his sources, rehearsed in a scene, debriefed with undo
   app.use('/api', reviewRouter(process.env.VAULT_PATH, vault)); // THE DAILY REVIEW — concepts on a forgetting curve, undoable
   app.get('/api/events', (req, res) => subscribe(res));
