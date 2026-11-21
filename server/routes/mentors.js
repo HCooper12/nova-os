@@ -7,6 +7,9 @@ import {
 } from '../lib/mentorPeople.js';
 import { countsFor, listSources, backfillFromVault } from '../lib/mentorRegister.js';
 import { readClaudeUsage } from '../lib/claudeUsage.js';
+import {
+  queueStatus, pauseQueue, allowReading, setCeilings, retrySource,
+} from '../lib/mentorQueue.js';
 
 // MENTORS: the people Nova studies (lib/mentorPeople.js), the register of
 // everything he has read from them (lib/mentorRegister.js), and finding a new
@@ -22,6 +25,11 @@ import { readClaudeUsage } from '../lib/claudeUsage.js';
 //   POST /mentors/backfill       the vault's Sources into the register (once)
 //   GET  /mentors/art/:file      a cached portrait or banner
 //   GET  /mentors/usage          how much of his Claude plan is used
+//   GET  /mentors/queue          what the queue is doing, per person (part 2)
+//   POST /mentors/queue/pause    {paused}
+//   POST /mentors/queue/ceilings {session, week}   percent of his plan
+//   POST /mentors/:id/reading    {allowed}             his go for the paid read
+//   POST /mentors/source/retry   {key}                 a held source tried again
 //
 // A failure of YouTube, Apple, Open Library or a tool is a 502 that says which
 // and what it answered (lib/mentorDiscover.js marks those); anything else of
@@ -95,6 +103,40 @@ export function mentorsRouter(vaultPath) {
     try { res.json({ usage: await readClaudeUsage() }); } catch (err) { fail(res, err); }
   });
 
+  router.get('/mentors/queue', async (req, res) => {
+    try { res.json(await queueStatus()); } catch (err) { fail(res, err); }
+  });
+
+  router.post('/mentors/queue/pause', async (req, res) => {
+    try {
+      if (typeof req.body?.paused !== 'boolean') return res.status(400).json({ error: 'send paused as true or false' });
+      await pauseQueue(req.body.paused);
+      res.json(await queueStatus());
+    } catch (err) { fail(res, err); }
+  });
+
+  router.post('/mentors/queue/ceilings', async (req, res) => {
+    try {
+      const { session, week } = req.body || {};
+      if (session === undefined && week === undefined) return res.status(400).json({ error: 'send session, week, or both, as a percent of his plan' });
+      res.json({ ceilings: await setCeilings({ session, week }) });
+    } catch (err) {
+      if (/percent/.test(err?.message || '')) return res.status(400).json({ error: err.message });
+      fail(res, err);
+    }
+  });
+
+  router.post('/mentors/source/retry', async (req, res) => {
+    try {
+      const key = typeof req.body?.key === 'string' ? req.body.key.trim() : '';
+      if (!key) return res.status(400).json({ error: 'send the key of the source to try again' });
+      res.json({ source: await retrySource(key) });
+    } catch (err) {
+      if (/no source with key/.test(err?.message || '')) return res.status(404).json({ error: err.message });
+      fail(res, err);
+    }
+  });
+
   router.post('/mentors/backfill', async (req, res) => {
     try {
       if (!vaultPath) return res.status(500).json({ error: 'the vault path is not set on this server (VAULT_PATH), so there is nothing to read the Sources pages from' });
@@ -123,12 +165,23 @@ export function mentorsRouter(vaultPath) {
       if (!person) return res.status(404).json({ error: `no person called "${req.params.id}" is followed or known` });
       const tier1 = newestFirst(await listSources({ personId: person.id, tier: 1 }));
       const idOf = (s) => (s.key.startsWith('yt:') ? s.key.slice(3) : s.key);
+      const q = (await queueStatus()).people.find((x) => x.id === person.id);
       res.json({
+        doing: q?.doing || 'idle',
+        waiting: q?.waiting || null,
         person: withArtUrls(person),
         counts: await countsFor(person.id),
         catalogue: tier1.map((s) => [idOf(s), s.durationSec, codeOf(s)]),
         latest: tier1.slice(0, 6).map((s) => ({ id: idOf(s), title: s.title, durationSec: s.durationSec, publishedAt: s.publishedAt })),
       });
+    } catch (err) { fail(res, err); }
+  });
+
+  router.post('/mentors/:id/reading', async (req, res) => {
+    try {
+      if (!(await getPerson(req.params.id))) return res.status(404).json({ error: `no person called "${req.params.id}" is followed or known` });
+      if (typeof req.body?.allowed !== 'boolean') return res.status(400).json({ error: 'send allowed as true or false' });
+      res.json({ id: req.params.id, readingAllowed: await allowReading(req.params.id, req.body.allowed) });
     } catch (err) { fail(res, err); }
   });
 

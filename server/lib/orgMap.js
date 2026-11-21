@@ -56,7 +56,7 @@ export const BEING_MEMBERS = {
   coach: ['coach', 'weekly-debrief', 'training-check', 'week-plan', 'healthinsight', 'coach-cadence', 'coach-reflection', 'exercise-videos', 'exercise-research', 'patterns-weekly'],
   cfo: ['money', 'cfo'],
   guardian: ['guardian', 'health-drops', 'compost', 'telegram', 'health-mirror', 'pattern-scout', 'autonomy', 'model-watch', 'forge', 'overnight', 'projects', 'alerts'],
-  researcher: ['researcher', 'pulse', 'study', 'scout', 'repertoire-topup'],
+  researcher: ['researcher', 'pulse', 'study', 'scout', 'repertoire-topup', 'mentors'],
   watcher: ['watcher'],
   librarian: ['embeddings', 'distill', 'brain-week', 'read-next'],
   mealprep: ['food-suggest', 'mealprep', 'eat-out', 'shopping', 'fuel-review'],

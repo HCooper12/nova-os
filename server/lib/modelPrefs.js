@@ -519,6 +519,16 @@ export const LANES = [
     off: 'Long videos are refused rather than judged from a partial read.',
   },
   {
+    // MENTORS stage 1 (21 Nov 2026). Claude only: the read-v1 prompt was
+    // measured on Sonnet at low effort, never on the model on this Mac. Never
+    // Fable, his words: "The digest should not use fable as the Claude model
+    // to complete that task." lib/mentorRead.js mentorModel enforces it
+    // whatever this board says.
+    id: 'mentor-read', label: 'Mentors · reading a source', group: 'research', def: 'sonnet', defEffort: 'low',
+    hint: 'reads every word of one transcript from a person you follow into structured notes; code checks every quoted line against the transcript',
+    off: 'No new source is read; what was read stays.',
+  },
+  {
     id: 'playbook-learn', label: 'Playbooks · learning a method', group: 'research', def: 'sonnet', defEffort: 'medium',
     hint: 'reads the videos and podcasts you drop and drafts the playbook; code checks every rule against the transcript',
     off: 'Learn-this requests are refused with a plain message; the playbooks you have keep being applied.',

@@ -73,9 +73,31 @@ test('listChannel: the saved listing has 236 videos, the avatar and the banner',
   assert.equal(r.channel.channelId, 'UCXjnpu6lK0HoUyOMh2ZBwhQ');
   assert.match(r.channel.avatarUrl, /k5JDmWBnSsSBglUpj.*=s0$/);
   assert.match(r.channel.bannerUrl, /C60f7eqgEIpfzS57.*=s0$/);
-  assert.deepEqual(Object.keys(r.videos[0]).sort(), ['durationSec', 'id', 'title', 'views']);
+  assert.deepEqual(Object.keys(r.videos[0]).sort(), ['durationSec', 'id', 'publishedAt', 'title', 'views']);
   assert.equal(r.videos[0].durationSec, 4199);
+  assert.equal(r.videos[0].publishedAt, null, 'a listing without approximate_date has no timestamp');
   assert.deepEqual(asked.sort(), ['https://www.youtube.com/@jeffersonfisher/shorts', 'https://www.youtube.com/@jeffersonfisher/streams', 'https://www.youtube.com/@jeffersonfisher/videos']);
+});
+
+test('listChannel: every tab asks for approximate dates, and an entry with a timestamp carries publishedAt', async () => {
+  const fix = json('fisher-approx-dates.json');
+  const argsSeen = [];
+  D._setDiscoverDepsForTest({
+    ytdlpJson: async (args) => {
+      argsSeen.push(args);
+      return args.at(-1).endsWith('/videos') ? fix : { ...fix, entries: [] };
+    },
+  });
+  const r = await D.listChannel('https://www.youtube.com/@jeffersonfisher');
+  assert.equal(argsSeen.length, 3);
+  for (const a of argsSeen) {
+    const i = a.indexOf('--extractor-args');
+    assert.ok(i >= 0 && a[i + 1] === 'youtubetab:approximate_date', `approximate dates asked for: ${a.join(' ')}`);
+  }
+  assert.equal(r.videos.length, 6);
+  assert.ok(r.videos.every((v) => /^\d{4}-\d{2}-\d{2}T/.test(v.publishedAt)));
+  assert.equal(r.videos[0].id, '1HX8PQ9FiCU');
+  assert.equal(r.videos[0].publishedAt, new Date(1795186800 * 1000).toISOString());
 });
 
 test('listChannel: a tab that answers with no entries is empty, and a real failure is reported', async () => {

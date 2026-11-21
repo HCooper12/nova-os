@@ -207,14 +207,23 @@ export async function searchChannels(query) {
   return (Array.isArray(res?.entries) ? res.entries : []).map(candidateOf).filter(Boolean).slice(0, 5);
 }
 
-const entryOf = (e) => ({ id: e.id, title: e.title || '', durationSec: num(e.duration), views: num(e.view_count) });
+// `publishedAt` is yt-dlp's APPROXIMATE date (the "2 weeks ago" a channel page
+// shows, turned into a timestamp by the approximate_date argument below):
+// close enough to sort and to scope by, never exact. mentorPeople.js prefers
+// an exact date from the RSS or the podcast twin and says which it kept.
+const entryOf = (e) => ({
+  id: e.id, title: e.title || '', durationSec: num(e.duration), views: num(e.view_count),
+  publishedAt: num(e.timestamp) !== null ? new Date(e.timestamp * 1000).toISOString() : null,
+});
 const NO_TAB = /does not have a|has no (videos|shorts|streams)|unable to recognize tab|no (videos|shorts|streams) tab|this channel has no|not have any/i;
 
 // A tab the channel does not have is an empty list, not an error.
 async function readTab(base, tab) {
   const { ytdlpJson } = discoverDeps();
   try {
-    const res = await ytdlpJson(['--flat-playlist', '-J', `${base}/${tab}`]);
+    // approximate_date gives every entry a timestamp (measured 21 Nov 2026:
+    // 2,341 of 2,341 on a large channel, 33 s); without it a flat listing has none
+    const res = await ytdlpJson(['--flat-playlist', '--extractor-args', 'youtubetab:approximate_date', '-J', `${base}/${tab}`]);
     return res && typeof res === 'object' ? res : { entries: [] };
   } catch (e) {
     if (NO_TAB.test(`${e?.message || ''}\n${e?.stderr || ''}`)) return { entries: [], missing: true };

@@ -209,3 +209,57 @@ test('the store: merge by id, setStatus, and a corrupt file is moved aside', asy
   assert.deepEqual(await P.listPeople(), []);
   assert.ok(fs.readdirSync(path.join(dir, 'mentors')).some((f) => f.startsWith('people.json.corrupt-')));
 });
+
+test('dates: the RSS or the twin is exact, the listing approximate, and a refresh never trades exact for approximate', async () => {
+  const head = json('ch-jeffersonfisher.json');
+  const approx = json('fisher-approx-dates.json');
+  const all = json('fisher-all.json');
+  const odd = { id: 'APPROXONLY1', title: 'Only the listing dates this', duration: 900, view_count: 5, timestamp: 1794000000 };
+  const dated = new Map([...approx.entries, odd].map((e) => [e.id, e.timestamp]));
+  dated.set('1HX8PQ9FiCU', 1790000000); // an approximate date far from both exact ones
+  D._setDiscoverDepsForTest({
+    ...D.discoverDeps(),
+    ytdlpJson: async (args) => {
+      const url = args.at(-1);
+      if (url.endsWith('/videos')) return { ...head, entries: [odd, ...all.entries.map((e) => ({ ...e, timestamp: dated.get(e.id) ?? null }))] };
+      return { ...head, entries: [] };
+    },
+  });
+  await P.followPerson({ channelUrl: URL_FISHER });
+  const rss = await R.getSource('yt:1HX8PQ9FiCU');
+  assert.equal(rss.publishedAt, '2026-11-20T15:00:23.000Z', 'the RSS beats the listing');
+  assert.equal(rss.publishedApprox, false);
+  const only = await R.getSource('yt:APPROXONLY1');
+  assert.equal(only.publishedAt, new Date(1794000000 * 1000).toISOString());
+  assert.equal(only.publishedApprox, true);
+  const undated = (await R.listSources({ personId: 'jefferson-fisher', kind: 'video' })).find((s) => !s.publishedAt);
+  if (undated) assert.equal(undated.publishedApprox, null);
+
+  // the RSS no longer lists it: its exact date stays
+  D._setDiscoverDepsForTest({
+    ...D.discoverDeps(),
+    fetchText: async (u) => (u.includes('feeds/videos.xml') ? '<feed></feed>' : text('fisher-podcast-feed.xml')),
+  });
+  await P.refreshPerson('jefferson-fisher');
+  // its podcast twin's date (also exact) may stand in; the listing's never does
+  const again = await R.getSource('yt:1HX8PQ9FiCU');
+  assert.equal(again.publishedAt.slice(0, 10), '2026-11-20');
+  assert.equal(again.publishedApprox, false);
+  assert.notEqual(again.publishedAt, new Date(dated.get('1HX8PQ9FiCU') * 1000).toISOString());
+});
+
+test('previewPerson: the narrower choice is priced by the same selection the queue uses', async () => {
+  P._setPeopleDepsForTest({ readClaudeUsage: async () => null, now: () => Date.parse('2026-11-21T00:00:00Z') });
+  const d = await P.previewPerson({ channelUrl: URL_FISHER });
+  const { inScope } = await import('../lib/mentorQueue.js');
+  const vids = json('fisher-all.json').entries.map((e) => ({ key: `yt:${e.id}`, tier: 1, views: e.view_count, durationSec: e.duration, publishedAt: null }));
+  const want = inScope(vids, { scope: 'narrow', now: Date.parse('2026-11-21T00:00:00Z') });
+  // the six newest have RSS dates inside the last 12 months, so they join the 60 most viewed
+  assert.ok(d.estimateNarrow.videos >= 60 && d.estimateNarrow.videos < d.counts.videos);
+  assert.ok(d.estimateNarrow.videos >= want.length);
+  const hours = want.reduce((t, v) => t + (v.durationSec || 0), 0) / 3600;
+  assert.ok(d.estimateNarrow.hours >= Math.round(hours * 10) / 10);
+  assert.equal(d.estimateNarrow.basis, d.estimate.basis);
+  assert.equal(d.estimateNarrow.totalUsd, d.estimateNarrow.readUsd + d.estimateNarrow.weaveUsd);
+  assert.equal(d.estimateNarrow.weaveUsd, Math.round(d.estimateNarrow.videos * 0.94));
+});

@@ -62,6 +62,8 @@ const SCHEDULED = [
   { id: 'todoist', label: 'Todoist', role: 'two-way to-do sync', cadenceHours: 2 },
   { id: 'overnight', label: 'Overnight', role: 'queued work while he sleeps', cadenceHours: 2 },
   { id: 'projects', label: 'Project queues', role: 'his projects\' queued jobs, overnight or on his press', cadenceHours: 1 },
+  // ticks every 2 min (lib/mentorQueue.js): transcripts on this Mac, reads after his go
+  { id: 'mentors', label: 'Mentors', role: 'the people he follows, transcribed and read', cadenceHours: 1 },
   { id: 'telegram', label: 'Telegram', role: 'Nova in his pocket', cadenceHours: 2 },
   { id: 'pulse', label: 'Pulse', role: 'what\'s new on his topics', cadenceHours: 2 },
   { id: 'health-mirror', label: 'Health Mirror', role: 'the numbers, into the vault', cadenceHours: 2 },
@@ -165,6 +167,7 @@ export const AGENT_DEPARTMENTS = {
   todoist: ['Logistics'],
   overnight: ['Platform', 'Knowledge'],
   projects: ['Platform', 'Knowledge'],
+  mentors: ['Knowledge'],
   telegram: ['Platform'],
   pulse: ['Knowledge'],
   voice: ['Knowledge', 'Logistics'],

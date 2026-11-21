@@ -29,7 +29,10 @@ export const stageRank = (stage) => STAGES.indexOf(stage);
 
 const HOLD_STATES = ['refused', 'failed', 'skipped', 'duplicate', 'held'];
 const WORKING = ['transcript', 'read', 'weave'];
-const DESCRIPTIVE = ['title', 'url', 'show', 'channelId', 'publishedAt', 'durationSec', 'views', 'audio', 'kind', 'tier'];
+// `publishedApprox` says which date `publishedAt` is: false when it came from
+// the RSS or the podcast feed (exact), true when only the channel listing's
+// approximate date was there, null when there is no date at all.
+const DESCRIPTIVE = ['title', 'url', 'show', 'channelId', 'publishedAt', 'publishedApprox', 'durationSec', 'views', 'audio', 'kind', 'tier'];
 
 const sha = (s) => createHash('sha1').update(String(s)).digest('hex');
 const now = () => new Date().toISOString();
@@ -198,6 +201,7 @@ function newRecord(key, item, origin) {
     show: has(item.show) ? item.show : null,
     channelId: has(item.channelId) ? item.channelId : null,
     publishedAt: has(item.publishedAt) ? item.publishedAt : null,
+    publishedApprox: has(item.publishedApprox) ? !!item.publishedApprox : (has(item.publishedAt) ? false : null),
     durationSec: has(item.durationSec) ? item.durationSec : null,
     views: has(item.views) ? item.views : null,
     people: [],
@@ -417,7 +421,7 @@ export async function backfillFromVault(vaultPath) {
       key, kind, tier: kind === 'video' || kind === 'book' ? 1 : 2,
       title, url: url || null,
       show: [fm.show, fm.channel, fm.uploader].find((v) => typeof v === 'string' && v.trim()) || null,
-      channelId: null, publishedAt: null, durationSec: null, views: null,
+      channelId: null, publishedAt: null, publishedApprox: null, durationSec: null, views: null,
       people, audio: null,
       stage: 'woven', working: null, hold: null,
       transcript: rawRel && rawText != null

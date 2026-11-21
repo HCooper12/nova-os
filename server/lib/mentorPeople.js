@@ -221,9 +221,12 @@ async function discover(channelUrl) {
 export async function previewPerson({ channelUrl } = {}) {
   const url = channelUrlOf(channelUrl);
   if (!url) throw new Error('a channel address is needed: a youtube.com/@name link, a /channel/ link, or an @handle');
-  const { person, counts, listing, rssDates } = await discover(url);
+  const entry = await discover(url);
+  const { person, counts, listing, rssDates } = entry;
+  const { twinOf } = twinsOf(entry);
+  const dated = listing.videos.map((v) => ({ ...v, ...videoDate(v, rssDates, twinOf.get(v.id)) }));
 
-  const latest = listing.videos.slice(0, 6).map((v) => ({ id: v.id, title: v.title, durationSec: v.durationSec, publishedAt: rssDates.get(v.id) || null }));
+  const latest = dated.slice(0, 6).map((v) => ({ id: v.id, title: v.title, durationSec: v.durationSec, publishedAt: v.publishedAt }));
 
   // what Nova already holds: the videos and books that are in the register
   // with a page in his vault (a backfill or an earlier weave put it there)
@@ -239,11 +242,34 @@ export async function previewPerson({ channelUrl } = {}) {
   }
 
   const estimate = estimateFor({ videos: counts.videos, hours: listing.videos.reduce((t, v) => t + (v.durationSec || 0), 0) / 3600 });
+  // the narrower choice, priced by the SAME selection the queue works down
+  // (lib/mentorQueue.js inScope); imported here, not at the top, because the
+  // queue imports this module
+  const { inScope } = await import('./mentorQueue.js');
+  const narrow = inScope(dated.map((v) => ({ key: sourceKey({ videoId: v.id }), tier: 1, ...v })), { scope: 'narrow', followedAt: null, now: D().now() });
+  const narrowHours = narrow.reduce((t, v) => t + (v.durationSec || 0), 0) / 3600;
+  const estimateNarrow = { videos: narrow.length, hours: round1(narrowHours), ...estimateFor({ videos: narrow.length, hours: narrowHours }) };
   const usage = await D().readClaudeUsage();
-  return { person: copy(person), counts: copy(counts), latest, alreadyInVault, estimate, big: estimate.totalUsd >= BIG_USD, usage };
+  return { person: copy(person), counts: copy(counts), latest, alreadyInVault, estimate, estimateNarrow, big: estimate.totalUsd >= BIG_USD, usage };
 }
 
 /* -------------------------------- following -------------------------------- */
+
+// The date of one listed video, best source first: the RSS (exact, but only
+// the 15 newest), else the podcast twin's feed date (exact), else the
+// listing's approximate date. `publishedApprox` says which was kept; no date
+// at all leaves both null so an upsert changes nothing.
+function videoDate(v, rssDates, ep) {
+  const exact = rssDates.get(v.id) || ep?.publishedAt || null;
+  if (exact) return { publishedAt: exact, publishedApprox: false };
+  if (v.publishedAt) return { publishedAt: v.publishedAt, publishedApprox: true };
+  return { publishedAt: null, publishedApprox: null };
+}
+
+function twinsOf(entry) {
+  const byGuid = new Map((entry.podcast?.episodes || []).map((e) => [e.guid, e]));
+  return { byGuid, twinOf: new Map((entry.twins?.pairs || []).map((p) => [p.videoId, byGuid.get(p.guid)])) };
+}
 
 function buildSources(person, entry, scope) {
   const { listing, rssDates, podcast, twins } = entry;
@@ -251,29 +277,28 @@ function buildSources(person, entry, scope) {
   const people = [{ id: person.id, role: 'host' }];
   const hold = scope === 'none' ? { state: 'held', why: 'he chose not now', at: new Date(D().now()).toISOString(), retryAt: null } : undefined;
   const common = { show: channel.name, channelId: channel.channelId, people, ...(hold ? { hold } : {}) };
-  const byGuid = new Map((podcast?.episodes || []).map((e) => [e.guid, e]));
-  const twinOf = new Map(twins.pairs.map((p) => [p.videoId, byGuid.get(p.guid)]));
+  const { byGuid, twinOf } = twinsOf(entry);
   const out = [];
   for (const v of listing.videos) {
     const ep = twinOf.get(v.id);
     out.push({
       ...common, key: sourceKey({ videoId: v.id }), kind: 'video', tier: 1, title: v.title,
-      url: `https://www.youtube.com/watch?v=${v.id}`, publishedAt: rssDates.get(v.id) || ep?.publishedAt || null,
+      url: `https://www.youtube.com/watch?v=${v.id}`, ...videoDate(v, rssDates, ep),
       durationSec: v.durationSec, views: v.views,
       audio: ep ? { feedUrl: podcast.feedUrl, guid: ep.guid, url: ep.audioUrl, sec: ep.durationSec } : null,
     });
   }
   for (const v of listing.shorts) {
-    out.push({ ...common, key: sourceKey({ videoId: v.id }), kind: 'short', tier: 2, title: v.title, url: `https://www.youtube.com/shorts/${v.id}`, publishedAt: rssDates.get(v.id) || null, durationSec: v.durationSec, views: v.views });
+    out.push({ ...common, key: sourceKey({ videoId: v.id }), kind: 'short', tier: 2, title: v.title, url: `https://www.youtube.com/shorts/${v.id}`, ...videoDate(v, rssDates, null), durationSec: v.durationSec, views: v.views });
   }
   for (const v of listing.streams) {
-    out.push({ ...common, key: sourceKey({ videoId: v.id }), kind: 'stream', tier: 2, title: v.title, url: `https://www.youtube.com/watch?v=${v.id}`, publishedAt: rssDates.get(v.id) || null, durationSec: v.durationSec, views: v.views });
+    out.push({ ...common, key: sourceKey({ videoId: v.id }), kind: 'stream', tier: 2, title: v.title, url: `https://www.youtube.com/watch?v=${v.id}`, ...videoDate(v, rssDates, null), durationSec: v.durationSec, views: v.views });
   }
   for (const guid of twins.episodeOnly) {
     const e = byGuid.get(guid);
     out.push({
       ...common, key: sourceKey({ feedUrl: podcast.feedUrl, guid }), kind: 'episode', tier: 2, title: e.title,
-      url: e.audioUrl, show: podcast.title, publishedAt: e.publishedAt, durationSec: e.durationSec, views: null,
+      url: e.audioUrl, show: podcast.title, publishedAt: e.publishedAt, publishedApprox: e.publishedAt ? false : null, durationSec: e.durationSec, views: null,
       audio: { feedUrl: podcast.feedUrl, guid, url: e.audioUrl, sec: e.durationSec },
     });
   }
@@ -286,7 +311,17 @@ function buildSources(person, entry, scope) {
 async function record(person, entry, scope) {
   const list = buildSources(person, entry, scope);
   const known = new Set();
-  for (const s of list) if (await getSource(s.key)) known.add(s.key);
+  for (const s of list) {
+    const cur = await getSource(s.key);
+    if (!cur) continue;
+    known.add(s.key);
+    // a video that has dropped out of the RSS's newest 15 comes back with only
+    // its approximate date; the exact one already recorded stays
+    if (s.publishedApprox === true && cur.publishedAt && cur.publishedApprox !== true) {
+      delete s.publishedAt;
+      delete s.publishedApprox;
+    }
+  }
   await upsertSources(list, { origin: 'discovery' });
   // upsert merges people into a known record already; this says so out loud
   // for the records a backfill made, and costs nothing when nothing changed

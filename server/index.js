@@ -287,6 +287,7 @@ async function main() {
   // before any restart (lib/jobRegistry.js; the 25 Sep lost Coach answer)
   app.get('/api/jobs/active', async (req, res) => {
     const { activeJobs } = await import('./lib/jobRegistry.js');
+    (await import('./lib/mentorQueue.js')).noteReloadWaiting(); // the Mentors queue starts nothing new for 90 s, so it drains
     res.json(activeJobs());
   });
   app.get('/api/push/key', async (req, res) => {
@@ -419,6 +420,11 @@ async function main() {
   // project queues (Projects phase 3): overnight on their own, any time on his press
   import('./lib/projectScheduler.js').then(({ startProjectScheduler }) => startProjectScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('project scheduler failed to start:', e.message));
+  // Mentors: transcripts on this Mac one at a time, reads only after his go and under his ceilings
+  if (process.env.NOVA_MENTORS !== '0') {
+    import('./lib/mentorQueue.js').then(({ startMentorQueue }) => startMentorQueue(process.env.VAULT_PATH))
+      .catch((e) => console.error('mentor queue failed to start:', e.message));
+  }
   startTelegramBridge(process.env.VAULT_PATH);
   import('./lib/pulse.js').then(({ startPulseScheduler }) => startPulseScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('pulse scheduler failed to start:', e.message));

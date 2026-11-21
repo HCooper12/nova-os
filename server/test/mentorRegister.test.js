@@ -80,6 +80,21 @@ test('upsertSources adds, then updates descriptive fields only, merging people, 
   assert.equal(Object.keys(onDisk().sources).length, 3);
 });
 
+test('publishedApprox is a descriptive field: exact or approximate, said on the record and updated by a later upsert', async () => {
+  await R.upsertSources([
+    vid('apx', { publishedAt: '2026-11-01T00:00:00.000Z', publishedApprox: true }),
+    vid('exa', { publishedAt: '2026-10-01T00:00:00.000Z' }),
+    vid('und'),
+  ]);
+  assert.equal((await R.getSource('yt:apx')).publishedApprox, true);
+  assert.equal((await R.getSource('yt:exa')).publishedApprox, false, 'a date with no flag is exact');
+  assert.equal((await R.getSource('yt:und')).publishedApprox, null, 'no date, no claim');
+  await R.upsertSources([vid('apx', { publishedAt: '2026-11-02T10:00:00.000Z', publishedApprox: false })]);
+  const a = await R.getSource('yt:apx');
+  assert.equal(a.publishedAt, '2026-11-02T10:00:00.000Z');
+  assert.equal(a.publishedApprox, false);
+});
+
 test('upsertSources derives a key from the item, and says why when it cannot', async () => {
   await R.upsertSources([{ url: 'https://youtu.be/derived12345', title: 'D' }]);
   assert.ok(await R.getSource('yt:derived12345'));

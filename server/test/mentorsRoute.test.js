@@ -204,3 +204,31 @@ test('POST /mentors/backfill: reads the vault and answers with the counts', asyn
   assert.equal(r.body.scanned, 0);
   assert.equal(r.body.added, 0);
 });
+
+test('the queue routes: status, pause, his go for reading, ceilings, retry; and a person shows what the queue is doing for him', async () => {
+  const Q = await import('../lib/mentorQueue.js');
+  Q._resetQueueForTests();
+  const post = (p, body) => fetch(`${base}/api${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  await (await post('/mentors/follow', { channelUrl: URL_FISHER })).json();
+  let r = await fetch(`${base}/api/mentors/queue`);
+  let st = await r.json();
+  assert.equal(st.paused, false);
+  assert.equal(st.people[0].id, 'jefferson-fisher');
+  assert.equal(st.people[0].doing, 'idle');
+  st = await (await post('/mentors/queue/pause', { paused: true })).json();
+  assert.equal(st.paused, true);
+  assert.equal((await post('/mentors/queue/pause', { paused: 'yes' })).status, 400);
+  const one = await (await fetch(`${base}/api/mentors/jefferson-fisher`)).json();
+  assert.equal(one.doing, 'paused');
+  assert.equal(one.waiting, null);
+  await post('/mentors/queue/pause', { paused: false });
+  assert.deepEqual(await (await post('/mentors/jefferson-fisher/reading', { allowed: true })).json(), { id: 'jefferson-fisher', readingAllowed: true });
+  assert.equal((await post('/mentors/nobody/reading', { allowed: true })).status, 404);
+  assert.deepEqual((await (await post('/mentors/queue/ceilings', { session: 50 })).json()).ceilings, { session: 50, week: 75 });
+  assert.equal((await post('/mentors/queue/ceilings', { session: 500 })).status, 400);
+  await R.setHold('yt:1HX8PQ9FiCU', { state: 'failed', why: 'x' });
+  r = await post('/mentors/source/retry', { key: 'yt:1HX8PQ9FiCU' });
+  assert.equal((await r.json()).source.hold, null);
+  assert.equal((await post('/mentors/source/retry', { key: 'yt:nope' })).status, 404);
+  Q._resetQueueForTests();
+});
