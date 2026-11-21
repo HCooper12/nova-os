@@ -340,3 +340,85 @@ What version 2 of the mockup does about it:
   stage lists are real. The mentor book needs the principle counts as
   structure (not words inside the sentence), which the structured weave
   already calls for.
+
+## 21 Nov: his verdict on version 2, and what changed
+
+**His words:** "still don't love the design. Seems too AI-like designed and
+bland. Not as engaging, beautiful to look at/use and a bit dull. It also
+includes too many AI-built phrases and aspects like the subtitle/subheadings
+I only see in AI generated builds, such as phrases like 'these are read
+first' that tell what is happened etc. The overall interface just isn't
+appealing to look at."
+
+**His other answers that day:**
+- News IS part of this build after all, mockup first ("You can build the
+  news page too but show a mockup first to make it easier"). This replaces
+  the 19 Nov line that News leaves the build.
+- Transcripts at scale: "Your pick. As long as it gets done properly and
+  successfully."
+- Build the backend now, while the designs are confirmed.
+
+**What version 2 got wrong (my reading):** every row carried a grey
+sentence explaining the system; every group had a label restating the
+obvious; a person was two initials, a book a brown block, 236 videos 236
+grey squares, while his real portrait, real thumbnails and the channel's own
+colour were all available; one grammar (dark navy, hairline lists, a chip, a
+cyan pill) for everything. Rules now in force for every Mentors screen: a
+row is a name and a number; no sentence that says what Nova does; no label
+that restates the content; real imagery always; anything that marks a
+sample lives outside the phone frame.
+
+**Round three is two directions, for him to choose between**, both drawn
+with real assets (the five people's channel portraits each sit on their own
+flat colour: Fisher orange `#fb6b2f`, Williamson teal, Hormozi green):
+- A, "Mentors in Colour" (`design/mockups/125a-mentors-colour.html`): the
+  person's own colour is the page, a printed, poster world.
+- B, "Mentors in Glass" (`design/mockups/125b-mentors-glass.html`): Nova's
+  night sky and glass, lit by the person's pictures.
+Both include the News page. A person's colour is sampled by code from their
+own portrait (`sampleColour`), never chosen.
+
+## 21 Nov: how Nova gets the words (measured, replaces "slow pacing")
+
+- **Captions are not a route.** The first caption request after two idle
+  days was refused (429). So it is not a rate that pacing can stay under.
+  Testing other client identities or token schemes to get past the refusal
+  was stopped by this machine's safety check, and is not pursued.
+- **Audio is not refused, and the Mac can transcribe it.** A 7 minute
+  video's audio came down in 3.9 s with the plain default client. The
+  podcast's public feed (megaphone, 143 episodes, 82.6 hours) served a 16
+  minute episode in 4.7 s. Nova's own transcriber (whisper-large-v3-turbo on
+  MLX, `server/voice-stt`) did that 970 s episode in 45.2 s: **21.5 times
+  real time**, punctuated. Fisher's 161 hours is about 7.5 hours of this
+  Mac's time, free. Williamson's 1,936 hours would be about 90 hours.
+- **So: audio in, transcribed here.** Podcast audio when a video has a twin
+  episode, YouTube audio otherwise, a transcript already in the vault first
+  of all. A refusal is respected: the item waits and says so. His signed-in
+  YouTube account stays his call and is not used.
+- A bonus: these transcripts are punctuated, which captions are not, so the
+  word-for-word checks have cleaner text.
+- **Re-cuts.** 236 long videos on YouTube against 143 podcast episodes: by
+  length, 106 videos pair with an episode. Of the other 130, 40 run over 80
+  minutes and look like compilations. Code now compares transcripts
+  (8-word runs) and holds a video whose words are 85% or more already
+  covered, so the same hour is not paid for twice and "in N videos" counts
+  stay honest. NOT yet known: how many of the 236 are repeats; the first
+  full transcript pass will say.
+- NOT measured: a two hour file through the cut-at-silence path, the
+  transcriber's accuracy on a noisy guest episode, YouTube's patience with
+  a few hundred audio downloads in a day.
+
+## Backend build order, as it is being built (21 Nov)
+
+1. `mentorRegister.js` (one record per source with its stage, the backfill
+   of the vault), `mentorDiscover.js` (channel search and listing, RSS
+   dates, podcast feed, twins, books, the portrait colour),
+   `mentorPeople.js` (preview, follow, refresh), `claudeUsage.js` (his
+   plan's percentages, free), `routes/mentors.js`.
+2. `mentorTranscripts.js`, `mentorRepeats.js`, `mentorRead.js` (lane
+   `mentor-read`, Sonnet low, the pilot's `read-v1` prompt unchanged, never
+   Fable enforced in code), `mentorQueue.js` (one transcript at a time, two
+   reads, his go before any paid stage, stops at 60% of the session and 75%
+   of the week, yields to a conversation, never blocks a reload).
+3. The structured weave, measured on a scratch copy before any large run.
+4. Retrieval, then the screens from the direction he picks, then News.
