@@ -11,6 +11,17 @@ the session log at the foot is append-only.
 
 ---
 
+**21 NOV, CLOSE (claude.ai session 01FPAPLf, Sonnet 5.5): LOG AGAIN IS PUSHED AND SERVED; THE GLASS METER RAN ON HIS IPHONE AND IS FINE. Corrects the "NOT PUSHED" lines in the 3 and 4 Nov blocks below.**
+- GOAL: ship Log again (mockup 110 round 2) and read the glass meter from his phone.
+- DONE CRITERIA: Log again MET on the remote and served, UNMET on his phone (not yet seen). Glass meter MET. BLOCKED: none.
+- STATE: main == origin/main at 36c0e77f (`git fetch && git status -sb`). Log again commits faf6452d, 21adbde5, 3fee1e26 are ancestors of the served build 75d37012. Server on 4173 was reloaded earlier with `/api/food-log/recent` live.
+- DECISIONS: (a) Log again leaves rotation dishes out -> my reading of "items not found in the current meal rotation" -> flipping it is one line (`rotationNames` into `buildRelog`); (b) the glass is kept as is -> his phone shows no cost -> forecloses any "lighten the glass" work.
+- VERIFIED (locators): the push landed (`git push` printed `75d37012..36c0e77f`; `git log origin/main` lists the three commits); the last deploy run is success for 75d37012 (`gh run list`), served `version.json` = {"buildId":"75d370120"}, and the served `assets/index-DCK40nhB.js` and `index-DPEpl242.css` contain "Log again" / `nv-rl-`; lint exit 0; `cd server && npm test` 5673 of 5675 pass. GLASS: `node scripts/nova-api.mjs GET /api/perf/glass` (row at 2026-11-20T11:48Z, iPhone Safari iOS 18.7, dpr 3, 17 ms refresh): glass on dropped 1 frame in 432 (Fuel), glass off dropped 4; p95 17 ms everywhere.
+- ASSUMED (no locator): how Log again looks and feels on his phone; WebKit proof was on a scratch copy only, not on his live app and settings (the standing rule says that proof is still owed); whether his phone is 120 Hz (the meter read 17 ms, so it may have been capped).
+- OPEN QUESTIONS / BLOCKERS: (1) rotation reading above, his call; (2) the live before/after proof of Log again on his real app is not done; (3) 2 exerciseAtlas tests fail (14 library exercises with no drawable view: JM Press, Cat-Cow...), pre-existing data, unrelated; (4) still owed from the speed work: the orb canvas drawing during session changes, and the Inbox Segmented forced layout.
+- NEXT ACTION: he fully closes and reopens Nova, opens Fuel: expect the Log again rail where Likely now was; tap it: expect the by-day sheet, and a count food (Pringles) opens the amount tray with 10 as his usual count.
+- DO NOT: say Log again is "on his phone" before he has looked; the deploy workflow skips docs-only pushes (`paths-ignore`), so no new run after a handoff push is normal, not a failure; do not run `git rev-parse origin/main` with `--short=9` in one call with HEAD without a second revision check (it errored); the classifier refuses the assistant's first `git push`, and he can say "do it for me" and the push then works.
+
 ## 19 Nov, later (Fable 5.2, mentors session): MOCKUP 125 VERSION 2 SENT AFTER HIS FIRST LOOK. STILL NOTHING BUILT IN THE APP, ALL LOCAL
 
 - HIS FEEDBACK ON V1 (on his phone): "Decent first attempt." He wants colour coding and design that shows where the process is at (the found / transcripts / read / woven strip), more distinct design details, less clutter (the principles page), "quickly glanceable without feeling overwhelming but also capable of presenting the entire content scope". The Mentors screens may leave the Summary card look. Use the design skills, always. **News is a separate build run** with its own mockup. Recorded in `design/MENTORS-PLAN.md` (`b8310cd4`).
@@ -7378,3 +7389,5 @@ queue, Telegram bridge, ambient wall mode, inbox expiry, and the food-log
 write-race fix.
 
 - **11-13 Nov (Fable 5.2):** the listening pause chased from his receipts. Corrected, not added: primeSpeech ran twice per tap and the mic was requested before the listening state painted; both fixed, plus a compositor core answer and `paintMs`/`gapMs` receipts. Pushed, deployed, served, server reloaded; unseen on his phone.
+
+**21 Nov (Sonnet 5.5):** Log again is now on the remote and served (it had been "not pushed" in the 3 and 4 Nov blocks; his own `! git push` never reached the remote, and the assistant's push worked once he asked for it directly). The glass meter ran on his iPhone: glass on dropped 1 frame in 432, glass off 4, so the glass costs nothing measurable and stays. Corrected, not added: the earlier "NOT PUSHED" lines above.
