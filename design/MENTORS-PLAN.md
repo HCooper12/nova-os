@@ -422,3 +422,46 @@ own portrait (`sampleColour`), never chosen.
    of the week, yields to a conversation, never blocks a reload).
 3. The structured weave, measured on a scratch copy before any large run.
 4. Retrieval, then the screens from the direction he picks, then News.
+
+## 22 Nov: parts 1 and 2 built, and what the real modules measured
+
+Committed, not pushed, NOT running (the live server has not been reloaded):
+`1e71e083` the register and backfill; `255f87ee` discovery, follow, usage,
+routes; `c9e9ac2e` the transcriber's time marks; `e0e64e26` transcripts,
+repeats, the read, the queue.
+
+- The backfill, read-only on the real vault: 121 Source pages scanned, 103
+  sources entered (22 YouTube videos, 3 books, 78 other), 71 with a
+  transcript, 8 with no link to identify them by (the six weekly Leadership
+  Research pages and two Hormozi pages). Three of Fisher's videos were
+  already there.
+- A real preview of Fisher through `previewPerson`: 12.4 s, 236 videos,
+  161.1 hours, 567 shorts, 4 streams, 143 episodes, 104 videos paired with
+  a podcast episode, colour `#fb6b2f`, estimate $37 reading + $222 weaving.
+- Every video now has a date: the channel listing with
+  `youtubetab:approximate_date` gave all 2,341 of Williamson's a timestamp.
+  So the narrower choice has a price: 779 videos, 701 hours, about $893
+  (the 60 most viewed plus the past 12 months), against about $2,647 for
+  everything.
+- Through the real transcript path (cut at silences, pieces of about five
+  minutes, time marks from the transcriber): a 970 s podcast episode in
+  4.3 s down and 39.9 s transcribed (24.3 times real time); a 441 s YouTube
+  video in 3.1 s and 18.2 s (24.2 times). The last time mark sat within
+  20 s of the end of each file.
+- One real read on Sonnet (the 16 minute episode): $0.0932, 34.6 s, 16
+  ideas, 2 frameworks, 16 scripts, 12 lines; 16 of 16 scripts and 11 of 12
+  lines found word for word in the transcript.
+- Never Fable is code: `mentorModel()` replaces any Fable-family choice
+  with the lane's default and records why; a test sets the board to Fable
+  and checks the model handed to the CLI. The Settings board would still
+  SHOW Fable if he picked it there. To fix when the screens are built.
+- The queue starts the next video as soon as one finishes, runs one pass at
+  a time, and goes quiet for 90 s whenever `scripts/reload-server.mjs` asks
+  what is running, so it never blocks a reload.
+- The transcriber already running on port 4177 is the old build with no
+  time marks. A transcript asked of it fails with a plain sentence and
+  retries in an hour; it picks up the new build when it next restarts (it
+  exits by itself after 20 idle minutes).
+- NOT yet known: how many of the 236 are repeats; how the two-hour files
+  behave; whether YouTube stays patient with a few hundred audio downloads
+  in a night.
