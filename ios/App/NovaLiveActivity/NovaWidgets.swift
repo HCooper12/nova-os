@@ -759,16 +759,20 @@ struct NovaLinePayload: Codable {
     var at: String?
     var date: String?
     var line: NovaLine?
+    /// A shorter line for the small widget, sent only on a day when `line` is
+    /// too long for that size.
+    var short: NovaLine?
     var previous: NovaLine?
 
-    init(at: String? = nil, date: String? = nil, line: NovaLine? = nil, previous: NovaLine? = nil) {
-        self.at = at; self.date = date; self.line = line; self.previous = previous
+    init(at: String? = nil, date: String? = nil, line: NovaLine? = nil, short: NovaLine? = nil, previous: NovaLine? = nil) {
+        self.at = at; self.date = date; self.line = line; self.short = short; self.previous = previous
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         at = (try? c.decodeIfPresent(String.self, forKey: .at)) ?? nil
         date = (try? c.decodeIfPresent(String.self, forKey: .date)) ?? nil
         line = (try? c.decodeIfPresent(NovaLine.self, forKey: .line)) ?? nil
+        short = (try? c.decodeIfPresent(NovaLine.self, forKey: .short)) ?? nil
         previous = (try? c.decodeIfPresent(NovaLine.self, forKey: .previous)) ?? nil
     }
 }
@@ -1537,8 +1541,11 @@ struct LineProvider: AppIntentTimelineProvider {
         guard let pick = LinePick.choose(p, on: day) else {
             return LineEntry(date: date, line: nil, phase: ph, look: choice.look(ph))
         }
-        let key = "\(pick.line.id)|\(day)"
-        return LineEntry(date: date, line: pick.line, staleFrom: pick.from, phase: ph, look: choice.look(ph),
+        // on a day when the line is too long for the small widget, the server
+        // sends a shorter one; front and back both use it, and so does the key
+        let shown = (size == .small && pick.from == nil ? p?.short : nil) ?? pick.line
+        let key = "\(shown.id)|\(day)"
+        return LineEntry(date: date, line: shown, staleFrom: pick.from, phase: ph, look: choice.look(ph),
                          turned: NovaLineStore.turned(slot: size.slot, key: key), turnKey: key)
     }
 }

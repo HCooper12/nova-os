@@ -25,6 +25,12 @@ const PHRASES_FILE = () => path.join(dataDir(), 'linePhrases.json');
 const STANDS_FILE = () => path.join(dataDir(), 'lineStands.json');
 const KEEP_DAYS = 120;
 const MAX_QUOTE = 200;
+// The longest quote the small widget is trusted to set whole at its smallest
+// type step. Measured on 21 Nov 2026 by rendering the small widget (158 x 158
+// pt) in all three looks: invented 60, 70 and 80 character quotes set whole;
+// 95 fell back to the idea in two of three looks. 70 leaves a margin for wide
+// words. Longer pool lines get a shorter stand-in on the small widget.
+export const SMALL_MAX = 70;
 
 /* ------------------------------ whose show ------------------------------ */
 
@@ -234,24 +240,48 @@ function pickId(date, pool, earlier) {
   return keyOf(notLast(fresh) || fresh[0] || order[0]);
 }
 
+// The small widget's stand-in on a day when the main line is too long for it:
+// a quote of SMALL_MAX or fewer characters, never the main line. Kept for the
+// day once chosen. Every short one is shown once before any repeats, never
+// yesterday's short or yesterday's main line while another candidate exists.
+// Same date-seeded order as the main pick. Returns a key or null.
+function pickShortId(pool, mainKey, kept, earlier) {
+  const small = pool.filter((p) => p.quote.length <= SMALL_MAX);
+  const candidates = stableOrder(small.filter((p) => keyOf(p) !== mainKey));
+  if (!candidates.length) return null;
+  if (kept?.shortId && candidates.some((p) => keyOf(p) === kept.shortId)) return kept.shortId;
+  const inSmall = new Set(small.map(keyOf));
+  let shown = new Set();
+  for (const d of earlier) {
+    if (!d.shortId || !inSmall.has(d.shortId)) continue;
+    shown.add(d.shortId);
+    if (small.every((p) => shown.has(keyOf(p)))) shown = new Set();
+  }
+  const last = earlier.length ? earlier[earlier.length - 1] : null;
+  const ok = (p) => keyOf(p) !== last?.shortId && keyOf(p) !== last?.id;
+  const fresh = candidates.filter((p) => !shown.has(keyOf(p)));
+  return keyOf(fresh.find(ok) || candidates.find(ok) || fresh[0] || candidates[0]);
+}
+
 function lineOf(item, phrases) {
   const { id, quote, who, host, podcast, origin, byLong, byShort, at, idea, sent } = item;
   return { id, quote, em: emFor(quote, phrases?.[keyOf(item)]), who, host, podcast, origin, byLong, byShort, at, idea, sent };
 }
 
 // Pure: { now, pool, days, phrases } -> { payload, days }. `days` in and out is
-// the operational record [{ date, id }], oldest first, last 120 kept.
+// the operational record [{ date, id, shortId? }], oldest first, last 120 kept.
 export function composeLine({ now = new Date(), pool = [], days = [], phrases = {} } = {}) {
   const date = localDateISO(now);
   const byId = new Map(pool.map((p) => [keyOf(p), p]));
   const valid = (Array.isArray(days) ? days : []).filter((d) => d && typeof d.date === 'string' && typeof d.id === 'string');
   const earlier = valid.filter((d) => d.date < date).sort((a, b) => a.date.localeCompare(b.date));
   const base = { at: now.toISOString(), date };
-  if (!pool.length) return { payload: { ...base, line: null, previous: null }, days: valid, key: null };
+  if (!pool.length) return { payload: { ...base, line: null, short: null, previous: null }, days: valid, key: null, shortKey: null };
 
   const kept = valid.find((d) => d.date === date);
   const id = kept && byId.has(kept.id) ? kept.id : pickId(date, pool, earlier);
-  const nextDays = [...earlier, ...valid.filter((d) => d.date > date), { date, id }]
+  const shortId = byId.get(id).quote.length <= SMALL_MAX ? null : pickShortId(pool, id, kept, earlier);
+  const nextDays = [...earlier, ...valid.filter((d) => d.date > date), shortId ? { date, id, shortId } : { date, id }]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-KEEP_DAYS);
 
@@ -260,9 +290,11 @@ export function composeLine({ now = new Date(), pool = [], days = [], phrases = 
     payload: {
       ...base,
       line: lineOf(byId.get(id), phrases),
+      short: shortId ? lineOf(byId.get(shortId), phrases) : null,
       previous: prev ? { ...lineOf(byId.get(prev.id), phrases), date: prev.date } : null,
     },
     days: nextDays,
+    shortKey: shortId, // the small widget's stand-in, same kind of key
     key: id, // the picked line's own key (a harvested line shares its page's `id`)
   };
 }
@@ -412,13 +444,17 @@ export async function buildLineWidget(vaultPath, vault, { now = new Date(), fill
   const pool = standing(every, await readStands());
   const stored = await readJson(DAYS_FILE(), { days: [] });
   const phrases = await readPhrases();
-  const { payload, days, key } = composeLine({ now, pool, days: stored?.days, phrases });
+  const { payload, days, key, shortKey } = composeLine({ now, pool, days: stored?.days, phrases });
   if (JSON.stringify(days) !== JSON.stringify(stored?.days || [])) {
     try { await writeJsonAtomic(DAYS_FILE(), { days }); } catch (e) { console.log(`lineWidget: record not saved (${e.message})`); }
   }
   const line = payload.line;
   if (fill && line && !hasValidRecord(line.quote, phrases[key])) {
     fillPhrase({ id: key, quote: line.quote, runner }).catch(() => {});
+  }
+  const short = payload.short;
+  if (fill && short && !hasValidRecord(short.quote, phrases[shortKey])) {
+    fillPhrase({ id: shortKey, quote: short.quote, runner }).catch(() => {});
   }
   // today's line is asked about first, so a NO replaces it on the next fetch
   const judgeAll = (items) => judgePool([...items].sort((a, b) => (keyOf(b) === key) - (keyOf(a) === key)), judge ? { runner: judge } : {});

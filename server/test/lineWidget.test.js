@@ -262,3 +262,81 @@ test('a blockquote mark inside a quote is removed, and the same words twice are 
   const kept = L.oncePerWording([{ id: 'a', quote: 'People hate being sold.' }, { id: 'b', quote: 'people hate being sold' }, { id: 'c', quote: 'Another.' }]);
   assert.deepEqual(kept.map((p) => p.id), ['a', 'c']);
 });
+
+/* ----------------------- the small widget's shorter line ----------------------- */
+
+const longQuote = (id) => `Invented long line ${id}: ${'a thought that keeps going '.repeat(5)}`.trim();
+const shortItem = (id) => item(id, { quote: `Short ${id} stays brief.` });
+const longItem = (id) => item(id, { quote: longQuote(id) });
+const shortKeys = (r) => r.days.map((d) => d.shortId);
+
+test('small: a main line within SMALL_MAX gives short null and no shortId', () => {
+  const pool = [...mkPool(3), shortItem('s0')];
+  assert.ok(pool.every((p) => p.quote.length <= L.SMALL_MAX));
+  const r = L.composeLine({ now: at(2026, 11, 17), pool });
+  assert.equal(r.payload.short, null);
+  assert.ok(!('shortId' in r.days.at(-1)));
+});
+
+test('small: a long main line gets a short stand-in with the full line shape', () => {
+  const pool = [longItem('L0'), shortItem('s0'), shortItem('s1')];
+  const r = L.composeLine({ now: at(2026, 11, 17), pool, days: [{ date: '2026-11-17', id: 'L0' }] });
+  const { line, short } = r.payload;
+  assert.equal(line.id, 'L0');
+  assert.ok(short.quote.length <= L.SMALL_MAX);
+  assert.notEqual(short.id, line.id);
+  assert.deepEqual(Object.keys(short).sort(), Object.keys(line).sort());
+  assert.equal(r.days.at(-1).shortId, short.id);
+  assert.equal(r.days.at(-1).id, 'L0');
+});
+
+test('small: the short is stable within a day; old records without shortId work', () => {
+  const pool = [longItem('L0'), shortItem('s0'), shortItem('s1'), shortItem('s2')];
+  const a = L.composeLine({ now: at(2026, 11, 17), pool, days: [{ date: '2026-11-17', id: 'L0' }] });
+  const b = L.composeLine({ now: at(2026, 11, 17), pool, days: a.days });
+  assert.equal(b.payload.short.id, a.payload.short.id);
+  const old = L.composeLine({ now: at(2026, 11, 17), pool, days: [{ date: '2026-11-16', id: 's0' }, { date: '2026-11-17', id: 'L0' }] });
+  assert.equal(old.payload.line.id, 'L0');
+  assert.ok(old.payload.short.quote.length <= L.SMALL_MAX);
+});
+
+test('small: every short is used once before any repeat, never yesterday\'s short', () => {
+  // the main line is forced to a long one each day, so every day needs a short
+  const shorts = ['s0', 's1', 's2'];
+  const pool = [longItem('L0'), longItem('L1'), longItem('L2'), ...shorts.map(shortItem)];
+  let days = [];
+  const used = [];
+  for (let i = 0; i < 9; i += 1) {
+    const date = `2026-11-${String(1 + i).padStart(2, '0')}`;
+    const r = L.composeLine({ now: at(2026, 11, 1 + i), pool, days: [...days, { date, id: `L${i % 3}` }] });
+    days = r.days;
+    used.push(r.payload.short.id);
+  }
+  assert.equal(used.length, 9);
+  for (let i = 0; i + 3 <= used.length; i += 3) assert.equal(new Set(used.slice(i, i + 3)).size, 3);
+  for (let i = 1; i < used.length; i += 1) assert.notEqual(used[i], used[i - 1]);
+});
+
+test('small: no candidates gives short null', () => {
+  const r = L.composeLine({ now: at(2026, 11, 17), pool: [longItem('L0'), longItem('L1')] });
+  assert.equal(r.payload.short, null);
+  assert.ok(!('shortId' in r.days.at(-1)));
+  // the only short line is the main line itself: still nothing to show
+  const solo = L.composeLine({ now: at(2026, 11, 17), pool: [shortItem('s0')] });
+  assert.equal(solo.payload.short, null);
+});
+
+test('small: a stored shortId that left the pool or grew too long is replaced', () => {
+  const pool = [longItem('L0'), shortItem('s0'), shortItem('s1')];
+  const gone = L.composeLine({ now: at(2026, 11, 17), pool, days: [{ date: '2026-11-17', id: 'L0', shortId: 'nope' }] });
+  assert.ok(['s0', 's1'].includes(gone.payload.short.id));
+  const grown = L.composeLine({ now: at(2026, 11, 17), pool: [longItem('L0'), longItem('x1'), shortItem('s1')], days: [{ date: '2026-11-17', id: 'L0', shortId: 'x1' }] });
+  assert.equal(grown.payload.short.id, 's1');
+});
+
+test('small: a short pick does not count as shown for the main rotation', () => {
+  const pool = [longItem('L0'), shortItem('s0'), shortItem('s1')];
+  const withShort = L.composeLine({ now: at(2026, 11, 17), pool, days: [{ date: '2026-11-16', id: 'L0', shortId: 's0' }] });
+  const without = L.composeLine({ now: at(2026, 11, 17), pool, days: [{ date: '2026-11-16', id: 'L0' }] });
+  assert.equal(withShort.payload.line.id, without.payload.line.id);
+});
