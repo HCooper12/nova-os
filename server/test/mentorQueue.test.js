@@ -35,7 +35,7 @@ function talk(seed, n = 1500) {
 const deferred = () => { let resolve; let reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 
 function install() {
-  Q._setQueueDepsForTest({
+  Q._setQueueDepsForTest(lastDeps = {
     now: () => clock,
     sleep: async (ms) => { clock += ms; },
     busy: async () => env.busy(),
@@ -350,4 +350,120 @@ test('pause, a paused person, and the status shape', async () => {
   await R.upsertSources([vid('b')]);
   assert.deepEqual(await Q.tick(), [], 'a paused person is not worked on');
   assert.equal((await Q.queueStatus()).people[0].doing, 'paused');
+});
+
+/* ------------------------------ weaves (part 3) ----------------------------- */
+
+let weaves;
+function installWeave() {
+  install();
+  weaves = [];
+  const base = deps();
+  Q._setQueueDepsForTest({
+    ...base,
+    weaveBatch: async (personId, keys, opts) => {
+      const w = { personId, keys, opts, gate: deferred() };
+      weaves.push(w);
+      log.push(`weave ${personId} ${keys.length}`);
+      if (env.fail[`weave:${personId}`]) throw new Error(env.fail[`weave:${personId}`]);
+      if (env.holdWeave) await w.gate.promise;
+      for (const k of keys) await R.setStage(k, 'woven', { woven: { version: 'weave-v2', batchId: 'b' } });
+      return { batchId: 'b', costUsd: 0.2, model: 'sonnet' };
+    },
+  });
+  Q._setVaultPathForTests('/nonexistent/vault-for-tests');
+}
+// the deps install() just set, so a weave stand-in can be added beside them
+let lastDeps = null;
+function deps() { return lastDeps; }
+
+async function readSources(ids, personId = 'fisher') {
+  await R.upsertSources(ids.map((id) => vid(id, { people: [{ id: personId, role: 'host' }] })));
+  for (const id of ids) await R.setStage(`yt:${id}`, 'read', { read: { version: 'read-v1' } });
+}
+
+test('weave: none before his go; with it, fewer than ten start once nothing is left to read, registered and marked', async () => {
+  await person({ repeatsCheckedAt: day(1) });
+  await readSources(['a', 'b', 'c']);
+  installWeave();
+  assert.deepEqual((await Q.tick()).filter((x) => x.what === 'weave'), [], 'no go, no weave');
+  await Q.allowReading('fisher');
+  env.holdWeave = true;
+  const got = await Q.tick();
+  assert.deepEqual(got.map((x) => x.what), ['weave']);
+  assert.equal(weaves[0].keys.length, 3);
+  assert.equal(weaves[0].opts.vaultPath, '/nonexistent/vault-for-tests');
+  assert.equal((await R.getSource('yt:a')).working, 'weave');
+  assert.equal(J.activeJobs().byLane.mentorWeave, 1, 'a weave cut off by a reload wastes money: it is registered');
+  assert.equal((await Q.queueStatus()).people[0].doing, 'weaving');
+  assert.ok(log.includes('usage'), 'the meter is read before a weave');
+  weaves[0].gate.resolve();
+  await Q.runUntilIdle();
+  assert.equal((await R.getSource('yt:a')).stage, 'woven');
+  assert.equal(J.activeJobs().byLane.mentorWeave, undefined);
+});
+
+test('weave: fewer than ten wait while he still has something to read; ten go at once', async () => {
+  await person({ repeatsCheckedAt: day(1) });
+  await readSources(['a', 'b', 'c']);
+  await R.upsertSources([vid('t')]);
+  await R.setStage('yt:t', 'transcript', {});
+  installWeave();
+  await Q.allowReading('fisher');
+  env.hold['read:yt:t'] = deferred();
+  assert.deepEqual((await Q.tick()).map((x) => x.what), ['read'], 'reads, but three wait for the rest');
+  assert.equal(weaves.length, 0);
+  await readSources(Array.from({ length: 7 }, (_, i) => `r${i}`));
+  const got = await Q.tick();
+  assert.deepEqual(got.map((x) => x.what), ['weave']);
+  assert.equal(weaves[0].keys.length, 10);
+  env.hold['read:yt:t'].resolve();
+  await Q.runUntilIdle();
+});
+
+test('weave: not over his ceilings, not when the meter cannot be read, not during a reload drain', async () => {
+  await person({ repeatsCheckedAt: day(1) });
+  await readSources(['a']);
+  installWeave();
+  await Q.allowReading('fisher');
+  env.usage = { session: { percent: 61 }, week: { percent: 10 } };
+  assert.deepEqual(await Q.tick(), []);
+  env.usage = null;
+  assert.deepEqual(await Q.tick(), []);
+  env.usage = okUsage;
+  Q.noteReloadWaiting();
+  assert.deepEqual(await Q.tick(), []);
+  clock += 91_000;
+  assert.deepEqual((await Q.tick()).map((x) => x.what), ['weave']);
+  await Q.runUntilIdle();
+});
+
+test('weave: one at a time across everyone; a failure frees the sources and waits an hour', async () => {
+  await person({ repeatsCheckedAt: day(1) });
+  await P.savePerson({ id: 'hormozi', name: 'Hormozi', status: 'following', scope: 'everything', followedAt: day(30), repeatsCheckedAt: day(1) });
+  await readSources(['a']);
+  await readSources(['h'], 'hormozi');
+  installWeave();
+  await Q.allowReading('fisher');
+  await Q.allowReading('hormozi');
+  env.holdWeave = true;
+  assert.equal((await Q.tick()).filter((x) => x.what === 'weave').length, 1);
+  assert.deepEqual(await Q.tick(), [], 'never two weaves at once');
+  env.holdWeave = false;
+  weaves[0].gate.resolve();
+  await Q.runUntilIdle();
+  assert.equal(weaves.length, 2, 'the other person after');
+
+  await readSources(['b']);
+  env.fail['weave:fisher'] = 'the weave\'s sort step failed its checks twice';
+  await Q.runUntilIdle();
+  assert.equal((await R.getSource('yt:b')).working, null);
+  assert.equal((await R.getSource('yt:b')).stage, 'read');
+  const n = weaves.length;
+  assert.deepEqual(await Q.tick(), [], 'an hour before it is tried again');
+  clock += 3600_000 + 1;
+  delete env.fail['weave:fisher'];
+  await Q.runUntilIdle();
+  assert.equal(weaves.length, n + 1);
+  assert.equal((await R.getSource('yt:b')).stage, 'woven');
 });

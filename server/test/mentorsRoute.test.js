@@ -232,3 +232,35 @@ test('the queue routes: status, pause, his go for reading, ceilings, retry; and 
   assert.equal((await post('/mentors/source/retry', { key: 'yt:nope' })).status, 404);
   Q._resetQueueForTests();
 });
+
+test('the book, the weaves, the week, and undo by batch (part 3)', async () => {
+  await P.savePerson({ id: 'w', name: 'W Person', status: 'following' });
+  const get = async (p) => { const r = await fetch(`${base}/api${p}`); return { status: r.status, body: await r.json() }; };
+  const post = async (p, body) => { const r = await fetch(`${base}/api${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json() }; };
+  assert.deepEqual((await get('/mentors/w/book')).body, { book: null });
+  assert.equal((await get('/mentors/nobody/book')).status, 404);
+  assert.deepEqual((await get('/mentors/w/weaves')).body, { weaves: [] });
+  assert.equal((await get('/mentors/w/week')).body.totals.batches, 0);
+  const books = path.join(dir, 'mentors', 'books');
+  fs.mkdirSync(books, { recursive: true });
+  fs.writeFileSync(path.join(books, 'w.json'), JSON.stringify({ version: 1, personId: 'w', name: 'W Person', sources: [] }));
+  assert.equal((await get('/mentors/w/book')).body.book.name, 'W Person');
+  // two standing batches: the older is refused, the newer undoes
+  const weaves = path.join(dir, 'mentors', 'weaves');
+  fs.mkdirSync(weaves, { recursive: true });
+  const rec = (id, at) => ({ batchId: id, personId: 'w', at, version: 'weave-v2', keys: [], files: [], dirsCreated: [], counts: { sources: 1 }, calls: [], costUsd: 0.1, bookBefore: null, undoneAt: null });
+  fs.writeFileSync(path.join(weaves, 'w-1.json'), JSON.stringify(rec('w-1', new Date(Date.now() - 3600_000).toISOString())));
+  fs.writeFileSync(path.join(weaves, 'w-2.json'), JSON.stringify(rec('w-2', new Date().toISOString())));
+  assert.deepEqual((await get('/mentors/w/weaves')).body.weaves.map((x) => [x.batchId, x.undoable]), [['w-2', true], ['w-1', false]]);
+  assert.equal((await get('/mentors/w/week')).body.totals.batches, 2);
+  assert.equal((await post('/mentors/weave/undo', {})).status, 400);
+  assert.equal((await post('/mentors/weave/undo', { batchId: 'w-9' })).status, 404);
+  const refused = await post('/mentors/weave/undo', { batchId: 'w-1' });
+  assert.equal(refused.status, 409);
+  assert.match(refused.body.error, /undo the newest first/);
+  const ok = await post('/mentors/weave/undo', { batchId: 'w-2' });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.body, { restored: [], left: [] });
+  assert.equal((await get('/mentors/w/book')).body.book, null, 'the book went back to what it was before the batch');
+  assert.equal((await post('/mentors/weave/undo', { batchId: 'w-1' })).status, 200);
+});

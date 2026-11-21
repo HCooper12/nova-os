@@ -529,6 +529,15 @@ export const LANES = [
     off: 'No new source is read; what was read stays.',
   },
   {
+    // MENTORS stage 2 (22 Nov 2026): a few single-turn calls that return
+    // STRUCTURE (which ideas are one concept, a chapter's method and rules,
+    // the book's principles); code writes every page. Claude only, and never
+    // Fable by the same guard as the read (mentorRead.js mentorModelChoice).
+    id: 'mentor-weave', label: 'Mentors · weaving into the vault', group: 'research', def: 'sonnet', defEffort: 'medium',
+    hint: 'sorts a batch of read sources into concepts and playbook chapters and drafts the book; code checks every cite and writes the pages',
+    off: 'Nothing new is woven into the vault; what was read waits, and what was woven stays.',
+  },
+  {
     id: 'playbook-learn', label: 'Playbooks · learning a method', group: 'research', def: 'sonnet', defEffort: 'medium',
     hint: 'reads the videos and podcasts you drop and drafts the playbook; code checks every rule against the transcript',
     off: 'Learn-this requests are refused with a plain message; the playbooks you have keep being applied.',

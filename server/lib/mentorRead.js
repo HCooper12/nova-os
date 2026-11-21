@@ -53,7 +53,8 @@ export function mentorModelChoice(laneId = LANE) {
   if (!FABLE_RE.test(chosen)) return { model: chosen, why: null };
   const def = LANES.find((l) => l.id === laneId)?.def;
   const model = def && !FABLE_RE.test(def) ? def : 'sonnet';
-  return { model, why: `the board chose ${chosen} for this lane; a mentor read never runs on Fable (his rule), so it ran on ${model}` };
+  const what = laneId === LANE ? 'a mentor read' : 'this mentor lane';
+  return { model, why: `the board chose ${chosen} for this lane; ${what} never runs on Fable (his rule), so it ran on ${model}` };
 }
 
 export function mentorModel(laneId = LANE) {
@@ -315,9 +316,12 @@ export function verifyNotes(parsed, transcript) {
 
 /* --------------------------------- the run --------------------------------- */
 
-// One read through the CLI, the pilot's way: prompt on stdin (then ENDED, the
-// open-stdin trap), zero tools, the board's effort, the never-Fable model.
-function runRead(prompt, model) {
+// One single-turn call through the CLI, the pilot's way: prompt on stdin (then
+// ENDED, the open-stdin trap), zero tools, the lane's effort, the never-Fable
+// model the caller chose. Shared with the weave (lib/mentorWeave.js), whose
+// calls have the same shape and only a different lane and system prompt.
+export function runMentorClaude(prompt, model, { lane = LANE, systemPrompt = SYSTEM_PROMPT, what = 'the read' } = {}) {
+  if (FABLE_RE.test(String(model || ''))) return Promise.reject(new Error(`${what} was asked to run on ${model}; a mentor lane never runs on Fable (his rule)`));
   const d = D();
   return new Promise((resolve, reject) => {
     const started = d.now();
@@ -326,24 +330,24 @@ function runRead(prompt, model) {
       child = d.spawn(CLAUDE_BIN(), [
         '-p',
         '--model', model,
-        ...effortArgs(LANE),
+        ...effortArgs(lane),
         ...boundaryArgs(''),
         '--no-session-persistence',
         '--output-format', 'json',
-        '--system-prompt', SYSTEM_PROMPT,
+        '--system-prompt', systemPrompt,
       ], { cwd: os.tmpdir(), stdio: ['pipe', 'pipe', 'pipe'] });
     } catch (e) {
-      reject(new Error(`the read could not start Claude: ${e.message}`));
+      reject(new Error(`${what} could not start Claude: ${e.message}`));
       return;
     }
     let stdout = '';
     let stderr = '';
     child.stdout?.on('data', (c) => { stdout += c; });
     child.stderr?.on('data', (c) => { stderr += c; });
-    child.on('error', (e) => reject(new Error(`the read could not start Claude: ${e.message}`)));
+    child.on('error', (e) => reject(new Error(`${what} could not start Claude: ${e.message}`)));
     child.on('close', (code) => {
       try {
-        const outer = parseEnvelope(stdout, { lane: LANE, code, stderr });
+        const outer = parseEnvelope(stdout, { lane, code, stderr });
         const f = fromEnvelope(outer);
         resolve({ text: String(outer?.result ?? ''), usd: f.usd || 0, answeredBy: f.model, ms: d.now() - started });
       } catch (e) { reject(e); }
@@ -378,7 +382,7 @@ export async function readSource(source, transcript, { audioSec = null } = {}) {
   let answeredBy = null;
   for (let i = 0; i < pieces.length; i++) {
     const prompt = readPrompt(meta, pieces[i], pieces.length > 1 ? { i: i + 1, n: pieces.length } : null);
-    const r = await runRead(prompt, model);
+    const r = await runMentorClaude(prompt, model);
     costUsd += r.usd;
     answeredBy = r.answeredBy || answeredBy;
     if (!/^##\s+Ideas\s*$/m.test(r.text)) throw new Error('the read came back without its Ideas section');

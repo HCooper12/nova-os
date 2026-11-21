@@ -10,6 +10,7 @@ import { readClaudeUsage } from '../lib/claudeUsage.js';
 import {
   queueStatus, pauseQueue, allowReading, setCeilings, retrySource,
 } from '../lib/mentorQueue.js';
+import { getBook, listWeaves, undoWeave, weekSummary } from '../lib/mentorWeave.js';
 
 // MENTORS: the people Nova studies (lib/mentorPeople.js), the register of
 // everything he has read from them (lib/mentorRegister.js), and finding a new
@@ -30,6 +31,10 @@ import {
 //   POST /mentors/queue/ceilings {session, week}   percent of his plan
 //   POST /mentors/:id/reading    {allowed}             his go for the paid read
 //   POST /mentors/source/retry   {key}                 a held source tried again
+//   GET  /mentors/:id/book       the Book (part 3), the data the vault page renders
+//   GET  /mentors/:id/weaves     every weave batch of his, newest first
+//   POST /mentors/weave/undo     {batchId}             one batch taken back out
+//   GET  /mentors/:id/week       what was woven in the last 7 days, counted
 //
 // A failure of YouTube, Apple, Open Library or a tool is a 502 that says which
 // and what it answered (lib/mentorDiscover.js marks those); anything else of
@@ -183,6 +188,46 @@ export function mentorsRouter(vaultPath) {
       if (typeof req.body?.allowed !== 'boolean') return res.status(400).json({ error: 'send allowed as true or false' });
       res.json({ id: req.params.id, readingAllowed: await allowReading(req.params.id, req.body.allowed) });
     } catch (err) { fail(res, err); }
+  });
+
+  const known = async (req, res) => {
+    if (await getPerson(req.params.id)) return true;
+    res.status(404).json({ error: `no person called "${req.params.id}" is followed or known` });
+    return false;
+  };
+
+  router.get('/mentors/:id/book', async (req, res) => {
+    try {
+      if (!(await known(req, res))) return;
+      res.json({ book: await getBook(req.params.id) });
+    } catch (err) { fail(res, err); }
+  });
+
+  router.get('/mentors/:id/weaves', async (req, res) => {
+    try {
+      if (!(await known(req, res))) return;
+      res.json({ weaves: await listWeaves(req.params.id) });
+    } catch (err) { fail(res, err); }
+  });
+
+  router.get('/mentors/:id/week', async (req, res) => {
+    try {
+      if (!(await known(req, res))) return;
+      res.json(await weekSummary(req.params.id));
+    } catch (err) { fail(res, err); }
+  });
+
+  router.post('/mentors/weave/undo', async (req, res) => {
+    try {
+      const batchId = typeof req.body?.batchId === 'string' ? req.body.batchId.trim() : '';
+      if (!batchId) return res.status(400).json({ error: 'send the batchId of the weave to undo' });
+      if (!vaultPath) return res.status(500).json({ error: 'the vault path is not set on this server (VAULT_PATH), so there is no vault to undo in' });
+      res.json(await undoWeave(batchId, { vaultPath }));
+    } catch (err) {
+      if (err?.notFound) return res.status(404).json({ error: err.message });
+      if (err?.refused) return res.status(409).json({ error: err.message });
+      fail(res, err);
+    }
   });
 
   for (const [verb, status] of [['pause', 'paused'], ['resume', 'following']]) {

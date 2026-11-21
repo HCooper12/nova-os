@@ -10,6 +10,7 @@ import { listPeople, getPerson, savePerson } from './mentorPeople.js';
 import { getTranscript, transcriptPathFor } from './mentorTranscripts.js';
 import { signature, saveSignature, loadSignature, findRepeats, containment, REPEAT_SHARE } from './mentorRepeats.js';
 import { readSource, READ_VERSION } from './mentorRead.js';
+import { weaveBatch, MAX_KEYS as WEAVE_MAX } from './mentorWeave.js';
 import { readClaudeUsage } from './claudeUsage.js';
 import { registerJobMap } from './jobRegistry.js';
 
@@ -26,6 +27,11 @@ import { registerJobMap } from './jobRegistry.js';
 //                his ceilings (60% of the session, 75% of the week) and can
 //                be read at all. Registered with jobRegistry: a read cut off
 //                by a reload is money spent for nothing.
+//   weaves       (part 3) the read sources of one person into the vault, ONE
+//                weave at a time across everyone, up to ten sources a batch;
+//                a batch starts when ten are waiting, or fewer when he has
+//                nothing left to read. The same go and the same ceilings as
+//                reading, registered with jobRegistry for the same reason.
 // It yields to him (nothing starts while a Coach, Ask or Code turn is in
 // flight), it respects a refusal from YouTube (the item waits; three in a row
 // and no YouTube download is tried for six hours), it does no transcription
@@ -70,6 +76,7 @@ const D = () => ({
     execFile('/usr/bin/pmset', ['-g', 'batt'], { timeout: 5_000 }, (err, stdout) => resolve(!err && /Battery Power/.test(String(stdout))));
   }),
   readClaudeUsage: () => readClaudeUsage(),
+  weaveBatch: (personId, keys, opts) => weaveBatch(personId, keys, opts),
   getTranscript: (source, opts) => getTranscript(source, opts),
   readSource: (source, text, opts) => readSource(source, text, opts),
   ...(deps || {}),
@@ -109,7 +116,7 @@ function newestFirst(list) {
 
 const emptyState = () => ({
   version: 1, paused: false, youtubeBlockedUntil: null, refusals: 0,
-  ceilings: { session: 60, week: 75 }, readingAllowed: {}, failures: {}, log: [],
+  ceilings: { session: 60, week: 75 }, readingAllowed: {}, failures: {}, weaveFailures: {}, log: [],
 });
 
 let state = null;
@@ -128,7 +135,7 @@ async function readState() {
     const o = JSON.parse(text);
     if (o && typeof o === 'object' && !Array.isArray(o)) {
       const base = emptyState();
-      return { ...base, ...o, ceilings: { ...base.ceilings, ...(o.ceilings || {}) }, readingAllowed: o.readingAllowed || {}, failures: o.failures || {}, log: Array.isArray(o.log) ? o.log : [] };
+      return { ...base, ...o, ceilings: { ...base.ceilings, ...(o.ceilings || {}) }, readingAllowed: o.readingAllowed || {}, failures: o.failures || {}, weaveFailures: o.weaveFailures || {}, log: Array.isArray(o.log) ? o.log : [] };
     }
   } catch { /* falls through */ }
   await moveAside();
@@ -167,6 +174,7 @@ async function log(personId, key, what, detail = null) {
 
 let transcribing = null;           // { key, personId, title, startedAt, promise }
 const readJobs = registerJobMap('mentors', new Map()); // key -> { status, personId, title, startedAt, promise }
+const weaveJobs = registerJobMap('mentorWeave', new Map()); // personId -> { status, personId, keys, startedAt, promise }
 // set by startMentorQueue; a no-op in tests and scripts that drive tick() themselves
 let kick = () => {};
 let reloadQuietUntil = 0;
@@ -175,7 +183,7 @@ let vaultPathNow = null;
 
 export function _resetQueueForTests() {
   state = null; loading = null; writing = Promise.resolve();
-  transcribing = null; readJobs.clear(); reloadQuietUntil = 0; lastUsage = null; vaultPathNow = null;
+  transcribing = null; readJobs.clear(); weaveJobs.clear(); reloadQuietUntil = 0; lastUsage = null; vaultPathNow = null;
 }
 
 /** scripts/reload-server.mjs is waiting: for 90 s nothing new starts, so the
@@ -185,6 +193,7 @@ export function noteReloadWaiting() {
 }
 
 const readsInFlight = () => [...readJobs.values()].filter((j) => j.status === 'running').length;
+const weaveInFlight = () => [...weaveJobs.values()].find((j) => j.status === 'running') || null;
 
 /** Resolves when no conversation turn is in flight: polls every 5 s, and
  *  after 10 minutes carries on (a stuck job must not stop the queue for good). */
@@ -371,6 +380,56 @@ async function runRead(person, src) {
   }
 }
 
+async function runWeave(person, keys) {
+  const d = D();
+  const s = await load();
+  const job = weaveJobs.get(person.id);
+  try {
+    const rec = await d.weaveBatch(person.id, keys, { vaultPath: vaultPathNow });
+    delete s.weaveFailures[person.id];
+    await persist();
+    await log(person.id, null, 'woven', `${keys.length} source${keys.length === 1 ? '' : 's'}, $${rec.costUsd} on ${rec.model}, batch ${rec.batchId}`);
+    if (job) job.status = 'done';
+  } catch (e) {
+    if (job) job.status = 'failed';
+    const why = e?.message || 'it failed and gave no reason';
+    try {
+      for (const k of keys) {
+        const cur = await getSource(k);
+        if (cur?.working === 'weave') await setWorking(k, null);
+      }
+      if (e?.limited || e?.laneOff) await log(person.id, null, 'waiting', why);
+      else {
+        const f = s.weaveFailures[person.id] || { n: 0 };
+        s.weaveFailures[person.id] = { n: f.n + 1, at: new Date(d.now()).toISOString(), why: why.slice(0, 300) };
+        await persist();
+        await log(person.id, null, 'weave failed', s.weaveFailures[person.id].n >= MAX_FAILS ? `${why} (failed ${MAX_FAILS} times; it waits for his retry)` : why);
+      }
+    } catch (e2) { console.error(`mentor queue: could not record the failed weave for ${person.id}: ${e2.message}`); }
+  } finally {
+    weaveJobs.delete(person.id);
+  }
+}
+
+/** A person's weave that failed three times waits for this. */
+export async function retryWeave(personId) {
+  const s = await load();
+  delete s.weaveFailures[personId];
+  await persist();
+}
+
+// what a person has waiting to be woven, when a batch may start now: ten
+// waiting, or fewer when nothing of his is left to transcribe or read
+function weaveReady(person, work) {
+  const waiting = newestFirst(work.scoped.filter((x) => x.stage === 'read' && !x.hold && !x.working));
+  if (!waiting.length) return null;
+  const readingNow = [...readJobs.values()].some((j) => j.personId === person.id && j.status === 'running')
+    || (transcribing && transcribing.personId === person.id);
+  const left = work.needTranscript.length || work.needRead.length || readingNow || !person.repeatsCheckedAt;
+  if (waiting.length < WEAVE_MAX && left) return null;
+  return waiting.slice(0, WEAVE_MAX);
+}
+
 // rule 3: once a person has no transcript work left, one pass over every
 // tier 1 source of his with a signature, longest first
 async function runRepeats(person) {
@@ -467,6 +526,27 @@ export async function tick() {
       started.push({ what: 'read', key: src.key, personId: person.id });
     }
   }
+
+  // weaves: one at a time across everyone, after his go, under his ceilings
+  if (!weaveInFlight() && vaultPathNow) {
+    for (const person of people) {
+      if (!s.readingAllowed[person.id]) continue;
+      const wf = s.weaveFailures[person.id];
+      if (wf && (wf.n >= MAX_FAILS || now - new Date(wf.at).getTime() < FAILED_WAIT_MS)) continue;
+      const fresh = await getPerson(person.id);
+      const batch = weaveReady(fresh, await personWork(fresh, s, now));
+      if (!batch) continue;
+      lastUsage = await d.readClaudeUsage();
+      if (usageBlock(lastUsage, s.ceilings)) break;
+      const keys = batch.map((x) => x.key);
+      for (const k of keys) await setWorking(k, 'weave');
+      const job = { status: 'running', personId: person.id, keys, title: `${keys.length} source${keys.length === 1 ? '' : 's'}`, key: keys[0], startedAt: new Date(now).toISOString() };
+      weaveJobs.set(person.id, job);
+      job.promise = runWeave(fresh, keys).finally(() => kick());
+      started.push({ what: 'weave', personId: person.id, keys });
+      break;
+    }
+  }
   return started;
 }
 
@@ -478,7 +558,7 @@ export async function runUntilIdle({ maxMs = 60_000 } = {}) {
   while (Date.now() < until) {
     const got = await tick();
     all.push(...got);
-    const flying = [transcribing?.promise, ...[...readJobs.values()].map((j) => j.promise)].filter(Boolean);
+    const flying = [transcribing?.promise, ...[...readJobs.values()].map((j) => j.promise), ...[...weaveJobs.values()].map((j) => j.promise)].filter(Boolean);
     if (!got.length && !flying.length) break;
     if (flying.length) await Promise.race([Promise.all(flying), new Promise((r) => setTimeout(r, 50))]);
   }
@@ -505,6 +585,7 @@ export async function queueStatus() {
     if (s.paused || p.status === 'paused') doing = 'paused';
     else if (transcribing && transcribing.personId === p.id) { doing = 'transcript'; item = itemOf(transcribing); }
     else if (reading.length) { doing = 'reading'; item = itemOf(reading[0]); }
+    else if (weaveJobs.get(p.id)?.status === 'running') { doing = 'weaving'; item = itemOf(weaveJobs.get(p.id)); }
     else if (!counts.total) doing = 'finding';
     else {
       const work = await personWork(p, s, now);
