@@ -36,7 +36,11 @@ http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x');
     if (req.headers['content-type']?.startsWith('application/json')) {
       const j = JSON.parse(body.toString());
-      return send(200, { text: 'from file ' + j.path.split('/').pop(), seconds: 0.2, language: j.language });
+      const out = { text: 'from file ' + j.path.split('/').pop(), seconds: 0.2, language: j.language };
+      // an "old" file name plays a transcriber built before time marks: it ignores the flag
+      if (j.segments === true && !j.path.split('/').pop().startsWith('old-')) out.segments = [{ start: 0, end: 2.5, text: 'from' }, { start: 2.5, end: 4.01, text: 'file' }];
+      if ('segments' in j) out.sawFlag = true;
+      return send(200, out);
     }
     if (body.toString().includes('FAIL')) return send(500, { error: 'ValueError: could not decode' });
     send(200, { text: '  heard ' + body.length + ' bytes as ' + u.searchParams.get('ext') + ' ', seconds: 0.1, language: u.searchParams.get('language') });
@@ -96,6 +100,28 @@ test('a file path is sent as a path, not read into the request', async () => {
   writeFileSync(f, 'x');
   const out = await stt.transcribeLocal(f, { language: 'en' });
   assert.equal(out.text, 'from file note.ogg');
+});
+
+test('time marks: asked for with a path, the segments come back; not asked, the flag is not even sent', async () => {
+  const f = path.join(SCRATCH, 'piece.mp3');
+  writeFileSync(f, 'x');
+  const out = await stt.transcribeLocal(f, { segments: true });
+  assert.deepEqual(out.segments, [{ start: 0, end: 2.5, text: 'from' }, { start: 2.5, end: 4.01, text: 'file' }]);
+  assert.equal(out.text, 'from file piece.mp3');
+  const plain = await stt.transcribeLocal(f);
+  assert.equal('segments' in plain, false, 'an ordinary call is unchanged');
+  assert.equal(plain.sawFlag, undefined);
+  const bytes = await stt.transcribeLocal(Buffer.from('abc'), { segments: true });
+  assert.equal('segments' in bytes, false, 'bytes are a spoken turn: the flag is for a path only');
+});
+
+test('time marks asked of an older transcriber that ignores the flag: a plain sentence, not a transcript without marks', async () => {
+  const f = path.join(SCRATCH, 'old-piece.mp3');
+  writeFileSync(f, 'x');
+  await assert.rejects(stt.transcribeLocal(f, { segments: true }), (e) => {
+    assert.equal(e.message, 'the transcriber on this Mac is an older build without time marks; it picks up the new one when it next restarts');
+    return true;
+  });
 });
 
 test('errors say the real cause in plain words, never an empty message', async () => {

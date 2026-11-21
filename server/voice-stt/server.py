@@ -10,10 +10,11 @@ first need, the same way lib/ttsLocal.js spawns Kokoro) and talks to it over
 localhost HTTP, the same idiom as server/voice/sidecar.py, so the two engines
 read alike. Never exposed beyond 127.0.0.1: auth lives in the node layer.
 
-  GET  /health      -> {ok, model, loadSeconds, memory}
+  GET  /health      -> {ok, model, loadSeconds, memory, features}
   POST /transcribe  raw audio bytes, ?ext=m4a&language=en&prompt=...
-                    or JSON {"path": "/abs/file.ogg", "language", "prompt"}
-                    -> {text, seconds, language}
+                    or JSON {"path": "/abs/file.ogg", "language", "prompt", "segments"}
+                    -> {text, seconds, language}, plus "segments":
+                    [{start, end, text}] (seconds) when "segments" is true
 
 The audio is written to a temp file only for as long as ffmpeg needs to
 decode it, and nothing it hears is logged: his words stay in the reply.
@@ -91,7 +92,7 @@ LOAD_SECONDS = round(time.time() - _t, 2)
 print(f"stt: ready on 127.0.0.1:{PORT} ({MODEL}, loaded in {LOAD_SECONDS}s)", flush=True)
 
 
-def transcribe(path, language, prompt):
+def transcribe(path, language, prompt, segments=False):
     global _busy, _last_used
     _busy = True
     t = time.time()
@@ -109,11 +110,21 @@ def transcribe(path, language, prompt):
         mx.clear_cache()
         _busy = False
         _last_used = time.time()
-    return {
+    reply = {
         "text": " ".join(str(out.get("text") or "").split()),
         "seconds": round(time.time() - t, 3),
         "language": out.get("language") or language or "",
     }
+    # Time marks, only when asked (Mentors, 21 Nov 2026): a long recording is
+    # read in pieces and its transcript carries [mm:ss] marks, so each piece
+    # needs mlx-whisper's own segment times. A spoken turn never asks, and its
+    # reply stays exactly what it was.
+    if segments:
+        reply["segments"] = [
+            {"start": round(float(sg.get("start") or 0), 2), "end": round(float(sg.get("end") or 0), 2), "text": " ".join(str(sg.get("text") or "").split())}
+            for sg in (out.get("segments") or [])
+        ]
+    return reply
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -135,7 +146,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             mb = lambda b: round(b / 1048576)  # noqa: E731
             return self._json(200, {"ok": True, "model": MODEL, "loadSeconds": LOAD_SECONDS,
-                                    "memory": {"activeMb": mb(mx.get_active_memory()), "cacheMb": mb(mx.get_cache_memory()), "peakMb": mb(mx.get_peak_memory())}})
+                                    "memory": {"activeMb": mb(mx.get_active_memory()), "cacheMb": mb(mx.get_cache_memory()), "peakMb": mb(mx.get_peak_memory())},
+                                    "features": ["segments"]})
         self._json(404, {"error": "not found"})
 
     def do_POST(self):
@@ -152,6 +164,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not path or not os.path.isfile(path):
                     return self._json(400, {"error": f"no audio file at {path!r}"})
                 language, prompt = body.get("language") or "en", body.get("prompt") or ""
+                segments = body.get("segments") is True
             else:
                 if not raw:
                     return self._json(400, {"error": "the recording arrived empty"})
@@ -160,7 +173,8 @@ class Handler(BaseHTTPRequestHandler):
                 with os.fdopen(fd, "wb") as f:
                     f.write(raw)
                 path, language, prompt = tmp, q.get("language") or "en", q.get("prompt") or ""
-            self._json(200, transcribe(path, language, prompt))
+                segments = False
+            self._json(200, transcribe(path, language, prompt, segments))
         except Exception as e:  # noqa: BLE001, one honest error path
             self._json(500, {"error": f"{type(e).__name__}: {e}"})
         finally:

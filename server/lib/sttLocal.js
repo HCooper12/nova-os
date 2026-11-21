@@ -137,11 +137,13 @@ function extFor(mime, name) {
   return 'm4a';
 }
 
-// Audio (a Buffer of bytes, or a file path) -> { text, ms, model, seconds, cold }.
+// Audio (a Buffer of bytes, or a file path) -> { text, ms, model, seconds, cold },
+// plus `segments` ([{ start, end, text }], seconds) when asked for with a path:
+// the Mentors transcripts carry [mm:ss] marks (lib/mentorTranscripts.js).
 // Throws an Error whose message says the real cause in plain words (his
 // 24 Oct rule, errors always factual); never an empty message. An empty
 // `text` is a real answer: the clip had no words in it.
-export async function transcribeLocal(input, { mime = 'audio/mp4', language = 'en', prompt = '', name = '', timeoutMs = 120_000 } = {}) {
+export async function transcribeLocal(input, { mime = 'audio/mp4', language = 'en', prompt = '', name = '', timeoutMs = 120_000, segments = false } = {}) {
   const isPath = typeof input === 'string';
   if (!isPath && !input?.length) throw new Error('the recording arrived empty');
   if (isPath && !existsSync(input)) throw new Error(`there is no audio file at ${input}`);
@@ -154,7 +156,7 @@ export async function transcribeLocal(input, { mime = 'audio/mp4', language = 'e
       r = await fetch(`${BASE()}/transcribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: path.resolve(input), language, prompt }),
+        body: JSON.stringify({ path: path.resolve(input), language, prompt, ...(segments ? { segments: true } : {}) }),
         signal: AbortSignal.timeout(timeoutMs),
       });
     } else {
@@ -174,7 +176,14 @@ export async function transcribeLocal(input, { mime = 'audio/mp4', language = 'e
   const body = await r.json().catch(() => null);
   if (!r.ok) throw new Error(`the local transcriber refused the recording (${r.status})${body?.error ? `: ${String(body.error).slice(0, 160)}` : ''}`);
   if (!body || typeof body.text !== 'string') throw new Error('the local transcriber answered without a transcript');
+  // a transcriber started before time marks existed ignores the flag; it is
+  // still running the old file until it next restarts (idle, or a reload)
+  const wantSegments = segments && isPath;
+  if (wantSegments && !Array.isArray(body.segments)) {
+    throw new Error('the transcriber on this Mac is an older build without time marks; it picks up the new one when it next restarts');
+  }
   return {
+    ...(wantSegments ? { segments: body.segments } : {}),
     text: body.text.replace(/\s+/g, ' ').trim(),
     ms: Date.now() - started,
     // the engine's own time on the audio, without the boot or the wire
