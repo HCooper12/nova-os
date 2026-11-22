@@ -94,7 +94,7 @@ is pushed and checked there.
 
 | # | Fix | Status |
 | --- | --- | --- |
-| 1 | Calendar: a fresh fetch never displaces a settled answer until it settles; four calendars asked at once | running on the Mac since 22 Nov 17:57 (`2e48d452`, `2a97863a`); log check still owed, see 4.1 |
+| 1 | Calendar: a fresh fetch never displaces a settled answer until it settles; four calendars asked at once | running on the Mac since 22 Nov 17:57 (`2e48d452`, `2a97863a`); first log count after it: no slow reads in 6.5 hours of use, see 4.1 |
 | 2 | Display grammar: disfluent openers, everyday "bigger" phrasings, false-positive table | in progress |
 | 3 | Phone: the four commands that did nothing | in progress |
 | 4 | Phone: retry the snapshot once before the 38-request fallback; no fallback beside a newer sync | not started |
@@ -140,13 +140,25 @@ pass, 0 fail, 4 skipped.
 read after the start took 3.2 s (sign-in and discovery), the next five 2 to
 19 ms.
 
-**Not confirmed yet.** That the 500 or so slow reads since 28 Oct were all
-this fault. The watcher only asks for fresh pictures while a client is
+**The request log, before and after.** Whether the 500 or so slow reads
+since 28 Oct were this fault could only be read from his real use. The watcher only asks for fresh pictures while a client is
 connected, so the endpoint alone cannot show the difference with the app
 closed. The check is `node scripts/slow-reads.mjs`, which counts the three
 routes in the request log on each side of the reload. Before it, from 28 Oct:
 553 of 7,549 calendar reads (7.3%), 597 of 4,534 instruments reads (13.2%)
 and 559 of 8,528 snapshots (6.6%) took 3 s or more (the counts in section 2
-were taken a day earlier). After it there is nothing to count yet. Run it
-again after a day of his real use. One slow calendar read right after any
-restart is expected: the first read has no cache to answer from.
+were taken a day earlier).
+
+**First count after the fix** (23 Nov 00:21, six and a half hours of real
+use with a client connected):
+
+| Route | Before, 3 s or more | After, 3 s or more | After, worst |
+| --- | --- | --- | --- |
+| Calendar | 553 of 7,549 (7.3%) | 1 of 108 | 3.2 s |
+| Instruments | 597 of 4,534 (13.2%) | 0 of 68 | 1.2 s |
+| Snapshot | 559 of 8,528 (6.6%) | 0 of 141 | 1.7 s |
+
+The one slow calendar read is the first read after the restart, which has no
+cache to answer from; that one is expected after any restart. At the old
+rates these hours would have held about 8, 9 and 9 slow reads. The sample is
+small, so run the count again after a few days before calling it closed.
