@@ -94,7 +94,7 @@ is pushed and checked there.
 
 | # | Fix | Status |
 | --- | --- | --- |
-| 1 | Calendar: a fresh fetch never displaces a settled answer until it settles | in progress |
+| 1 | Calendar: a fresh fetch never displaces a settled answer until it settles; four calendars asked at once | running on the Mac since 22 Nov 17:57 (`2e48d452`, `2a97863a`); log check still owed, see 4.1 |
 | 2 | Display grammar: disfluent openers, everyday "bigger" phrasings, false-positive table | in progress |
 | 3 | Phone: the four commands that did nothing | in progress |
 | 4 | Phone: retry the snapshot once before the 38-request fallback; no fallback beside a newer sync | not started |
@@ -105,3 +105,44 @@ is pushed and checked there.
 Left alone on purpose: reusing a just-finished clip read when he ends a turn
 with a tap. It could save up to a second but risks clipping his last word, and
 the instrument in row 6 should show whether that second matters first.
+
+### 4.1 Row 1, the calendar: what the test and the probe showed
+
+**The fault, proven.** While the app is open, `calendarWatch` asks iCloud for
+a fresh picture every 25 s. That fresh call replaced the settled cache entry
+with its own unfinished request, so every ordinary reader that arrived during
+the round trip (the snapshot, the instruments, the widget, the Reflex peek)
+waited on iCloud although a good answer had been there a moment before. Six
+tests in `server/test/calendarFreshCache.test.js` fail on the old code. They
+use a fake CalDAV client behind a small test seam, so they need no network.
+
+**The fix.** A settled entry keeps serving until the fresh result has landed,
+and only the fresh caller waits. A fetch that began before one of his writes
+is never cached over that write, on the fresh path or on the background
+refresh (the second was an older hole, found in review and given its own
+test). An older fetch that fails late no longer evicts a newer entry. A
+second commit asks up to four calendars at once and folds the answers in the
+calendars' own order, because one round trip used to cost the sum of every
+calendar's latency.
+
+**Measured against his real iCloud** (read-only, old code and new code in one
+process, taking turns so neither had the warmer network):
+
+| | Old | New |
+| --- | --- | --- |
+| A full round trip to iCloud, three runs | 9.6, 9.2, 8.9 s | 4.4, 4.0, 3.8 s |
+| An ordinary read made while a fresh fetch was out | 9.2 s | 3 ms |
+
+Both versions returned the same events. Whole server suite with the fix: 5858
+pass, 0 fail, 4 skipped.
+
+**On the Mac.** The server was reloaded on 22 Nov at 17:57. The first calendar
+read after the start took 3.2 s (sign-in and discovery), the next five 2 to
+19 ms.
+
+**Not confirmed yet.** That the 500 or so slow reads since 28 Oct were all
+this fault. The watcher only asks for fresh pictures while a client is
+connected, so the endpoint alone cannot show the difference with the app
+closed. The check: after a day of his real use, count the calendar reads,
+instruments reads and snapshots of 3 s or more in the request log from 22 Nov
+17:57 on, against the 518, 563 and 513 before it.
