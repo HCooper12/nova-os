@@ -184,6 +184,32 @@ function latency(body) {
   return out;
 }
 
+// THE NETWORK AGAINST THE MAIN THREAD (22 Nov 2026, src/turnNet.js). On the
+// ask row of a spoken turn: for the transcribe upload and the ask, the time
+// the code waited (RtMs) and the network's own time for that request (NetMs),
+// with connect, TLS and time to first byte when the server allowed the
+// browser to read them; for the polls until the first reply, a count and the
+// worst and summed waits; the 100 ms watchdog's worst and summed lateness;
+// and what refreshed beside the turn. Numbers and one closed word only; a
+// value that is not a bounded, non-negative number is left off, never kept as
+// a guess. Rows from before 22 Nov carry none of them and read as before.
+const NET_ONE_MS = ['txRtMs', 'txNetMs', 'txConnectMs', 'txTlsMs', 'txTtfbMs', 'askRtMs', 'askNetMs', 'askConnectMs', 'askTlsMs', 'askTtfbMs', 'pollRtMaxMs', 'pollNetMaxMs', 'pollHeldMaxMs', 'pollConnectMaxMs', 'pollTtfbMaxMs', 'stallMaxMs'];
+const NET_SUM_MS = ['pollRtSumMs', 'pollHeldSumMs', 'stallSumMs'];
+const NET_COUNTS = ['pollN', 'pollNetN', 'pollConnectN', 'syncDeferred'];
+export const SYNC_STORIES = new Set(['none', 'slices', 'snapshot', 'fallback']);
+export const NET_FIELDS = [...NET_ONE_MS, ...NET_SUM_MS, ...NET_COUNTS, 'sync', 'syncAborted'];
+export function netFields(body = {}) {
+  const out = {};
+  const ms = (v, cap) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= cap ? Math.round(v) : undefined);
+  for (const k of NET_ONE_MS) { const v = ms(body[k], LATENCY_MAX_MS); if (v !== undefined) out[k] = v; }
+  // a sum over a whole turn may outlast one wait, never the longest turn
+  for (const k of NET_SUM_MS) { const v = ms(body[k], TURN_MAX_MS); if (v !== undefined) out[k] = v; }
+  for (const k of NET_COUNTS) if (Number.isInteger(body[k]) && body[k] >= 0 && body[k] <= 10_000) out[k] = body[k];
+  if (SYNC_STORIES.has(body.sync)) out.sync = body.sync;
+  if (body.syncAborted === true) out.syncAborted = true;
+  return out;
+}
+
 // One turn in. Everything is clamped here rather than trusted: this is written
 // by a browser, and a receipt that can be made enormous is a receipt that
 // fills his disk.
@@ -224,6 +250,7 @@ export function turnRecord(body = {}, ua = '') {
     // A value that is not a finite, non-negative number is dropped, never
     // stored as a guess.
     ...latency(body),
+    ...netFields(body),
     ...(typeof body.lane === 'string' && body.lane ? { lane: body.lane.slice(0, 12) } : {}),
     ...(typeof body.ackText === 'string' && body.ackText ? { ackText: body.ackText.slice(0, 60) } : {}),
     ...(typeof body.ackId === 'string' && body.ackId ? { ackId: body.ackId.slice(0, 40) } : {}),

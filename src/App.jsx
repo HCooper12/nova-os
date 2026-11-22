@@ -38,6 +38,7 @@ import { OfflineMark } from './OfflineCard.jsx';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem, newIdempotencyKey, drainItems, idemSafe } from './outbox.js';
 import { snapshotPass } from './syncPass.js';
 import { createTurnPhase, createSyncGate, bindTurnPhase } from './turnPhase.js';
+import { createNetRing, createTurnNet, watchResources, bindTurnNet, STALL_TICK_MS } from './turnNet.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { pauseSession, resumeSession, isPaused, setSessionMinutes } from './sessionClock.js';
 import { syncHealth } from './healthSync.js';
@@ -232,6 +233,8 @@ const VerdictCard = lazyScreen(OVERLAY_LOADERS.verdictCard, 'VerdictCard');
 const ArtifactViewer = lazyScreen(OVERLAY_LOADERS.artifactViewer, 'ArtifactViewer');
 const ReviewSheet = lazyScreen(OVERLAY_LOADERS.reviewSheet, 'ReviewSheet');
 const MentorPage = lazyScreen(OVERLAY_LOADERS.mentorPage, 'MentorPage');
+// the clock src/turnNet.js sets against Resource Timing's (the same timeline)
+const perfNow = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
 
 // What a not-yet-parsed screen shows. Deliberately quiet: a chunk parse is
 // tens of milliseconds after the idle prefetch, so anything busier than this
@@ -969,6 +972,16 @@ export default class App extends Component {
       run: (c) => (c.bulk ? this.refreshLiveData() : this.refreshSlices(c.slices)),
     });
     this.unbindTurnPhase = bindTurnPhase(this.turnPhase);
+    // THE TURN'S TWO CLOCKS (22 Nov 2026, src/turnNet.js): the API's own
+    // Resource Timing entries in a small ring, set against what the code
+    // waited for each voice-turn request; numbers only, on the ask receipt
+    this.netRing = createNetRing();
+    this.stopNetWatch = watchResources({
+      Observer: typeof PerformanceObserver === 'function' ? PerformanceObserver : null,
+      origin: () => { try { const c = getConnection(); return c ? new URL(c.baseUrl).origin : ''; } catch { return ''; } },
+      onEntry: (e) => this.netRing.add(e),
+    });
+    this.unbindTurnNet = bindTurnNet((kind, timing) => this.turnNet?.request(kind, timing || {}));
     // APPLE HEALTH, READ BY NOVA ITSELF (14 Oct, src/healthSync.js): on open
     // and on every return to the front; a no-op outside the native shell
     this.healthSyncNow();
@@ -1355,6 +1368,9 @@ export default class App extends Component {
   }
   componentWillUnmount() {
     this.unbindTurnPhase?.();
+    this.unbindTurnNet?.();
+    this.stopNetWatch?.();
+    this.endTurnNet();
     this.turnPhase?.dispose();
     this.syncGate?.dispose();
     if (this.healthVisH) document.removeEventListener('visibilitychange', this.healthVisH);
@@ -2367,7 +2383,9 @@ export default class App extends Component {
     if (this.refreshInFlight) return; // a full sync is already running and covers these
     // while he talks or waits for the answer it is owed, never lost; while
     // Nova speaks it runs (src/turnPhase.js)
-    if (this.syncGate && !this.syncGate.allow('slices', only)) return;
+    if (this.syncGate && !this.syncGate.allow('slices', only)) { this.turnNet?.sync('deferred'); return; }
+    this.turnNet?.sync('slices');
+    this.slicesInFlight = (this.slicesInFlight || 0) + 1;
     try {
       const startedAt = Date.now();
       const { slices } = await api.snapshot(conn, { only, place: this.whereNow().place });
@@ -2383,6 +2401,8 @@ export default class App extends Component {
       });
     } catch {
       this.refreshLiveData();
+    } finally {
+      this.slicesInFlight = Math.max(0, (this.slicesInFlight || 1) - 1);
     }
   }
 
@@ -2392,7 +2412,7 @@ export default class App extends Component {
     if (this.refreshInFlight) return this.refreshInFlight;
     // A SPOKEN TURN IS LIVE (src/turnPhase.js): the whole-app sync is owed
     // and runs as one call once the turn is over, never beside it
-    if (this.syncGate && !this.syncGate.allow('bulk')) return;
+    if (this.syncGate && !this.syncGate.allow('bulk')) { this.turnNet?.sync('deferred'); return; }
     // ONE SIGNAL FOR THE WHOLE PASS (api.js readSignal): every read below
     // carries it, so his turn beginning calls off the snapshot, its retry or
     // the per-slice fallback, whichever is on the wire (abortBulkForTurn)
@@ -2497,7 +2517,7 @@ export default class App extends Component {
       let startedAt = 0;
       const pass = await snapshotPass({
         isCurrent,
-        snapshot: () => { startedAt = Date.now(); return api.snapshot(conn, { place: this.whereNow().place }); },
+        snapshot: () => { startedAt = Date.now(); this.turnNet?.sync('snapshot'); return api.snapshot(conn, { place: this.whereNow().place }); },
         ping: () => api.ping(conn).then(() => true),
         unreachable: macUnreachable,
       });
@@ -2526,6 +2546,7 @@ export default class App extends Component {
         // A STALLED SYNC IS NOT NO MAC (his report, 14 Oct evening: OFFLINE
         // over and over on mobile data with the Mac fine): only a failed
         // ping says OFFLINE, and here the Mac answered.
+        this.turnNet?.sync('fallback');
         const results = await Promise.allSettled(tasks.map((t) => t()));
         // a newer sync started while these ran: its answer is the one that
         // counts, so this one sets no chip and asks for no degraded retry
@@ -2621,13 +2642,45 @@ export default class App extends Component {
     this.refreshInFlight = null;
     try { ctl.abort(); } catch { /* already done */ }
     this.syncGate?.owe('bulk');
+    this.turnNet?.sync('aborted');
     return true;
   }
   // The phase changed (the tracker's onChange): listening calls off a bulk
   // sync on the wire; the gate runs what was owed when the phase lets it.
-  onTurnPhase(next) {
+  // A turn starting (his mic, or a question from it out of idle) gets a
+  // fresh instrument (src/turnNet.js); one ended by a mark is closed, while
+  // one the 30 s fall-back idled stays open for its reply's receipt.
+  onTurnPhase(next, prev, why) {
+    if (next === 'listen' || (next === 'wait' && prev === 'idle')) this.startTurnNet();
     if (next === 'listen') this.abortBulkForTurn();
+    if (next === 'idle' && why === 'mark') this.endTurnNet();
     this.syncGate?.onPhase(next);
+  }
+  startTurnNet() {
+    this.endTurnNet();
+    const net = createTurnNet({ ring: this.netRing || undefined });
+    this.turnNet = net;
+    if ((this.slicesInFlight || 0) > 0) net.sync('slices');   // already on the wire as the turn began
+    // the watchdog: a 100 ms timer firing late is the main thread busy
+    const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    net.tick(perfNow(), hidden());
+    this.turnNetIv = setInterval(() => net.tick(perfNow(), hidden()), STALL_TICK_MS);
+    this.turnNetCap = setTimeout(() => { if (this.turnNet === net) this.endTurnNet(); }, 10 * 60_000);
+  }
+  endTurnNet() {
+    clearInterval(this.turnNetIv);
+    clearTimeout(this.turnNetCap);
+    this.turnNetIv = null;
+    this.turnNet = null;
+  }
+  // the receipt's numbers for this ask's turn, read once; the watchdog stops
+  turnNetFields(turn) {
+    const net = turn?.net;
+    if (!net) return {};
+    let f = {};
+    try { f = net.fields(); } catch { f = {}; }
+    if (this.turnNet === net) this.endTurnNet();
+    return f;
   }
   // THE TURN'S OWN MARKS, made by the ask that came from his microphone
   // (askNova stamps turn.phase). The reply's sounds keep it at 'speak'; a
@@ -8887,6 +8940,8 @@ export default class App extends Component {
         droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
         // this ask carried the note of a reply he cut into (interruptTurn.js)
         ...(turn.interrupted ? { interrupted: true } : {}),
+        // the network against the main thread, for this turn (src/turnNet.js)
+        ...this.turnNetFields(turn),
       });
       // the turn is over; what it held back may run (src/turnPhase.js)
       this.turnDone(turn);
@@ -8945,7 +9000,15 @@ export default class App extends Component {
     // rule): the poll gives up only when the server says done or error, or
     // when the Mac has been unreachable for more than 60 s in a row.
     let failingSince = 0;
-    const fetchAskJob = () => api.claudeCodeJob(conn, jobId).then((job) => {
+    // every poll until the first reply is timed (src/turnNet.js)
+    const pollUrl = `${conn.baseUrl.replace(/\/$/, '')}/api/claude-code/message/${encodeURIComponent(jobId)}`;
+    const fetchAskJob = () => {
+      const net = turn?.net && !turn.firstTextAt ? turn.net : null;
+      const t0 = net ? perfNow() : 0;
+      const stamp = () => { if (net) net.request('poll', { url: pollUrl, t0, t1: perfNow() }); };
+      return fetchAskJobOnce().then((job) => { stamp(); return job; }, (e) => { stamp(); throw e; });
+    };
+    const fetchAskJobOnce = () => api.claudeCodeJob(conn, jobId).then((job) => {
       failingSince = 0;
       // seen still running, with him in front of it: the reply lands after this
       if (job?.status === 'running' && (typeof document === 'undefined' || document.visibilityState !== 'hidden')) stream.lastRunningAt = Date.now();
@@ -12740,6 +12803,7 @@ export default class App extends Component {
     // been heard, the phone's syncs wait. 'wait' now; turnSpeaking at the
     // reply's first sound; turnDone when the receipt posts or the ask fails
     if (this.spokenInput && this.turnPhase) turn.phase = this.turnPhase.mark('wait');
+    if (turn.phase) turn.net = this.turnNet || null;   // its two clocks (src/turnNet.js)
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
@@ -12794,7 +12858,9 @@ export default class App extends Component {
       const proj = voiceAskExtras({ voiceProject: this.state.voiceProject, voiceIntake: this.state.voiceIntake, sentProjectId: this.voiceProjectSent || null, sentDocId: this.voiceDocSent || null });
       if (proj.projectId) this.voiceProjectSent = proj.projectId;
       if (proj.docRef) this.voiceDocSent = proj.docRef;
-      return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where, ...proj });
+      const t0 = perfNow();
+      return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where, ...proj })
+        .then((resp) => { turn.net?.request('ask', { url: `${conn.baseUrl.replace(/\/$/, '')}/api/ask`, t0, t1: perfNow() }); return resp; });
     };
     const asked = this.state.pendingAttach.length ? this.flushAttachments(conn).then(send) : send(null);
     // HIS SPOKEN LINE: it offers "Not what I said" for a minute, and opens the
@@ -12866,8 +12932,10 @@ export default class App extends Component {
         if (resp.modelChoicePending?.kind === 'act') this.armActGate(resp.modelChoicePending);
         const reflexReceipt = () => {
           this.endAnswer(turn);   // the reflex answer has been heard: the mic may open
+          const net = this.turnNetFields(turn);
           this.turnDone(turn);
           reportTurnEnd('ask', this.state.voiceHold, {
+            ...net,
             ms: Date.now() - turn.askAt, restarts: 0, heard: true, lane: 'reflex',
             firstTextMs: turn.firstTextAt - turn.askAt, firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.askAt : undefined,
             ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
+import { timingAllowOrigin } from './lib/timingAllow.js';
 import { Vault } from './lib/vault.js';
 import { slicesForPath } from './lib/writeSlices.js';
 import { libraryRouter } from './routes/library.js';
@@ -109,6 +110,8 @@ async function main() {
 
   const app = express();
   app.use(cors({ origin: allowedOrigins }));
+  // the phone may read each request's connect, TLS and first-byte times (src/turnNet.js)
+  app.use(timingAllowOrigin(allowedOrigins));
   // BINARY UPLOADS MUST BEAT THE TEXT PARSERS. The global express.text below
   // claims application/octet-stream and decodes it as UTF-8 — which silently
   // mangles every byte of an EPUB or PDF and caps it at 1mb. A book uploaded

@@ -15,6 +15,7 @@ import { vadBlind } from './vad.js';
 import { afterPaint, watchFrames } from './afterPaint.js';
 import { openBurst, stepBurst, burstDue, rewindDue, carryHeard, keepCarry, skipReceiptDue, earWanted } from './bargeListen.js';
 import { markTurn, markTurnIf, touchTurn } from './turnPhase.js';
+import { noteTurnRequest } from './turnNet.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -529,6 +530,9 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
         } else {
           try {
             tx = await transcribeRecording(blob, { vad: meter });
+            // the turn's upload, for the network-against-main-thread
+            // numbers on its ask receipt (src/turnNet.js)
+            if (phaseMarks) noteTurnRequest('tx', tx.timing);
             text = tx.text;
             txStatus = text ? 'ok' : 'empty';
           } catch (e) { failure = e; txStatus = 'error'; }

@@ -164,3 +164,60 @@ test('20 concurrent appends race the same file and lose nothing', async () => {
   const seen = new Set(after.map((t) => t.ms));
   for (let i = 0; i < 20; i++) assert.ok(seen.has(i), `turn ${i} is missing from the log`);
 });
+
+// THE NETWORK AGAINST THE MAIN THREAD (22 Nov 2026, src/turnNet.js): the
+// phone's two clocks per request, the watchdog and the sync story ride the
+// ask row. A contract: the client writes them, voiceTurns.js keeps them
+// bounded, scripts/voice-latency.mjs reads them, and old rows still read.
+const NET_ROW = {
+  surface: 'ask', ms: 9100, heard: true, lane: 'nova', firstAudioMs: 8800,
+  txRtMs: 8312.4, txNetMs: 331, txConnectMs: 0, txTlsMs: 0, txTtfbMs: 290,
+  askRtMs: 1800, askNetMs: 60, askConnectMs: 410, askTlsMs: 220, askTtfbMs: 41,
+  pollN: 14, pollNetN: 13, pollRtMaxMs: 4000, pollRtSumMs: 9800, pollNetMaxMs: 12,
+  pollHeldMaxMs: 3990, pollHeldSumMs: 9600, pollConnectN: 1, pollConnectMaxMs: 380, pollTtfbMaxMs: 6,
+  stallMaxMs: 2100, stallSumMs: 5400, sync: 'fallback', syncDeferred: 3, syncAborted: true,
+};
+
+test('the turn instrument round-trips through the file, every field bounded', async () => {
+  await appendTurn(NET_ROW, 'Mozilla/5.0 (iPhone)');
+  const last = readTurns().at(-1);
+  assert.equal(last.txRtMs, 8312, 'rounded');
+  for (const k of Object.keys(NET_ROW)) {
+    if (['surface', 'ms', 'heard', 'lane', 'firstAudioMs', 'txRtMs'].includes(k)) continue;
+    assert.deepEqual(last[k], NET_ROW[k], k);
+  }
+});
+
+test('junk in the instrument fields is left off, never stored as a guess', () => {
+  const rec = turnRecord({
+    surface: 'ask', txRtMs: -1, txNetMs: 'fast', askRtMs: Infinity, askNetMs: 99 * 60_000,
+    pollN: 1.5, pollNetN: -2, pollConnectN: 1e9, syncDeferred: '3', stallSumMs: 99 * 60_000,
+    sync: 'everything', syncAborted: 'yes', pollHeldSumMs: 14 * 60_000,
+  });
+  for (const k of ['txRtMs', 'txNetMs', 'askRtMs', 'askNetMs', 'pollN', 'pollNetN', 'pollConnectN', 'syncDeferred', 'stallSumMs', 'sync', 'syncAborted']) assert.ok(!(k in rec), k);
+  assert.equal(rec.pollHeldSumMs, 14 * 60_000, 'a sum over a turn may outlast ten minutes, not fifteen');
+  assert.equal(turnRecord({ surface: 'ask', pollN: 0, syncDeferred: 0, sync: 'none' }).pollN, 0, 'no polls is a fact worth keeping');
+  const plain = turnRecord({ reason: 'hold', surface: 'voice' });
+  for (const k of ['pollN', 'sync', 'syncDeferred', 'stallMaxMs', 'askRtMs']) assert.ok(!(k in plain), k);
+});
+
+test('the latency script reads old rows and new rows, and prints the new columns', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'scripts', 'voice-latency.mjs');
+  const file = path.join(dataDir, 'latency-fixture.json');
+  const old = turnRecord({ surface: 'ask', ms: 4000, heard: true, lane: 'nova', ackMs: 600, firstTextMs: 2000, firstAudioMs: 3000 }, 'Mozilla/5.0 (iPhone)');
+  const fresh = turnRecord(NET_ROW, 'Mozilla/5.0 (iPhone)');
+  await writeFile(file, JSON.stringify({ turns: [old] }), 'utf8');
+  const before = spawnSync(process.execPath, [script, '--file', file], { encoding: 'utf8' });
+  assert.equal(before.status, 0, before.stderr);
+  assert.match(before.stdout, /no ask carries these numbers yet/);
+  await writeFile(file, JSON.stringify({ turns: [old, fresh] }), 'utf8');
+  const after = spawnSync(process.execPath, [script, '--file', file], { encoding: 'utf8' });
+  assert.equal(after.status, 0, after.stderr);
+  assert.match(after.stdout, /THE NETWORK AGAINST THE MAIN THREAD, 1 spoken ask\(s\) measured/);
+  assert.match(after.stdout, /8312\/331/, 'the upload: what the code waited / what the network took');
+  assert.match(after.stdout, /1800\/60/);
+  assert.match(after.stdout, /fallback, 3 held, one called off/);
+  assert.match(after.stdout, /2 ask\(s\)/, 'the old row still counts in the tables above');
+});

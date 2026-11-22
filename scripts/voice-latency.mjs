@@ -25,6 +25,13 @@
 // opened the mic), the heard rate, how the turns ended, the median time for
 // the mic to open, and how many never opened.
 //
+// From 22 Nov it ends with THE NETWORK AGAINST THE MAIN THREAD (src/turnNet.js),
+// per spoken ask that carries it: for the upload and the ask, the time the
+// code waited / the network's own time (their difference sat waiting for the
+// main thread); the polls until the first reply (how many, the summed and
+// worst main-thread wait, how many opened a new connection); the 100 ms
+// watchdog's worst and summed lateness; and what refreshed beside the turn.
+//
 //   node scripts/voice-latency.mjs                 # server/data/voice/turns.json
 //   node scripts/voice-latency.mjs --file x.json   # another copy
 //   node scripts/voice-latency.mjs --since 2026-10-15
@@ -157,4 +164,31 @@ if (slow.length) {
   const by = new Map();
   for (const t of slow) { const k = t.preAskSlowest.split(':')[0]; by.set(k, (by.get(k) || 0) + 1); }
   console.log(`preAskSlowest (the slowest step before the ask left, when it took 50ms or more): ${[...by.entries()].map(([k, n]) => `${k} ${n}`).join(', ')}`);
+}
+
+// THE NETWORK AGAINST THE MAIN THREAD (22 Nov 2026, src/turnNet.js). Which of
+// three things costs the seconds: a slow path (net is long), a busy main
+// thread (rt well above net, and the watchdog late), or a dead connection
+// being re-made (new connections on the polls, a long connect). Receipts from
+// before the 22 Nov build carry none of these and are left out, not zeroed.
+const measured = asks.filter((t) => ['txRtMs', 'askRtMs', 'pollN', 'stallMaxMs', 'sync'].some((k) => t[k] !== undefined));
+if (measured.length) {
+  const pair = (rt, net) => (Number.isFinite(rt) ? `${rt}/${Number.isFinite(net) ? net : '?'}` : '—');
+  const held = (rt, net) => (Number.isFinite(rt) && Number.isFinite(net) ? Math.max(0, rt - net) : null);
+  const or = (v) => (Number.isFinite(v) ? String(v) : '—');
+  console.log(`\nTHE NETWORK AGAINST THE MAIN THREAD, ${measured.length} spoken ask(s) measured (ms; rt/net = what the code waited / what the network took)`);
+  console.log(`  ${'when (UTC)'.padEnd(17)} ${'lane'.padEnd(7)} ${'upload rt/net'.padStart(13)} ${'ask rt/net'.padStart(11)} ${'polls'.padStart(5)} ${'poll held sum/max'.padStart(17)} ${'new conn'.padStart(8)} ${'stall max/sum'.padStart(13)}  sync`);
+  for (const t of measured.slice(-12)) {
+    const polls = Number.isFinite(t.pollN) ? String(t.pollN) + (Number.isFinite(t.pollNetN) && t.pollNetN < t.pollN ? `*` : '') : '—';
+    const pheld = Number.isFinite(t.pollHeldSumMs) ? `${t.pollHeldSumMs}/${or(t.pollHeldMaxMs)}` : '—';
+    const conn = Number.isFinite(t.pollConnectN) ? `${t.pollConnectN}${Number.isFinite(t.pollConnectMaxMs) && t.pollConnectN ? ` (${t.pollConnectMaxMs})` : ''}` : '—';
+    const stall = Number.isFinite(t.stallMaxMs) ? `${t.stallMaxMs}/${or(t.stallSumMs)}` : '—';
+    const sync = `${t.sync || '?'}${t.syncDeferred ? `, ${t.syncDeferred} held` : ''}${t.syncAborted ? ', one called off' : ''}`;
+    console.log(`  ${String(t.at || '?').slice(0, 16).padEnd(17)} ${String(t.lane || '?').padEnd(7)} ${pair(t.txRtMs, t.txNetMs).padStart(13)} ${pair(t.askRtMs, t.askNetMs).padStart(11)} ${polls.padStart(5)} ${pheld.padStart(17)} ${conn.padStart(8)} ${stall.padStart(13)}  ${sync}`);
+  }
+  const med = (xs) => { const v = xs.filter((x) => x !== null && Number.isFinite(x)).sort((a, b) => a - b); return v.length ? `${pct(v, 50)} (n=${v.length})` : '—'; };
+  console.log(`  p50 main-thread wait: upload ${med(measured.map((t) => held(t.txRtMs, t.txNetMs)))}, ask ${med(measured.map((t) => held(t.askRtMs, t.askNetMs)))}, polls summed ${med(measured.map((t) => (Number.isFinite(t.pollHeldSumMs) ? t.pollHeldSumMs : null)))}; worst watchdog lateness ${med(measured.map((t) => (Number.isFinite(t.stallMaxMs) ? t.stallMaxMs : null)))}`);
+  if (measured.some((t) => Number.isFinite(t.pollN) && Number.isFinite(t.pollNetN) && t.pollNetN < t.pollN)) console.log('  * some polls had no network time read (the observer missed them); their wait is left out of the held sums');
+} else {
+  console.log("\nTHE NETWORK AGAINST THE MAIN THREAD: no ask carries these numbers yet (the 22 Nov build adds them); the next spoken turn on it will.");
 }

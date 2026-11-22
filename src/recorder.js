@@ -206,15 +206,21 @@ export async function transcribeRecording(blob, { timeoutMs = 30_000, vad = '' }
   const conn = getConnection();
   if (!conn) throw new Error('Nova is not connected to the Mac, so it cannot hear you');
   const started = Date.now();
-  const r = await fetch(`${conn.baseUrl.replace(/\/$/, '')}/api/voice/transcribe`, {
+  // the two clocks of src/turnNet.js: the code's wait around the call, which
+  // the turn's ask receipt sets against the network's own time for it
+  const url = `${conn.baseUrl.replace(/\/$/, '')}/api/voice/transcribe`;
+  const t0 = perfNow();
+  const r = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/octet-stream', 'X-Audio-Type': blob.type || 'audio/mp4', ...(vad ? { 'X-Vad': vad } : {}) },
     body: blob,
     signal: AbortSignal.timeout ? AbortSignal.timeout(timeoutMs) : undefined,
   });
   const j = await r.json().catch(() => ({}));
+  const timing = { url, t0, t1: perfNow() };
   if (!r.ok) throw new Error(j.error || `the Mac could not hear that (${r.status})`);
   // `dropped`: the filler line the Mac took off a silent clip ("Thank you."),
   // for the turn receipt; `empty`: the Mac skipped a capture with nothing in it
-  return { text: String(j.text || ''), backend: j.backend || '', ms: Date.now() - started, dropped: typeof j.dropped === 'string' ? j.dropped : '', empty: !!j.empty };
+  return { text: String(j.text || ''), backend: j.backend || '', ms: Date.now() - started, dropped: typeof j.dropped === 'string' ? j.dropped : '', empty: !!j.empty, timing };
 }
+const perfNow = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
