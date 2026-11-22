@@ -12,7 +12,7 @@ process.env.NOVA_DATA_DIR = dir;
 // No Swift, no ffmpeg, no network: every outside step is a stub that writes
 // a file where the real one would, and counts its calls.
 let A; let P; let R; let server; let base;
-let calls; let failCut; let failSprite; let missingThumbs;
+let calls; let artReply; let failCut; let failSprite; let missingThumbs;
 const art = () => path.join(dir, 'mentors', 'art');
 
 before(async () => {
@@ -36,7 +36,7 @@ const VIDS = [
 beforeEach(async () => {
   fs.rmSync(path.join(dir, 'mentors'), { recursive: true, force: true });
   R._resetRegisterForTests(); P._resetPeopleForTests(); A._resetArtForTests();
-  calls = { helper: 0, cut: 0, fetch: [], sprite: [] }; failCut = null; failSprite = null; missingThumbs = new Set();
+  calls = { helper: 0, cut: 0, fetch: [], sprite: [], art: [] }; artReply = { buf: Buffer.from('cover'), type: 'image/jpeg' }; failCut = null; failSprite = null; missingThumbs = new Set();
   A._setArtDepsForTest({
     ensureHelper: async () => { calls.helper += 1; return '/stub/helper'; },
     runCutout: async (bin, input, output) => {
@@ -51,6 +51,7 @@ beforeEach(async () => {
       if (missingThumbs.has(id)) { const e = new Error('i.ytimg.com answered 404'); e.status = 404; throw e; }
       return Buffer.from(`jpeg of ${url}`);
     },
+    fetchArt: async (url) => { calls.art.push(url); if (artReply instanceof Error) throw artReply; return artReply; },
     makeBlank: async (out) => { fs.writeFileSync(out, 'blank'); },
     buildSprite: async (files, out, opts) => {
       calls.sprite.push({ files: files.map((f) => path.basename(f)), ...opts });
@@ -177,4 +178,51 @@ test('one thumbnail: only a video the register knows, never an open proxy; hi as
 test('the catalogue signature changes with the order and only with it', () => {
   assert.equal(A.signatureOf(['a', 'b']), A.signatureOf(['a', 'b']));
   assert.notEqual(A.signatureOf(['a', 'b']), A.signatureOf(['b', 'a']));
+});
+
+const COVER = 'https://is1-ssl.mzstatic.com/image/thumb/x/600x600bb.jpg';
+const withPodcast = (podcast) => P.savePerson({ id: 'jefferson-fisher', podcast });
+
+test('the podcast cover is fetched once from Apple and then served from the cache', async () => {
+  await withPodcast({ title: 'Pod', artworkUrl: COVER, episodes: 3 });
+  const r1 = await get('/api/mentors/jefferson-fisher/podcast-art');
+  assert.equal(r1.status, 200);
+  assert.equal(await r1.text(), 'cover');
+  assert.ok(fs.existsSync(path.join(art(), 'jefferson-fisher-podcast.jpg')));
+  assert.equal((await get('/api/mentors/jefferson-fisher/podcast-art')).status, 200);
+  assert.deepEqual(calls.art, [COVER], 'fetched once');
+});
+
+test('a podcast cover on a host outside the allow-list is refused and nothing is fetched', async () => {
+  for (const u of ['https://evil.example.com/a.jpg', 'http://is1-ssl.mzstatic.com/a.jpg', 'https://mzstatic.com.evil.example/a.jpg']) {
+    await withPodcast({ title: 'Pod', artworkUrl: u });
+    const r = await get('/api/mentors/jefferson-fisher/podcast-art');
+    assert.equal(r.status, 404);
+    assert.match((await r.json()).error, /not on Apple's artwork host/);
+  }
+  assert.equal(calls.art.length, 0);
+});
+
+test('a podcast cover that is not a picture is refused and kept off the disk', async () => {
+  await withPodcast({ title: 'Pod', artworkUrl: COVER });
+  artReply = { buf: Buffer.from('<html>'), type: 'text/html; charset=utf-8' };
+  await assert.rejects(A.ensurePodcastArt('jefferson-fisher'), /not a jpg, png or webp/);
+  assert.equal(fs.readdirSync(art()).filter((f) => f.includes('-podcast')).length, 0);
+});
+
+test('no podcast, or no cover address, is a notFound with a plain sentence', async () => {
+  await assert.rejects(A.ensurePodcastArt('jefferson-fisher'), (e) => e.notFound && /has no podcast saved/.test(e.message));
+  await withPodcast({ title: 'Pod', artworkUrl: null });
+  await assert.rejects(A.ensurePodcastArt('jefferson-fisher'), (e) => e.notFound && /no cover address/.test(e.message));
+  assert.equal((await get('/api/mentors/jefferson-fisher/podcast-art')).status, 404);
+});
+
+test('a failed podcast cover fetch is remembered, so a poll does not retry', async () => {
+  await withPodcast({ title: 'Pod', artworkUrl: COVER });
+  artReply = new Error('is1-ssl.mzstatic.com answered 503');
+  const r = await get('/api/mentors/jefferson-fisher/podcast-art');
+  assert.equal(r.status, 404);
+  assert.match((await r.json()).error, /answered 503/);
+  assert.equal((await get('/api/mentors/jefferson-fisher/podcast-art')).status, 404);
+  assert.equal(calls.art.length, 1, 'the failure is remembered');
 });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ensureCutout, wallFor, ensureThumb, cutoutFile, sweepMentorArt } from '../lib/mentorArt.js';
+import { ensureCutout, ensurePodcastArt, wallFor, ensureThumb, cutoutFile, sweepMentorArt } from '../lib/mentorArt.js';
 
 // MENTORS, THE PICTURES (lib/mentorArt.js): what a mentor's page draws that
 // the main mentors router does not serve. Read-only to everything but the
@@ -7,6 +7,8 @@ import { ensureCutout, wallFor, ensureThumb, cutoutFile, sweepMentorArt } from '
 //
 //   GET /mentors/:id/cutout       his cut-out portrait (PNG, made if missing);
 //                                 404 with the plain cause when there is none
+//   GET /mentors/:id/podcast-art  the cover of his podcast, fetched once from
+//                                 Apple's artwork host; 404 with the plain cause
 //   GET /mentors/:id/wall         {order, sig, sprite, building, error}: his
 //                                 catalogue order and the sprite to draw it from
 //                                 (the sprite file is served by the main
@@ -29,6 +31,15 @@ export function mentorsArtRouter({ sweep = true } = {}) {
       const full = await ensureCutout(req.params.id);
       res.sendFile(full, { headers: CACHE }, (err) => {
         if (err && !res.headersSent) res.status(404).json({ error: `the cut-out ${cutoutFile(req.params.id)} could not be sent` });
+      });
+    } catch (err) { fail(res, err); }
+  });
+
+  router.get('/mentors/:id/podcast-art', async (req, res) => {
+    try {
+      const full = await ensurePodcastArt(req.params.id);
+      res.sendFile(full, { headers: CACHE }, (err) => {
+        if (err && !res.headersSent) res.status(404).json({ error: 'the podcast cover could not be sent' });
       });
     } catch (err) { fail(res, err); }
   });

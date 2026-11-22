@@ -643,14 +643,15 @@ function FailedCell({ id }) {
 /* his work elsewhere: the podcast, his books; only what the server holds */
 function Elsewhere({ person }) {
   const pod = person?.podcast;
+  const podArt = useArt(pod && person?.id ? `/api/mentors/${encodeURIComponent(person.id)}/podcast-art` : null);
   const books = person?.books || [];
   if (!pod && !books.length) return null;
   return (
     <div className="rail" aria-label="Elsewhere">
       {pod && (
         <div className="ri">
-          {/* the podcast's artwork is on Apple's host, which this build does not fetch: his colour stands in */}
-          <span className="art plain" style={{ display: 'block' }} />
+          {/* the cover is fetched once from Apple by the server; until it is there his colour stands in */}
+          {podArt ? <img className="art" src={podArt} alt="" /> : <span className="art plain" style={{ display: 'block' }} />}
           <h5>{pod.title}</h5>{pod.episodes ? <p>{fmt(pod.episodes)} episodes</p> : null}
         </div>
       )}

@@ -38,6 +38,10 @@ const FETCH_AT_ONCE = 4;
 const HELPER = () => process.env.NOVA_MENTOR_CUTOUT || path.join(__dirname, '..', 'bin', 'nova-mentor-cutout');
 const HELPER_SRC = path.join(__dirname, '..', 'native', 'mentor-cutout.swift');
 const FFMPEG = () => process.env.NOVA_FFMPEG || '/opt/homebrew/bin/ffmpeg';
+const ART_MAX_BYTES = 5 * 1024 * 1024;
+const ART_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+// Apple's artwork host, by exact host or a subdomain of it, over https only
+const ART_HOSTS = ['mzstatic.com'];
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
 /* ---------------------------------- deps ----------------------------------- */
@@ -85,6 +89,18 @@ const realDeps = () => ({
     }
     if (!res.ok) { const e = new Error(`i.ytimg.com answered ${res.status}`); e.status = res.status; throw e; }
     return Buffer.from(await res.arrayBuffer());
+  },
+  // a podcast cover from Apple's artwork host: the bytes and the content type
+  fetchArt: async (url) => {
+    let res;
+    try { res = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(20_000) }); } catch (e) {
+      throw new Error(`could not reach ${new URL(url).host} (${e.cause?.code || e.message})`);
+    }
+    if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
+    const len = Number(res.headers.get('content-length'));
+    if (len > ART_MAX_BYTES) throw new Error(`the podcast cover is ${Math.round(len / 1024 / 1024)} MB, over the 5 MB limit`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { buf, type: String(res.headers.get('content-type') || '') };
   },
   // one sprite from a list of image files, in order, with ffmpeg's tile filter
   buildSprite: async (files, out, { cols, rows, cell }) => {
@@ -150,6 +166,63 @@ export async function ensureCutout(personId) {
     } finally { cutting.delete(person.id); }
   })();
   cutting.set(person.id, job);
+  return job;
+}
+
+/* ------------------------------ the podcast cover --------------------------- */
+
+const podcastFailed = new Map();
+const podcasting = new Map();
+const podcastCached = (personId) => ['jpg', 'png', 'webp'].map((e) => path.join(artDir(), `${personId}-podcast.${e}`)).find((f) => existsSync(f)) || null;
+
+function artHostOk(raw) {
+  let u;
+  try { u = new URL(raw); } catch { return false; }
+  return u.protocol === 'https:' && ART_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`));
+}
+
+/**
+ * The cover of a person's podcast, fetched once from Apple's artwork host and
+ * kept beside his other pictures as <id>-podcast.<jpg|png|webp>. Resolves to
+ * the absolute path. Only an https address on an allowed Apple host is ever
+ * fetched, so this is never an open proxy. A failed fetch is remembered for
+ * ten minutes.
+ */
+export async function ensurePodcastArt(personId) {
+  const person = await getPerson(personId);
+  if (!person) throw notFound(`no person called "${personId}" is followed or known`);
+  const have = podcastCached(person.id);
+  if (have) return have;
+  const url = person.podcast?.artworkUrl;
+  if (!person.podcast) throw notFound(`${person.name || person.id} has no podcast saved, so there is no cover to show`);
+  if (!url) throw notFound(`the podcast of ${person.name || person.id} has no cover address saved`);
+  if (!artHostOk(url)) throw notFound(`the podcast cover is not on Apple's artwork host (mzstatic.com), so it is not fetched`);
+  const memo = podcastFailed.get(person.id);
+  if (memo && D().now() - memo.at < FAIL_MEMO_MS) throw Object.assign(new Error(memo.why), { soft: true });
+  if (podcasting.has(person.id)) return podcasting.get(person.id);
+  const job = (async () => {
+    const d = D();
+    try {
+      const { buf, type } = await d.fetchArt(url);
+      const ext = ART_EXT[String(type).split(';')[0].trim().toLowerCase()];
+      if (!ext) throw new Error(`the podcast cover came back as ${type || 'an unknown type'}, not a jpg, png or webp picture`);
+      if (buf.length > ART_MAX_BYTES) throw new Error('the podcast cover is over the 5 MB limit');
+      if (!buf.length) throw new Error('the podcast cover came back empty');
+      await mkdir(artDir(), { recursive: true });
+      const dest = path.join(artDir(), `${person.id}-podcast.${ext}`);
+      await writeFile(`${dest}.tmp`, buf);
+      await rename(`${dest}.tmp`, dest);
+      podcastFailed.delete(person.id);
+      d.log(`mentor art: kept the podcast cover of ${person.id}`);
+      return dest;
+    } catch (e) {
+      const why = e?.message || 'the podcast cover could not be fetched and gave no reason';
+      podcastFailed.set(person.id, { at: d.now(), why });
+      d.log(`mentor art: no podcast cover for ${person.id}: ${why}`);
+      throw Object.assign(new Error(why), { soft: true });
+    } finally { podcasting.delete(person.id); }
+  })();
+  podcasting.set(person.id, job);
   return job;
 }
 
@@ -338,4 +411,4 @@ export async function sweepMentorArt() {
   }
 }
 
-export function _resetArtForTests() { cutting.clear(); cutFailed.clear(); building.clear(); }
+export function _resetArtForTests() { cutting.clear(); cutFailed.clear(); podcasting.clear(); podcastFailed.clear(); building.clear(); }
