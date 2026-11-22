@@ -95,8 +95,8 @@ is pushed and checked there.
 | # | Fix | Status |
 | --- | --- | --- |
 | 1 | Calendar: a fresh fetch never displaces a settled answer until it settles; four calendars asked at once | running on the Mac since 22 Nov 17:57 (`2e48d452`, `2a97863a`); first log count after it: no slow reads in 6.5 hours of use, see 4.1 |
-| 2 | Display grammar: disfluent openers, everyday "bigger" phrasings, false-positive table | in progress |
-| 3 | Phone: the four commands that did nothing | in progress |
+| 2 | Display grammar: disfluent openers, everyday "bigger" phrasings, false-positive table | on main (`6a0f78af`), not pushed, not seen on a screen; see 4.2 |
+| 3 | Phone: the four commands that did nothing | on main (`4bd41e30`), not pushed, not seen on a screen; see 4.2 |
 | 4 | Phone: retry the snapshot once before the 38-request fallback; no fallback beside a newer sync | not started |
 | 5 | Phone: no bulk sync while a spoken turn is live | not started |
 | 6 | Phone instrument: network time against main-thread stall, stamped into the turn receipt | not started |
@@ -141,8 +141,8 @@ read after the start took 3.2 s (sign-in and discovery), the next five 2 to
 19 ms.
 
 **The request log, before and after.** Whether the 500 or so slow reads
-since 28 Oct were this fault could only be read from his real use. The watcher only asks for fresh pictures while a client is
-connected, so the endpoint alone cannot show the difference with the app
+since 28 Oct were this fault could only be read from his real use. The
+watcher only asks for fresh pictures while a client is connected, so the endpoint alone cannot show the difference with the app
 closed. The check is `node scripts/slow-reads.mjs`, which counts the three
 routes in the request log on each side of the reload. Before it, from 28 Oct:
 553 of 7,549 calendar reads (7.3%), 597 of 4,534 instruments reads (13.2%)
@@ -162,3 +162,38 @@ The one slow calendar read is the first read after the restart, which has no
 cache to answer from; that one is expected after any restart. At the old
 rates these hours would have held about 8, 9 and 9 slow reads. The sample is
 small, so run the count again after a few days before calling it closed.
+
+### 4.2 Rows 2 and 3, the words the glass hears
+
+**The matcher** (`src/glassVoice.js`, table in `server/test/glassVoice.test.js`,
+859 rows). On the old code 388 rows failed, among them the reel's own
+sentence, 95 of 140 stumbling or polite forms and 64 of 72 ways to say
+smaller. Now fillers come off wherever they fall, openers and thanks come off
+both ends however many are stacked, and the 80-character cap is applied to
+what is left. "Make that bigger", "zoom in", "full screen", "bigger" and
+"blow it up" are the maximise the glass already had; "smaller", "zoom out"
+and "back to normal" are its restore. A bare "that" or "it" means the lit
+panel, else the newest, and means nothing with an empty glass, so the words
+go to Nova.
+
+**What must not match.** Checked by hand against the old matcher with three
+panels up: "make my chest bigger", "I want to get bigger", "my back hurts",
+"is my sleep back to normal", "expand on that", "shrink my waist" and "can
+you clear my calendar" all still go to Nova. "Show me a video on squats"
+used to be taken as a camera request and now goes to Nova too.
+
+**The phone** (`src/PhoneStage.jsx`, `server/test/phoneGlassRun.test.js`).
+"Put it back" closes the open panel, and with nothing open it is an ordinary
+turn. "History", "words" and "no words" have no surface on the phone, so they
+are ordinary turns as well; before, Nova said "Back as it was." over a screen
+that had not changed. A panel he put away can now be brought back by name
+(the phone's history was always empty), and clearing the screen no longer
+brings back panels he had put away earlier.
+
+**Left for the mockup round, on purpose.** "Put it back" after "clear the
+screen" does not un-clear on either device. Nothing reaches the conversation
+above the phone's stage by voice. "The first one" and "the last one" mean
+the lit or newest panel.
+
+Gates on main plus both commits, in a clean worktree: lint clean, build
+green, the Home guard unchanged, server suite 5915 pass, 0 fail, 4 skipped.
