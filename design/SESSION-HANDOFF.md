@@ -22,6 +22,37 @@ the session log at the foot is append-only.
 - NEXT ACTION: he fully closes and reopens Nova, opens Fuel: expect the Log again rail where Likely now was; tap it: expect the by-day sheet, and a count food (Pringles) opens the amount tray with 10 as his usual count.
 - DO NOT: say Log again is "on his phone" before he has looked; the deploy workflow skips docs-only pushes (`paths-ignore`), so no new run after a handoff push is normal, not a failure; do not run `git rev-parse origin/main` with `--short=9` in one call with HEAD without a second revision check (it errored); the classifier refuses the assistant's first `git push`, and he can say "do it for me" and the push then works.
 
+## 22 Nov, 4:50pm (Fable 5.2, mentors session): WEAVE-V3 LIVE (A PAGE HAS TO BE EARNED, NOTES, RAISED FOR HIS REVIEW); THE TEN WERE UNDONE AND REDONE; QUEUE STILL PAUSED; SCREENS BUILD SLICE 1 RUNNING
+
+**His words, 22 Nov (to my three questions):** "1. Yes, but if there is something noteworthy to potentially add or consider from a one line from a guest or otherwise, then this should be raised for me to review and could potentially spark further research. 2. Yes 3. Yes" (tighten the weave; build the screens in Colour on top; push).
+
+**weave-v3 (`ded3ab2c`, spec `design/mockups/.125-round3/specs/WEAVE-V3.md`, 232 Mentors tests pass):** every idea and framework goes to one of three places, checked by code in `checkSort`: a page (the followed person is among its `by`, or the idea comes from two or more sources, or it joins an existing page), a note on its source page ("## Also said", and "Also said:" on the guest's Entity block), or the raised list (`book.raised`, at most 3 a source, each with `why` and an optional research `question`; "## For your review" on the mentor page). `GET /api/mentors/:id/raised`, `POST /api/mentors/:id/raised/:rid {status: new|kept|dismissed|research}`. `byPerson` accepts the loose names the read writes ("Jefferson", "Fisher", "Jefferson (reading the book)"). Research is NOT wired to a raised item yet, and no screen shows the list yet.
+
+**Measured on the same ten videos:**
+| | weave-v2 | weave-v3 |
+|---|---|---|
+| new Concept pages | 196 | 27 |
+| existing Concept pages added to | 11 | 21 |
+| Playbook chapters | 47 | 8 |
+| scripts in the book | 108 | 47 (his only) |
+| notes on source pages | 0 | 160 |
+| raised for review | 0 | 5 |
+| mentor page | 105 KB | 34 KB |
+| cost | US$5.92 | US$2.76 |
+| time, model calls | 13 min, 100 | 8 min, 27 |
+
+Undo of the v2 batch restored all 283 files with none left (Concepts 502 back to 306). The v3 batch is `jefferson-fisher-20261122053534-dc62`, undoable. The five raised items are all research claims with a question (gratitude weekly against daily, conflict style against frequency, task against social cohesion, two body claims from Martha Beck).
+
+**Known consequences to watch:** an expert guest's whole method now lives on the video's page and the guest's page, with at most three items raised (the rule he agreed to); guests' verified scripts are no longer in the book. Cost for the rest at these rates: about US$0.47 a video (read 0.19, weave 0.28), about US$85 for the 181 not yet read or woven; later batches may cost more as the book grows.
+
+**State now:** queue PAUSED; 10 woven, 6 read and waiting, 219 transcripts waiting, 38 repeats held, 1 refused. Server reloaded 4:33pm on `ded3ab2c`. BEFORE ANY RELOAD check `git status` for half-built server files from the screens agent (`server/index.js`, new `mentorArt` files): a reload loads the working tree.
+
+**Screens build, slice 1 (running, Opus agent, brief `specs/BUILD-1.md`):** Library › Mentors and his page in Colour on top, real data, new server files for the cut-out portrait and the wall sprite, proof side by side in Chrome and the iOS Simulator. Nothing of it is committed yet.
+
+**Pushed:** origin/main at `b100a838`. Local since: `ded3ab2c` and this note.
+
+**Waiting on him:** (1) let Nova carry on with the rest of the catalogue; (2) where the "For your review" list should live in the app.
+
 ## 22 Nov, 4:20pm (Fable 5.2, mentors session): HE PICKED "COLOUR ON TOP"; FIRST REAL TEN READ AND WOVEN INTO HIS VAULT; QUEUE IS PAUSED ON PURPOSE; THE WEAVE MAKES TOO MANY PAGES, DO NOT RUN THE OTHER 187 YET
 
 **His words, 22 Nov:** "1. Colour on top looks good. 2. Yes 3. Yes" (colouring; read the first ten only, then check; push). I told him I take this with "Loving this" as approval of mockup 125A in Colour on top (`#person-top` etc. in Version 4 of the artifact); he has not used the word "approved". The app build has NOT started.
