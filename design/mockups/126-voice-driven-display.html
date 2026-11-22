@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Voice-Driven Display</title>
+<style>
+/* Mockup 126: the display he drives by voice.
+   Drawn on Nova's real tokens (src/index.css :root, the apple-family and
+   summary blocks) and the stage's own material (src/novaPhone.css --ph-*,
+   src/novaMac.css). Theme: the default. One clock drives every frame
+   (NOVA-METHOD 3b.6): ?step=2&at=1400 freezes any moment, ?solo=phone or
+   ?solo=mac shows one device at 1x, ?rm=1 is reduced motion. */
+:root{
+  color-scheme:dark;
+  /* src/index.css :root */
+  --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink50:rgba(232,236,246,.52); --nv-ink40:rgba(232,236,246,.38);
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a; --nv-nova:#c9d8ff;
+  --nv-good:#5fe8a8; --nv-warn:#e08383; --nv-say:#50e4a8; --nv-or:#ffa257; --nv-m-chest:#ff8a7a;
+  --nv-well:rgba(0,0,0,.3);
+  --nv-ease:cubic-bezier(.32,.72,0,1); --nv-ease-exit:cubic-bezier(.4,0,1,1);
+  --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-stagger:45ms; --nv-stagger-max:315ms;
+  --nv-spring-smooth:linear(0, 0.0126, 0.045, 0.091, 0.1455, 0.2048, 0.2662, 0.3275, 0.3874, 0.4448, 0.4991, 0.5499, 0.5969, 0.6401, 0.6796, 0.7154, 0.7478, 0.777, 0.8032, 0.8266, 0.8475, 0.8661, 0.8825, 0.8971, 0.91, 0.9213, 0.9313, 0.9401, 0.9478, 0.9545, 0.9605, 0.9656, 0.9701, 0.9741, 0.9775, 0.9805, 0.9831, 0.9854, 0.9873, 0.9891, 0.9905, 0.9918, 0.9929, 0.9939, 0.9947, 0.9955, 0.9961, 0.9966, 0.9971, 0.9975, 0.9978, 0.9981, 0.9984, 0.9986, 0.9988, 0.999, 0.9991, 0.9992, 0.9994, 0.9994, 1);
+  --nv-spring-snappy:linear(0, 0.0128, 0.0464, 0.095, 0.1536, 0.2183, 0.286, 0.3543, 0.4214, 0.486, 0.5471, 0.6041, 0.6566, 0.7045, 0.7477, 0.7864, 0.8206, 0.8508, 0.8771, 0.8999, 0.9195, 0.9362, 0.9503, 0.9621, 0.9719, 0.98, 0.9865, 0.9918, 0.9959, 0.9992, 1.0016, 1.0034, 1.0047, 1.0055, 1.006, 1.0063, 1.0063, 1.0061, 1.0059, 1.0055, 1.0052, 1.0047, 1.0043, 1.0039, 1.0035, 1.0031, 1.0027, 1.0024, 1.002, 1.0017, 1.0015, 1.0013, 1.001, 1.0009, 1.0007, 1.0006, 1.0005, 1.0004, 1.0003, 1.0002, 1);
+  --nv-spring-bouncy:linear(0, 0.013, 0.0479, 0.0992, 0.1624, 0.2332, 0.3084, 0.3851, 0.4611, 0.5347, 0.6045, 0.6696, 0.7293, 0.7833, 0.8314, 0.8737, 0.9103, 0.9415, 0.9676, 0.989, 1.0063, 1.0198, 1.0299, 1.0372, 1.0421, 1.0449, 1.0459, 1.0457, 1.0443, 1.0421, 1.0393, 1.0361, 1.0327, 1.0292, 1.0257, 1.0222, 1.019, 1.0159, 1.0131, 1.0106, 1.0083, 1.0063, 1.0045, 1.003, 1.0018, 1.0007, 0.9999, 0.9992, 0.9987, 0.9984, 0.9981, 0.998, 0.9979, 0.9979, 0.9979, 0.998, 0.9982, 0.9983, 0.9985, 0.9986, 1);
+  /* the apple-family and summary blocks (his style is Summary) */
+  --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
+  --nv-font-serif:ui-serif,'New York',Georgia,serif;
+  --nv-font-mono:ui-monospace,'SF Mono','IBM Plex Mono',monospace;
+  --nv-font-round:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif;
+  /* the stage's own material (novaPhone.css --ph-*, novaMac.css .nv-mac) */
+  --ph-radius:10px; --ph-glass:rgba(16,20,36,.62); --ph-glass2:rgba(26,32,54,.8); --ph-edge:rgba(130,175,255,.24); --ph-sky:#111a32;
+  /* page only */
+  --pg-line:rgba(232,236,246,.1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--nv-void);color:var(--nv-ink);font:15px/1.5 var(--nv-font-ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;cursor:pointer}
+:focus-visible{outline:2px solid var(--nv-cy);outline-offset:2px}
+
+/* ---------- the page ---------- */
+.pg{max-width:1560px;margin:0 auto;padding:40px max(16px,env(safe-area-inset-right,0px)) 80px max(16px,env(safe-area-inset-left,0px))}
+.mast{max-width:860px;margin-bottom:28px}
+.mast .who{margin:0 0 10px;font:600 12px var(--nv-font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--nv-ink50)}
+.mast h1{margin:0 0 12px;font:400 40px/1.08 var(--nv-font-serif);letter-spacing:-.015em;text-wrap:balance}
+.mast .lede{margin:0 0 10px;font-size:17px;line-height:1.5;color:var(--nv-ink60);text-wrap:pretty}
+.mast .fine{margin:0;font-size:13px;color:var(--nv-ink50)}
+.mast .fine b{font-weight:600;color:var(--nv-gold)}
+
+.work{display:grid;grid-template-columns:300px minmax(0,1fr);gap:28px;align-items:start}
+.side{position:sticky;top:20px}
+.steps{list-style:none;margin:0;padding:0;position:relative}
+/* the steps of the script are one path: joined by a line (uniform connectedness) */
+.steps::before{content:'';position:absolute;left:13px;top:18px;bottom:18px;width:1.5px;background:linear-gradient(var(--nv-cy),color-mix(in srgb,var(--nv-vi) 60%,transparent));opacity:.35}
+.steps li{position:relative}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;width:100%;padding:9px 10px 9px 0;border:0;background:none;text-align:left;border-radius:12px}
+.step .n{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:600 12px var(--nv-font-round);color:var(--nv-ink60);background:var(--nv-void);box-shadow:inset 0 0 0 1.5px var(--pg-line)}
+.step .t{display:block;font-weight:600;font-size:14.5px;line-height:1.3;color:var(--nv-ink60);padding-top:4px}
+.step .q{display:block;margin-top:2px;font-size:13px;line-height:1.35;color:var(--nv-ink40)}
+.step[aria-current="step"] .n{color:#06222b;background:var(--nv-cy);box-shadow:0 0 16px -2px var(--nv-cy)}
+.step[aria-current="step"] .t{color:var(--nv-ink)}
+.step[aria-current="step"] .q{color:var(--nv-ink60)}
+@media (hover:hover) and (pointer:fine){.step:hover .t{color:var(--nv-ink)}}
+.step:active .n{transform:scale(.94)}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding-left:40px}
+.btn{height:36px;padding:0 14px;border:0;border-radius:18px;font-weight:600;font-size:13.5px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px var(--pg-line);display:inline-flex;align-items:center;gap:7px;transition:transform 90ms cubic-bezier(.2,.8,.2,1)}
+.btn.y{color:#06222b;background:var(--nv-cy);box-shadow:none}
+.btn:active{transform:scale(.97)}
+.btn svg{width:14px;height:14px}
+.seg{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;height:36px;padding:3px;border-radius:18px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--pg-line)}
+.seg .knob{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:15px;background:rgba(255,255,255,.12);transform:translateX(calc(var(--at,0) * 100%));transition:transform 640ms var(--nv-spring-snappy)}
+.seg button{position:relative;z-index:1;border:0;background:none;padding:0 12px;font-size:13px;font-weight:600;color:var(--nv-ink50)}
+.seg button[aria-pressed="true"]{color:var(--nv-ink)}
+.seglab{width:100%;margin:6px 0 -2px;font:600 10.5px var(--nv-font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--nv-ink40)}
+
+.stagecol{min-width:0}
+.devs{display:flex;gap:28px;align-items:flex-start}
+.dev{margin:0;flex:none}
+.dev figcaption{margin-top:10px;font:600 10.5px var(--nv-font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--nv-ink40)}
+.frame{position:relative;overflow:hidden}
+.frame > .scr{transform-origin:0 0}
+.dev.phone .frame{border-radius:calc(48px * var(--k,1));box-shadow:0 0 0 calc(10px * var(--k,1)) #15171f,0 0 0 calc(11px * var(--k,1)) rgba(255,255,255,.08),0 40px 80px -40px #000;margin:calc(11px * var(--k,1))}
+.dev.mac .frame{border-radius:calc(14px * var(--k,1));box-shadow:0 0 0 calc(8px * var(--k,1)) #15171f,0 0 0 calc(9px * var(--k,1)) rgba(255,255,255,.08),0 40px 80px -40px #000;margin:calc(9px * var(--k,1))}
+
+.now{margin-top:26px;max-width:980px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:28px}
+.now h2{margin:0 0 8px;font:400 26px/1.15 var(--nv-font-serif);letter-spacing:-.01em}
+.now p{margin:0 0 10px;color:var(--nv-ink60);text-wrap:pretty}
+.said{display:flex;gap:10px;align-items:baseline;margin:0 0 12px;font-size:15px;color:var(--nv-ink)}
+.said i{flex:none;font:600 10.5px var(--nv-font-mono);font-style:normal;letter-spacing:.12em;text-transform:uppercase;color:var(--nv-ink40)}
+.tagrow{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:7px;height:24px;padding:0 10px;border-radius:12px;font:600 10.5px var(--nv-font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--c)}
+.vals{margin:0;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px var(--pg-line);font:500 12px/1.55 var(--nv-font-mono);color:var(--nv-ink60);display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px}
+.vals dt{color:var(--nv-ink40)}
+.vals dd{margin:0;color:var(--nv-ink);overflow-wrap:break-word}
+.vals .tok{white-space:nowrap;color:var(--nv-cy)}
+.vals .h{grid-column:1/-1;margin-bottom:2px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px;color:var(--nv-ink40)}
+
+.film{margin-top:30px}
+.film h3,.files h3{margin:0 0 4px;font:400 20px/1.2 var(--nv-font-serif)}
+.film > p{margin:0 0 14px;font-size:13.5px;color:var(--nv-ink50)}
+.strip{display:flex;flex-wrap:wrap;gap:16px}
+.strip figure{margin:0}
+.strip .frame{border-radius:calc(48px * var(--k,1));box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.strip figcaption{margin-top:8px;font:500 11.5px/1.4 var(--nv-font-mono);color:var(--nv-ink50)}
+.strip figcaption b{color:var(--nv-ink);font-weight:600}
+
+.files{margin-top:40px;max-width:980px}
+.files ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.files li{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px var(--pg-line);font-size:14px;color:var(--nv-ink60)}
+.files li code{font:500 12.5px var(--nv-font-mono);color:var(--nv-cy);overflow-wrap:anywhere}
+
+@media (max-width:1100px){
+  .work{grid-template-columns:minmax(0,1fr)}
+  .side{position:static}
+  .devs{flex-direction:column;gap:22px}
+  .now{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:600px){
+  .pg{padding-top:24px}
+  .mast h1{font-size:31px}
+  .files li{grid-template-columns:minmax(0,1fr);gap:4px}
+}
+
+/* ---------- the devices: Nova's stage, drawn at 1x ---------- */
+.scr{position:relative;overflow:hidden;contain:layout paint;color:var(--nv-ink);font-family:var(--nv-font-ui)}
+.scr.ph{width:402px;height:874px;background:radial-gradient(120% 70% at 50% 0%,var(--ph-sky),var(--nv-void) 70%)}
+.scr.mc{width:1440px;height:900px;background:
+  radial-gradient(60% 55% at 6% 0%,rgba(89,230,255,.075),transparent 70%),
+  radial-gradient(55% 60% at 100% 100%,rgba(143,123,255,.09),transparent 70%),
+  linear-gradient(rgba(130,175,255,.028) 1px,transparent 1px) 0 0/48px 48px,
+  linear-gradient(90deg,rgba(130,175,255,.028) 1px,transparent 1px) 0 0/48px 48px,
+  linear-gradient(#070a14,var(--nv-void))}
+.scr .n{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform,opacity}
+
+/* the core: a stand-in drawing; the build keeps Nova's own core (his exemption) */
+.core{width:150px;height:150px;transform-origin:50% 50%!important;--cc:var(--nv-cy)}
+.core[data-state="speaking"]{--cc:var(--nv-say)}
+.core[data-state="thinking"]{--cc:var(--nv-vi)}
+.core svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.core svg *{fill:none;stroke:var(--cc);transition:stroke .28s var(--nv-ease)}
+.core .glow{position:absolute;inset:38px;border-radius:50%;background:radial-gradient(circle,#fff 0 7%,color-mix(in srgb,var(--cc) 90%,#fff) 16%,color-mix(in srgb,var(--cc) 45%,transparent) 34%,transparent 70%);transition:background .28s var(--nv-ease)}
+
+.st{display:flex;align-items:center;justify-content:center;gap:9px;height:26px;transform-origin:50% 50%!important}
+.st i{width:8px;height:8px;border-radius:50%;background:var(--cc,var(--nv-cy));box-shadow:0 0 12px var(--cc,var(--nv-cy))}
+.st b{font:600 13px var(--nv-font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--nv-ink60)}
+.st[data-state="speaking"]{--cc:var(--nv-say)} .st[data-state="thinking"]{--cc:var(--nv-vi)}
+
+/* the one line: his words when they come back, or Nova's few words */
+.line{text-align:center;text-wrap:balance;transform-origin:50% 0!important}
+.line .you{font:400 19px/1.3 var(--nv-font-ui);color:var(--nv-ink60)}
+.line .you::before{content:'';display:inline-block;width:7px;height:7px;margin:0 9px 2px 0;border-radius:50%;background:var(--nv-cy);box-shadow:0 0 10px var(--nv-cy);vertical-align:middle}
+.line .nova{font:400 18px/1.3 var(--nv-font-serif);color:var(--nv-ink)}
+.line .live{font:400 19px/1.3 var(--nv-font-ui);color:var(--nv-ink)}
+.line .live s{text-decoration:none;color:var(--nv-ink40)}
+.mc .line .nova{font-size:21px}
+
+/* the phone's rest face */
+.rest{text-align:center}
+.clock{font:200 64px/1 var(--nv-font-ui);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.clock i{font-style:normal;opacity:.45;margin:0 2px}
+.date{margin-top:10px;font:500 12px var(--nv-font-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--nv-ink40)}
+.chips{margin-top:20px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.chip{height:40px;padding:0 18px;border-radius:20px;font:500 14px var(--nv-font-ui);background:var(--ph-glass);box-shadow:inset 0 0 0 1px var(--ph-edge);display:inline-flex;align-items:center;gap:8px}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}
+
+/* the count row (the one control that opens everything) */
+.count{display:flex;justify-content:space-between;align-items:center;height:44px;font:600 10px var(--nv-font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--nv-ink50)}
+.count b{font-weight:600;color:var(--nv-cy)}
+
+/* the composer */
+.comp{display:flex;align-items:center;gap:8px;padding:7px;border-radius:28px;background:var(--ph-glass);box-shadow:inset 0 0 0 1px var(--ph-edge)}
+.comp .plus,.comp .mic{flex:none;width:42px;height:42px;border-radius:21px;display:grid;place-items:center}
+.comp .plus{background:rgba(255,255,255,.08);color:var(--nv-ink60)}
+.comp .field{flex:1;min-width:0;height:42px;border-radius:21px;padding:0 18px;display:flex;align-items:center;background:var(--nv-well);color:var(--nv-ink40);font-size:17px;white-space:nowrap;overflow:hidden}
+.comp .mic{color:var(--nv-cy);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-cy) 50%,transparent);transition:background .2s var(--nv-ease),color .2s var(--nv-ease)}
+.comp[data-on] .mic{background:var(--nv-cy);color:#06222b;box-shadow:0 0 18px -2px var(--nv-cy)}
+.comp svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.mc .comp{border-radius:26px;padding:6px}
+.mc .comp .field{background:none;font-size:15px;padding:0 12px}
+.mc .comp .plus{display:none}
+.mc .comp kbd{font:600 11px var(--nv-font-ui);padding:2px 6px;border-radius:5px;margin:0 3px;color:var(--nv-ink60);background:rgba(255,255,255,.07)}
+
+/* a panel (novaPhone.css .nv-ph-pnl; novaMac.css .nv-mac-sslot .nv-mac-pnl) */
+.pnl{padding:14px 16px 16px;border-radius:14px;background:var(--ph-glass);-webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5);
+  box-shadow:inset 0 0 0 1px var(--ph-edge),inset 0 1px 0 rgba(190,225,255,.18),0 30px 60px -30px rgba(0,0,0,.9);color:var(--nv-ink)}
+.mc .pnl{border-radius:var(--ph-radius)}
+.pnl .lit{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;background:color-mix(in srgb,var(--h) 7%,rgba(26,32,54,.55));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 60%,transparent),inset 0 1px 0 rgba(190,225,255,.3),0 0 70px -24px var(--h),0 40px 80px -30px #000}
+.pnl .lit::before,.pnl .lit::after{content:'';position:absolute;width:14px;height:14px;border:1.5px solid var(--h)}
+.pnl .lit::before{left:-1px;top:-1px;border-right:0;border-bottom:0;border-top-left-radius:inherit}
+.pnl .lit::after{right:-1px;bottom:-1px;border-left:0;border-top:0;border-bottom-right-radius:inherit}
+.pnl > *:not(.lit){position:relative}
+.peye{display:flex;align-items:center;gap:8px;margin-bottom:9px;font:600 10px var(--nv-font-mono);letter-spacing:.14em;text-transform:uppercase}
+.peye .ptag{flex:none;width:8px;height:8px;border-radius:2px;background:var(--h);box-shadow:0 0 10px var(--h)}
+.peye em{font-style:normal;color:var(--h);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.peye .pmeta{font-style:normal;color:var(--nv-ink40);margin-left:auto;flex:none;letter-spacing:.08em}
+.ptitle{font:400 18px/1.18 var(--nv-font-serif);margin:0 0 10px;text-wrap:balance}
+.fig{display:flex;align-items:baseline;gap:8px;margin:2px 0 10px}
+.fig .num{font:600 40px/1 var(--nv-font-round);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--nv-ink)}
+.fig .unit{font:400 13.5px/1.3 var(--nv-font-ui);color:var(--nv-ink60)}
+/* the odometer (src/NumberRoll.jsx): one column per place */
+.odo{display:inline-flex;align-items:baseline;font:600 40px/1 var(--nv-font-round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.odo .cur{display:inline-block}
+.odo .col{display:inline-block;height:1em;overflow:hidden;width:.62em;text-align:center;line-height:1}
+.odo .col span{display:block;line-height:1;height:1em}
+.bars{position:relative;display:flex;align-items:flex-end;gap:8px;height:88px;padding-top:4px}
+.bars > i{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;font-style:normal}
+.bars > i b{display:block;width:100%;height:68px;border-radius:4px 4px 2px 2px;background:linear-gradient(color-mix(in srgb,var(--h) 85%,#fff),color-mix(in srgb,var(--h) 40%,transparent));transform-origin:50% 100%}
+.bars > i u{text-decoration:none;font:600 9.5px var(--nv-font-mono);letter-spacing:.06em;color:var(--nv-ink40)}
+.bars .tgt{position:absolute;left:0;right:0;border-top:1px dashed color-mix(in srgb,var(--h) 70%,transparent);pointer-events:none}
+.fig .leg{margin-left:auto;align-self:center;display:inline-flex;align-items:center;gap:6px;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-ink50);white-space:nowrap}
+.fig .leg i{width:14px;border-top:1px dashed color-mix(in srgb,var(--h) 70%,transparent)}
+.rows{list-style:none;margin:0;padding:0}
+.rows li{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;border-top:1px solid rgba(255,255,255,.06)}
+.rows li:first-child{border-top:0}
+.rows li i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--h);box-shadow:0 0 8px var(--h)}
+.rows li span{flex:1;min-width:0}
+.rows li b{font:600 13px var(--nv-font-mono);color:var(--nv-ink60)}
+.ringrow{display:flex;align-items:center;gap:16px}
+.ringrow svg{flex:none;width:92px;height:92px;transform:rotate(-90deg)}
+.ringrow circle{fill:none;stroke-width:9}
+.ringrow .bg{stroke:color-mix(in srgb,var(--h) 16%,transparent)}
+.ringrow .fg{stroke:var(--h);stroke-linecap:round}
+.ringrow .rv{font:600 30px/1 var(--nv-font-round);font-variant-numeric:tabular-nums}
+.ringrow .rv small{font-size:16px;color:var(--nv-ink60);font-weight:500}
+.ringrow p{margin:6px 0 0;font-size:13.5px;line-height:1.35;color:var(--nv-ink60)}
+.spark{display:block;width:100%;height:46px;overflow:visible}
+.spark path{fill:none;stroke:var(--h);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.spark .area{fill:color-mix(in srgb,var(--h) 14%,transparent);stroke:none}
+.spark circle{fill:var(--h)}
+.hb{display:grid;gap:9px}
+.hb > div{display:grid;grid-template-columns:78px minmax(0,1fr) 30px;align-items:center;gap:10px;font-size:13px;color:var(--nv-ink60)}
+.hb .tr{height:10px;border-radius:5px;background:color-mix(in srgb,var(--h) 12%,transparent);overflow:hidden}
+.hb .tr b{display:block;height:100%;border-radius:5px;background:var(--h);transform-origin:0 50%}
+.hb > div > span:last-child{font:600 13px var(--nv-font-round);text-align:right;color:var(--nv-ink)}
+.hb > div.best{color:var(--nv-ink)}
+.headfig{display:flex;align-items:baseline;gap:8px}
+.headfig .num{font:600 52px/1 var(--nv-font-round);letter-spacing:-.025em}
+.headfig .unit{font-size:14px;color:var(--nv-ink60)}
+.pnote{margin:8px 0 0;font-size:13.5px;color:var(--nv-ink60)}
+.sub{display:inline-block}
+
+/* reduced motion: the page itself never travels either */
+@media (prefers-reduced-motion:reduce){.seg .knob,.btn{transition:none}}
+</style>
+</head>
+<body>
+<svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M4 2.8v10.4L13 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5V5h-2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<main class="pg">
+  <header class="mast">
+    <p class="who">Mockup 126, for your approval</p>
+    <h1>You talk, the display moves</h1>
+    <p class="lede">Say "make that bigger" and the panel comes forward while everything else goes dark. Say "put it back" and it goes home. Nova stays quiet when the move says it all, and speaks when it cannot.</p>
+    <p class="fine"><b>Sample data.</b> Every figure, title and line on both screens is made up for this page. The core is a stand-in drawing; the build keeps Nova's own. Drawn on the default theme, his Summary style and glass.</p>
+  </header>
+
+  <div class="work">
+    <aside class="side">
+      <ol class="steps" id="steps"></ol>
+      <div class="ctrl">
+        <button type="button" class="btn y" id="replay"><svg><use href="#i-redo"/></svg>Replay</button>
+        <button type="button" class="btn" id="playall"><svg><use href="#i-play"/></svg>Play all</button>
+        <p class="seglab">Motion</p>
+        <div class="seg" id="motion" style="--at:0"><span class="knob"></span><button type="button" aria-pressed="true" data-v="0">Full</button><button type="button" aria-pressed="false" data-v="1">Reduced</button></div>
+      </div>
+    </aside>
+
+    <section class="stagecol">
+      <div class="devs" id="devs">
+        <figure class="dev phone"><div class="frame" id="phf"><div class="scr ph" id="ph"></div></div><figcaption>iPhone, 402 wide</figcaption></figure>
+        <figure class="dev mac"><div class="frame" id="mcf"><div class="scr mc" id="mc"></div></div><figcaption>Mac, 1440 by 900</figcaption></figure>
+      </div>
+
+      <div class="now" id="now"></div>
+
+      <div class="film" id="film">
+        <h3>The enlarge, frame by frame</h3>
+        <p>The phone at four moments of step 2, from the same clock as the page.</p>
+        <div class="strip" id="strip"></div>
+      </div>
+
+      <section class="files">
+        <h3>What the build changes</h3>
+        <ul id="files"></ul>
+      </section>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+'use strict';
+// ------------------------------------------------------------------ easing
+const css = getComputedStyle(document.documentElement);
+const lin = (name) => {
+  const pts = css.getPropertyValue(name).trim().replace(/^linear\(|\)$/g, '').split(',').map(Number);
+  return (p) => { if (p <= 0) return 0; if (p >= 1) return 1; const x = p * (pts.length - 1), i = Math.floor(x); return pts[i] + (pts[i + 1] - pts[i]) * (x - i); };
+};
+const bez = (x1, y1, x2, y2) => {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const X = (t) => ((ax * t + bx) * t + cx) * t, Y = (t) => ((ay * t + by) * t + cy) * t, dX = (t) => (3 * ax * t + 2 * bx) * t + cx;
+  return (p) => { if (p <= 0) return 0; if (p >= 1) return 1; let t = p; for (let i = 0; i < 8; i++) { const e = X(t) - p, d = dX(t); if (Math.abs(e) < 1e-5 || !d) break; t -= e / d; } return Y(Math.min(1, Math.max(0, t))); };
+};
+const E = { smooth: lin('--nv-spring-smooth'), snappy: lin('--nv-spring-snappy'), bouncy: lin('--nv-spring-bouncy'), ease: bez(.32, .72, 0, 1), exit: bez(.4, 0, 1, 1), lin: (p) => Math.min(1, Math.max(0, p)) };
+
+// ------------------------------------------------------------------ values the build copies
+const M = {
+  liftMs: 560, liftEase: 'smooth', liftScale: 1.4,
+  blurPeak: 4, blurUpMs: 90, blurDownMs: 210,
+  dimTo: 0.1, dimDelay: 120, dimMs: 240,
+  backMs: 560, undimMs: 240,
+  arriveO: 320, arriveS: 560, arriveB: 420, arriveFromS: 0.94, arriveFromB: 12, stagger: 45,
+  rollMs: 640, reshapeMs: 560, reshapeStagger: 30,
+  outMs: 220, heardIn: 200, heardHold: 1600, heardOut: 300,
+  rmFade: 200,
+};
+
+// ------------------------------------------------------------------ sample content (made up)
+const WEEK = [
+  { id: 'done', hue: 'var(--nv-nova)', tag: 'Done', meta: 'This week', kind: 'list', title: 'Three things off the list', rows: [['Booked the dentist'], ['Fixed the bike light'], ['Sent the rent form']] },
+  { id: 'train', hue: 'var(--nv-good)', tag: 'Training', meta: 'Mon to Sun', kind: 'ring', v: 4, of: 5, note: 'One to go. Saturday is open.' },
+  { id: 'steps', hue: 'var(--nv-cy)', tag: 'Steps', meta: 'Daily average', kind: 'spark', fig: '8,420', unit: 'a day', pts: [7.9, 8.8, 6.1, 9.4, 8.2, 10.1, 8.4] },
+  { id: 'sleep', hue: 'var(--nv-vi)', tag: 'Sleep', meta: 'This week', kind: 'bars', fig: '7.3', unit: 'hours a night', A: [7.1, 6.4, 7.8, 6.9, 7.3, 8.2, 7.6], labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], max: 9, target: 7.5, tlabel: '7.5 h goal' },
+];
+const REPORT = [
+  { id: 'rhead', hue: 'var(--nv-cy)', tag: 'Report', meta: 'Tuesday', kind: 'head', title: 'Riding to work', fig: '34', unit: 'min door to door', note: 'The river path, most mornings.' },
+  { id: 'rroute', hue: 'var(--nv-cy)', tag: 'By route', meta: 'Minutes', kind: 'hbars', rows: [['River path', 34, 1], ['Main road', 29, 0], ['Park loop', 41, 0]], max: 45 },
+  { id: 'rnotes', hue: 'var(--nv-cy)', tag: 'What changes it', meta: '3 notes', kind: 'list', rows: [['Rain adds about 6 min'], ['Two long lights on Main road'], ['Park loop is the flattest']] },
+];
+const COFFEE = [
+  { id: 'cwhere', hue: 'var(--nv-nova)', tag: 'Where it went', meta: 'November', kind: 'list', rows: [['Corner cafe', '$48'], ['Station kiosk', '$26'], ['Office machine', '$12']] },
+  { id: 'cchart', hue: 'var(--nv-cy)', tag: 'Coffee', meta: 'November', metaB: 'October', kind: 'money', figA: 86, figB: 112, unit: 'so far this month', unitB: 'in October', A: [22, 18, 27, 19], B: [31, 24, 29, 28], labels: ['WK 1', 'WK 2', 'WK 3', 'WK 4'], max: 35 },
+];
+const TWIN = { id: 'ctwin', hue: 'var(--nv-cy)', tag: 'Coffee', meta: 'November', kind: 'money', figA: 86, figB: 86, unit: 'so far this month', A: [22, 18, 27, 19], B: [22, 18, 27, 19], labels: ['WK 1', 'WK 2', 'WK 3', 'WK 4'], max: 35 };
+
+// ------------------------------------------------------------------ panel drawing
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function odoHTML() {
+  const col = () => `<span class="col"><span class="rl">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => `<span>${d}</span>`).join('')}</span></span>`;
+  return `<span class="odo"><span class="cur">$</span>${col()}${col()}${col()}</span>`;
+}
+function panelHTML(p) {
+  let body = '';
+  if (p.kind === 'list') body = `<ul class="rows">${p.rows.map((r) => `<li><i></i><span>${esc(r[0])}</span>${r[1] ? `<b>${esc(r[1])}</b>` : ''}</li>`).join('')}</ul>`;
+  if (p.kind === 'ring') {
+    const C = 2 * Math.PI * 40;
+    body = `<div class="ringrow"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="40"/><circle class="fg" cx="50" cy="50" r="40" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${C.toFixed(1)}"/></svg><div><div class="rv">${p.v}<small> of ${p.of}</small></div><p>sessions. ${esc(p.note)}</p></div></div>`;
+  }
+  if (p.kind === 'spark') {
+    const w = 248, h = 46, mn = Math.min(...p.pts) - 1, mx = Math.max(...p.pts) + .5;
+    const xy = p.pts.map((v, i) => [i * (w / (p.pts.length - 1)), h - ((v - mn) / (mx - mn)) * h]);
+    const d = xy.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(' ');
+    const last = xy[xy.length - 1];
+    body = `<div class="fig"><span class="num">${p.fig}</span><span class="unit">${esc(p.unit)}</span></div><svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path class="area" d="${d} L${w} ${h} L0 ${h} Z"/><path class="ln" d="${d}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/><circle cx="${last[0]}" cy="${last[1]}" r="3.5"/></svg>`;
+  }
+  if (p.kind === 'bars') {
+    const tg = p.target ? `<div class="tgt" style="bottom:${(19 + 68 * p.target / p.max).toFixed(1)}px"></div>` : '';
+    const leg = p.target ? `<span class="leg"><i></i>${p.tlabel}</span>` : '';
+    body = `<div class="fig"><span class="num">${p.fig}</span><span class="unit">${esc(p.unit)}</span>${leg}</div><div class="bars">${p.A.map((v, i) => `<i><b></b><u>${p.labels[i]}</u></i>`).join('')}${tg}</div>`;
+  }
+  if (p.kind === 'money') {
+    body = `<div class="fig">${odoHTML()}<span class="unit"><span class="sub" data-sub="unit">${esc(p.unit)}</span></span></div><div class="bars">${p.A.map((v, i) => `<i><b></b><u>${p.labels[i]}</u></i>`).join('')}</div>`;
+  }
+  if (p.kind === 'head') body = `<div class="ptitle" style="font-size:24px">${esc(p.title)}</div><div class="headfig"><span class="num">${p.fig}</span><span class="unit">${esc(p.unit)}</span></div><p class="pnote">${esc(p.note)}</p>`;
+  if (p.kind === 'hbars') body = `<div class="hb">${p.rows.map((r) => `<div class="${r[2] ? 'best' : ''}"><span>${esc(r[0])}</span><span class="tr"><b style="transform:scaleX(${(r[1] / p.max).toFixed(3)})"></b></span><span>${r[1]}</span></div>`).join('')}</div>`;
+  const title = p.title && p.kind !== 'head' ? `<div class="ptitle">${esc(p.title)}</div>` : '';
+  return `<span class="lit"></span><div class="peye"><i class="ptag"></i><em>${esc(p.tag)}</em><i class="pmeta"><span class="sub" data-sub="meta">${esc(p.meta)}</span></i></div>${title}${body}`;
+}
+
+const CORE_SVG = '<svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="71" stroke-opacity=".28" stroke-width="1" stroke-dasharray="1.5 4.5"/><ellipse cx="75" cy="75" rx="60" ry="23" transform="rotate(-24 75 75)" stroke-opacity=".55" stroke-width="1.2"/><ellipse cx="75" cy="75" rx="56" ry="31" transform="rotate(38 75 75)" stroke-opacity=".42" stroke-width="1"/><ellipse cx="75" cy="75" rx="25" ry="58" transform="rotate(-8 75 75)" stroke-opacity=".32" stroke-width="1"/><circle cx="75" cy="75" r="44" stroke-opacity=".18" stroke-width="7"/></svg><span class="glow"></span>';
+
+// ------------------------------------------------------------------ a device: nodes, tracks, one clock
+class Dev {
+  constructor(kind, scr) { this.kind = kind; this.scr = scr; this.W = kind === 'ph' ? 402 : 1440; this.H = kind === 'ph' ? 874 : 900; }
+  reset() { this.scr.innerHTML = ''; this.nodes = {}; this.tr = {}; this.disc = []; this.panels = {}; this.cache = new Map(); }
+  add(id, cls, html, base, w) {
+    const el = document.createElement('div');
+    el.className = `n ${cls}`;
+    if (w) el.style.width = `${w}px`;
+    el.innerHTML = html;
+    this.scr.appendChild(el);
+    this.nodes[id] = { el, base: { x: 0, y: 0, s: 1, o: 1, b: 0, lit: 0, ...base } };
+    return el;
+  }
+  seg(id, prop, t0, d, to, e) { (this.tr[`${id}.${prop}`] ||= []).push({ t0, d, to, e }); }
+  to(id, props, t0, d, e = E.smooth) { for (const k in props) this.seg(id, k, t0, d, props[k], e); }
+  set(id, props, t0) { for (const k in props) this.seg(id, k, t0, 0, props[k], E.lin); }
+  at(t0, fn) { this.disc.push({ t0, fn }); }
+  seal() {
+    for (const key in this.tr) {
+      const [id, prop] = key.split('.');
+      const segs = this.tr[key].map((s, i) => ({ ...s, i })).sort((a, b) => a.t0 - b.t0 || a.i - b.i);
+      let v = this.nodes[id].base[prop] ?? 0;
+      for (const s of segs) { s.from = this.ev(segs, s.t0, v, s); v = s.to; }
+      this.tr[key] = segs;
+    }
+    this.disc.sort((a, b) => a.t0 - b.t0);
+  }
+  ev(segs, t, base, upTo) {
+    let cur = null;
+    for (const s of segs) { if (s === upTo) break; if (s.t0 <= t) cur = s; }
+    if (!cur) return base;
+    if (cur.d <= 0 || t >= cur.t0 + cur.d) return cur.to;
+    return cur.from + (cur.to - cur.from) * cur.e((t - cur.t0) / cur.d);
+  }
+  v(id, prop, t) {
+    const segs = this.tr[`${id}.${prop}`];
+    const base = this.nodes[id].base[prop] ?? 0;
+    if (!segs) return base;
+    let cur = null;
+    for (const s of segs) { if (s.t0 <= t) cur = s; else break; }
+    if (!cur) return base;
+    if (cur.d <= 0 || t >= cur.t0 + cur.d) return cur.to;
+    return cur.from + (cur.to - cur.from) * cur.e((t - cur.t0) / cur.d);
+  }
+  put(el, k, val) { const c = this.cache.get(el) || {}; if (c[k] !== val) { c[k] = val; this.cache.set(el, c); if (k === 'html') el.innerHTML = val; else if (k.startsWith('@')) { if (val == null) el.removeAttribute(k.slice(1)); else el.setAttribute(k.slice(1), val); } else el.style[k] = val; } }
+  render(t) {
+    for (const id in this.nodes) {
+      const n = this.nodes[id];
+      const x = this.v(id, 'x', t), y = this.v(id, 'y', t), s = this.v(id, 's', t), o = this.v(id, 'o', t), b = this.v(id, 'b', t);
+      this.put(n.el, 'transform', `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) scale(${s.toFixed(4)})`);
+      this.put(n.el, 'opacity', o >= 0.999 ? '' : Math.max(0, o).toFixed(3));
+      this.put(n.el, 'filter', b > 0.05 ? `blur(${b.toFixed(2)}px)` : '');
+      this.put(n.el, 'visibility', o <= 0.001 ? 'hidden' : '');
+      if (n.lit) this.put(n.lit, 'opacity', this.v(id, 'lit', t).toFixed(3));
+      if (n.panel) this.drawPanel(id, n, t);
+    }
+    // discrete: words, states, labels (each at its time, last one wins per key)
+    const last = new Map();
+    for (const d of this.disc) { if (d.t0 > t) break; last.set(d.fn.key, d.fn); }
+    for (const fn of last.values()) fn(this);
+  }
+  drawPanel(id, n, t) {
+    const P = n.panel, rm = P.rm;
+    const g = (i, dur, ease, at) => { if (at == null) return 1; if (rm) return t >= at ? 1 : 0; return ease(Math.min(1, Math.max(0, (t - at - i * 40) / dur))); };
+    const mFor = (i) => { if (P.morphAt == null) return 0; if (rm) return t >= P.morphAt + M.rmFade / 2 ? 1 : 0; return E.smooth(Math.min(1, Math.max(0, (t - P.morphAt - i * M.reshapeStagger) / M.reshapeMs))); };
+    if (P.bars) P.bars.forEach((el, i) => {
+      const m = mFor(i);
+      const v = (P.def.A[i] + ((P.def.B || P.def.A)[i] - P.def.A[i]) * m) / P.def.max;
+      this.put(el, 'transform', `scaleY(${(v * g(i, 800, E.bouncy, P.growAt)).toFixed(4)})`);
+    });
+    if (P.ring) { const f = P.def.v / P.def.of; this.put(P.ring, 'strokeDashoffset', (P.C * (1 - f * g(0, 800, E.smooth, P.growAt))).toFixed(2)); }
+    if (P.spark) this.put(P.spark, 'strokeDashoffset', (1 - g(0, 700, E.smooth, P.growAt)).toFixed(3));
+    if (P.odo) {
+      let k = 0;
+      if (P.morphAt != null) k = rm ? (t >= P.morphAt + M.rmFade / 2 ? 1 : 0) : E.snappy(Math.min(1, Math.max(0, (t - P.morphAt) / M.rollMs)));
+      const val = P.def.figA + (P.def.figB - P.def.figA) * k;
+      const cols = P.odo;
+      [100, 10, 1].forEach((pl, i) => {
+        const pos = (val / pl) % 10;
+        const d = pl === 1 ? pos : Math.floor(pos) + Math.max(0, (val % pl) - (pl - 1)) ;
+        this.put(cols[i].rl, 'transform', `translateY(${(-Math.min(10, d)).toFixed(3)}em)`);
+      });
+      const h = Math.min(1, Math.max(0, val - 99));   // the hundreds place shows from 100
+      this.put(cols[0].col, 'opacity', h.toFixed(3));
+      this.put(P.cur, 'transform', `translateX(${((1 - h) * 0.62).toFixed(3)}em)`);
+      this.put(cols[0].col, 'transform', `translateX(${((1 - h) * 0.62).toFixed(3)}em)`);
+    }
+  }
+  // a panel: content laid out at its own width, then placed by transform
+  panel(def, w, place, rm) {
+    const el = this.add(def.id, 'pnl', panelHTML(def), place, w);
+    el.style.setProperty('--h', def.hue);
+    const n = this.nodes[def.id];
+    n.lit = el.querySelector('.lit');
+    n.h = el.offsetHeight;
+    n.w = w;
+    const P = n.panel = { def, rm, growAt: null, morphAt: null };
+    if (def.kind === 'bars' || def.kind === 'money') P.bars = [...el.querySelectorAll('.bars > i > b')];
+    if (def.kind === 'ring') { P.ring = el.querySelector('.fg'); P.C = 2 * Math.PI * 40; }
+    if (def.kind === 'spark') P.spark = el.querySelector('.ln');
+    if (def.kind === 'money') { P.odo = [...el.querySelectorAll('.odo .col')].map((col) => ({ col, rl: col.firstElementChild })); P.cur = el.querySelector('.odo .cur'); }
+    return n;
+  }
+}
+
+// ------------------------------------------------------------------ geometry
+const PH = { W: 402, H: 874, side: 16, pw: 280, col: 180, gap: 10, gridTop: 244, coreX: 126, coreY: 58, stTop: 206, capTop: 236, heroTop: 322, heroBottom: 236, railTop: 678, mini: 160 / 280, countTop: 638, countAllDy: -438, restTop: 330 };
+PH.s0 = PH.col / PH.pw;          // a See-all column: .6429
+PH.hero = (PH.W - 2 * PH.side) / PH.pw;  // the hero: 370 wide
+PH.focus = { cx: 201, cy: 511 };        // the middle of the grid's room
+const MC = { W: 1440, H: 900, coreX: 645, coreY: 160, stTop: 330, lineTop: 362, focus: { cx: 720, cy: 612 } };
+const MAC_SLOTS = {
+  done: [150, 132, 300], train: [990, 120, 300], steps: [104, 468, 320], sleep: [1000, 452, 340],
+  rhead: [150, 128, 320], rroute: [970, 128, 340], rnotes: [1010, 470, 320],
+  cwhere: [170, 150, 300], cchart: [960, 136, 330],
+};
+
+// the phone's two columns, each panel to the shorter one (phoneStageFacts.phoneColumns)
+function phoneCells(dev, ids) {
+  const hs = [0, 0];
+  const out = {};
+  ids.forEach((id, i) => {
+    const c = hs[1] < hs[0] ? 1 : 0;
+    const h = Math.ceil(dev.nodes[id].h * PH.s0);
+    out[id] = { x: PH.side + c * (PH.col + PH.gap), y: PH.gridTop + hs[c], s: PH.s0, i };
+    hs[c] += h + PH.gap;
+  });
+  return out;
+}
+const centreOn = (n, s, cx, cy) => ({ x: cx - (n.w * s) / 2, y: cy - (n.h * s) / 2, s });
+
+// ------------------------------------------------------------------ the shared furniture
+function chrome(dev, { face = 'all', state = 'ready', rest = false } = {}) {
+  const ph = dev.kind === 'ph';
+  dev.coreS = ph && face === 'all' ? 0.5 : 1;
+  if (ph) {
+    // rest face: the clock, the date, the chips (PhoneStage .nv-ph-rest)
+    dev.add('rest', 'rest', `<div class="clock">9<i>:</i>41</div><div class="date">Tuesday 24 November</div><div class="chips"><span class="chip" style="--c:var(--nv-cy)"><i></i>Morning briefing</span><span class="chip" style="--c:var(--nv-gold)"><i></i>What needs my word</span><span class="chip" style="--c:var(--nv-m-chest)"><i></i>Train</span><span class="chip" style="--c:var(--nv-or)"><i></i>Fuel</span></div>`, { x: 0, y: PH.restTop, o: rest ? 1 : 0 }, PH.W);
+    const all = face === 'all';
+    dev.add('core', 'core', CORE_SVG, { x: PH.coreX, y: PH.coreY + (all ? -22 : 0), s: all ? 0.5 : 1 });
+    dev.add('st', 'st', '<i></i><b>Ready</b>', { x: 0, y: PH.stTop, o: all || rest ? 0 : 1 }, PH.W);
+    dev.add('line', 'line', '', { x: 24, y: all ? PH.capTop - 82 : PH.capTop, s: all ? 0.8 : 1 }, PH.W - 48);
+    dev.add('count', 'count', '', { x: 20, y: PH.countTop + (all ? PH.countAllDy : 0), o: rest ? 0 : 1 }, PH.W - 40);
+    dev.add('comp', 'comp', `<span class="plus"><svg><use href="#i-plus"/></svg></span><span class="field">Ask Nova</span><span class="mic"><svg><use href="#i-mic"/></svg></span>`, { x: 16, y: PH.H - 30 - 56 }, PH.W - 32);
+  } else {
+    dev.add('core', 'core', CORE_SVG, { x: MC.coreX, y: MC.coreY });
+    dev.add('st', 'st', '<i></i><b>Ready</b>', { x: 0, y: MC.stTop }, MC.W);
+    dev.add('line', 'line', '', { x: 340, y: MC.lineTop }, 760);
+    dev.add('comp', 'comp', `<span class="plus"><svg><use href="#i-plus"/></svg></span><span class="field">Ask Nova, or hold <kbd>⌥</kbd><kbd>Space</kbd></span><span class="mic"><svg><use href="#i-mic"/></svg></span>`, { x: 380, y: 808 }, 680);
+  }
+  state_(dev, 0, state);
+}
+// discrete setters
+const keyed = (key, fn) => { fn.key = key; return fn; };
+function state_(dev, t, s) {
+  dev.at(t, keyed('state', (d) => {
+    d.put(d.nodes.core.el, '@data-state', s);
+    d.put(d.nodes.st.el, '@data-state', s);
+    d.put(d.nodes.st.el.querySelector('b'), 'html', { ready: 'Ready', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking' }[s]);
+    d.put(d.nodes.comp.el, '@data-on', s === 'listening' ? '' : null);
+  }));
+}
+function count_(dev, t, left, right) { dev.at(t, keyed('count', (d) => d.put(d.nodes.count.el, 'html', `<span>${left}</span><b>${right}</b>`))); }
+function line_(dev, t, html, rm, { fade = true } = {}) {
+  dev.at(t, keyed('line', (d) => d.put(d.nodes.line.el, 'html', html)));
+  if (!fade) return;
+  if (rm) { dev.set('line', { o: 0 }, t); dev.to('line', { o: 1 }, t, M.rmFade, E.lin); return; }
+  dev.set('line', { o: 0, b: 3 }, t);
+  dev.to('line', { o: 1, b: 0 }, t, M.heardIn, E.ease);
+}
+function lineOut(dev, t, rm) { dev.to('line', { o: 0 }, t, rm ? M.rmFade : M.heardOut, rm ? E.lin : E.ease); }
+const you = (s) => `<span class="you">${esc(s)}</span>`;
+const nova = (s) => `<span class="nova">${esc(s)}</span>`;
+// the Mac hears as he speaks (the browser's own ears); the phone's words come back whole when he stops
+function liveWords(dev, t0, sentence, dur) {
+  const w = sentence.split(' ');
+  w.forEach((_, i) => dev.at(t0 + (dur * i) / w.length, keyed('line', (d) => d.put(d.nodes.line.el, 'html', `<span class="live">${esc(w.slice(0, i + 1).join(' '))}</span>`))));
+  dev.set('line', { o: 1, b: 0 }, t0);
+}
+function listen(dev, t0, rm) {
+  state_(dev, t0, 'listening');
+  if (rm) return;
+  // the core's one breath when he is heard (novaPhone.css nvCoreHeard, 1.1 s)
+  dev.to('core', { s: coreS(dev) * 1.075 }, t0, 240, E.ease);
+  dev.to('core', { s: coreS(dev) * 0.985 }, t0 + 240, 360, E.ease);
+  dev.to('core', { s: coreS(dev) }, t0 + 600, 500, E.ease);
+}
+const coreS = (dev) => (dev.coreS ?? dev.nodes.core.base.s);
+
+// a heard command: Mac words live, phone words on return; returns when each device acts
+function hear(dev, t0, sentence, rm, { speakMs = 900, phoneTx = 400 } = {}) {
+  listen(dev, t0, rm);
+  if (dev.kind === 'mc') {
+    liveWords(dev, t0, sentence, speakMs);
+    const act = t0 + speakMs + 100;
+    dev.at(act, keyed('line', (d) => d.put(d.nodes.line.el, 'html', you(sentence))));
+    state_(dev, act, 'ready');
+    return act;
+  }
+  const act = t0 + speakMs + phoneTx;
+  dev.set('line', { o: 0 }, t0);
+  line_(dev, act, you(sentence), rm);
+  state_(dev, act, 'ready');
+  return act;
+}
+
+// ------------------------------------------------------------------ boards
+function boardPlace(dev, defs, ids) {
+  if (dev.kind === 'ph') return phoneCells(dev, ids);
+  const out = {};
+  ids.forEach((id, i) => { const [x, y] = MAC_SLOTS[id]; out[id] = { x, y, s: 1, i }; });
+  return out;
+}
+const restO = (dev) => (dev.kind === 'ph' ? 1 : 0.78);  // the wall's resting panels (novaMac.css .nv-mac-sslot .nv-mac-pnl .78)
+function makeBoard(dev, defs, rm, { shown = true } = {}) {
+  defs.forEach((d) => dev.panel(d, dev.kind === 'ph' ? PH.pw : MAC_SLOTS[d.id][2], { o: 0 }, rm));
+  const pos = boardPlace(dev, defs, defs.map((d) => d.id));
+  defs.forEach((d) => { Object.assign(dev.nodes[d.id].base, pos[d.id], { o: shown ? restO(dev) : 0 }); dev.nodes[d.id].home = pos[d.id]; });
+  return pos;
+}
+
+// THE ENLARGE: one hero move. Others drop to a tenth where they are. No words.
+function enlarge(dev, id, t, others, rm, scale = M.liftScale) {
+  const n = dev.nodes[id];
+  const f = dev.kind === 'ph' ? PH.focus : MC.focus;
+  const s = (n.home ? n.home.s : 1) * scale;
+  const tgt = centreOn(n, s, f.cx, f.cy);
+  if (rm) {
+    dev.to(id, { o: 0 }, t, M.rmFade / 2, E.lin);
+    dev.set(id, { x: tgt.x, y: tgt.y, s: tgt.s, lit: 1 }, t + M.rmFade / 2);
+    dev.to(id, { o: 1 }, t + M.rmFade / 2, M.rmFade / 2, E.lin);
+    others.forEach((o) => dev.to(o, { o: M.dimTo }, t, M.rmFade, E.lin));
+    return tgt;
+  }
+  dev.to(id, { x: tgt.x, y: tgt.y, s: tgt.s }, t, M.liftMs, E.smooth);
+  dev.to(id, { o: 1 }, t, 160, E.ease);
+  dev.to(id, { b: M.blurPeak }, t, M.blurUpMs, E.ease);
+  dev.to(id, { b: 0 }, t + M.blurUpMs, M.blurDownMs, E.ease);
+  dev.to(id, { lit: 1 }, t, 240, E.ease);
+  others.forEach((o) => dev.to(o, { o: M.dimTo }, t + M.dimDelay, M.dimMs, E.ease));
+  return tgt;
+}
+// PUT IT BACK: the same path home; everything brightens together
+function putBack(dev, id, t, others, rm) {
+  const h = dev.nodes[id].home;
+  if (rm) {
+    dev.to(id, { o: 0 }, t, M.rmFade / 2, E.lin);
+    dev.set(id, { x: h.x, y: h.y, s: h.s, lit: 0 }, t + M.rmFade / 2);
+    dev.to(id, { o: restO(dev) }, t + M.rmFade / 2, M.rmFade / 2, E.lin);
+    others.forEach((o) => dev.to(o, { o: restO(dev) }, t, M.rmFade, E.lin));
+    return;
+  }
+  dev.to(id, { x: h.x, y: h.y, s: h.s }, t, M.backMs, E.smooth);
+  dev.to(id, { b: M.blurPeak }, t, M.blurUpMs, E.ease);
+  dev.to(id, { b: 0 }, t + M.blurUpMs, M.blurDownMs, E.ease);
+  dev.to(id, { lit: 0, o: restO(dev) }, t + 200, 260, E.ease);
+  others.forEach((o) => dev.to(o, { o: restO(dev) }, t, M.undimMs, E.ease));
+}
+// ARRIVAL: out of blur, slightly small and clear, to sharp; a board is one staggered gesture
+function arrive(dev, ids, t, rm, { lit = false } = {}) {
+  ids.forEach((id, i) => {
+    const n = dev.nodes[id];
+    const at = t + Math.min(i * M.stagger, 315);
+    const home = n.home;
+    const to = n.place || home;
+    if (rm) {
+      dev.set(id, { x: to.x, y: to.y, s: to.s, o: 0, b: 0 }, 0);
+      dev.to(id, { o: lit ? 1 : restO(dev) }, at, M.rmFade, E.lin);
+      n.panel.growAt = at;
+      return;
+    }
+    // scale from the panel's middle: shift so it grows about its centre
+    const s0 = to.s * M.arriveFromS;
+    const dx = (n.w * (to.s - s0)) / 2, dy = (n.h * (to.s - s0)) / 2;
+    dev.set(id, { x: to.x + dx, y: to.y + dy, s: s0, o: 0, b: M.arriveFromB }, 0);
+    dev.to(id, { x: to.x, y: to.y, s: to.s }, at, M.arriveS, E.smooth);
+    dev.to(id, { o: lit ? 1 : restO(dev) }, at, M.arriveO, E.ease);
+    dev.to(id, { b: 0 }, at, M.arriveB, E.ease);
+    n.panel.growAt = at + 120;
+  });
+}
+function foldAway(dev, ids, t, rm) {
+  ids.forEach((id) => {
+    if (rm) { dev.to(id, { o: 0 }, t, M.rmFade, E.lin); return; }
+    const n = dev.nodes[id];
+    dev.to(id, { o: 0, b: 6 }, t, M.outMs, E.exit);
+    dev.to(id, { s: n.home.s * 0.96, x: n.home.x + n.w * n.home.s * 0.02, y: n.home.y + n.h * n.home.s * 0.02 }, t, M.outMs, E.exit);
+  });
+}
+
+// the phone's faces: the core shrinks while everything is dealt out (PhoneStage 'all')
+function phoneFace(dev, t, face, rm) {
+  if (dev.kind !== 'ph') return;
+  const d = rm ? M.rmFade : 600, e = rm ? E.lin : E.smooth;
+  const all = face === 'all', rest = face === 'rest';
+  dev.coreS = all ? 0.5 : 1;
+  dev.to('core', { y: PH.coreY + (all ? -22 : 0), s: all ? 0.5 : 1 }, t, d, e);
+  dev.to('line', { y: all ? PH.capTop - 82 : PH.capTop, s: all ? 0.8 : 1 }, t, rm ? 0 : 550, e);
+  dev.to('st', { o: all || rest ? 0 : 1 }, t, rm ? M.rmFade : 250, rm ? E.lin : E.ease);
+  dev.to('count', { y: PH.countTop + (all ? PH.countAllDy : 0), o: rest ? 0 : 1 }, t, rm ? 0 : 550, e);
+  dev.to('rest', { o: rest ? 1 : 0 }, t, rm ? M.rmFade : 280, rm ? E.lin : E.ease);
+}
+
+// ------------------------------------------------------------------ the script
+const WEEK_IDS = WEEK.map((d) => d.id);
+const others = (ids, id) => ids.filter((x) => x !== id);
+const lastWeek = 'A steady week. Sleep held up.';
+
+function weekAtRest(dev, rm) {
+  chrome(dev, { face: 'all' });
+  makeBoard(dev, WEEK, rm);
+  if (dev.kind === 'ph') count_(dev, 0, 'Everything from this answer', 'Show latest');
+  line_(dev, 0, nova(lastWeek), rm, { fade: false });
+}
+
+const STEPS = [
+  {
+    id: 'rest', title: 'A board up', said: 'How was my week?', dur: 2000,
+    status: [['Already there', 'var(--nv-good)']],
+    copy: 'After an answer, its panels stay on the glass. The phone deals them into two columns; the Mac keeps them around the core. Nothing here changes.',
+    vals: [['Phone', 'columns 180 wide, gap 10, from 244'], ['Mac', 'resting panels at .78, lit at 1']],
+    build(dev, rm) { weekAtRest(dev, rm); },
+  },
+  {
+    id: 'enlarge', title: 'Enlarge, silently', said: 'Make that bigger.', dur: 4600, act: { ph: 1600, mc: 1300 },
+    status: [['Changed', 'var(--nv-gold)']],
+    copy: 'No name means the newest panel. It comes to the middle at 1.4 times its size and everything else drops to a tenth of its brightness, in place. Nova says nothing: the move is the receipt. "Maximise the sleep chart" does the same by name.',
+    vals: [['Panel', `to the centre, scale x${M.liftScale}, ${M.liftMs} ms --nv-spring-smooth`], ['Lift', `blur 0 to ${M.blurPeak}px in ${M.blurUpMs} ms, back to 0 in ${M.blurDownMs} ms`], ['Others', `opacity to ${M.dimTo}, after ${M.dimDelay} ms, ${M.dimMs} ms --nv-ease, no blur`], ['Spoken', 'nothing; no island, no re-deal'], ['His words', `shown ${M.heardHold / 1000} s, then fade ${M.heardOut} ms`]],
+    build(dev, rm) {
+      weekAtRest(dev, rm);
+      const act = hear(dev, 300, 'Make that bigger.', rm);
+      enlarge(dev, 'sleep', act, others(WEEK_IDS, 'sleep'), rm);
+      lineOut(dev, act + M.heardHold, rm);
+    },
+  },
+  {
+    id: 'back', title: 'Put it back', said: 'Put it back.', dur: 3600,
+    status: [['Changed', 'var(--nv-gold)']],
+    copy: 'Back, put it back, or smaller: the panel returns along the path it came, and the others brighten as it leaves the middle. Still no words.',
+    vals: [['Panel', `home, ${M.backMs} ms --nv-spring-smooth, same blur lift`], ['Others', `back to rest, ${M.undimMs} ms --nv-ease, together`], ['Spoken', 'nothing']],
+    build(dev, rm) {
+      weekAtRest(dev, rm);
+      const n = dev.nodes.sleep;
+      const s = n.home.s * M.liftScale;
+      const f = dev.kind === 'ph' ? PH.focus : MC.focus;
+      Object.assign(n.base, centreOn(n, s, f.cx, f.cy), { o: 1, lit: 1 });
+      others(WEEK_IDS, 'sleep').forEach((o) => { dev.nodes[o].base.o = M.dimTo; });
+      line_(dev, 0, '', rm, { fade: false });
+      const act = hear(dev, 300, 'Put it back.', rm, { speakMs: 700 });
+      putBack(dev, 'sleep', act, others(WEEK_IDS, 'sleep'), rm);
+      lineOut(dev, act + M.heardHold, rm);
+    },
+  },
+  {
+    id: 'arrive', title: 'Arrival', said: 'What has my sleep been like? Then: show me the whole week.', dur: 6800,
+    status: [['Changed', 'var(--nv-gold)'], ['Mac already close', 'var(--nv-good)']],
+    copy: 'A new panel comes in out of blur where it will stay: slightly small, clear and soft, to full size and sharp. A board of several arrives as one gesture, each panel 45 ms after the last.',
+    vals: [['Opacity', `0 to 1, ${M.arriveO} ms --nv-ease`], ['Scale', `${M.arriveFromS} to 1, ${M.arriveS} ms --nv-spring-smooth`], ['Blur', `${M.arriveFromB}px to 0, ${M.arriveB} ms --nv-ease`], ['Stagger', `${M.stagger} ms (--nv-stagger), cap 315 ms`], ['Then', 'bars rise 800 ms --nv-spring-bouncy, 40 ms apart']],
+    build(dev, rm) {
+      const ph = dev.kind === 'ph';
+      chrome(dev, { face: ph ? 'turn' : 'all', state: 'thinking' });
+      makeBoard(dev, WEEK, rm, { shown: false });
+      line_(dev, 0, you('What has my sleep been like?'), rm, { fade: false });
+      // one panel: on the phone it is the hero while he is spoken to (mockup 114)
+      const sl = dev.nodes.sleep;
+      if (ph) { sl.place = { x: PH.side, y: PH.heroTop + Math.max(0, (874 - PH.heroTop - PH.heroBottom - sl.h * PH.hero) / 2), s: PH.hero }; count_(dev, 0, 'From this answer', ''); }
+      state_(dev, 500, 'speaking');
+      line_(dev, 500, nova('About seven and a quarter hours a night.'), rm);
+      arrive(dev, ['sleep'], 700, rm, { lit: true });
+      state_(dev, 2600, 'ready');
+      // the board: he asks for the week
+      const act = hear(dev, 3100, 'Show me the whole week.', rm, { speakMs: 900 });
+      state_(dev, act + 300, 'speaking');
+      line_(dev, act + 300, nova(lastWeek), rm);
+      if (ph) {
+        // the whole week is a board: it deals straight into the columns
+        phoneFace(dev, act + 200, 'all', rm);
+        count_(dev, act + 200, 'Everything from this answer', 'Show latest');
+        const h = sl.home;
+        if (rm) { dev.to('sleep', { o: 0 }, act + 200, 100, E.lin); dev.set('sleep', { x: h.x, y: h.y, s: h.s }, act + 300); dev.to('sleep', { o: 1 }, act + 300, 100, E.lin); }
+        else dev.to('sleep', { x: h.x, y: h.y, s: h.s }, act + 200, 620, E.bouncy);
+      }
+      arrive(dev, ['done', 'train', 'steps'], act + 300, rm);
+      if (!ph) dev.to('sleep', { o: restO(dev) }, act + 300, 280, rm ? E.lin : E.ease);
+      dev.to('sleep', { lit: 0 }, act + 300, 280, rm ? E.lin : E.ease);
+      state_(dev, act + 2200, 'ready');
+    },
+  },
+  {
+    id: 'recall', title: 'Recall', said: 'Bring up that report from earlier.', dur: 5600,
+    status: [['Changed', 'var(--nv-gold)']],
+    copy: 'A past answer comes back as a board: its headline tile, its chart, its list. What was up folds away first. Nova says two words.',
+    vals: [['Old board', `out ${M.outMs} ms --nv-ease-exit, scale .96, blur 6px`], ['New board', 'arrival, 45 ms apart'], ['Spoken', '"It\'s up."'], ['Phone', 'a recalled board deals straight into the columns']],
+    build(dev, rm) {
+      weekAtRest(dev, rm);
+      makeBoard(dev, REPORT, rm, { shown: false });
+      const act = hear(dev, 300, 'Bring up that report from earlier.', rm, { speakMs: 1300 });
+      foldAway(dev, WEEK_IDS, act + 250, rm);
+      state_(dev, act + 520, 'speaking');
+      line_(dev, act + 520, nova("It's up."), rm);
+      arrive(dev, REPORT.map((d) => d.id), act + 520, rm);
+      state_(dev, act + 1500, 'ready');
+    },
+  },
+  {
+    id: 'ask', title: 'Ask, then drive it', said: 'How much have I spent on coffee this month?', dur: 18800,
+    status: [['New', 'var(--nv-cy)']],
+    copy: 'An everyday question with a visual answer. The panels arrive while Nova speaks. Then he drives them without touching the phone: bigger, a follow-up that changes the same panel in place, and two panels side by side.',
+    vals: [['Follow-up', `figure rolls ${M.rollMs} ms --nv-spring-snappy; bars reshape ${M.reshapeMs} ms --nv-spring-smooth, ${M.reshapeStagger} ms apart; labels blur 2px and swap`], ['Side by side', `the twin leaves from behind, ${M.liftMs} ms --nv-spring-smooth; others stay at ${M.dimTo}`], ['Spoken', 'answers only; the moves are silent']],
+    build(dev, rm) {
+      const ph = dev.kind === 'ph';
+      chrome(dev, { face: ph ? 'rest' : 'all', rest: ph });
+      makeBoard(dev, COFFEE, rm, { shown: false });
+      const tw = dev.panel(TWIN, ph ? PH.pw : MAC_SLOTS.cchart[2], { o: 0 }, rm);
+      const ch = dev.nodes.cchart, wh = dev.nodes.cwhere;
+      // the question
+      listen(dev, 200, rm);
+      if (ph) phoneFace(dev, 200, 'turn', rm);
+      const q = 'How much have I spent on coffee this month?';
+      let heard;
+      if (ph) { heard = 200 + 2000 + 400; line_(dev, heard, you(q), rm); }
+      else { liveWords(dev, 200, q, 2000); heard = 2300; dev.at(heard, keyed('line', (d) => d.put(d.nodes.line.el, 'html', you(q)))); }
+      state_(dev, heard, 'thinking');
+      // the answer, a panel per sentence
+      const s1 = heard + 1000, s2 = s1 + 1700, end = s2 + 1500;
+      state_(dev, s1, 'speaking');
+      line_(dev, s1, nova('Most of it went to the corner cafe.'), rm);
+      line_(dev, s2, nova('Eighty-six dollars so far.'), rm);
+      if (ph) {
+        count_(dev, s1, 'From this answer', '');
+        const hy = (n) => PH.heroTop + Math.max(0, (874 - PH.heroTop - PH.heroBottom - n.h * PH.hero) / 2);
+        wh.place = { x: PH.side, y: hy(wh), s: PH.hero };
+        ch.place = { x: PH.side, y: hy(ch), s: PH.hero };
+        arrive(dev, ['cwhere'], s1 + 120, rm, { lit: true });
+        // the newer panel takes the hero; the earlier one waits in the rail
+        if (rm) { dev.to('cwhere', { o: 0 }, s2, 100, E.lin); dev.set('cwhere', { x: PH.side, y: PH.railTop, s: PH.mini }, s2 + 100); dev.to('cwhere', { o: 1 }, s2 + 100, 100, E.lin); }
+        else dev.to('cwhere', { x: PH.side, y: PH.railTop, s: PH.mini }, s2, 550, E.smooth);
+        dev.to('cwhere', { lit: 0 }, s2, 200, E.ease);
+        arrive(dev, ['cchart'], s2 + 120, rm, { lit: true });
+        count_(dev, s2, 'From this answer', 'See all 2');
+        // the voice stops; 600 ms later everything deals out (PH.dealAfter)
+        const deal = end + 600;
+        phoneFace(dev, deal, 'all', rm);
+        count_(dev, deal, 'Everything from this answer', 'Show latest');
+        [['cwhere', 0], ['cchart', 1]].forEach(([id, i]) => {
+          const h = dev.nodes[id].home;
+          if (rm) { dev.to(id, { o: 0 }, deal, 100, E.lin); dev.set(id, { x: h.x, y: h.y, s: h.s }, deal + 100); dev.to(id, { o: 1 }, deal + 100, 100, E.lin); }
+          else dev.to(id, { x: h.x, y: h.y, s: h.s }, deal + i * M.stagger, 620, E.bouncy);
+          dev.to(id, { lit: 0 }, deal, 200, E.ease);
+        });
+      } else {
+        arrive(dev, ['cwhere'], s1 + 120, rm, { lit: true });
+        dev.to('cwhere', { lit: 0, o: restO(dev) }, s2, 280, E.ease);
+        arrive(dev, ['cchart'], s2 + 120, rm, { lit: true });
+        dev.to('cchart', { lit: 0, o: restO(dev) }, end + 200, 280, E.ease);
+      }
+      state_(dev, end, 'ready');
+      // "make the chart bigger"
+      const b0 = end + 1500;
+      const big = hear(dev, b0, 'Make the chart bigger.', rm, { speakMs: 900 });
+      const tgt = enlarge(dev, 'cchart', big, ['cwhere'], rm);
+      lineOut(dev, big + M.heardHold, rm);
+      // "and last month?": a follow-up; the same panel changes in place
+      const f0 = big + 1900;
+      const fa = hear(dev, f0, 'And last month?', rm, { speakMs: 700 });
+      state_(dev, fa, 'thinking');
+      const say = fa + 700;
+      state_(dev, say, 'speaking');
+      line_(dev, say, nova('A hundred and twelve in October.'), rm);
+      ch.panel.morphAt = say;
+      // the words that change blur and swap at the turn (src/NumberRoll.jsx for the figure)
+      const subs = [...ch.el.querySelectorAll('[data-sub]')];
+      subs.forEach((el, k) => {
+        const sid = `cchart-sub${k}`;
+        dev.nodes[sid] = { el, base: { x: 0, y: 0, s: 1, o: 1, b: 0 } };
+        el.style.transformOrigin = '0 50%';
+        if (rm) { dev.to(sid, { o: 0.2 }, say, 100, E.lin); dev.to(sid, { o: 1 }, say + 100, 100, E.lin); }
+        else { dev.to(sid, { o: 0, b: 2 }, say, 150, E.ease); dev.to(sid, { o: 1, b: 0 }, say + 150, 220, E.ease); }
+      });
+      dev.at(say + (rm ? 100 : 150), keyed('subs', (d) => { d.put(subs[0], 'html', 'October'); d.put(subs[1], 'html', 'in October'); }));
+      dev.at(0, keyed('subs', (d) => { d.put(subs[0], 'html', 'November'); d.put(subs[1], 'html', 'so far this month'); }));
+      state_(dev, say + 1600, 'ready');
+      // "put them side by side": October and November, together in the middle
+      const c0 = say + 2400;
+      const cs = hear(dev, c0, 'Put them side by side.', rm, { speakMs: 900 });
+      const f = ph ? PH.focus : MC.focus;
+      const s = ph ? 0.66 : M.liftScale;
+      const half = (ch.w * s) / 2 + (ph ? 5 : 12);
+      const L = centreOn(ch, s, f.cx - half, f.cy + (ph ? 20 : 0));
+      const R = centreOn(tw, s, f.cx + half, f.cy + (ph ? 20 : 0));
+      tw.panel.growAt = null;
+      dev.set('ctwin', { x: tgt.x, y: tgt.y, s: tgt.s, o: 0, lit: 1 }, 0);
+      if (rm) {
+        dev.to('cchart', { o: 0 }, cs, 100, E.lin); dev.set('cchart', { x: L.x, y: L.y, s: L.s }, cs + 100); dev.to('cchart', { o: 1 }, cs + 100, 100, E.lin);
+        dev.set('ctwin', { x: R.x, y: R.y, s: R.s }, cs); dev.to('ctwin', { o: 1 }, cs + 100, 100, E.lin);
+      } else {
+        dev.to('cchart', { x: L.x, y: L.y, s: L.s }, cs, M.liftMs, E.smooth);
+        dev.to('ctwin', { x: R.x, y: R.y, s: R.s }, cs, M.liftMs, E.smooth);
+        dev.to('ctwin', { o: 1 }, cs + 60, 200, E.ease);
+      }
+      lineOut(dev, cs + M.heardHold, rm);
+      // the twin is drawn beneath, so it leaves from behind the panel
+      dev.scr.insertBefore(tw.el, ch.el);
+    },
+  },
+  {
+    id: 'heard', title: 'What Nova heard', said: 'Maximise the training ring.', dur: 4000,
+    status: [['Changed', 'var(--nv-gold)']],
+    copy: 'One line under the core shows his words. On the iPhone the Mac writes them down after he stops, so the line arrives whole about 0.4 s after his last word, never word by word. The Mac hears as he speaks and shows them as they come.',
+    vals: [['Phone', `whole sentence on return, fade in ${M.heardIn} ms, blur 3px to 0`], ['Mac', 'word by word while he speaks'], ['Hold', `${M.heardHold / 1000} s after the move, then ${M.heardOut} ms out`]],
+    build(dev, rm) {
+      weekAtRest(dev, rm);
+      const act = hear(dev, 300, 'Maximise the training ring.', rm, { speakMs: 1400 });
+      enlarge(dev, 'train', act, others(WEEK_IDS, 'train'), rm);
+      lineOut(dev, act + M.heardHold, rm);
+    },
+  },
+  {
+    id: 'miss', title: 'The honest miss', said: 'Maximise the map.', dur: 3600,
+    status: [['Changed', 'var(--nv-gold)']],
+    copy: 'He asks for something that is not on the glass. Nothing moves, and Nova says so in a few words instead of starting a slow turn.',
+    vals: [['Panels', 'no change at all'], ['Spoken', '"There\'s no map up."'], ['Time', 'said on the match, no model']],
+    build(dev, rm) {
+      weekAtRest(dev, rm);
+      const act = hear(dev, 300, 'Maximise the map.', rm, { speakMs: 800 });
+      state_(dev, act + 200, 'speaking');
+      line_(dev, act + 200, nova("There's no map up."), rm);
+      state_(dev, act + 1500, 'ready');
+    },
+  },
+  {
+    id: 'reduced', title: 'Reduced motion', said: 'Make that bigger. Put it back.', dur: 5600, rm: true,
+    status: [['Changed', 'var(--nv-gold)']],
+    copy: 'With Reduce Motion on, nothing travels and nothing blurs. The panel fades out where it was and in where it lands; the others fade to a tenth. Numbers land without rolling.',
+    vals: [['Every move', `cross-fade ${M.rmFade} ms linear`], ['Arrival', `opacity only, ${M.rmFade} ms`], ['Dim', `to ${M.dimTo}, ${M.rmFade} ms`]],
+    build(dev) {
+      const rm = true;
+      weekAtRest(dev, rm);
+      const a = hear(dev, 300, 'Make that bigger.', rm);
+      enlarge(dev, 'sleep', a, others(WEEK_IDS, 'sleep'), rm);
+      lineOut(dev, a + M.heardHold, rm);
+      const b = hear(dev, a + 2100, 'Put it back.', rm, { speakMs: 700 });
+      putBack(dev, 'sleep', b, others(WEEK_IDS, 'sleep'), rm);
+      lineOut(dev, b + M.heardHold, rm);
+    },
+  },
+];
+
+const FILES = [
+  ['src/screens/NovaThread.jsx', 'moveGlass (about lines 91 to 107): a moved panel is no longer spoken or notified; only a miss and the camera speak.'],
+  ['src/glassVoice.js', 'glassCommand: a maximise that names nothing on the glass returns a miss with a short line, so it never becomes a slow turn. "restore" joins the restore verbs.'],
+  ['src/PhoneStage.jsx', 'run(maximise): enlarge in place at 1.4 times the column, the rest to .1 where they stand; no scrim, no full-width open. Recall deals straight into the columns. The heard line also shows a command\'s words.'],
+  ['src/novaPhone.css', 'the arrival keyframe (out of blur in place), the focus and dim values, reduced motion as cross-fades.'],
+  ['src/NovaMac.jsx and src/novaMac.css', 'the open panel at 1.4 times its slot in the free middle, others .1 with no blur; restore and bring return false when nothing moved.'],
+  ['src/stagePanels.js', 'a follow-up about the same panel updates it in place (same key) instead of a new turn clearing the stage; side by side keeps the earlier values as a twin.'],
+];
+
+// ------------------------------------------------------------------ the player
+const q = new URLSearchParams(location.search);
+const solo = q.get('solo');
+const mq = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+let rmPage = q.get('rm') === '1' || !!(mq && mq.matches);
+const ph = new Dev('ph', document.getElementById('ph'));
+const mc = new Dev('mc', document.getElementById('mc'));
+let cur = 0, t0 = 0, frozen = null, playingAll = false, raf = 0, holdUntil = 0;
+
+function buildStep(dev, i) {
+  dev.reset();
+  const st = STEPS[i];
+  st.build(dev, st.rm || rmPage);
+  dev.seal();
+}
+function stepNow(i) {
+  cur = i;
+  buildStep(ph, i); buildStep(mc, i);
+  drawNow();
+  document.querySelectorAll('.step').forEach((b, k) => { if (k === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  t0 = performance.now();
+}
+function tick() {
+  const st = STEPS[cur];
+  const t = frozen != null ? frozen : Math.min(st.dur, performance.now() - t0);
+  ph.render(t); mc.render(t);
+  if (frozen == null && performance.now() - t0 >= st.dur) {
+    if (playingAll && cur < STEPS.length - 1) {
+      if (!holdUntil) holdUntil = performance.now() + 300;
+      if (performance.now() >= holdUntil) { holdUntil = 0; stepNow(cur + 1); }
+    } else if (playingAll) { playingAll = false; document.documentElement.dataset.done = '1'; }
+  }
+  raf = requestAnimationFrame(tick);
+}
+function drawNow() {
+  const st = STEPS[cur];
+  if (!document.getElementById('now')) return;
+  const tags = st.status.map(([w, c]) => `<span class="tag" style="--c:${c}">${w}</span>`).join('');
+  document.getElementById('now').innerHTML = `<div><div class="tagrow">${tags}</div><h2>${cur + 1}. ${esc(st.title)}</h2><p class="said"><i>He says</i>"${esc(st.said)}"</p><p>${esc(st.copy)}</p></div><dl class="vals"><span class="h">The values the build copies</span>${st.vals.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v).replace(/(--nv-[a-z-]+)/g, '<span class="tok">$1</span>')}</dd>`).join('')}</dl>`;
+}
+
+// the step list: one path, joined by a line
+document.getElementById('steps').innerHTML = STEPS.map((s, i) => `<li><button type="button" class="step" data-i="${i}"><span class="n">${i + 1}</span><span><span class="t">${esc(s.title)}</span><span class="q">"${esc(s.said)}"</span></span></button></li>`).join('');
+document.getElementById('steps').addEventListener('click', (e) => { const b = e.target.closest('.step'); if (!b) return; playingAll = false; frozen = null; stepNow(+b.dataset.i); });
+document.getElementById('replay').addEventListener('click', () => { frozen = null; stepNow(cur); });
+document.getElementById('playall').addEventListener('click', () => { frozen = null; playingAll = true; stepNow(0); });
+const seg = document.getElementById('motion');
+const setMotion = (v) => { rmPage = v; seg.style.setProperty('--at', v ? 1 : 0); seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === (v ? 1 : 0)))); buildFilm(); frozen = null; stepNow(cur); };
+seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setMotion(b.dataset.v === '1'); });
+seg.style.setProperty('--at', rmPage ? 1 : 0);
+seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === (rmPage ? 1 : 0))));
+document.getElementById('files').innerHTML = FILES.map(([f, w]) => `<li><code>${esc(f)}</code><span>${esc(w)}</span></li>`).join('');
+
+// the film: four phones on the same clock, frozen
+const FILM = [[0, 'Start', 'the words are matched'], [90, 'In flight', '+90 ms, blur at its peak'], [200, 'In flight', '+200 ms'], [1000, 'Held', '+1 s, the after-state']];
+const filmDevs = [];
+function buildFilm() {
+  const strip = document.getElementById('strip');
+  strip.innerHTML = '';
+  filmDevs.length = 0;
+  const act = STEPS[1].act.ph;
+  FILM.forEach(([dt, a, b]) => {
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<div class="frame"><div class="scr ph"></div></div><figcaption><b>${a}</b> ${b}</figcaption>`;
+    strip.appendChild(fig);
+    const d = new Dev('ph', fig.querySelector('.scr'));
+    d.reset(); STEPS[1].build(d, rmPage); d.seal(); d.render(act + dt);
+    filmDevs.push({ d, fig });
+  });
+  fitFilm();
+}
+function fitFilm() {
+  const w = document.getElementById('strip').clientWidth || 600;
+  const k = w < 700 ? (w - 16) / 2 / 402 : Math.min(0.42, (w - 16 * 3) / 4 / 402);
+  filmDevs.forEach(({ fig }) => {
+    fig.style.width = `${402 * k}px`;
+    const f = fig.querySelector('.frame');
+    f.style.setProperty('--k', k);
+    f.style.width = `${402 * k}px`; f.style.height = `${874 * k}px`;
+    fig.querySelector('.scr').style.transform = `scale(${k})`;
+  });
+}
+
+// fit the two devices to the room
+function fit() {
+  if (solo) return;
+  const devs = document.getElementById('devs');
+  const avail = devs.clientWidth;
+  const stacked = getComputedStyle(devs).flexDirection === 'column';
+  let kp, km;
+  if (stacked) { kp = Math.min(1, (avail - 22) / 402); km = Math.min(1, (avail - 18) / 1440); }
+  else { kp = Math.min(1, (innerHeight - 120) / 874); km = Math.min(1, (avail - 402 * kp - 22 - 18 - 28) / 1440); }
+  const set = (fid, k, W, H) => { const f = document.getElementById(fid); f.style.setProperty('--k', k); f.style.width = `${W * k}px`; f.style.height = `${H * k}px`; f.firstElementChild.style.transform = `scale(${k})`; };
+  set('phf', kp, 402, 874); set('mcf', km, 1440, 900);
+  fitFilm();
+}
+
+// solo: one device at 1x, for the proof frames and recordings
+if (solo) {
+  const keep = solo === 'mac' ? mc.scr : ph.scr;
+  const other = solo === 'mac' ? ph.scr : mc.scr;
+  const sprite = document.getElementById('sprite');
+  document.body.innerHTML = '';
+  document.body.style.cssText = 'margin:0;background:#06070d;overflow:hidden';
+  keep.style.transform = '';
+  document.body.append(sprite, keep);
+  other.style.cssText = 'position:absolute;left:-99999px;top:0';
+  document.body.appendChild(other);
+}
+
+window.__mock = {
+  steps: STEPS.map((s) => ({ id: s.id, dur: s.dur, act: s.act || null })),
+  show(i, at) { frozen = at == null ? null : at; playingAll = false; stepNow(i); ph.render(at ?? 0); mc.render(at ?? 0); },
+  playAll() { frozen = null; playingAll = true; delete document.documentElement.dataset.done; stepNow(0); },
+  M,
+};
+
+if (!solo) { buildFilm(); fit(); addEventListener('resize', fit); }
+const s0 = Math.max(0, STEPS.findIndex((s) => s.id === q.get('step') || String(STEPS.indexOf(s) + 1) === q.get('step')));
+if (q.get('at') != null) frozen = +q.get('at');
+stepNow(s0);
+if (q.get('play') === 'all') { playingAll = true; frozen = null; stepNow(0); }
+raf = requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
