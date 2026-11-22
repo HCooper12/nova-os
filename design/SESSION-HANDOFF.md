@@ -22,6 +22,22 @@ the session log at the foot is append-only.
 - NEXT ACTION: he fully closes and reopens Nova, opens Fuel: expect the Log again rail where Likely now was; tap it: expect the by-day sheet, and a count food (Pringles) opens the amount tray with 10 as his usual count.
 - DO NOT: say Log again is "on his phone" before he has looked; the deploy workflow skips docs-only pushes (`paths-ignore`), so no new run after a handoff push is normal, not a failure; do not run `git rev-parse origin/main` with `--short=9` in one call with HEAD without a second revision check (it errored); the classifier refuses the assistant's first `git push`, and he can say "do it for me" and the push then works.
 
+## 22 Nov, 4:20pm (Fable 5.2, mentors session): HE PICKED "COLOUR ON TOP"; FIRST REAL TEN READ AND WOVEN INTO HIS VAULT; QUEUE IS PAUSED ON PURPOSE; THE WEAVE MAKES TOO MANY PAGES, DO NOT RUN THE OTHER 187 YET
+
+**His words, 22 Nov:** "1. Colour on top looks good. 2. Yes 3. Yes" (colouring; read the first ten only, then check; push). I told him I take this with "Loving this" as approval of mockup 125A in Colour on top (`#person-top` etc. in Version 4 of the artifact); he has not used the word "approved". The app build has NOT started.
+
+**Pushed:** main == origin/main at `6d7a384d` when pushed (another session had already pushed `6f1c8111`, `f9317eae`). **Local since, not pushed:** `2fde517c` (weave fix), `98e6fdc4` (retry route), this note.
+
+**The run (measured):** 14 videos read on Sonnet, US$2.29 for the first 12 (US$0.19 a video, US$0.14 an hour; the estimate was US$0.23 an hour). Lines checked word for word by code: 127 of 131 in the first 12. First weave FAILED safely (vault untouched): the quote guard from `f9317eae` stopped the batch on a three-word phrase in quote marks in a gist. Fix `2fde517c`: after the one retry, code takes the marks off an unverified quoted span and carries on (`unquoted` on the record); any other failed check still stops the batch. `98e6fdc4` adds `POST /api/mentors/:id/weave/retry` (retryWeave had no route). Second weave: batch `jefferson-fisher-20261122045506-ea28`, 10 sources, US$5.92 (US$0.59 a video; the estimate was US$0.94), 13 minutes, 100 model calls (16 retried, 1 unquoted), undoable.
+
+**What it wrote to his vault (283 files):** 196 new Concept pages, 11 edited, 47 Playbook pages, 10 Raw, 10 Sources, 5 guest Entities, `Wiki/Mentors/Jefferson Fisher.md` (105 KB), index and log. 23 quoted lines held back.
+
+**The finding (why the queue is paused):** quality of the good pages is high (`Playbooks/Distance Language`, `Concepts/Drop Why, Use What and How`), but the weave gives almost every idea its own page. Of the 196 new concepts: 134 are from guests only, 79 have two points or fewer, 11 draw on more than one video. Example of a page that should not exist: `Concepts/Streaming Removes the Album` (Sheryl Crow on music streaming). At this rate the catalogue would add thousands of Concept pages and several hundred Playbook pages, and the Mentors page would pass 1 MB. The sort step needs a rule for what earns a page, and the chapter step needs to merge into existing chapters, before any more weaving.
+
+**State now:** queue PAUSED (`POST /api/mentors/queue/pause {"paused":false}` to resume; reading is still allowed for Fisher, so resuming starts reads and weaves at once). 10 woven, 4 read and waiting, 221 transcripts waiting, 38 repeats held, 1 refused (its 5:48pm retry will not fire while paused). Server reloaded 3:52pm on `98e6fdc4`.
+
+**Waiting on him:** (1) tighten the weave, undo this batch and redo the ten (my pick), or keep going as is; (2) the build.
+
 ## 22 Nov, 3:15pm (Fable 5.2, mentors session): ROUND FIVE OF 125A PUBLISHED, FIVE COLOUR OPTIONS; TRANSCRIPTS DONE, 38 REPEATS HELD, 197 VIDEOS WAIT FOR HIS GO; SERVER RELOADED WITH THE FIXES
 
 **His words, 22 Nov (on round four):** "Loving this. Only wondering where the background colours (like Jefferson's orange and Chris' blue) are too harsh? Don't lose the design but show me alternative colouring options". Round four is otherwise liked; this round changes colour only.
