@@ -8,7 +8,7 @@ import {
 import { countsFor, listSources, backfillFromVault } from '../lib/mentorRegister.js';
 import { readClaudeUsage } from '../lib/claudeUsage.js';
 import {
-  queueStatus, pauseQueue, allowReading, setCeilings, retrySource,
+  queueStatus, pauseQueue, allowReading, setCeilings, retrySource, retryWeave,
 } from '../lib/mentorQueue.js';
 import { getBook, listWeaves, undoWeave, weekSummary } from '../lib/mentorWeave.js';
 
@@ -179,6 +179,15 @@ export function mentorsRouter(vaultPath) {
         catalogue: tier1.map((s) => [idOf(s), s.durationSec, codeOf(s)]),
         latest: tier1.slice(0, 6).map((s) => ({ id: idOf(s), title: s.title, durationSec: s.durationSec, publishedAt: s.publishedAt })),
       });
+    } catch (err) { fail(res, err); }
+  });
+
+  // a weave that failed waits an hour, and after three failures waits for this
+  router.post('/mentors/:id/weave/retry', async (req, res) => {
+    try {
+      if (!(await getPerson(req.params.id))) return res.status(404).json({ error: `no person called "${req.params.id}" is followed or known` });
+      await retryWeave(req.params.id);
+      res.json(await queueStatus());
     } catch (err) { fail(res, err); }
   });
 

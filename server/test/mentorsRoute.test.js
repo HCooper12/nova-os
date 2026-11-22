@@ -230,6 +230,8 @@ test('the queue routes: status, pause, his go for reading, ceilings, retry; and 
   r = await post('/mentors/source/retry', { key: 'yt:1HX8PQ9FiCU' });
   assert.equal((await r.json()).source.hold, null);
   assert.equal((await post('/mentors/source/retry', { key: 'yt:nope' })).status, 404);
+  assert.equal((await post('/mentors/jefferson-fisher/weave/retry', {})).status, 200);
+  assert.equal((await post('/mentors/nobody/weave/retry', {})).status, 404);
   Q._resetQueueForTests();
 });
 
