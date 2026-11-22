@@ -71,6 +71,7 @@ let clientPromise = null;
 // Clearing the memo on failure costs one re-discovery per failed attempt and
 // makes the outage last as long as the outage, not as long as the process.
 function getClient() {
+  if (testClient) return Promise.resolve(testClient);
   if (!clientPromise) {
     clientPromise = createDAVClient({
       serverUrl: 'https://caldav.icloud.com',
@@ -86,6 +87,17 @@ function getClient() {
     });
   }
   return clientPromise;
+}
+
+// Tests hand in a fake DAV client (fetchCalendars / fetchCalendarObjects) so the
+// cache can be exercised without iCloud; null puts the real one back. Every swap
+// also drops the memoised client and the event cache, so one test's entries
+// never answer the next.
+let testClient = null;
+export function _setCalendarClientForTest(c) {
+  testClient = c || null;
+  clientPromise = null;
+  invalidateCalendarCache();
 }
 
 function startOfDay(d) {
@@ -383,9 +395,13 @@ const CALENDAR_TTL_MS = 90_000;
 // while the truth loads — it's what he last saw, and the refresh corrects
 // the screen within seconds via the broadcast.
 const CALENDAR_MAX_STALE_MS = 24 * 3600_000;
-const eventCache = new Map(); // key → { at, promise }
+const eventCache = new Map(); // key → { at, promise, pending?, refreshing? }
+// Bumped by every invalidation, so a fetch that began BEFORE one of his writes
+// can tell, when it lands, that its picture predates the write.
+let cacheEpoch = 0;
 
 export function invalidateCalendarCache() {
+  cacheEpoch += 1;
   eventCache.clear();
 }
 
@@ -394,8 +410,12 @@ function refreshInBackground(key, rangeStart, rangeEnd, staleHit) {
   // in-flight promise in immediately would block the next caller on it —
   // the exact wait this exists to remove); `refreshing` stops a stampede.
   staleHit.refreshing = true;
+  const epoch = cacheEpoch;
   collectEventsUncached(rangeStart, rangeEnd)
     .then(async (freshEvents) => {
+      // one of his writes landed while this was out: the picture predates the
+      // write and must not be cached over it (the write's own read is the truth)
+      if (epoch !== cacheEpoch) return;
       eventCache.set(key, { at: Date.now(), promise: Promise.resolve(freshEvents) });
       // tell open clients only when the picture actually changed — an
       // unconditional broadcast would make every sync trigger another sync
@@ -428,11 +448,45 @@ async function collectEvents(rangeStart, rangeEnd, { fresh = false } = {}) {
     }
     eventCache.delete(key); // too old to show — block on the real thing
   }
+  const at = Date.now();
+  const epoch = cacheEpoch;
+  const promise = collectEventsUncached(rangeStart, rangeEnd);
+
+  // A FRESH FETCH MUST NOT DISPLACE A GOOD ENTRY UNTIL IT HAS LANDED (22 Nov
+  // 2026). It used to replace the entry with its own pending promise stamped
+  // now, so every ordinary reader that arrived during the round trip (the
+  // snapshot, the instruments, the widget, the Reflex peek) waited out all of
+  // iCloud's answer although a settled value had been there a moment earlier,
+  // and the watcher does this every 25 s while the app is open. Now the settled
+  // entry keeps serving exactly as it does under a background refresh, and the
+  // fresh result takes its place only once it has landed. Only the fresh
+  // caller waits for it; if it fails, the old entry is left to the usual TTL.
+  // An entry too old to show, or one that is itself still a fetch in flight,
+  // is not worth keeping: those fall through and are replaced as before.
+  if (fresh && hit && !hit.pending && at - hit.at < CALENDAR_MAX_STALE_MS) {
+    hit.refreshing = true; // a reader in the stale window must not start a second trip behind this one
+    promise.then(
+      (events) => {
+        if (epoch !== cacheEpoch) return; // one of his writes landed meanwhile, and this picture predates it
+        const cur = eventCache.get(key);
+        if (cur && cur.at > at) return; // a fetch that started later has already landed; never go backwards
+        eventCache.set(key, { at, promise: Promise.resolve(events) });
+      },
+      () => { if (eventCache.get(key) === hit) hit.refreshing = false; }, // the old entry just carries on
+    );
+    return promise;
+  }
+
   // the PROMISE is cached, not just the result: concurrent callers (the
   // morning and evening composers run together) share one round trip
-  const promise = collectEventsUncached(rangeStart, rangeEnd);
-  eventCache.set(key, { at: Date.now(), promise });
-  promise.catch(() => eventCache.delete(key)); // a failure must not be cached
+  const entry = { at, promise, pending: true };
+  eventCache.set(key, entry);
+  promise.then(
+    () => { entry.pending = false; },
+    // a failure must not be cached, but only ever drop OUR entry: a newer fetch
+    // may have taken its place since, and that one is still good
+    () => { if (eventCache.get(key) === entry) eventCache.delete(key); },
+  );
   return promise;
 }
 
