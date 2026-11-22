@@ -119,11 +119,20 @@ function usePhonePanels(T, S, said, gone) {
 
   const allModel = panelsNow.filter((p) => !code.some((c) => c.key === p.key) && !coveredByCode(p.card, code));
   const stageProposal = (!speaking || !!(T.stage?.total && T.stage.n >= T.stage.total)) ? (lastNova?.proposal || null) : null;
-  const list = stagePanels({
-    lookup: T.lookup?.cards || [], gone,
+  const stageIn = {
+    lookup: T.lookup?.cards || [],
     model: [...codeNow.map((c) => ({ key: c.key, card: c })), ...allModel],
     proposal: stageProposal && !code.some((c) => c.macKind === 'calendar') ? proposalCard(stageProposal, (T.inbox || []).find((r) => r.id === stageProposal.recordId) || null) : null,
-  });
+  };
+  const list = stagePanels({ ...stageIn, gone });
+  // WHAT HE PUT AWAY, the one put away last first, for "bring back the chart":
+  // the panels the stage would draw but for the put-away filter, so one whose
+  // data has since gone is never offered back
+  const away = (() => {
+    if (!gone.size) return [];
+    const all = new Map(stagePanels(stageIn).map((p) => [p.key, p]));
+    return [...gone].reverse().map((k) => all.get(k)).filter(Boolean);
+  })();
   // the order they came up (one put away keeps its place; a new question starts again)
   const keys = list.map((p) => p.key).join('|');
   const [arrivals, setArrivals] = useState([]);
@@ -139,7 +148,7 @@ function usePhonePanels(T, S, said, gone) {
   }, [keys]);
   const byKey = new Map(list.map((p) => [p.key, p]));
   const ordered = arrivals.map((e) => byKey.get(e.key)).filter(Boolean);
-  return { ordered, proposal: lastNova?.proposal || null, fresh, turnId };
+  return { ordered, away, proposal: lastNova?.proposal || null, fresh, turnId };
 }
 
 // ONE PANEL, in mockup 114's grammar (.pnl): the square tag and the subject
@@ -211,7 +220,7 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
   const speaking = S.key === 'speaking';
   const turning = S.key === 'listening' || S.key === 'thinking' || speaking;
   const [gone, setGone] = useState(() => new Set());
-  const { ordered, proposal, turnId } = usePhonePanels(T, S, said, gone);
+  const { ordered, away, proposal, turnId } = usePhonePanels(T, S, said, gone);
   const [view, setView] = useState(() => ({ w: typeof window === 'undefined' ? 402 : window.innerWidth, h: typeof window === 'undefined' ? 874 : window.innerHeight }));
   useEffect(() => {
     const on = () => setView({ w: window.innerWidth, h: window.innerHeight });
@@ -344,21 +353,49 @@ export function PhoneStage({ T, S, st, said, close = null, core = null, glassRef
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- the glass obeys words on the phone too (src/glassVoice.js)
+  // What `run` hands back is what he is told (NovaThread.moveGlass): true means
+  // something on this stage really moved, so the receipt ("Back as it was.") is
+  // true; false means nothing could, and his words go to Nova as an ordinary
+  // turn; null is not this layer's (the camera, handled by the stage around it).
   const glassApi = useRef(null);
   glassApi.current = {
     state: () => {
       const named = (p) => ({ key: p.key, kind: p.card.kind, title: p.card.title || p.card.name || p.card.label || '', label: p.card.label || '', host: p.card.host || '', channel: p.card.channel || '' });
-      return { panels: ordered.map(named), hero: hero ? named(hero) : null, history: [] };
+      return { panels: ordered.map(named), hero: hero ? named(hero) : null, history: away.map(named) };
     },
     run: (cmd) => {
       const find = (k) => ordered.find((p) => p.key === k);
+      // as on the Mac: what he put away before stays away, and a panel opened
+      // full size that goes with it closes
+      const putAway = (keys) => {
+        setGone((x) => new Set([...x, ...keys]));
+        if (openKey && keys.includes(openKey)) setOpenKey(null);
+      };
       switch (cmd.cmd) {
         case 'maximise': { const p = find(cmd.key); if (p) openIt(p.key, null); return !!p; }
-        case 'away': setGone((x) => new Set(x).add(cmd.key)); return true;
-        case 'clear': setGone(new Set(ordered.map((p) => p.key))); return true;
-        case 'clear-except': setGone(new Set(ordered.filter((p) => p.key !== cmd.key).map((p) => p.key))); return true;
+        case 'away': putAway([cmd.key]); return true;
+        case 'clear': putAway(ordered.map((p) => p.key)); return true;
+        case 'clear-except': putAway(ordered.filter((p) => p.key !== cmd.key).map((p) => p.key)); return true;
         case 'tidy': setForced('all'); return true;
-        case 'restore': case 'words': case 'history': case 'nowords': return true;
+        // a panel he put away comes back the way a new one arrives, the newest;
+        // one that is still up has nothing to come back from
+        case 'bring': {
+          if (!away.some((p) => p.key === cmd.key)) return false;
+          setGone((x) => { const n = new Set(x); n.delete(cmd.key); return n; });
+          return true;
+        }
+        // the opened panel goes back to its place, as the cross and the scrim
+        // close it; with nothing open there is nothing to put back
+        case 'restore': {
+          if (!openKey) return false;
+          if (!closing) closeOpen();
+          return true;
+        }
+        // no surface here: the conversation is the page above the stage and the
+        // words are the sentence being said under the core, nothing a voice
+        // command can open or fold. These said "Words on." and "History." over
+        // a screen that had not changed; now his words go on to Nova.
+        case 'history': case 'words': case 'nowords': return false;
         case 'recall': return T.recallGlass ? T.recallGlass(cmd) : false;
         default: return null;
       }
