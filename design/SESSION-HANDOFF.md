@@ -11,6 +11,20 @@ the session log at the foot is append-only.
 
 ---
 
+## 23 Nov 2026: speed and display study, and the folder that moved
+
+**State.** `design/SPEED-DISPLAY-STUDY.md` is the record; its section 4 table
+is the status of all seven rows.
+- Row 1, calendar: pushed and running. The first log count after it showed no slow reads in 6.5 hours (`node scripts/slow-reads.mjs`); count again in a few days before closing it.
+- Rows 2 and 3 (the grammar, and the phone's dead commands) and rows 4 to 6 (no sync beside a spoken turn, the stale-sync guard, the turn instrument) are on main and NOT pushed, so none is on his phone. The server half of row 6 is running on the Mac since the 23 Nov reload.
+- Row 7: mockup 126 is drawn and sent to him; nothing is built until he approves. Proof of today's display (before and after the fixes, WebKit, demo mode, default theme) is in the session scratchpad `proof-P/FINDINGS.md`. The gaps it found: a spoken receipt and a 2.2 s re-deal on every move, panels growing 2 to 2.6 times against Rose's 1.4, and a scrim on the phone. The mockup corrects those.
+
+**Folder accident, 23 Nov 09:11.** A Finder sidebar mistake moved the repo into iCloud; the server split his data for 20 minutes. It was put back and merged (see memory `nova-folder-move-split`). The stray copy and backups sit in `~/Projects/.nova-os-stray-2026-11-23*`; delete them around 26 Nov if Nova stays clean.
+
+**Owed.** His approval of 126, then a build that matches it frame for frame on his live settings in WebKit. A push (his yes) so rows 2 to 6 reach the phone, then the row 6 numbers from real turns to settle whether the lost seconds are the network or the main thread. Known gaps from row 5: a Practice reply is not marked as speaking.
+
+---
+
 **21 NOV, CLOSE (claude.ai session 01FPAPLf, Sonnet 5.5): LOG AGAIN IS PUSHED AND SERVED; THE GLASS METER RAN ON HIS IPHONE AND IS FINE. Corrects the "NOT PUSHED" lines in the 3 and 4 Nov blocks below.**
 - GOAL: ship Log again (mockup 110 round 2) and read the glass meter from his phone.
 - DONE CRITERIA: Log again MET on the remote and served, UNMET on his phone (not yet seen). Glass meter MET. BLOCKED: none.

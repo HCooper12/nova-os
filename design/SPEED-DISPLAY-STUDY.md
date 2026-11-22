@@ -100,7 +100,7 @@ is pushed and checked there.
 | 4 | Phone: retry the snapshot once before the 38-request fallback; no fallback beside a newer sync | on main (`bc61b74a`), not pushed, not run in a browser; see 4.3 |
 | 5 | Phone: no bulk sync while a spoken turn is live | on main (`f890c8c7`), not pushed, not run in a browser; see 4.3 |
 | 6 | Phone instrument: network time against main-thread stall, stamped into the turn receipt | on main (`857c03c9`); the server half is running on the Mac; the phone half is not pushed; see 4.3 |
-| 7 | The visible display changes (mockup 126, his approval first) | not started |
+| 7 | The visible display changes (mockup 126, his approval first) | mockup drawn (`design/mockups/126-voice-driven-display.html`), sent to him 23 Nov; no build until he approves |
 
 Left alone on purpose: reusing a just-finished clip read when he ends a turn
 with a tap. It could save up to a second but risks clipping his last word, and
