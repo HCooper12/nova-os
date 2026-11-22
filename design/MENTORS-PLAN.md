@@ -465,3 +465,16 @@ repeats, the read, the queue.
 - NOT yet known: how many of the 236 are repeats; how the two-hour files
   behave; whether YouTube stays patient with a few hundred audio downloads
   in a night.
+
+## 22 Nov: his pick is direction A, round four, and the weave review
+
+- **His pick:** direction A, "Mentors in Colour". His words: "more interesting and 'fun'". He asked for it to be refined further and gave no specifics. Direction B is dropped.
+- **Round four** (Version 3 of https://claude.ai/artifact/LCMHkavktBJgpMZYuvthwi): the brief is `design/mockups/.125-round3/specs/REFINE-A4.md`. The decisions in it that the build inherits:
+  - The four stages are four equal, fixed cells joined by one rule. The giant numeral is the count of the stage that is moving now, with the stage word beside "/236"; at rest it is Woven.
+  - The wall is the way into the catalogue: slide to lift a frame, tap for the sheet of all his videos (stage filters with counts, newest first). The build sorts by date.
+  - A page with nothing woven shows the book unprinted, with no counts and no sentence.
+  - A guest has no portrait, so no colour of his own: the host's ink, the host's colour as the one accent, and the real episode frame.
+  - The cost sheet shows real usage and the two real ceilings (60% of a session, 75% of a week). No projected usage until a real run has measured what a read costs in usage.
+- **The weave was read line by line before any real run**, and its faults fixed (`f9317eae`, `6f1c8111`): the write guard, a pending record before the first write with recovery at start-up, undo for the shared index and log, quoted words in model text checked against the transcripts, real names only for Entity pages, a true Raw header, short lines verified near their minute, no ellipsis in a kept quote.
+- **Transcripts measured overnight:** about 11 hours for 212 of 236 on this Mac (the guess was 7), one refusal by YouTube held for retry, none failed.
+
