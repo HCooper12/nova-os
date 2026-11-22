@@ -738,15 +738,29 @@ test('4: a recorded index line that cannot be found leaves the file alone and sa
 });
 
 test('5: a quote mark in model-written text must hold words that are in a transcript', async () => {
-  const before = snapshot();
-  const fake = (r) => ({ ...r, method: ['Hold the comeback', 'Say "I never said any of this out loud" and wait', 'Wait'] });
-  breakers.chapter = (r) => fake(r);
-  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => /a method step of "(Did You Mean|Label It)" quotes "I never said any of this out loud", which is not word for word in a transcript; say it in your own words without quote marks/.test(e.message) && /failed its checks twice/.test(e.message));
-  assert.deepEqual(snapshot(), before);
-  // the same step with words that are in the transcript passes, as does a single quoted word
+  // asked twice and still quoting words that are in no transcript: code takes the marks off and the batch carries on
+  breakers.chapter = (r) => ({ ...r, method: ['Hold the comeback', 'Say "I never said any of this out loud" and wait', 'Wait'] });
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.ok(rec.unquoted >= 1, 'the record counts the marks it removed');
+  assert.ok(rec.calls.some((c) => c.step.startsWith('chapter') && c.retried), 'the model was asked again first');
+  const retry = asks.filter((a) => a.step.startsWith('chapter')).at(-1).prompt;
+  assert.match(retry, /a method step of "(Did You Mean|Label It)" quotes "I never said any of this out loud", which is not word for word in a transcript; say it in your own words without quote marks/);
+  const pages = ['Did You Mean', 'Label It'].map((t) => read(`Wiki/Playbooks/${t}.md`)).join('\n');
+  assert.match(pages, /Say I never said any of this out loud and wait/);
+  assert.doesNotMatch(pages, /["\u201c]I never said any of this out loud/);
+  await W.undoWeave(rec.batchId, { vaultPath: vault });
+  // the same step with words that are in the transcript keeps its marks, as does a single quoted word
   breakers.chapter = (r) => ({ ...r, method: ['Hold the comeback', 'Ask "did you mean for that to sound rude" and then wait', 'Say "no" first'] });
-  await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  const rec2 = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.equal(rec2.unquoted, 0);
   assert.match(read('Wiki/Playbooks/Did You Mean.md'), /did you mean for that to sound rude/);
+});
+
+test('5: a failure that is not a quote still stops the batch after two tries', async () => {
+  const before = snapshot();
+  breakers.chapter = (r) => ({ ...r, method: [] });
+  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), /failed its checks twice/);
+  assert.deepEqual(snapshot(), before);
 });
 
 test('5: the same check reaches the concepts and the book, curly quotes included, and a retry can mend it', async () => {

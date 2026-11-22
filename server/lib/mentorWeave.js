@@ -187,6 +187,29 @@ function quoteFailures(ctx, text, what) {
   }
   return out;
 }
+const isQuoteFailure = (f) => /which is not word for word in a transcript; say it in your own words without quote marks$/.test(f);
+// The model was asked twice and still put quote marks around words that are in
+// no transcript (22 Nov 2026: the first real batch died on "I'm just direct" in
+// a gist). The marks are the false claim, so code takes them off: the words
+// stay as Nova's own, and the count goes on the batch record.
+function unquoteUnverified(ctx, value) {
+  let n = 0;
+  const fix = (text) => text.replace(QUOTED_RE, (m, a, b) => {
+    const span = a ?? b;
+    if (normWords(span).length < 3) return m;
+    if ((ctx.quoteWords || []).some((w) => findInTranscript(span, w, { minWords: 3 }))) return m;
+    n += 1;
+    return span;
+  });
+  const walk = (v) => {
+    if (typeof v === 'string') return fix(v);
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = walk(v[i]); return v; }
+    if (v && typeof v === 'object') { for (const k of Object.keys(v)) v[k] = walk(v[k]); return v; }
+    return v;
+  };
+  walk(value);
+  return n;
+}
 async function quoteWordLists(g, book) {
   const lists = g.batch.map((x) => x.words).filter((w) => w?.length);
   const inBatch = new Set(g.batch.map((x) => x.key));
@@ -348,6 +371,10 @@ async function askChecked(ctx, step, prompt, check) {
     if (r.answeredBy) ctx.answeredBy = r.answeredBy;
     const reply = parseReply(r.text);
     failures = reply ? check(reply) : ['the reply was not a JSON object'];
+    if (reply && attempt === 1 && failures.length && failures.every(isQuoteFailure)) {
+      const n = unquoteUnverified(ctx, reply);
+      if (n) { ctx.unquoted = (ctx.unquoted || 0) + n; failures = check(reply); }
+    }
     if (!failures.length) return reply;
   }
   const e = new Error(`the weave's ${step} step failed its checks twice: ${failures.slice(0, 6).join('; ')}${failures.length > 6 ? ` (and ${failures.length - 6} more)` : ''}`);
@@ -1282,6 +1309,7 @@ async function runWeave(person, keys, vaultPath) {
   const base = {
     batchId, personId: person.id, at: new Date(t0).toISOString(), version: WEAVE_VERSION, model, answeredBy: ctx.answeredBy, modelWhy: why,
     keys, calls: ctx.calls, costUsd: Math.round(ctx.costUsd * 10000) / 10000,
+    unquoted: ctx.unquoted || 0,
     dirsCreated, bookBefore: bookBefore || null, vaultBefore,
     counts: {
       sources: g.batch.length, concepts: conceptsCreated.length, conceptsEdited: conceptsEdited.length,
