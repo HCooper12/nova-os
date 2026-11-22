@@ -177,18 +177,26 @@ async function seedSource(key, title, transcript, notes, publishedAt) {
 
 const titleCase = (s) => s.split(' ').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
+// What a careful sort does under weave-v3: the followed person's ideas and methods
+// earn pages, an idea that joins an existing page earns its place there, and a
+// guest's one-off goes to "notes".
 function sortReply(prompt) {
-  const ideas = [...prompt.matchAll(/^(I\d+\.\d+) \| (.+?) \| by:/gm)].map((m) => ({ id: m[1], name: m[2] }));
-  const fws = [...prompt.matchAll(/^(F\d+\.\d+) \| (.+?) \| by:/gm)].map((m) => ({ id: m[1], name: m[2] }));
+  const who = prompt.match(/by or with (.+?) into a personal/)[1];
+  const ideas = [...prompt.matchAll(/^(I\d+\.\d+) \| (.+?) \| by: (.+?)(?: \| maybe the same as: .*)?$/gm)].map((m) => ({ id: m[1], name: m[2], by: m[3] }));
+  const fws = [...prompt.matchAll(/^(F\d+\.\d+) \| (.+?) \| by: (.+?) \| use when:/gm)].map((m) => ({ id: m[1], name: m[2], by: m[3] }));
   const concepts = [];
+  const notes = [];
   for (const i of ideas) {
-    const existing = /silence|correct/i.test(i.name);
+    // the existing page is joined only when the prompt really offers it
+    const existing = /silence|correct/i.test(i.name) && (prompt.includes('| Strategic Silence |') || prompt.includes('- Strategic Silence'));
+    if (!existing && i.by !== who) { notes.push(i.id); continue; }
     const title = existing ? 'Strategic Silence' : titleCase(i.name);
     const c = concepts.find((x) => x.title === title);
     if (c) c.ideas.push(i.id); else concepts.push({ title, existing, ideas: [i.id] });
   }
-  const chapters = fws.map((f) => ({ title: titleCase(f.name), existing: false, frameworks: [f.id], ideas: ideas.filter((i) => i.id.split('.')[0].slice(1) === f.id.split('.')[0].slice(1)).slice(0, 1).map((i) => i.id) }));
-  return { concepts, chapters };
+  for (const f of fws) if (f.by !== who) notes.push(f.id);
+  const chapters = fws.filter((f) => f.by === who).map((f) => ({ title: titleCase(f.name), existing: false, frameworks: [f.id], ideas: ideas.filter((i) => i.id.split('.')[0].slice(1) === f.id.split('.')[0].slice(1)).slice(0, 1).map((i) => i.id) }));
+  return { concepts, chapters, notes, raise: [] };
 }
 
 function conceptReply(prompt) {
@@ -300,13 +308,13 @@ test('a whole weave: pages written by code, his words verified, held words nowhe
   const before = snapshot();
   const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
   const day = await today();
-  assert.equal(rec.version, 'weave-v2');
+  assert.equal(rec.version, 'weave-v3');
   assert.equal(rec.model, 'sonnet');
-  // sort, two chapters, one concepts call (five concepts), the book
-  assert.deepEqual(rec.calls.map((c) => c.step).sort(), ['book', 'chapter', 'chapter', 'concepts', 'sort']);
+  // sort, one chapter (the guest's method is a note), one concepts call, the book
+  assert.deepEqual(rec.calls.map((c) => c.step).sort(), ['book', 'chapter', 'concepts', 'sort']);
   assert.ok(rec.calls.every((c) => !c.retried));
-  assert.equal(rec.costUsd, 0.05);
-  assert.deepEqual(rec.counts, { sources: 2, concepts: 3, conceptsEdited: 1, chapters: 2, scripts: 2, cards: 15, held: 2 });
+  assert.equal(rec.costUsd, 0.04);
+  assert.deepEqual(rec.counts, { sources: 2, concepts: 2, conceptsEdited: 1, chapters: 1, scripts: 1, cards: 15, held: 2, notes: 2, raised: 0 });
   // no prompt ever saw a held word
   for (const a of asks) {
     assert.ok(!a.prompt.includes('I really wish you had not said that'), `${a.step} saw a held script`);
@@ -317,9 +325,9 @@ test('a whole weave: pages written by code, his words verified, held words nowhe
   const created = Object.keys(after).filter((k) => !(k in before)).sort();
   assert.deepEqual(created, [
     'Raw/Labels With Gail (Transcript).md', 'Raw/Rude Comments Talk (Transcript).md',
-    'Wiki/Concepts/Ask About Intent.md', 'Wiki/Concepts/Labels Name What You Sense.md', 'Wiki/Concepts/No Goes First.md',
+    'Wiki/Concepts/Ask About Intent.md', 'Wiki/Concepts/No Goes First.md',
     'Wiki/Entities/Gail Rowan.md', 'Wiki/Entities/Sam Host.md', 'Wiki/Mentors/Sam Host.md',
-    'Wiki/Playbooks/Did You Mean.md', 'Wiki/Playbooks/Label It.md',
+    'Wiki/Playbooks/Did You Mean.md',
     'Wiki/Sources/Labels With Gail.md', 'Wiki/Sources/Rude Comments Talk.md',
   ]);
   assert.deepEqual(Object.keys(before).filter((k) => !(k in after)), [], 'nothing deleted');
@@ -335,7 +343,7 @@ test('a whole weave: pages written by code, his words verified, held words nowhe
     assert.ok(!v.includes('I really wish you had not said that'), `${k} carries a held script`);
   }
   // the chapter parses and survives a format round trip byte for byte
-  for (const rel of ['Wiki/Playbooks/Did You Mean.md', 'Wiki/Playbooks/Label It.md']) {
+  for (const rel of ['Wiki/Playbooks/Did You Mean.md']) {
     const raw = read(rel);
     assert.equal(PB.formatPlaybook(PB.parsePlaybook(raw)), raw);
   }
@@ -357,7 +365,7 @@ test('a whole weave: pages written by code, his words verified, held words nowhe
   assert.equal(book.principles.length, 5);
   assert.deepEqual(book.principles[0].sources, [1, 2]);
   assert.equal(book.cards.length, 15, 'up to 15 cards on the first batch');
-  assert.deepEqual(book.scripts.map((s) => [s.id, s.say]), [['P1.1', 'did you mean for that to sound rude'], ['P2.1', 'it sounds like there is more to that']]);
+  assert.deepEqual(book.scripts.map((s) => [s.id, s.say]), [['P1.1', 'did you mean for that to sound rude']]);
   assert.deepEqual(book.held.map((h) => h.kind), ['script', 'line']);
   assert.equal(book.fromGuests[0].guest, 'Gail Rowan');
   assert.equal(book.concepts.find((c) => c.title === 'Strategic Silence').mine, false);
@@ -375,13 +383,13 @@ test('a whole weave: pages written by code, his words verified, held words nowhe
   const idx = read('Wiki/index.md');
   assert.ok(idx.includes(`## Sources\n- [[Rude Comments Talk]] ${EM} `));
   assert.ok(idx.includes(`- [[Old Source]] ${EM} old (updated 2026-01-01)`));
-  assert.match(idx, /## Playbooks\n- \[\[Playbooks\/(Did You Mean|Label It)\]\]/);
+  assert.match(idx, /## Playbooks\n- \[\[Playbooks\/Did You Mean\]\]/);
   const log = read('Wiki/log.md');
   assert.ok(log.startsWith(before['Wiki/log.md']));
   assert.match(log, /## \[\d{4}-\d{2}-\d{2}\] ingest \| Mentors weave: Sam Host \(2 sources\)/);
   // the entity pages: created with the vault's entity frontmatter and a block
   assert.match(read('Wiki/Entities/Gail Rowan.md'), /^type: entity$/m);
-  assert.match(read('Wiki/Entities/Gail Rowan.md'), /\[\[Labels Name What You Sense\]\]/);
+  assert.match(read('Wiki/Entities/Gail Rowan.md'), /Also said:\n- \[\[Labels With Gail\]\] 00:30: Labels name what you sense\n- \[\[Labels With Gail\]\] 00:30: Label it/);
   // the register
   const s1 = await R.getSource(K1);
   assert.equal(s1.stage, 'woven');
@@ -419,12 +427,19 @@ test('undo: refused out of order, then exact, newest first, back to the vault as
   const r1 = await W.weaveBatch('sam', [K1], { vaultPath: vault });
   const snapA = snapshot();
   const bookA = await W.getBook('sam');
+  // the second batch is a v3 batch with notes and a raised item, so the undo has to take those out too
+  breakers.sort = (r) => ({ ...r, notes: r.notes.filter((id) => id !== 'I2.1'), raise: [{ id: 'I2.1', why: 'A claim about wrong guesses that is worth a check.', question: 'Do people correct wrong guesses faster?' }] });
   const r2 = await W.weaveBatch('sam', [K2], { vaultPath: vault });
+  assert.deepEqual([r2.counts.notes, r2.counts.raised], [1, 1]);
+  assert.equal((await W.getBook('sam')).raised.length, 1);
+  assert.match(read('Wiki/Mentors/Sam Host.md'), /## For your review/);
   await assert.rejects(W.undoWeave(r1.batchId, { vaultPath: vault }), (e) => e.refused && /undo the newest first/.test(e.message));
   const u2 = await W.undoWeave(r2.batchId, { vaultPath: vault });
   assert.deepEqual(u2.left, []);
   assert.deepEqual(snapshot(), snapA, 'byte for byte as after the first batch');
   assert.deepEqual(await W.getBook('sam'), bookA);
+  assert.equal(JSON.stringify(await W.getBook('sam')), JSON.stringify(bookA), 'the book as it was, key for key');
+  assert.deepEqual((await W.getBook('sam')).raised, [], 'no raised item survives the undo');
   assert.equal((await R.getSource(K2)).stage, 'read');
   await assert.rejects(W.undoWeave(r2.batchId, { vaultPath: vault }), (e) => e.refused);
   await W.undoWeave(r1.batchId, { vaultPath: vault });
@@ -745,7 +760,7 @@ test('5: a quote mark in model-written text must hold words that are in a transc
   assert.ok(rec.calls.some((c) => c.step.startsWith('chapter') && c.retried), 'the model was asked again first');
   const retry = asks.filter((a) => a.step.startsWith('chapter')).at(-1).prompt;
   assert.match(retry, /a method step of "(Did You Mean|Label It)" quotes "I never said any of this out loud", which is not word for word in a transcript; say it in your own words without quote marks/);
-  const pages = ['Did You Mean', 'Label It'].map((t) => read(`Wiki/Playbooks/${t}.md`)).join('\n');
+  const pages = read('Wiki/Playbooks/Did You Mean.md');
   assert.match(pages, /Say I never said any of this out loud and wait/);
   assert.doesNotMatch(pages, /["\u201c]I never said any of this out loud/);
   await W.undoWeave(rec.batchId, { vaultPath: vault });
@@ -830,4 +845,240 @@ test('10: a script or line the read held for a reason carries that reason into t
   const joined = g.held.find((h) => h.text.includes('rude comment...'));
   assert.equal(joined.why, 'it joins two separate moments of the transcript');
   assert.ok(g.held.some((h) => h.why === 'not found word for word in the transcript'), 'the others keep the plain reason');
+});
+
+/* ------------------------- weave-v3: what earns a page ------------------------- */
+
+const K3 = 'yt:cccccccccc3';
+const TRANSCRIPT_3 = `[00:00] welcome back gail guest and we go over labels again today
+[00:30] say what you sense and let them correct you every single time
+`;
+const NOTES_3 = `## Summary
+Gail again.
+
+## People
+- Sam Host | host | hosts [00:00]
+- Gail Rowan | guest | introduced [00:00]
+
+## Ideas
+### Labels name what you sense again
+Name what you sense and let them correct you.
+By: Gail Rowan | [00:30]
+`;
+const GUEST_CONCEPT = { title: 'Labels Name What You Sense', existing: false, ideas: ['I2.1'] };
+const withoutId = (list, ...ids) => list.filter((id) => !ids.includes(id));
+const WHY = 'A claim about wrong guesses that is worth a check.';
+const QUESTION = 'Do people correct a wrong guess faster than a right one?';
+
+test('v3 1: a guest one-off offered as a new concept fails the earning rule; kept as a note it has no page and shows as Also said', async () => {
+  breakers.sort = (r, attempt) => (attempt === 1 ? { ...r, concepts: [...r.concepts, GUEST_CONCEPT], notes: withoutId(r.notes, 'I2.1') } : r);
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.deepEqual(rec.calls.filter((c) => c.step === 'sort').map((c) => c.retried), [false, true]);
+  const retry = asks.filter((a) => a.step === 'sort')[1].prompt;
+  assert.match(retry, /concept "Labels Name What You Sense" is a guest's one-off idea: put its ideas in "notes", or in "raise" if it is noteworthy/);
+  assert.equal(fs.existsSync(path.join(vault, 'Wiki/Concepts/Labels Name What You Sense.md')), false, 'no Concept page for a note');
+  const src = read('Wiki/Sources/Labels With Gail.md');
+  assert.match(src, /## Also said\n- Labels name what you sense \(Gail Rowan, 00:30\): Say what you sense, and they correct you\.\n- Label it \(Gail Rowan, 00:30\): someone hides what they mean\n/);
+  assert.ok(src.indexOf('## Also said') < src.indexOf('## Linked pages'));
+  assert.match(read('Wiki/Entities/Gail Rowan.md'), /Also said:\n- \[\[Labels With Gail\]\] 00:30: Labels name what you sense\n/);
+  assert.ok(!read('Wiki/Entities/Sam Host.md').includes('Also said:'), 'the followed person has no such list');
+  const book = await W.getBook('sam');
+  assert.deepEqual(book.sources[1].notes.map((n) => [n.kind, n.name, n.by, n.t]), [['idea', 'Labels name what you sense', 'Gail Rowan', '00:30'], ['framework', 'Label it', 'Gail Rowan', '00:30']]);
+  assert.deepEqual(book.sources[0].notes, []);
+  assert.ok(!book.concepts.some((c) => c.title === 'Labels Name What You Sense'));
+});
+
+test('v3 2: the same guest idea from two sources earns its page', async () => {
+  await seedSource(K3, 'Gail Again', TRANSCRIPT_3, NOTES_3, '2026-03-05T00:00:00Z');
+  breakers.sort = (r) => ({ ...r, concepts: [...r.concepts, { title: 'Labels Name What You Sense', existing: false, ideas: ['I1.1', 'I2.1'] }], notes: withoutId(r.notes, 'I1.1', 'I2.1') });
+  const rec = await W.weaveBatch('sam', [K2, K3], { vaultPath: vault });
+  assert.deepEqual(rec.calls.filter((c) => c.step === 'sort').map((c) => c.retried), [false], 'passed the check the first time');
+  const page = read('Wiki/Concepts/Labels Name What You Sense.md');
+  assert.match(page, /^sources: \["\[\[Labels With Gail\]\]", "\[\[Gail Again\]\]"\]$/m);
+  assert.deepEqual((await W.getBook('sam')).concepts.find((c) => c.title === 'Labels Name What You Sense').sources, [1, 2]);
+});
+
+test('v3 3: a new concept by the followed person from one source earns its page', async () => {
+  const rec = await W.weaveBatch('sam', [K1], { vaultPath: vault });
+  assert.deepEqual(rec.calls.filter((c) => c.step === 'sort').map((c) => c.retried), [false]);
+  assert.ok(fs.existsSync(path.join(vault, 'Wiki/Concepts/Ask About Intent.md')));
+  assert.ok(fs.existsSync(path.join(vault, 'Wiki/Playbooks/Did You Mean.md')), 'and his method earns its chapter');
+  assert.equal(rec.counts.notes, 0);
+});
+
+test('v3 3b: the check also refuses a guest chapter that earns nothing, and a chapter already in the book earns', () => {
+  const idea = (id, s, by) => ({ id, s, by, name: id, text: '', t: '00:30', candidates: [] });
+  const fw = (id, s, by) => ({ id, s, by, name: id, useWhen: '', steps: [], t: '00:30' });
+  const ctx = {
+    person: { name: 'Sam Host' }, book: { concepts: [], chapters: [{ title: 'Known Method' }], principles: [] }, quoteWords: [],
+    g: { candidates: [], items: { ideas: [idea('I1.1', 1, 'Sam Host')], frameworks: [fw('F1.1', 1, 'Gail Rowan'), fw('F2.1', 2, 'Gail Rowan')] } },
+  };
+  const base = { concepts: [{ title: 'His Idea', existing: false, ideas: ['I1.1'] }], raise: [] };
+  const guestOnly = W.checkSort({ ...base, chapters: [{ title: 'Her Method', existing: false, frameworks: ['F1.1'] }], notes: ['F2.1'] }, ctx);
+  assert.deepEqual(guestOnly, ['chapter "Her Method" is a guest\'s one-off method: put its frameworks in "notes", or in "raise" if it is noteworthy']);
+  const twoSources = W.checkSort({ ...base, chapters: [{ title: 'Her Method', existing: false, frameworks: ['F1.1', 'F2.1'] }], notes: [] }, ctx);
+  assert.deepEqual(twoSources, []);
+  const inBook = W.checkSort({ ...base, chapters: [{ title: 'Known Method', existing: true, frameworks: ['F1.1'] }], notes: ['F2.1'] }, ctx);
+  assert.deepEqual(inBook, []);
+  // existing: true for a title nobody offered does not earn a page
+  const faked = W.checkSort({ concepts: [{ title: 'Made Up', existing: true, ideas: ['I1.1'] }, { title: 'Guest Idea', existing: true, ideas: [] }], chapters: [], notes: ['F1.1', 'F2.1'], raise: [] }, ctx);
+  assert.deepEqual(faked.filter((x) => /one-off/.test(x)), []);
+});
+
+test('v3 4: a raised item needs a why of five words, at most three per source, and lands in the book, on the mentor page and on its source page', async () => {
+  const before = snapshot();
+  // a why of four words
+  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: 'Worth a look today' }] });
+  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => /the raised item I2\.1 needs a "why" of at least 5 words/.test(e.message) && /failed its checks twice/.test(e.message));
+  // four raised items for one source: the fourth fails
+  breakers.sort = () => ({ concepts: [], chapters: [], notes: ['I2.1', 'I2.2', 'F2.1'], raise: ['I1.1', 'I1.2', 'I1.3', 'F1.1'].map((id) => ({ id, why: 'This one is worth his time to follow up.' })) });
+  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => /source S1 has 4 raised items; the most is 3: move the rest to "notes"/.test(e.message));
+  // a question that is not a string
+  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY, question: 7 }] });
+  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), /the "question" of the raised item I2\.1 is not a string/);
+  assert.deepEqual(snapshot(), before, 'three failed weaves left the vault as it was');
+  assert.equal(await W.getBook('sam'), null);
+  // three raised for one source is allowed; one of them here, with a question
+  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY, question: QUESTION }] });
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  const book = await W.getBook('sam');
+  assert.deepEqual(book.raised, [{
+    rid: 'R2.1', kind: 'idea', name: 'Labels name what you sense', text: 'Say what you sense, and they correct you.', by: 'Gail Rowan', s: 2, t: '00:30',
+    why: WHY, question: QUESTION, status: 'new', at: rec.at, batchId: rec.batchId,
+  }]);
+  const mentor = read('Wiki/Mentors/Sam Host.md');
+  assert.match(mentor, new RegExp(`### Core principles\\n(?:- .*\\n)+\\n## For your review\\n- Labels name what you sense \\(Gail Rowan; S2 00:30\\): Say what you sense, and they correct you\\. Why: ${WHY.replace('.', '\\.')} Question: ${QUESTION.replace('?', '\\?')}\\n\\n## Chapters`));
+  assert.match(read('Wiki/Sources/Labels With Gail.md'), new RegExp(`## Raised for your review\\n- Labels name what you sense \\(Gail Rowan, 00:30\\): Say what you sense, and they correct you\\. Why: ${WHY.replace('.', '\\.')}\\n`));
+  assert.doesNotMatch(read('Wiki/Sources/Labels With Gail.md'), /## Also said\n- Labels name/, 'a raised item is not also a note');
+  assert.match(read('Wiki/Entities/Gail Rowan.md'), /Also said:\n(?:- .*\n)*- \[\[Labels With Gail\]\] 00:30: Labels name what you sense\n/, 'a raised item is listed in the guest\'s Also said too');
+  assert.equal(rec.counts.notes, 1, 'the guest method stays a note');
+  assert.equal(rec.counts.raised, 1);
+  assert.match(rec.logEntry, /none resolved; 1 idea kept as notes on their source pages; 1 raised for his review\./);
+  assert.deepEqual((await W.listWeaves('sam'))[0].counts, rec.counts);
+  const week = await W.weekSummary('sam');
+  assert.deepEqual([week.totals.notes, week.totals.raised], [1, 1]);
+  assert.deepEqual((await W.listRaised('sam')).map((r) => r.rid), ['R2.1']);
+});
+
+test('v3 5: an idea or framework missing from all three places, or in two, fails the check', async () => {
+  const before = snapshot();
+  const cases = [
+    ['an idea in no place', (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1') }), /idea I2\.1 appears 0 times across the concepts, notes and raise/],
+    ['an idea in a concept and in notes', (r) => ({ ...r, notes: [...r.notes, 'I1.1'] }), /idea I1\.1 appears 2 times across the concepts, notes and raise/],
+    ['an idea in notes and in raise', (r) => ({ ...r, raise: [{ id: 'I2.1', why: WHY }] }), /idea I2\.1 appears 2 times/],
+    ['a framework in no place', (r) => ({ ...r, notes: withoutId(r.notes, 'F2.1') }), /framework F2\.1 appears 0 times across the chapters, notes and raise/],
+    ['a framework in a chapter and in notes', (r) => ({ ...r, notes: [...r.notes, 'F1.1'] }), /framework F1\.1 appears 2 times across the chapters, notes and raise/],
+    ['an id that was never shown in notes', (r) => ({ ...r, notes: [...r.notes, 'I9.9'] }), /"notes" lists I9\.9, which is not an idea or framework id shown/],
+    ['an id that was never shown in raise', (r) => ({ ...r, raise: [{ id: 'F9.9', why: WHY }] }), /"raise" lists F9\.9, which is not an idea or framework id shown/],
+  ];
+  for (const [name, brk, re] of cases) {
+    asks = [];
+    breakers.sort = (r) => brk(r);
+    await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => re.test(e.message) && /failed its checks twice/.test(e.message), name);
+    assert.deepEqual(snapshot(), before, name);
+  }
+  // a chapter's supporting idea must also be placed once: dropping it from every place fails
+  breakers.sort = (r) => ({ ...r, chapters: r.chapters.map((c) => ({ ...c, ideas: ['I1.1'] })), concepts: r.concepts.map((c) => ({ ...c, ideas: withoutId(c.ideas, 'I1.1') })).filter((c) => c.ideas.length) });
+  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), /idea I1\.1 appears 0 times/);
+});
+
+test('v3 6: quote marks around words that are in no transcript lose their marks in a note, and a quote that is in the transcript keeps them', async () => {
+  const notes = NOTES_2.replace('Say what you sense, and they correct you.', 'Say "I never said any of this out loud" and then "it sounds like there is more to that" to them.');
+  await seedSource(K2, 'Labels With Gail', TRANSCRIPT_2, notes, '2026-02-05T00:00:00Z');
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.equal(rec.unquoted, 1);
+  const note = (await W.getBook('sam')).sources[1].notes[0];
+  assert.equal(note.text, 'Say I never said any of this out loud and then "it sounds like there is more to that" to them.');
+  assert.match(read('Wiki/Sources/Labels With Gail.md'), /Say I never said any of this out loud and then "it sounds like there is more to that" to them\./);
+  assert.doesNotMatch(read('Wiki/Sources/Labels With Gail.md'), /"I never said any of this out loud"/);
+});
+
+test('v3 6b: the raised why and question go through the same quote check', async () => {
+  breakers.sort = (r, attempt) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: attempt === 1 ? 'He says "this is a made up sentence" and that is odd.' : WHY, question: QUESTION }] });
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.deepEqual(rec.calls.filter((c) => c.step === 'sort').map((c) => c.retried), [false, true]);
+  assert.match(asks.filter((a) => a.step === 'sort')[1].prompt, /the "why" of the raised item I2\.1 quotes "this is a made up sentence"/);
+});
+
+test('v3 7: the sort prompt states the three places, and lists the topics he keeps notes on, alphabetical and at most 60', async () => {
+  fs.mkdirSync(path.join(vault, 'Wiki/Topics'), { recursive: true });
+  for (const n of ['Zeta Topic', 'Alpha Topic', 'Mid Topic']) fs.writeFileSync(path.join(vault, `Wiki/Topics/${n}.md`), '# t\n');
+  fs.writeFileSync(path.join(vault, 'Wiki/Topics/notes.txt'), 'not a page');
+  await W.weaveBatch('sam', [K1], { vaultPath: vault });
+  const prompt = asks.find((a) => a.step === 'sort').prompt;
+  assert.match(prompt, /TOPICS HE ALREADY KEEPS NOTES ON\n- Alpha Topic\n- Mid Topic\n- Zeta Topic\n\n/);
+  assert.match(prompt, /exactly ONE of three places/);
+  assert.match(prompt, /most sources add 3 to 8 concepts and 0 to 3 chapters/i);
+  assert.doesNotMatch(prompt, /One idea, one page|one chapter per distinct framework/);
+  // no Topics folder: none; and a faked list longer than 60 is cut
+  fs.rmSync(path.join(vault, 'Wiki/Topics'), { recursive: true });
+  const g = await W.gather({ id: 'sam', name: 'Sam Host' }, [K2], W.emptyBook('sam', 'Sam Host'), vault);
+  assert.deepEqual(g.topics, []);
+  install({ topics: async () => Array.from({ length: 70 }, (_, i) => `Topic ${String(70 - i).padStart(2, '0')}`) });
+  const g2 = await W.gather({ id: 'sam', name: 'Sam Host' }, [K2], W.emptyBook('sam', 'Sam Host'), vault);
+  assert.equal(g2.topics.length, 60);
+  assert.equal(g2.topics[0], 'Topic 01');
+});
+
+test('v3 9: a book written by weave-v2, with no raised and no notes, weaves and renders without error', async () => {
+  await W.weaveBatch('sam', [K1], { vaultPath: vault });
+  const file = path.join(dir, 'mentors', 'books', 'sam.json');
+  const v2 = JSON.parse(fs.readFileSync(file, 'utf8'));
+  delete v2.raised;
+  for (const s of v2.sources) delete s.notes;
+  fs.writeFileSync(file, JSON.stringify(v2, null, 2));
+  assert.deepEqual(await W.listRaised('sam'), []);
+  assert.ok(W.mentorPage(v2, '2026-11-22', null).includes('## Chapters'), 'the mentor page renders');
+  assert.ok(!W.mentorPage(v2, '2026-11-22', null).includes('## For your review'));
+  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY }] });
+  const rec = await W.weaveBatch('sam', [K2], { vaultPath: vault });
+  const book = await W.getBook('sam');
+  assert.equal(book.raised.length, 1);
+  assert.deepEqual(book.sources[0].notes, undefined, 'the older source is left as the v2 book had it');
+  assert.equal(book.sources[1].notes.length, 1);
+  assert.match(read('Wiki/Mentors/Sam Host.md'), /## For your review/);
+  await W.undoWeave(rec.batchId, { vaultPath: vault });
+  assert.deepEqual(await W.getBook('sam'), v2, 'undo puts the v2 book back as it was');
+});
+
+test('v3: setRaisedStatus sets the status, renders the mentor page again, refuses while a weave runs, and an undo still restores the page', async () => {
+  const snap0 = snapshot();
+  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY, question: QUESTION }] });
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  await assert.rejects(W.setRaisedStatus('sam', 'R2.1', 'banana', { vaultPath: vault }), (e) => e.badRequest);
+  await assert.rejects(W.setRaisedStatus('sam', 'R9.9', 'kept', { vaultPath: vault }), (e) => e.notFound);
+  W._setActiveForTests('sam');
+  await assert.rejects(W.setRaisedStatus('sam', 'R2.1', 'kept', { vaultPath: vault }), (e) => e.refused && /weave for this person is running/.test(e.message));
+  W._resetWeaveForTests();
+  await W.setRaisedStatus('sam', 'R2.1', 'kept', { vaultPath: vault });
+  assert.match(read('Wiki/Mentors/Sam Host.md'), /Question: Do people correct a wrong guess faster than a right one\? \[kept\]\n/);
+  assert.equal((await W.getBook('sam')).raised[0].status, 'kept');
+  await W.setRaisedStatus('sam', 'R2.1', 'research', { vaultPath: vault });
+  assert.match(read('Wiki/Mentors/Sam Host.md'), /\[research\]\n/);
+  await W.setRaisedStatus('sam', 'R2.1', 'dismissed', { vaultPath: vault });
+  assert.doesNotMatch(read('Wiki/Mentors/Sam Host.md'), /For your review|Labels name what you sense \(/);
+  assert.equal((await W.listRaised('sam'))[0].status, 'dismissed', 'the list keeps every status');
+  await W.setRaisedStatus('sam', 'R2.1', 'new', { vaultPath: vault });
+  assert.doesNotMatch(read('Wiki/Mentors/Sam Host.md'), /\[kept\]/);
+  const out = await W.undoWeave(rec.batchId, { vaultPath: vault });
+  assert.deepEqual(out.left, []);
+  assert.deepEqual(snapshot(), snap0, 'the undo still puts the vault back after his calls on a raised item');
+});
+
+test('v3: a mentor page he wrote is never replaced by a status change', async () => {
+  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY }] });
+  await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  fs.writeFileSync(path.join(vault, 'Wiki/Mentors/Sam Host.md'), '# Sam Host\n\nHis own page.\n');
+  await assert.rejects(W.setRaisedStatus('sam', 'R2.1', 'kept', { vaultPath: vault }), /was not written by Mentors/);
+  assert.equal((await W.getBook('sam')).raised[0].status, 'new');
+  assert.equal(read('Wiki/Mentors/Sam Host.md'), '# Sam Host\n\nHis own page.\n');
+});
+
+test('v3: byPerson knows the followed person under the loose names the read uses, and no one else', () => {
+  const yes = ['Jefferson Fisher', 'Jefferson', 'Fisher', 'Jefferson (reading the book)', 'Jefferson Fisher (leading), George Stern agrees', 'Vin and Jefferson', 'Crow, Fisher', 'Jefferson Fisher; interviewer', 'Sabrina Zohar, Jefferson Fisher'];
+  const no = ['Guest', 'Adam', 'Martha Beck', 'unclear', 'unclear (female guest)', 'Guest (quoting the book)', 'Jeff Fisherman', '', null];
+  for (const by of yes) assert.equal(W.byPerson(by, 'Jefferson Fisher'), true, String(by));
+  for (const by of no) assert.equal(W.byPerson(by, 'Jefferson Fisher'), false, String(by));
+  assert.equal(W.byPerson('Crow', 'Sheryl Crow'), true);
+  assert.equal(W.byPerson('Madonna', 'Madonna'), true);
 });

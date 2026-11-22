@@ -55,7 +55,10 @@ const weavesDir = () => path.join(mentorsDir(), 'weaves');
 const safeKey = (key) => String(key).replace(/:/g, '_');
 
 export const LANE = 'mentor-weave';
-export const WEAVE_VERSION = 'weave-v2';
+export const WEAVE_VERSION = 'weave-v3';
+export const MAX_RAISED_PER_SOURCE = 3;
+export const MAX_TOPICS = 60;
+export const RAISED_STATUSES = ['new', 'kept', 'dismissed', 'research'];
 export const MAX_KEYS = 10;
 export const CONCEPTS_PER_CALL = 6;
 export const MAX_CARDS = 60;
@@ -83,6 +86,8 @@ const D = () => ({
   ask: (step, prompt, { model }) => runMentorClaude(prompt, model, { lane: LANE, systemPrompt: SYSTEM_PROMPT, what: `the weave (${step})` }),
   search: async (vaultPath, query) => (await searchVault(vaultPath, query, { limit: 40 }))
     .filter((h) => h.id.startsWith('Wiki/Concepts/')).slice(0, CANDIDATES_PER_IDEA),
+  // the topics he already keeps notes on: the file names in Wiki/Topics/, no extension
+  topics: async (vaultPath) => (await readdir(path.join(vaultPath, 'Wiki', 'Topics'))).filter((n) => n.endsWith('.md')).map((n) => n.slice(0, -3)),
   ...(deps || {}),
 });
 
@@ -225,7 +230,7 @@ async function quoteWordLists(g, book) {
 
 export const emptyBook = (personId, name) => ({
   version: 1, personId, name, updatedAt: null, glance: '',
-  sources: [], principles: [], chapters: [], scripts: [], cards: [], fromGuests: [], concepts: [], held: [],
+  sources: [], principles: [], chapters: [], scripts: [], cards: [], fromGuests: [], concepts: [], held: [], raised: [],
 });
 
 export async function getBook(personId) {
@@ -339,7 +344,12 @@ export async function gather(person, keys, book, vaultPath) {
       if (!idea.candidates.includes(c.id)) idea.candidates.push(c.id);
     }
   }
-  return { items, batch, held, times, candidates };
+  // the topics he already keeps notes on; a missing folder, or a vault that
+  // is not there, is simply none
+  let topics = [];
+  if (vaultPath) { try { topics = await d.topics(vaultPath); } catch { topics = []; } }
+  topics = uniq((Array.isArray(topics) ? topics : []).map(one).filter(Boolean)).sort((a, b) => a.localeCompare(b)).slice(0, MAX_TOPICS);
+  return { items, batch, held, times, candidates, topics };
 }
 
 /* ------------------------------- model calls ------------------------------- */
@@ -420,22 +430,46 @@ function citeFailure(ctx, s, t, what) {
 
 /* ---------------------------------- B sort --------------------------------- */
 
+// The followed person among the names an item is by ("Sam Host", or "Sam Host and Gail Rowan").
+const SPLIT_BY = /\s*(?:,|;|&|\/|\band\b)\s*/i;
+// The read names a speaker loosely: the real notes of 22 Nov 2026 held "Jefferson
+// Fisher", "Jefferson", "Fisher", "Jefferson (reading the book)" and "Jefferson
+// Fisher (leading), George Stern agrees". A part counts as the person when,
+// with any bracketed aside dropped, it is his full name, starts with it, or is
+// his first or last name alone.
+export const byPerson = (by, name) => {
+  const full = norm(name);
+  const words = full.split(' ').filter(Boolean);
+  if (!full) return false;
+  return String(by ?? '').replace(/\([^)]*\)/g, ' ').split(SPLIT_BY).some((p) => {
+    const n = norm(p);
+    if (!n) return false;
+    if (n === full || n.startsWith(`${full} `)) return true;
+    return words.length > 1 && (n === words[0] || n === words[words.length - 1]);
+  });
+};
+
 function sortPrompt(ctx) {
-  const { items, candidates } = ctx.g;
+  const { items, candidates, topics } = ctx.g;
   const b = ctx.book;
+  const who = ctx.person.name;
   const lines = [
-    `You are sorting reading notes from ${ctx.g.batch.length} source${ctx.g.batch.length === 1 ? '' : 's'} by or with ${ctx.person.name} into a personal knowledge vault. Return structure only: code writes the pages.`,
+    `You are sorting reading notes from ${ctx.g.batch.length} source${ctx.g.batch.length === 1 ? '' : 's'} by or with ${who} into a personal knowledge vault. Return structure only: code writes the pages.`,
     '',
     'RULES',
-    '- One idea, one page. The same idea in several sources is ONE concept that lists all their ids.',
+    '- Every idea and every framework goes to exactly ONE of three places: a page, a note on its source, or the raised list.',
+    `- A PAGE (a concept for an idea, a chapter for a framework) has to be earned. It is earned only when one of these is true: (a) ${who} is among its "by" and it is part of what ${who} teaches (his subject, as his principles, chapters and tagline in the book below show it); (b) the same idea or method comes from two or more sources; (c) it joins an existing concept or chapter ("existing": true).`,
+    '- Prefer joining an existing concept or chapter over making a new one when it is the same idea, or the same method with a variation. Then set "existing": true and give its title exactly as offered below.',
+    '- A NOTE ("notes") stays on that source\'s page, and on the guest\'s page when a guest said it. It is the default for a guest\'s one-off remark, a personal story, career talk, anything off the subject, and small supporting points. A note gets no page.',
+    '- RAISED ("raise") is for a one-off idea or method that does not earn a page but is noteworthy for the owner of the vault: surprising, a claim worth checking, a named study, book or method worth following up, or something that touches a topic he already keeps notes on (listed below). Give "why": one plain sentence of at least 5 words on why it is worth his look. You may give "question": one research question it sparks. At most 3 raised per source; most sources raise none or one.',
+    '- Scale: most sources add 3 to 8 concepts and 0 to 3 chapters. A source that adds more than 10 new concepts is being sorted too finely.',
     "- A guest's idea is the guest's: never merge a guest's idea into the host's different idea.",
-    '- Prefer an existing concept or chapter when it is the same idea: then set "existing": true and give its title exactly as offered below.',
-    '- A chapter is a method someone could follow. Expect one chapter per distinct framework, fewer when two frameworks are the same method. A chapter may also list ideas that support it.',
+    '- A chapter is a method someone could follow. A chapter may also list ideas that support it; each of those ideas must ALSO be placed in a concept, "notes" or "raise".',
     '- Titles: Title Case, under 60 characters, none of these characters: / \\ : | # [ ]',
-    '- Every idea id below appears in exactly one concept. Every framework id appears in exactly one chapter.',
+    '- Every idea id below appears in exactly one of: a concept\'s "ideas", "notes", "raise". Every framework id appears in exactly one of: a chapter\'s "frameworks", "notes", "raise".',
     '',
     'Reply with only this JSON:',
-    '{ "concepts": [{ "title": "...", "existing": false, "ideas": ["I1.1"] }], "chapters": [{ "title": "...", "existing": false, "frameworks": ["F1.1"], "ideas": ["I1.2"] }] }',
+    '{ "concepts": [{ "title": "...", "existing": false, "ideas": ["I1.1"] }], "chapters": [{ "title": "...", "existing": false, "frameworks": ["F1.1"], "ideas": ["I1.2"] }], "notes": ["I1.3", "F2.1"], "raise": [{ "id": "I4.2", "why": "...", "question": "..." }] }',
     '',
     'EXISTING CONCEPT PAGES THAT MAY BE THE SAME IDEA',
     ...(candidates.length ? candidates.map((c) => `${c.id} | ${c.title} | ${c.head}`) : ['none']),
@@ -449,6 +483,9 @@ function sortPrompt(ctx) {
     'PRINCIPLES IN HIS BOOK',
     ...(b.principles.length ? b.principles.map((p) => `- ${p.name}: ${p.sentence}`) : ['none']),
     '',
+    'TOPICS HE ALREADY KEEPS NOTES ON',
+    ...(topics?.length ? topics.map((t) => `- ${t}`) : ['none']),
+    '',
     'IDEAS',
     ...items.ideas.map((i) => `${i.id} | ${i.name} | by: ${i.by}${i.candidates.length ? ` | maybe the same as: ${i.candidates.join(', ')}` : ''}\n${i.text}`),
     '',
@@ -460,37 +497,89 @@ function sortPrompt(ctx) {
 
 export function checkSort(reply, ctx) {
   const f = [];
-  const ideaIds = new Set(ctx.g.items.ideas.map((i) => i.id));
-  const fwIds = new Set(ctx.g.items.frameworks.map((x) => x.id));
+  const who = ctx.person.name;
+  const ideaById = new Map(ctx.g.items.ideas.map((i) => [i.id, i]));
+  const fwById = new Map(ctx.g.items.frameworks.map((x) => [x.id, x]));
+  const ideaIds = new Set(ideaById.keys());
+  const fwIds = new Set(fwById.keys());
   if (!Array.isArray(reply.concepts)) f.push('"concepts" is not a list');
   if (!Array.isArray(reply.chapters)) f.push('"chapters" is not a list');
+  if (reply.notes != null && !Array.isArray(reply.notes)) f.push('"notes" is not a list');
+  if (reply.raise != null && !Array.isArray(reply.raise)) f.push('"raise" is not a list');
   if (f.length) return f;
+  const notes = reply.notes || [];
+  const raise = reply.raise || [];
+  // the pages the batch may join: offered above, or already in his book
+  const offered = new Set([
+    ...ctx.g.candidates.map((c) => norm(c.title)),
+    ...ctx.book.concepts.flatMap((c) => [norm(c.title), norm(linkOf(c.page))]),
+  ]);
+  const bookChapters = new Set(ctx.book.chapters.map((c) => norm(c.title)));
+  // a page is earned by his own subject (the followed person is among the by), or by two or more sources
+  const earnedBy = (list) => list.some((x) => byPerson(x.by, who)) || new Set(list.map((x) => x.s)).size >= 2;
   const seenIdea = new Map();
+  const seenFw = new Map();
+  const place = (id) => {
+    if (ideaIds.has(id)) seenIdea.set(id, (seenIdea.get(id) || 0) + 1);
+    else if (fwIds.has(id)) seenFw.set(id, (seenFw.get(id) || 0) + 1);
+  };
   for (const c of reply.concepts) {
     f.push(...titleFailures(c?.title, 'a concept'));
+    const mine = [];
     for (const id of Array.isArray(c?.ideas) ? c.ideas : []) {
       if (!ideaIds.has(id)) f.push(`concept "${one(c.title)}" lists ${id}, which is not an idea id shown`);
+      else mine.push(ideaById.get(id));
       seenIdea.set(id, (seenIdea.get(id) || 0) + 1);
     }
     if (!Array.isArray(c?.ideas) || !c.ideas.length) f.push(`concept "${one(c?.title)}" lists no ideas`);
+    const joins = c?.existing === true && offered.has(norm(c.title));
+    if (mine.length && !joins && !earnedBy(mine)) {
+      f.push(`concept "${one(c.title)}" is a guest's one-off idea: put its ideas in "notes", or in "raise" if it is noteworthy${c.existing === true ? ' (it says "existing", but no page with that title was offered)' : ''}`);
+    }
   }
-  for (const id of ideaIds) {
-    const n = seenIdea.get(id) || 0;
-    if (n !== 1) f.push(`idea ${id} appears ${n} times across the concepts; it must appear exactly once`);
-  }
-  const seenFw = new Map();
   for (const c of reply.chapters) {
     f.push(...titleFailures(c?.title, 'a chapter'));
+    const fws = [];
     for (const id of Array.isArray(c?.frameworks) ? c.frameworks : []) {
       if (!fwIds.has(id)) f.push(`chapter "${one(c.title)}" lists ${id}, which is not a framework id shown`);
+      else fws.push(fwById.get(id));
       seenFw.set(id, (seenFw.get(id) || 0) + 1);
     }
-    for (const id of Array.isArray(c?.ideas) ? c.ideas : []) if (!ideaIds.has(id)) f.push(`chapter "${one(c.title)}" lists ${id}, which is not an idea id shown`);
+    const supporting = [];
+    for (const id of Array.isArray(c?.ideas) ? c.ideas : []) {
+      if (!ideaIds.has(id)) f.push(`chapter "${one(c.title)}" lists ${id}, which is not an idea id shown`);
+      else supporting.push(ideaById.get(id));
+    }
     if ((!Array.isArray(c?.frameworks) || !c.frameworks.length) && (!Array.isArray(c?.ideas) || !c.ideas.length)) f.push(`chapter "${one(c?.title)}" lists no frameworks and no ideas`);
+    // judged on its frameworks, or on its ideas when it has no frameworks
+    const judged = fws.length ? fws : supporting;
+    if (judged.length && !bookChapters.has(norm(c.title)) && !earnedBy(judged)) {
+      f.push(`chapter "${one(c.title)}" is a guest's one-off method: put its frameworks in "notes", or in "raise" if it is noteworthy`);
+    }
+  }
+  for (const id of notes) {
+    if (!ideaIds.has(id) && !fwIds.has(id)) f.push(`"notes" lists ${id}, which is not an idea or framework id shown`);
+    place(id);
+  }
+  const raisedPer = new Map();
+  for (const r of raise) {
+    const id = r?.id;
+    if (typeof id !== 'string' || !id) { f.push('a "raise" entry has no id'); continue; }
+    if (!ideaIds.has(id) && !fwIds.has(id)) f.push(`"raise" lists ${id}, which is not an idea or framework id shown`);
+    else raisedPer.set((ideaById.get(id) || fwById.get(id)).s, (raisedPer.get((ideaById.get(id) || fwById.get(id)).s) || 0) + 1);
+    place(id);
+    if (one(r.why).split(' ').filter(Boolean).length < 5) f.push(`the raised item ${id} needs a "why" of at least 5 words: one plain sentence on why it is worth his look`);
+    if (r.question != null && typeof r.question !== 'string') f.push(`the "question" of the raised item ${id} is not a string`);
+    f.push(...quoteFailures(ctx, r.why, `the "why" of the raised item ${id}`), ...quoteFailures(ctx, typeof r.question === 'string' ? r.question : '', `the "question" of the raised item ${id}`));
+  }
+  for (const [s, n] of raisedPer) if (n > MAX_RAISED_PER_SOURCE) f.push(`source S${s} has ${n} raised items; the most is ${MAX_RAISED_PER_SOURCE}: move the rest to "notes"`);
+  for (const id of ideaIds) {
+    const n = seenIdea.get(id) || 0;
+    if (n !== 1) f.push(`idea ${id} appears ${n} times across the concepts, notes and raise; it must appear exactly once`);
   }
   for (const id of fwIds) {
     const n = seenFw.get(id) || 0;
-    if (n !== 1) f.push(`framework ${id} appears ${n} times across the chapters; it must appear exactly once`);
+    if (n !== 1) f.push(`framework ${id} appears ${n} times across the chapters, notes and raise; it must appear exactly once`);
   }
   return f;
 }
@@ -862,15 +951,50 @@ function entityBlock(book, name, isPerson) {
   if (chapters.length) lines.push('Chapters:', ...chapters.map((c) => `- ${wikiLink(c.playbook)}`));
   if (concepts.length) lines.push('Concepts:', ...concepts.map((c) => `- [[${linkOf(c.page)}]]`));
   if (sources.length) lines.push('Sources:', ...sources.map((s) => `- ${s.publishedAt ? s.publishedAt.slice(0, 10) : 'date not stated'}: [[${linkOf(s.page)}]]`));
+  if (!isPerson) {
+    // what this guest said that has no page of its own: notes, then raised items
+    const said = [];
+    for (const s of book.sources) for (const n of s.notes || []) if (byPerson(n.by, name)) said.push({ s, n });
+    for (const r of book.raised || []) {
+      const s = book.sources.find((x) => x.n === r.s);
+      if (s && byPerson(r.by, name)) said.push({ s, n: r });
+    }
+    if (said.length) lines.push('Also said:', ...said.map(({ s, n }) => `- [[${linkOf(s.page)}]]${one(n.t) ? ` ${one(n.t)}` : ''}: ${one(n.name)}`));
+  }
   return lines.join('\n');
 }
 
 const mentorRel = (name) => `Wiki/Mentors/${fileTitle(name)}.md`;
 
+// "- Name (By, 12:34): text", an empty part left out cleanly
+function noteLine(n) {
+  const by = one(n.by) && one(n.by) !== 'unclear' ? one(n.by) : '';
+  const paren = [by, one(n.t)].filter(Boolean).join(', ');
+  return `- ${one(n.name)}${paren ? ` (${paren})` : ''}${one(n.text) ? `: ${one(n.text)}` : ''}`;
+}
+
+// what is waiting for his look: new, kept or sent to research, newest first
+const SHOWN_ON_PAGE = ['new', 'kept', 'research'];
+const newestFirstBy = (list) => [...list].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+function reviewLines(book) {
+  const items = newestFirstBy((book.raised || []).filter((r) => SHOWN_ON_PAGE.includes(r.status || 'new')));
+  if (!items.length) return [];
+  return ['## For your review', ...items.map((r) => {
+    const by = one(r.by) && one(r.by) !== 'unclear' ? one(r.by) : '';
+    const cite = r.s ? `S${r.s}${one(r.t) ? ` ${one(r.t)}` : ''}` : one(r.t);
+    const paren = [by, cite].filter(Boolean).join('; ');
+    return `- ${one(r.name)}${paren ? ` (${paren})` : ''}${one(r.text) ? `: ${one(r.text)}` : ''}${one(r.why) ? ` Why: ${one(r.why)}` : ''}${one(r.question) ? ` Question: ${one(r.question)}` : ''}${r.status === 'kept' || r.status === 'research' ? ` [${r.status}]` : ''}`;
+  }), ''];
+}
+
 function sourcePageBody(book, s, links) {
   const lines = [s.summary || 'No summary in the reading notes.', ''];
   if (links.ideas.length) lines.push('## Ideas', ...links.ideas.map((x) => `- [[${x.page}]]: ${x.name}${x.t ? ` (${x.t})` : ''}`), '');
   if (links.methods.length) lines.push('## Methods', ...links.methods.map((x) => `- ${x.page}: ${x.name}${x.t ? ` (${x.t})` : ''}`), '');
+  const notes = s.notes || [];
+  if (notes.length) lines.push('## Also said', ...notes.map((n) => noteLine(n)), '');
+  const raised = (book.raised || []).filter((r) => r.s === s.n);
+  if (raised.length) lines.push('## Raised for your review', ...raised.map((r) => `${noteLine(r)}${one(r.why) ? ` Why: ${one(r.why)}` : ''}`), '');
   lines.push('## Linked pages', ...uniq([
     ...s.people.filter((p) => canLink(book, p)).map((p) => `[[${p}]]`), wikiLink(mentorRel(book.name)),
     ...links.ideas.map((x) => `[[${x.page}]]`), ...links.methods.map((x) => x.page),
@@ -894,7 +1018,7 @@ export function mentorPage(book, today, created) {
     ['---', 'type: mentor', `person: ${ys(`[[${book.name}]]`)}`, `sources_read: ${total}`, `created: ${created || today}`, `updated: ${today}`, 'woven_by: mentors', '---'].join('\n'),
     `# ${book.name}`, '', '## At a glance', book.glance || 'Not written yet.', '', '### Core principles',
     ...book.principles.map((p) => `- **${one(p.name)}.** ${one(p.sentence)} (in ${p.sources.length} of ${total}${p.at?.s ? `; S${p.at.s} ${p.at.t}` : ''})`),
-    '', '## Chapters',
+    '', ...reviewLines(book), '## Chapters',
   ];
   for (const c of book.chapters) {
     out.push(`### ${c.title}`, `Playbook: [[${c.playbook.replace(/^Wiki\//, '').replace(/\.md$/, '')}]]`, `Summary: ${one(c.summary)}`, 'Takeaways:', ...c.takeaways.map((t) => `- ${one(t)}`));
@@ -971,6 +1095,20 @@ async function runWeave(person, keys, vaultPath) {
 
   /* B */
   const sorted = await askChecked(ctx, 'sort', sortPrompt(ctx), (r) => checkSort(r, ctx));
+  // Ideas and frameworks sorted to a note or to the raised list take no more
+  // model calls: their text is the read notes' own. That text is model-written,
+  // so a quote mark in it must hold transcript words or lose its marks.
+  const ideaItem = new Map(g.items.ideas.map((i) => [i.id, i]));
+  const fwItem = new Map(g.items.frameworks.map((x) => [x.id, x]));
+  const plainItem = (id) => {
+    const i = ideaItem.get(id);
+    if (i) return { kind: 'idea', name: i.name, text: i.text, by: i.by, s: i.s, t: i.t };
+    const x = fwItem.get(id);
+    return { kind: 'framework', name: x.name, text: x.useWhen || '', by: x.by, s: x.s, t: x.t };
+  };
+  const noteItems = (sorted.notes || []).map(plainItem);
+  const raisedItems = (sorted.raise || []).map((r) => ({ ...plainItem(r.id), why: one(r.why), question: one(r.question) }));
+  ctx.unquoted = (ctx.unquoted || 0) + unquoteUnverified(ctx, [noteItems, raisedItems]);
   const offeredConcepts = new Map();
   for (const c of g.candidates) offeredConcepts.set(norm(c.title), { rel: c.rel, title: c.title });
   for (const c of book.concepts) offeredConcepts.set(norm(c.title), { rel: c.page, title: linkOf(c.page) });
@@ -1052,6 +1190,8 @@ async function runWeave(person, keys, vaultPath) {
 
   /* ---- everything has passed: build the new book and the plan of files ---- */
 
+  const batchId = `${person.id}-${new Date(t0).toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)}-${randomBytes(2).toString('hex')}`;
+
   // sources
   for (const x of g.batch) {
     const s = x.src;
@@ -1076,8 +1216,22 @@ async function runWeave(person, keys, vaultPath) {
     entry.raw = rawHave || `Raw/${base} (Transcript).md`;
     entry.rawNew = !rawHave;
     entry.summary = one(x.parsed.summary);
+    entry.notes = noteItems.filter((n) => n.s === x.n).map(({ kind, name, text, by, t }) => ({ kind, name, text, by, t }));
   }
   book.sources.sort((a, b) => a.n - b.n);
+  // raised for his review: a stable id per item, unique in the book
+  book.raised ||= [];
+  const usedRids = new Set(book.raised.map((r) => r.rid));
+  const raisedAt = new Date(t0).toISOString();
+  const raisedSeq = new Map();
+  for (const r of raisedItems) {
+    let k = raisedSeq.get(r.s) || 0;
+    let rid;
+    do { k += 1; rid = `R${r.s}.${k}`; } while (usedRids.has(rid));
+    raisedSeq.set(r.s, k);
+    usedRids.add(rid);
+    book.raised.push({ rid, kind: r.kind, name: r.name, text: r.text, by: r.by, s: r.s, t: r.t, why: r.why, question: r.question, status: 'new', at: raisedAt, batchId });
+  }
 
   // concepts into the book
   for (const c of concepts) {
@@ -1284,7 +1438,7 @@ async function runWeave(person, keys, vaultPath) {
     `## [${today}] ingest | Mentors weave: ${book.name} (${g.batch.length} source${g.batch.length === 1 ? '' : 's'})`,
     `- Created: ${createdRels.map(wl).join(', ') || 'none'}`,
     `- Updated: ${editedRels.map(wl).join(', ') || 'none'}`,
-    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
+    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
   ].join('\n');
   let logLead = '\n';
   await planFile('Wiki/log.md', async (before) => {
@@ -1294,7 +1448,6 @@ async function runWeave(person, keys, vaultPath) {
   });
 
   /* the writes, recorded; a failure part way puts back what was written */
-  const batchId = `${person.id}-${new Date(t0).toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)}-${randomBytes(2).toString('hex')}`;
   const dirsCreated = [];
   for (const p of plan) {
     for (let dir = path.dirname(path.join(vaultPath, p.rel)); !existsSync(dir); dir = path.dirname(dir)) {
@@ -1314,6 +1467,7 @@ async function runWeave(person, keys, vaultPath) {
     counts: {
       sources: g.batch.length, concepts: conceptsCreated.length, conceptsEdited: conceptsEdited.length,
       chapters: chapters.length, scripts: scriptsAdded.length, cards: newCards.length, held: g.held.length,
+      notes: noteItems.length, raised: raisedItems.length,
     },
     indexLines, indexSections, logEntry: entry, logLead,
     undoneAt: null,
@@ -1517,7 +1671,7 @@ export async function listWeaves(personId) {
   const top = all.find((r) => !r.undoneAt);
   return all.map((r) => ({
     batchId: r.batchId, at: r.at, version: r.version, model: r.model, costUsd: r.costUsd, ms: r.ms,
-    keys: r.keys, counts: r.counts, calls: (r.calls || []).length, undoneAt: r.undoneAt || null, pending: !!r.pending,
+    keys: r.keys, counts: { notes: 0, raised: 0, ...r.counts }, calls: (r.calls || []).length, undoneAt: r.undoneAt || null, pending: !!r.pending,
     undoable: !r.undoneAt && top?.batchId === r.batchId,
   }));
 }
@@ -1527,9 +1681,9 @@ export async function weekSummary(personId, { days = 7 } = {}) {
   const now = D().now();
   const fromMs = now - days * 86_400_000;
   const list = (await listWeaves(personId)).filter((w) => !w.undoneAt && Date.parse(w.at) >= fromMs);
-  const totals = { batches: list.length, sources: 0, concepts: 0, conceptsEdited: 0, chapters: 0, scripts: 0, cards: 0, held: 0, costUsd: 0 };
+  const totals = { batches: list.length, sources: 0, concepts: 0, conceptsEdited: 0, chapters: 0, scripts: 0, cards: 0, held: 0, notes: 0, raised: 0, costUsd: 0 };
   for (const w of list) {
-    for (const k of ['sources', 'concepts', 'conceptsEdited', 'chapters', 'scripts', 'cards', 'held']) totals[k] += w.counts?.[k] || 0;
+    for (const k of ['sources', 'concepts', 'conceptsEdited', 'chapters', 'scripts', 'cards', 'held', 'notes', 'raised']) totals[k] += w.counts?.[k] || 0;
     totals.costUsd += w.costUsd || 0;
   }
   totals.costUsd = Math.round(totals.costUsd * 10000) / 10000;
@@ -1542,3 +1696,52 @@ export async function weekSummary(personId, { days = 7 } = {}) {
 
 export const weaving = () => active;
 export function _resetWeaveForTests() { active = null; }
+export function _setActiveForTests(personId) { active = personId; }
+
+/* ------------------------------ raised items ------------------------------- */
+
+/** Everything raised for his review, every status, newest first. [] with no book. */
+export async function listRaised(personId) {
+  const book = await getBook(personId);
+  return newestFirstBy(book?.raised || []);
+}
+
+/**
+ * His call on one raised item: new, kept, dismissed or research. Sets it in
+ * the Book file and renders the mentor page again, through the weave's own
+ * write guard, and only a page code wrote. Refused while a weave for this
+ * person runs. The newest standing weave record learns the page's new hash, so
+ * an undo still puts the page back.
+ */
+export async function setRaisedStatus(personId, rid, status, { vaultPath } = {}) {
+  const fail = (message, flag) => { const e = new Error(message); e[flag] = true; return e; };
+  if (!RAISED_STATUSES.includes(status)) throw fail(`the status must be one of ${RAISED_STATUSES.join(', ')}`, 'badRequest');
+  if (!vaultPath) throw new Error('setting a raised item needs the vault path (VAULT_PATH), and none was given');
+  if (active === personId) throw fail('a weave for this person is running now; set it once that has finished', 'refused');
+  const book = await getBook(personId);
+  const item = (book?.raised || []).find((r) => r.rid === rid);
+  if (!item) throw fail(`there is no raised item "${rid}" for ${personId}`, 'notFound');
+  item.status = status;
+  const bookRel = mentorRel(book.name);
+  if (!vaultWriteAllowed(vaultPath, bookRel)) throw refusal(bookRel);
+  const full = path.join(vaultPath, bookRel);
+  const before = await readOr(full);
+  let text = null;
+  if (before != null) {
+    if (!isOurs(before)) throw new Error(`${bookRel} was not written by Mentors, so the weave will not replace it; nothing was changed`);
+    text = mentorPage(book, localDateISO(new Date(D().now())), fmField(before, 'created'));
+    if (text !== before) { await backupFile(full); await writeFile(full, text, 'utf8'); }
+  }
+  try {
+    await writeAtomic(bookPath(personId), JSON.stringify(book, null, 2));
+  } catch (e) {
+    if (text != null && text !== before) await writeFile(full, before, 'utf8').catch(() => {});
+    throw e;
+  }
+  if (text != null && text !== before) {
+    const top = (await readRecords()).find((r) => r.personId === personId && !r.undoneAt);
+    const f = top?.files?.find((x) => x.relPath === bookRel);
+    if (f) { f.afterHash = sha(text); await writeAtomic(path.join(weavesDir(), `${top.batchId}.json`), JSON.stringify(top, null, 2)); }
+  }
+  return item;
+}

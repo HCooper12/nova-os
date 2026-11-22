@@ -10,7 +10,7 @@ import { readClaudeUsage } from '../lib/claudeUsage.js';
 import {
   queueStatus, pauseQueue, allowReading, setCeilings, retrySource, retryWeave,
 } from '../lib/mentorQueue.js';
-import { getBook, listWeaves, undoWeave, weekSummary } from '../lib/mentorWeave.js';
+import { getBook, listWeaves, undoWeave, weekSummary, listRaised, setRaisedStatus, RAISED_STATUSES } from '../lib/mentorWeave.js';
 
 // MENTORS: the people Nova studies (lib/mentorPeople.js), the register of
 // everything he has read from them (lib/mentorRegister.js), and finding a new
@@ -35,6 +35,8 @@ import { getBook, listWeaves, undoWeave, weekSummary } from '../lib/mentorWeave.
 //   GET  /mentors/:id/weaves     every weave batch of his, newest first
 //   POST /mentors/weave/undo     {batchId}             one batch taken back out
 //   GET  /mentors/:id/week       what was woven in the last 7 days, counted
+//   GET  /mentors/:id/raised     what was raised for his review, every status, newest first
+//   POST /mentors/:id/raised/:rid {status}             new, kept, dismissed or research
 //
 // A failure of YouTube, Apple, Open Library or a tool is a 502 that says which
 // and what it answered (lib/mentorDiscover.js marks those); anything else of
@@ -224,6 +226,28 @@ export function mentorsRouter(vaultPath) {
       if (!(await known(req, res))) return;
       res.json(await weekSummary(req.params.id));
     } catch (err) { fail(res, err); }
+  });
+
+  router.get('/mentors/:id/raised', async (req, res) => {
+    try {
+      if (!(await known(req, res))) return;
+      res.json({ raised: await listRaised(req.params.id) });
+    } catch (err) { fail(res, err); }
+  });
+
+  router.post('/mentors/:id/raised/:rid', async (req, res) => {
+    try {
+      if (!(await known(req, res))) return;
+      const status = typeof req.body?.status === 'string' ? req.body.status : '';
+      if (!RAISED_STATUSES.includes(status)) return res.status(400).json({ error: `send status as one of ${RAISED_STATUSES.join(', ')}` });
+      if (!vaultPath) return res.status(500).json({ error: 'the vault path is not set on this server (VAULT_PATH), so there is no mentor page to update' });
+      res.json({ raised: await setRaisedStatus(req.params.id, req.params.rid, status, { vaultPath }) });
+    } catch (err) {
+      if (err?.badRequest) return res.status(400).json({ error: err.message });
+      if (err?.notFound) return res.status(404).json({ error: err.message });
+      if (err?.refused) return res.status(409).json({ error: err.message });
+      fail(res, err);
+    }
   });
 
   router.post('/mentors/weave/undo', async (req, res) => {

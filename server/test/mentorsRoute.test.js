@@ -266,3 +266,53 @@ test('the book, the weaves, the week, and undo by batch (part 3)', async () => {
   assert.equal((await get('/mentors/w/book')).body.book, null, 'the book went back to what it was before the batch');
   assert.equal((await post('/mentors/weave/undo', { batchId: 'w-1' })).status, 200);
 });
+
+test('the raised items: GET lists every status newest first, POST sets his call and the mentor page follows, with 400, 404 and 409', async () => {
+  const W = await import('../lib/mentorWeave.js');
+  await P.savePerson({ id: 'w', name: 'W Person', status: 'following' });
+  const get = async (p) => { const r = await fetch(`${base}/api${p}`); return { status: r.status, body: await r.json() }; };
+  const post = async (p, body) => { const r = await fetch(`${base}/api${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json() }; };
+  assert.deepEqual((await get('/mentors/w/raised')).body, { raised: [] }, 'no book, no raised items');
+  assert.equal((await get('/mentors/nobody/raised')).status, 404);
+  assert.equal((await post('/mentors/nobody/raised/R1.1', { status: 'kept' })).status, 404);
+
+  const item = (rid, at, name) => ({ rid, kind: 'idea', name, text: `${name} text.`, by: 'A Guest', s: 1, t: '12:34', why: 'It is worth a look because it is odd.', question: '', status: 'new', at, batchId: 'w-1' });
+  const book = { ...W.emptyBook('w', 'W Person'), raised: [item('R1.1', '2026-11-20T00:00:00.000Z', 'Older Idea'), item('R1.2', '2026-11-22T00:00:00.000Z', 'Newer Idea')] };
+  fs.mkdirSync(path.join(dir, 'mentors', 'books'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'mentors', 'books', 'w.json'), JSON.stringify(book));
+  const pageRel = path.join(vault, 'Wiki', 'Mentors', 'W Person.md');
+  fs.mkdirSync(path.dirname(pageRel), { recursive: true });
+  fs.writeFileSync(pageRel, W.mentorPage(book, '2026-11-22', null));
+  assert.match(fs.readFileSync(pageRel, 'utf8'), /## For your review\n- Newer Idea \(A Guest; S1 12:34\): Newer Idea text\. Why: .*\n- Older Idea/);
+
+  assert.deepEqual((await get('/mentors/w/raised')).body.raised.map((r) => r.rid), ['R1.2', 'R1.1']);
+
+  const kept = await post('/mentors/w/raised/R1.1', { status: 'kept' });
+  assert.equal(kept.status, 200);
+  assert.equal(kept.body.raised.status, 'kept');
+  assert.match(fs.readFileSync(pageRel, 'utf8'), /- Older Idea \(A Guest; S1 12:34\): Older Idea text\. Why: It is worth a look because it is odd\. \[kept\]\n/);
+  assert.equal((await get('/mentors/w/book')).body.book.raised.find((r) => r.rid === 'R1.1').status, 'kept');
+
+  const dismissed = await post('/mentors/w/raised/R1.1', { status: 'dismissed' });
+  assert.equal(dismissed.status, 200);
+  const page = fs.readFileSync(pageRel, 'utf8');
+  assert.ok(!page.includes('Older Idea'), 'a dismissed item leaves the mentor page');
+  assert.ok(page.includes('Newer Idea'));
+  assert.equal((await get('/mentors/w/raised')).body.raised.find((r) => r.rid === 'R1.1').status, 'dismissed', 'but the list keeps it');
+  assert.equal((await post('/mentors/w/raised/R1.1', { status: 'research' })).status, 200);
+  assert.match(fs.readFileSync(pageRel, 'utf8'), /Older Idea.*\[research\]/);
+
+  assert.equal((await post('/mentors/w/raised/R1.1', { status: 'banana' })).status, 400);
+  assert.equal((await post('/mentors/w/raised/R1.1', {})).status, 400);
+  const missing = await post('/mentors/w/raised/R9.9', { status: 'kept' });
+  assert.equal(missing.status, 404);
+  assert.match(missing.body.error, /no raised item "R9\.9"/);
+
+  W._setActiveForTests('w');
+  try {
+    const busy = await post('/mentors/w/raised/R1.1', { status: 'kept' });
+    assert.equal(busy.status, 409);
+    assert.match(busy.body.error, /a weave for this person is running/);
+  } finally { W._resetWeaveForTests(); }
+  assert.equal((await get('/mentors/w/raised')).body.raised.find((r) => r.rid === 'R1.1').status, 'research', 'the refused call changed nothing');
+});
