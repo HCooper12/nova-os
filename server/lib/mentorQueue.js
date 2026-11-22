@@ -10,7 +10,7 @@ import { listPeople, getPerson, savePerson } from './mentorPeople.js';
 import { getTranscript, transcriptPathFor } from './mentorTranscripts.js';
 import { signature, saveSignature, loadSignature, findRepeats, containment, REPEAT_SHARE } from './mentorRepeats.js';
 import { readSource, READ_VERSION } from './mentorRead.js';
-import { weaveBatch, MAX_KEYS as WEAVE_MAX } from './mentorWeave.js';
+import { weaveBatch, recoverPendingWeaves, MAX_KEYS as WEAVE_MAX } from './mentorWeave.js';
 import { readClaudeUsage } from './claudeUsage.js';
 import { registerJobMap } from './jobRegistry.js';
 
@@ -612,6 +612,15 @@ export async function queueStatus() {
 let timer = null;
 let running = false;
 
+async function recoverHalfWeaves(vaultPath) {
+  if (!vaultPath) { console.log('mentor queue: no vault path at start-up, so no half-finished weave was looked for'); return; }
+  try {
+    for (const r of await recoverPendingWeaves({ vaultPath })) {
+      console.log(`mentor queue: the weave ${r.batchId} was cut off; ${r.restored.length} file${r.restored.length === 1 ? '' : 's'} put back${r.left.length ? `, ${r.left.length} left as they are (${r.left.map((l) => `${l.relPath}: ${l.why}`).join('; ')})` : ''}`);
+    }
+  } catch (e) { console.error('mentor queue: looking for half-finished weaves failed:', e.message); }
+}
+
 export function startMentorQueue(vaultPath) {
   vaultPathNow = vaultPath || null;
   // one pass at a time: the two minute beat and a kick must never both see an
@@ -629,7 +638,11 @@ export function startMentorQueue(vaultPath) {
   // the beat would leave this Mac idle up to two minutes after every one of
   // several hundred videos.
   kick = () => { const t = setTimeout(run, 1000); t.unref?.(); };
-  resetWorking()
+  // a weave cut off by a crash left its vault changes with a pending record:
+  // put those back before anything new starts
+  const recovered = recoverHalfWeaves(vaultPath);
+  recovered
+    .then(() => resetWorking())
     .then((n) => { if (n) console.log(`mentor queue: ${n} source${n === 1 ? '' : 's'} cut off by the restart will start again`); })
     .catch((e) => console.error('mentor queue: resetWorking failed:', e.message))
     .finally(() => {

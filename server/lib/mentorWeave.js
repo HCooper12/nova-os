@@ -11,7 +11,7 @@ import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { parsePlaybook, formatPlaybook, findPlaybookFor, mergePlaybook, writePlaybookPage, dropPlaybookCache, PLAYBOOKS_DIR } from './playbooks.js';
 import { searchVault, _resetRecallCache } from './recall.js';
 import { findExistingVideoPages } from './ingest.js';
-import { transcriptWords, findInTranscript, timeToSeconds } from './reviewQuote.js';
+import { transcriptWords, findInTranscript, timeToSeconds, normWords } from './reviewQuote.js';
 import { localDateISO } from './localDate.js';
 import { backupFile } from './backup.js';
 import { fileTitle } from './practice.js';
@@ -128,6 +128,76 @@ async function writeAtomic(file, text) {
 }
 const readOr = async (file, fallback = null) => { try { return await readFile(file, 'utf8'); } catch { return fallback; } };
 
+/**
+ * The only places the weave may write: a file inside vault/Wiki/ or vault/Raw/,
+ * and never a CLAUDE.md. `rel` is resolved against the VAULT root, so
+ * "Wiki/Concepts/A.md" is judged where it really lands, and "../x.md" or an
+ * absolute path elsewhere is refused.
+ */
+export function vaultWriteAllowed(vaultPath, rel) {
+  const root = path.resolve(vaultPath);
+  const full = path.resolve(root, String(rel ?? ''));
+  if (path.basename(full).toLowerCase() === 'claude.md') return false;
+  return [path.join(root, 'Wiki'), path.join(root, 'Raw')].some((dir) => full.startsWith(dir + path.sep));
+}
+const refusal = (rel) => new Error(`the weave refused to write ${rel}: it writes only under Wiki/ and Raw/, and never CLAUDE.md`);
+
+// Only a real person's name gets an Entity page and a [[link]]: two or more
+// words, each starting with a letter and made of letters, apostrophes, full
+// stops and hyphens, and none of them a role word the notes use when the
+// speaker's name is not known ("Speaker 2", "Guest", "unclear").
+const NOT_A_NAME = new Set(['unknown', 'unclear', 'speaker', 'guest', 'host', 'cohost', 'co-host', 'caller', 'audience', 'narrator', 'interviewer']);
+export function looksLikeAName(name) {
+  const words = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  return words.every((w) => /^\p{L}[\p{L}'\u2019.-]*$/u.test(w) && !NOT_A_NAME.has(w.toLowerCase().replace(/\.+$/, '')));
+}
+
+// A first sentence cut to 200 characters at the last whole word that fits, with
+// no comma, semicolon or colon left hanging at the end.
+function cutAtWord(text, max = 200) {
+  const t = String(text || '');
+  if (t.length <= max) return t;
+  let cut = t.slice(0, max);
+  if (!/\s/.test(t[max])) { const i = cut.search(/\s\S*$/); if (i > 0) cut = cut.slice(0, i); }
+  return cut.replace(/[\s,;:]+$/, '');
+}
+
+// The first lines of a Raw transcript page say how the words were made. The
+// first three words stay as they are: lineHarvest.js recognises the page by them.
+function rawLead(source, today) {
+  const how = String(source?.transcript?.source || '');
+  if (how === 'podcast-audio' || how === 'youtube-audio') return `Verbatim video transcript made by Nova on this Mac from the episode's audio, received ${today}.`;
+  if (/caption|subtitle/i.test(how)) return `Verbatim video transcript from the video's captions, received ${today}.`;
+  return `Verbatim video transcript, received ${today}.`;
+}
+
+// Words in double quotes in model-written text must be his, word for word.
+// Code puts his words in by id; a quote mark in the model's own text is a
+// claim about what was said, so any quoted span of 3 or more words has to be
+// found in a transcript of this batch or the book.
+const QUOTED_RE = /"([^"]+)"|\u201c([^\u201d]+)\u201d/g;
+function quoteFailures(ctx, text, what) {
+  const out = [];
+  for (const m of String(text ?? '').matchAll(QUOTED_RE)) {
+    const span = m[1] ?? m[2];
+    if (normWords(span).length < 3) continue;
+    if ((ctx.quoteWords || []).some((w) => findInTranscript(span, w, { minWords: 3 }))) continue;
+    out.push(`${what} quotes "${one(span).slice(0, 60)}", which is not word for word in a transcript; say it in your own words without quote marks`);
+  }
+  return out;
+}
+async function quoteWordLists(g, book) {
+  const lists = g.batch.map((x) => x.words).filter((w) => w?.length);
+  const inBatch = new Set(g.batch.map((x) => x.key));
+  for (const s of book.sources) {
+    if (inBatch.has(s.key)) continue;
+    const t = await readOr(transcriptPathFor(s.key), '');
+    if (t) lists.push(transcriptWords(t));
+  }
+  return lists;
+}
+
 /* ---------------------------------- book ----------------------------------- */
 
 export const emptyBook = (personId, name) => ({
@@ -169,10 +239,15 @@ async function loadNotes(key) {
   return { json, md: await readOr(`${base}.md`, '') };
 }
 
+// Who speaks: the notes' hosts and guests whose names look like a person's
+// (the followed person's own name always does). A source left with nobody gets
+// the followed person.
 const speakersOf = (parsed, fallback) => {
-  const s = (parsed.people || []).filter((p) => /\b(host|guest|co-?host|speaker|interview)/i.test(p.role || '')).map((p) => one(p.name)).filter(Boolean);
+  const s = (parsed.people || []).filter((p) => /\b(host|guest|co-?host|speaker|interview)/i.test(p.role || '')).map((p) => one(p.name)).filter((n) => n && (looksLikeAName(n) || norm(n) === norm(fallback)));
   return s.length ? uniq(s) : [fallback];
 };
+// a name earns a [[link]] when it looks like a person's, or is the followed person
+const canLink = (book, name) => looksLikeAName(name) || norm(name) === norm(book.name);
 
 /** Step A: the batch's items with ids, the held words, the times per source. */
 export async function gather(person, keys, book, vaultPath) {
@@ -198,7 +273,7 @@ export async function gather(person, keys, book, vaultPath) {
     (parsed.ideas || []).forEach((it, i) => items.ideas.push({ id: `I${n}.${i + 1}`, s: n, name: one(it.name), text: one(it.text), by: by(it.by), t: fmtT(secOf(it.at)) }));
     (parsed.frameworks || []).forEach((it, i) => items.frameworks.push({ id: `F${n}.${i + 1}`, s: n, name: one(it.name), useWhen: one(it.useWhen), steps: (it.steps || []).map(one), shape: it.shape || null, by: by(it.by), t: fmtT(secOf(it.at)) }));
     (parsed.scripts || []).forEach((it, i) => {
-      if (!it.verified) { held.push({ kind: 'script', text: one(it.say), s: n, why: 'not found word for word in the transcript' }); return; }
+      if (!it.verified) { held.push({ kind: 'script', text: one(it.say), s: n, why: it.heldWhy || 'not found word for word in the transcript' }); return; }
       // the words he warns against are his words too: kept only when found
       let insteadOf = null;
       if (it.insteadOf && words.length) {
@@ -208,10 +283,10 @@ export async function gather(person, keys, book, vaultPath) {
       items.scripts.push({ id: `P${n}.${i + 1}`, s: n, situation: one(it.situation), say: one(it.say), insteadOf, by: by(it.by), t: fmtT(secOf(it.at)) });
     });
     (parsed.lines || []).forEach((it, i) => {
-      if (!it.verified) { held.push({ kind: 'line', text: one(it.quote), s: n, why: 'not found word for word in the transcript' }); return; }
+      if (!it.verified) { held.push({ kind: 'line', text: one(it.quote), s: n, why: it.heldWhy || 'not found word for word in the transcript' }); return; }
       items.lines.push({ id: `L${n}.${i + 1}`, s: n, quote: one(it.quote), by: by(it.by), t: fmtT(secOf(it.at)) });
     });
-    batch.push({ n, key, src, parsed, speakers: speakersOf(parsed, person.name), transcript });
+    batch.push({ n, key, src, parsed, speakers: speakersOf(parsed, person.name), transcript, words });
   }
   // sources already in the book keep their times for cites that reach back
   for (const s of book.sources) {
@@ -429,10 +504,12 @@ function checkConcepts(reply, ctx, group) {
     if (got.length !== 1) { f.push(`concept "${c.title}" appears ${got.length} times in the reply; it must appear once`); continue; }
     const r = got[0];
     if (!one(r.gist)) f.push(`concept "${c.title}" has no gist`);
+    f.push(...quoteFailures(ctx, r.gist, `the gist of "${c.title}"`));
     if (!Array.isArray(r.by) || !r.by.map(one).filter(Boolean).length) f.push(`concept "${c.title}" names nobody in "by"`);
     if (!Array.isArray(r.points) || !r.points.length) f.push(`concept "${c.title}" has no points`);
     for (const p of Array.isArray(r.points) ? r.points : []) {
       if (!one(p?.text)) f.push(`a point of "${c.title}" has no text`);
+      f.push(...quoteFailures(ctx, p?.text, `a point of "${c.title}"`));
       if (!Array.isArray(p?.cites) || !p.cites.length) f.push(`the point "${one(p?.text).slice(0, 60)}" of "${c.title}" has no cite`);
       for (const ci of Array.isArray(p?.cites) ? p.cites : []) {
         const bad = citeFailure(ctx, ci?.s, ci?.t, `a point of "${c.title}"`);
@@ -442,7 +519,9 @@ function checkConcepts(reply, ctx, group) {
     for (const a of Array.isArray(r.adds) ? r.adds : []) {
       const n = sNum(a?.s);
       if (!n || !ctx.times.has(n)) f.push(`"adds" of "${c.title}" names S${a?.s}, which is not a source here`);
+      f.push(...quoteFailures(ctx, a?.text, `an "adds" entry of "${c.title}"`));
     }
+    for (const t of Array.isArray(r.tensions) ? r.tensions : []) f.push(...quoteFailures(ctx, typeof t === 'string' ? t : t?.text, `a tension of "${c.title}"`));
     if (r.tensions != null && !Array.isArray(r.tensions)) f.push(`"tensions" of "${c.title}" is not a list`);
   }
   return f;
@@ -546,9 +625,19 @@ function checkChapter(reply, ctx, ch) {
   for (const id of list('phraseIds') || []) if (!shown.has(id)) f.push(`phraseIds names ${id}, which was not shown`);
   for (const id of list('scriptIds') || []) if (!shown.has(id) || !String(id).startsWith('P')) f.push(`scriptIds names ${id}, which is not a script id shown`);
   if (!one(reply.summary)) f.push('there is no summary');
+  const q = (text, what) => f.push(...quoteFailures(ctx, text, `${what} of "${ch.title}"`));
+  q(reply.purpose, 'the purpose');
+  q(reply.summary, 'the summary');
+  for (const [k, what] of [['when', 'a "when" entry'], ['method', 'a method step'], ['mistakes', 'a mistake'], ['stops', 'a stop'], ['takeaways', 'a takeaway']]) for (const t of list(k) || []) q(t, what);
+  for (const r of list('rules') || []) { q(r?.text, 'a rule'); q(r?.needs, 'the condition of a rule'); }
   const tk = list('takeaways');
   if (!tk || tk.map(one).filter(Boolean).length !== 3) f.push('"takeaways" must hold exactly three sentences');
   f.push(...diagramFailures(reply.diagram));
+  if (reply.diagram && typeof reply.diagram === 'object') {
+    q(reply.diagram.title, 'the diagram title');
+    for (const n of Array.isArray(reply.diagram.nodes) ? reply.diagram.nodes : []) for (const k of ['label', 'detail', 'left', 'right']) q(n?.[k], `a diagram ${k}`);
+  }
+  q(reply.clip?.what, 'the clip');
   if (!reply.clip || !one(reply.clip.what)) f.push('the clip is missing or says nothing');
   else { const bad = citeFailure(ctx, reply.clip.s, reply.clip.t, 'the clip'); if (bad) f.push(bad); }
   return f;
@@ -599,11 +688,13 @@ function checkBook(reply, ctx) {
   const b = ctx.book;
   const batchNs = new Set(ctx.g.batch.map((x) => x.n));
   if (!one(reply.glance)) f.push('there is no glance');
+  f.push(...quoteFailures(ctx, reply.glance, 'the glance'));
   if (!Array.isArray(reply.principles)) return [...f, '"principles" is not a list'];
   let total = b.principles.length;
   for (const p of reply.principles) {
     const what = `the principle "${one(p?.name)}"`;
     if (!one(p?.name) || !one(p?.sentence)) f.push(`${what} has no name or no sentence`);
+    f.push(...quoteFailures(ctx, p?.name, `${what} (its name)`), ...quoteFailures(ctx, p?.sentence, `${what} (its sentence)`));
     if (COUNT_RE.test(String(p?.sentence || ''))) f.push(`${what} has a count in its sentence; code adds the counts`);
     const srcs = Array.isArray(p?.sources) ? p.sources.map(sNum) : [];
     if (!srcs.length) f.push(`${what} names no sources from this batch`);
@@ -615,6 +706,7 @@ function checkBook(reply, ctx) {
   if (total < PRINCIPLES_MIN || total > PRINCIPLES_MAX) f.push(`the book would hold ${total} principles; it must hold ${PRINCIPLES_MIN} to ${PRINCIPLES_MAX}`);
   for (const c of Array.isArray(reply.cards) ? reply.cards : []) {
     if (!one(c?.q) || !one(c?.a)) f.push('a card has no question or no answer');
+    f.push(...quoteFailures(ctx, c?.q, `the card "${one(c?.q).slice(0, 50)}" (its question)`), ...quoteFailures(ctx, c?.a, `the card "${one(c?.q).slice(0, 50)}" (its answer)`));
     const bad = citeFailure(ctx, c?.s, c?.t, `the card "${one(c?.q).slice(0, 50)}"`);
     if (bad) f.push(bad);
   }
@@ -623,6 +715,7 @@ function checkBook(reply, ctx) {
   for (const g of Array.isArray(reply.fromGuests) ? reply.fromGuests : []) {
     if (!speakers.has(norm(g?.guest)) || norm(g?.guest) === norm(ctx.person.name)) f.push(`"fromGuests" names "${one(g?.guest)}", who is not a guest who speaks in this batch`);
     if (!one(g?.idea)) f.push('a "fromGuests" entry has no idea');
+    f.push(...quoteFailures(ctx, g?.idea, `what he took from ${one(g?.guest)} (the idea)`), ...quoteFailures(ctx, g?.response, `what he took from ${one(g?.guest)} (his response)`));
     const bad = citeFailure(ctx, g?.s, g?.t, `what he took from ${one(g?.guest)}`);
     if (bad) f.push(bad);
   }
@@ -723,7 +816,7 @@ function conceptPage(book, c, today) {
   }
   if (c.tensions?.length) out.push('', '## Open questions / contradictions', ...c.tensions.map((t) => `- [${t.at}] ${one(t.text)}`));
   const chapters = book.chapters.filter((ch) => (ch.concepts || []).includes(c.page)).map((ch) => wikiLink(ch.playbook));
-  out.push('', '## Linked pages', ...uniq([...c.by.map((b) => `[[${b}]]`), `[[${book.name}]]`, wikiLink(mentorRel(book.name)), ...chapters, ...srcPages.map((t) => `[[${t}]]`)]).map((l) => `- ${l}`));
+  out.push('', '## Linked pages', ...uniq([...c.by.filter((b) => canLink(book, b)).map((b) => `[[${b}]]`), `[[${book.name}]]`, wikiLink(mentorRel(book.name)), ...chapters, ...srcPages.map((t) => `[[${t}]]`)]).map((l) => `- ${l}`));
   return `${out.join('\n')}\n`;
 }
 
@@ -752,7 +845,7 @@ function sourcePageBody(book, s, links) {
   if (links.ideas.length) lines.push('## Ideas', ...links.ideas.map((x) => `- [[${x.page}]]: ${x.name}${x.t ? ` (${x.t})` : ''}`), '');
   if (links.methods.length) lines.push('## Methods', ...links.methods.map((x) => `- ${x.page}: ${x.name}${x.t ? ` (${x.t})` : ''}`), '');
   lines.push('## Linked pages', ...uniq([
-    ...s.people.map((p) => `[[${p}]]`), wikiLink(mentorRel(book.name)),
+    ...s.people.filter((p) => canLink(book, p)).map((p) => `[[${p}]]`), wikiLink(mentorRel(book.name)),
     ...links.ideas.map((x) => `[[${x.page}]]`), ...links.methods.map((x) => x.page),
   ]).map((l) => `- ${l}`));
   return lines.join('\n');
@@ -786,7 +879,7 @@ export function mentorPage(book, today, created) {
   out.push('## Scripts');
   for (const s of book.scripts) out.push(`- Situation: ${one(s.situation) || 'not stated'} | Say: "${s.say}" | Instead of: ${s.insteadOf ? `"${s.insteadOf}"` : 'none'} | By: ${s.by} | S${s.s} ${s.t}`);
   out.push('', '## Revision cards', ...book.cards.map((c) => `- Q: ${one(c.q)} | A: ${one(c.a)} | S${c.s} ${c.t}`));
-  if (book.fromGuests.length) out.push('', '## What he took from his guests', ...book.fromGuests.map((g) => `- [[${one(g.guest)}]]: ${one(g.idea)}${g.response ? ` ${one(g.response)}` : ''} (S${g.s} ${g.t})`));
+  if (book.fromGuests.length) out.push('', '## What he took from his guests', ...book.fromGuests.map((g) => `- ${canLink(book, g.guest) ? `[[${one(g.guest)}]]` : one(g.guest)}: ${one(g.idea)}${g.response ? ` ${one(g.response)}` : ''} (S${g.s} ${g.t})`));
   out.push('', '## Concepts', ...book.concepts.map((c) => `- [[${linkOf(c.page)}]]: ${one(c.gist).split(/(?<=[.!?])\s/)[0]}`));
   out.push('', '## Sources', ...book.sources.map((s) => `- S${s.n} | [[${linkOf(s.page)}]] | ${s.publishedAt ? s.publishedAt.slice(0, 10) : 'date not stated'} | ${s.url || 'no link'} | ${s.minutes != null ? `${s.minutes} min` : 'length not stated'}`));
   return `${out.join('\n')}\n`;
@@ -812,11 +905,6 @@ export function addIndexLines(text, bySection) {
 /* --------------------------------- the run --------------------------------- */
 
 let active = null; // personId of the weave in flight in this process
-
-function notIn(rel, root) {
-  const full = path.resolve(root, rel);
-  return !full.startsWith(path.resolve(root) + path.sep);
-}
 
 /**
  * Weave up to ten read sources of one person into the vault. Returns the
@@ -852,7 +940,7 @@ async function runWeave(person, keys, vaultPath) {
   const firstBatch = !book.sources.length;
 
   const g = await gather(person, keys, book, vaultPath);
-  const ctx = { person, book, g, times: g.times, model, calls: [], costUsd: 0, answeredBy: null };
+  const ctx = { person, book, g, times: g.times, model, calls: [], costUsd: 0, answeredBy: null, quoteWords: await quoteWordLists(g, book) };
 
   /* B */
   const sorted = await askChecked(ctx, 'sort', sortPrompt(ctx), (r) => checkSort(r, ctx));
@@ -1061,18 +1149,18 @@ async function runWeave(person, keys, vaultPath) {
   /* F: the plan, every file's new text, then the writes */
   const plan = []; // { rel, text, before, playbook? }
   const planFile = async (rel, make) => {
-    if (rel === 'CLAUDE.md' || notIn(rel, path.join(vaultPath, 'Wiki')) && notIn(rel, path.join(vaultPath, 'Raw'))) throw new Error(`the weave refused to write ${rel}: it writes only under Wiki/ and Raw/, and never CLAUDE.md`);
+    if (!vaultWriteAllowed(vaultPath, rel)) throw refusal(rel);
     const before = await readOr(path.join(vaultPath, rel));
     const text = await make(before);
     if (text != null && text !== before) plan.push({ rel, text, before });
   };
 
-  // 1. Raw transcripts, with the Watcher's own header
+  // 1. Raw transcripts, headed with how the words were really made
   for (const x of g.batch) {
     const e = book.sources.find((y) => y.key === x.key);
     if (!e.rawNew || !x.transcript) continue;
     await planFile(e.raw, async (before) => (before != null ? null
-      : `Verbatim video transcript fetched by Nova's Watcher, received ${today}.\nSource URL: ${e.url || '(unknown)'}\nSource page: [[${linkOf(e.page)}]]\n\n---\n\n${x.transcript}`));
+      : `${rawLead(x.src, today)}\nSource URL: ${e.url || '(unknown)'}\nSource page: [[${linkOf(e.page)}]]\n\n---\n\n${x.transcript}`));
   }
   if (g.batch.some((x) => { const e = book.sources.find((y) => y.key === x.key); return e.rawNew && !x.transcript; })) {
     for (const x of g.batch) { const e = book.sources.find((y) => y.key === x.key); if (e.rawNew && !x.transcript) { e.raw = null; } }
@@ -1116,7 +1204,10 @@ async function runWeave(person, keys, vaultPath) {
   }
 
   // 4. Playbook chapters (writePlaybookPage at write time; checked against this)
-  for (const ch of chapters) plan.push({ rel: ch.rel, text: ch.content, before: await readOr(path.join(vaultPath, ch.rel)), playbook: ch.incoming });
+  for (const ch of chapters) {
+    if (!vaultWriteAllowed(vaultPath, ch.rel)) throw refusal(ch.rel); // these skip planFile, so they are checked here
+    plan.push({ rel: ch.rel, text: ch.content, before: await readOr(path.join(vaultPath, ch.rel)), playbook: ch.incoming });
+  }
 
   // 5. Entities: him, and every guest who speaks
   const guests = uniq(g.batch.flatMap((x) => x.speakers)).filter((n) => norm(n) !== norm(person.name));
@@ -1142,8 +1233,8 @@ async function runWeave(person, keys, vaultPath) {
   const editedRels = plan.filter((p) => p.before != null).map((p) => p.rel);
   const idx = (rel) => {
     const t = linkOf(rel);
-    if (rel.startsWith('Wiki/Sources/')) { const s = book.sources.find((x) => x.page === rel); return ['Sources', `- [[${t}]]${INDEX_SEP}${(s?.summary || '').split(/(?<=[.!?])\s/)[0].slice(0, 200)} (updated ${today})`]; }
-    if (rel.startsWith('Wiki/Concepts/')) { const c = book.concepts.find((x) => x.page === rel); return ['Concepts', `- [[${t}]]${INDEX_SEP}${(c?.gist || '').split(/(?<=[.!?])\s/)[0].slice(0, 200)} (updated ${today})`]; }
+    if (rel.startsWith('Wiki/Sources/')) { const s = book.sources.find((x) => x.page === rel); return ['Sources', `- [[${t}]]${INDEX_SEP}${cutAtWord((s?.summary || '').split(/(?<=[.!?])\s/)[0])} (updated ${today})`]; }
+    if (rel.startsWith('Wiki/Concepts/')) { const c = book.concepts.find((x) => x.page === rel); return ['Concepts', `- [[${t}]]${INDEX_SEP}${cutAtWord((c?.gist || '').split(/(?<=[.!?])\s/)[0])} (updated ${today})`]; }
     if (rel.startsWith('Wiki/Entities/')) return ['Entities', `- [[${t}]]${INDEX_SEP}a person in the Mentors book of ${book.name} (updated ${today})`];
     if (rel.startsWith(`${PLAYBOOKS_DIR}/`)) { const c = book.chapters.find((x) => x.playbook === rel); return ['Playbooks', `- ${wikiLink(rel)}${INDEX_SEP}${c?.purpose || 'a playbook chapter'} (updated ${today})`]; }
     if (rel.startsWith('Wiki/Mentors/')) return ['Mentors', `- ${wikiLink(rel)}${INDEX_SEP}the book of ${book.name}: ${book.sources.length} sources, ${book.chapters.length} chapters (updated ${today})`];
@@ -1151,7 +1242,16 @@ async function runWeave(person, keys, vaultPath) {
   };
   const bySection = { Sources: [], Entities: [], Concepts: [], Playbooks: [], Mentors: [] };
   for (const rel of createdRels) { const e = idx(rel); if (e) bySection[e[0]].push(e[1]); }
-  await planFile('Wiki/index.md', async (before) => (before == null ? null : addIndexLines(before, bySection)));
+  // what the weave adds to the index is recorded exactly, so an undo can take
+  // out just these lines when other writers have touched the file since
+  let indexLines = [];
+  let indexSections = [];
+  await planFile('Wiki/index.md', async (before) => {
+    if (before == null) return null;
+    indexLines = Object.values(bySection).flat();
+    indexSections = Object.entries(bySection).filter(([sec, es]) => es.length && !before.split('\n').some((l) => l.trim() === `## ${sec}`)).map(([sec]) => sec);
+    return addIndexLines(before, bySection);
+  });
   const wl = wikiLink;
   const entry = [
     `## [${today}] ingest | Mentors weave: ${book.name} (${g.batch.length} source${g.batch.length === 1 ? '' : 's'})`,
@@ -1159,20 +1259,53 @@ async function runWeave(person, keys, vaultPath) {
     `- Updated: ${editedRels.map(wl).join(', ') || 'none'}`,
     `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
   ].join('\n');
-  await planFile('Wiki/log.md', async (before) => (before == null ? null : `${before}${before.endsWith('\n') ? '' : '\n'}\n${entry}\n`));
+  let logLead = '\n';
+  await planFile('Wiki/log.md', async (before) => {
+    if (before == null) return null;
+    logLead = `${before.endsWith('\n') ? '' : '\n'}\n`;
+    return `${before}${logLead}${entry}\n`;
+  });
 
   /* the writes, recorded; a failure part way puts back what was written */
   const batchId = `${person.id}-${new Date(t0).toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)}-${randomBytes(2).toString('hex')}`;
-  const files = [];
   const dirsCreated = [];
+  for (const p of plan) {
+    for (let dir = path.dirname(path.join(vaultPath, p.rel)); !existsSync(dir); dir = path.dirname(dir)) {
+      const rel = path.relative(vaultPath, dir);
+      if (!dirsCreated.includes(rel)) dirsCreated.unshift(rel);
+    }
+  }
+  const planned = plan.map((p) => ({ relPath: p.rel, created: p.before == null, before: p.before, afterHash: sha(p.text) }));
+  const vaultBefore = {};
+  for (const x of g.batch) vaultBefore[x.key] = x.src.vault || null;
+  const recFile = path.join(weavesDir(), `${batchId}.json`);
+  const base = {
+    batchId, personId: person.id, at: new Date(t0).toISOString(), version: WEAVE_VERSION, model, answeredBy: ctx.answeredBy, modelWhy: why,
+    keys, calls: ctx.calls, costUsd: Math.round(ctx.costUsd * 10000) / 10000,
+    dirsCreated, bookBefore: bookBefore || null, vaultBefore,
+    counts: {
+      sources: g.batch.length, concepts: conceptsCreated.length, conceptsEdited: conceptsEdited.length,
+      chapters: chapters.length, scripts: scriptsAdded.length, cards: newCards.length, held: g.held.length,
+    },
+    indexLines, indexSections, logEntry: entry, logLead,
+    undoneAt: null,
+  };
+  // The record goes down BEFORE the first vault write, marked pending and
+  // listing every file the weave means to touch. If the process dies from here
+  // on, or the book or the register fails, the next start-up (or an undo) puts
+  // the vault back from it. It loses `pending` only when everything succeeded.
+  await writeAtomic(recFile, JSON.stringify({ ...base, files: planned, ms: d.now() - t0, pending: true }, null, 2));
+  const files = [];
   try {
-    for (const p of plan) {
+    for (let i = 0; i < plan.length; i++) {
+      const p = plan[i];
       const full = path.join(vaultPath, p.rel);
-      for (let dir = path.dirname(full); !existsSync(dir); dir = path.dirname(dir)) dirsCreated.unshift(path.relative(vaultPath, dir));
+      files.push(planned[i]); // recorded first, so a failing check below still gets this file put back
       if (p.playbook) {
         const w = await writePlaybookPage(vaultPath, p.playbook, { now: nowDate });
+        // what is on disk now is what an undo must expect, even when it is not what was planned
+        Object.assign(planned[i], { created: w.created, afterHash: sha(w.content), ...(w.prior != null ? { before: w.prior } : {}) });
         if (w.content !== p.text) throw new Error(`the chapter page ${p.rel} came out different from the text checked before writing`);
-        files.push({ relPath: w.relPath, created: w.created, before: p.before, afterHash: sha(w.content) });
         const reread = await readFile(full, 'utf8');
         if (formatPlaybook(parsePlaybook(reread)) !== reread) throw new Error(`the chapter page ${p.rel} did not parse back after writing`);
         continue;
@@ -1180,10 +1313,15 @@ async function runWeave(person, keys, vaultPath) {
       await mkdir(path.dirname(full), { recursive: true });
       if (p.before != null) await backupFile(full);
       await writeFile(full, p.text, 'utf8');
-      files.push({ relPath: p.rel, created: p.before == null, before: p.before, afterHash: sha(p.text) });
     }
   } catch (e) {
-    await restoreFiles(vaultPath, files, uniq(dirsCreated));
+    const out = await restoreFiles(vaultPath, files, dirsCreated, base);
+    if (out.left.length) {
+      // something could not be put back: the pending record stays, so it is not lost
+      await writeAtomic(recFile, JSON.stringify({ ...base, files, ms: d.now() - t0, pending: true, failedWrite: e.message }, null, 2)).catch(() => {});
+      throw new Error(`the weave failed while writing (${e.message}); files it could not put back: ${out.left.map((l) => `${l.relPath} (${l.why})`).join('; ')}`);
+    }
+    try { await unlink(recFile); } catch { /* it never landed */ }
     throw new Error(`the weave failed while writing (${e.message}); every file it had written was put back`);
   }
   dropPlaybookCache();
@@ -1191,29 +1329,53 @@ async function runWeave(person, keys, vaultPath) {
   // the book, then the register
   for (const s of book.sources) delete s.rawNew;
   await writeAtomic(bookPath(person.id), JSON.stringify(book, null, 2));
-  const vaultBefore = {};
   for (const x of g.batch) {
-    vaultBefore[x.key] = x.src.vault || null;
     const e = book.sources.find((y) => y.key === x.key);
     await setStage(x.key, 'woven', { woven: { version: WEAVE_VERSION, at: new Date(t0).toISOString(), batchId }, vault: { sourcePage: e.page, rawPage: e.raw } });
   }
-  const record = {
-    batchId, personId: person.id, at: new Date(t0).toISOString(), version: WEAVE_VERSION, model, answeredBy: ctx.answeredBy, modelWhy: why,
-    keys, calls: ctx.calls, costUsd: Math.round(ctx.costUsd * 10000) / 10000, ms: d.now() - t0,
-    files, dirsCreated: uniq(dirsCreated), bookBefore: bookBefore || null, vaultBefore,
-    counts: {
-      sources: g.batch.length, concepts: conceptsCreated.length, conceptsEdited: conceptsEdited.length,
-      chapters: chapters.length, scripts: scriptsAdded.length, cards: newCards.length, held: g.held.length,
-    },
-    undoneAt: null,
-  };
-  await writeAtomic(path.join(weavesDir(), `${batchId}.json`), JSON.stringify(record, null, 2));
+  const record = { ...base, files, ms: d.now() - t0 };
+  await writeAtomic(recFile, JSON.stringify(record, null, 2));
   return record;
 }
 
 /* ---------------------------------- undo ----------------------------------- */
 
-async function restoreFiles(vaultPath, files, dirsCreated) {
+// The weave's own lines out of index.md or log.md after other writers have
+// added to the file since. Each recorded index line is taken out once (the
+// first exact match), and the log entry with the blank line the weave put
+// before it. Anything not found exactly leaves the file as it is. A section
+// heading the weave added goes too, but only when nothing else sits under it.
+// Returns { text } to write, or { why } when the file must be left alone.
+function withoutWeaveLines(rel, cur, extras) {
+  const edited = 'it was edited after the weave, so it was left as it is';
+  if (rel === 'Wiki/index.md' && extras.indexLines?.length) {
+    const lines = cur.split('\n');
+    for (const l of extras.indexLines) {
+      const i = lines.indexOf(l);
+      if (i < 0) return { why: `${edited}; the weave's index line "${l.slice(0, 60)}" is no longer in it exactly as written` };
+      lines.splice(i, 1);
+    }
+    for (const sec of [...(extras.indexSections || [])].reverse()) {
+      const h = lines.indexOf(`## ${sec}`);
+      if (h < 0) continue;
+      let j = h + 1;
+      while (j < lines.length && lines[j] === '') j++;
+      if (j < lines.length) continue; // another writer put something under it
+      const from = h > 0 && lines[h - 1] === '' ? h - 1 : h;
+      lines.splice(from, h - from + 1);
+    }
+    return { text: lines.join('\n') };
+  }
+  if (rel === 'Wiki/log.md' && extras.logEntry) {
+    const seg = `${extras.logLead ?? '\n'}${extras.logEntry}\n`;
+    const i = cur.indexOf(seg);
+    if (i < 0) return { why: `${edited}; the weave's log entry is no longer in it exactly as written` };
+    return { text: cur.slice(0, i) + cur.slice(i + seg.length) };
+  }
+  return { why: edited };
+}
+
+async function restoreFiles(vaultPath, files, dirsCreated, extras = {}) {
   const restored = [];
   const left = [];
   for (const f of [...files].reverse()) {
@@ -1224,7 +1386,18 @@ async function restoreFiles(vaultPath, files, dirsCreated) {
       else left.push({ relPath: f.relPath, why: 'it is gone from the vault, so there was nothing to put back over' });
       continue;
     }
-    if (sha(cur) !== f.afterHash) { left.push({ relPath: f.relPath, why: 'it was edited after the weave, so it was left as it is' }); continue; }
+    // never changed (a write that did not happen, or was already put back)
+    if (!f.created && cur === f.before) { restored.push(f.relPath); continue; }
+    if (sha(cur) !== f.afterHash) {
+      // the index and the log are shared with other writers, so they are
+      // nearly always different by now; only the weave's own lines come out
+      const out = withoutWeaveLines(f.relPath, cur, extras);
+      if (out.text == null) { left.push({ relPath: f.relPath, why: out.why }); continue; }
+      await backupFile(full);
+      await writeFile(full, out.text, 'utf8');
+      restored.push(f.relPath);
+      continue;
+    }
     // a page the weave created and nobody touched since is exactly what the
     // record says it was, so it goes without a snapshot; one it changed is
     // snapshotted first, as every vault write-back here is
@@ -1272,7 +1445,14 @@ export async function undoWeave(batchId, { vaultPath } = {}) {
     e.refused = true;
     throw e;
   }
-  const out = await restoreFiles(vaultPath, rec.files || [], rec.dirsCreated || []);
+  return undoRecord(rec, vaultPath);
+}
+
+// Puts a batch back: its files where they still match, the book as it was, the
+// register stages back to read; then marks the record. Shared by an undo and
+// by the start-up recovery of a weave that never finished.
+async function undoRecord(rec, vaultPath, { recovered = false } = {}) {
+  const out = await restoreFiles(vaultPath, rec.files || [], rec.dirsCreated || [], rec);
   if (rec.bookBefore) await writeAtomic(bookPath(rec.personId), JSON.stringify(rec.bookBefore, null, 2));
   else { try { await unlink(bookPath(rec.personId)); } catch { /* never written */ } }
   for (const key of rec.keys || []) {
@@ -1280,7 +1460,25 @@ export async function undoWeave(batchId, { vaultPath } = {}) {
   }
   rec.undoneAt = new Date(D().now()).toISOString();
   rec.undo = out;
+  if (recovered) rec.recovered = true;
   await writeAtomic(path.join(weavesDir(), `${rec.batchId}.json`), JSON.stringify(rec, null, 2));
+  return out;
+}
+
+/**
+ * A weave that was cut off (the process died, or the book or register failed
+ * after the vault was written) leaves its record marked `pending`. Called once
+ * at start-up: each such batch is undone the way an undo does it, newest
+ * first, and marked `recovered`. Returns [{ batchId, restored, left }].
+ */
+export async function recoverPendingWeaves({ vaultPath } = {}) {
+  if (!vaultPath) throw new Error('the recovery of half-finished weaves needs the vault path (VAULT_PATH), and none was given');
+  if (active) return []; // a weave is running now; its record is not a leftover
+  const out = [];
+  for (const rec of (await readRecords()).filter((r) => r.pending && !r.undoneAt)) {
+    const res = await undoRecord(rec, vaultPath, { recovered: true });
+    out.push({ batchId: rec.batchId, restored: res.restored, left: res.left });
+  }
   return out;
 }
 
@@ -1291,7 +1489,7 @@ export async function listWeaves(personId) {
   const top = all.find((r) => !r.undoneAt);
   return all.map((r) => ({
     batchId: r.batchId, at: r.at, version: r.version, model: r.model, costUsd: r.costUsd, ms: r.ms,
-    keys: r.keys, counts: r.counts, calls: (r.calls || []).length, undoneAt: r.undoneAt || null,
+    keys: r.keys, counts: r.counts, calls: (r.calls || []).length, undoneAt: r.undoneAt || null, pending: !!r.pending,
     undoable: !r.undoneAt && top?.batchId === r.batchId,
   }));
 }
