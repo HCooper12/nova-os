@@ -218,6 +218,7 @@ const OVERLAY_LOADERS = {
   verdictCard: () => import('./VerdictCard.jsx'),
   artifactViewer: () => import('./ArtifactViewer.jsx'),
   reviewSheet: () => import('./ReviewSheet.jsx'),
+  mentorPage: () => import('./mentors/MentorPage.jsx'),
 };
 const RecipeOverlay = lazyScreen(OVERLAY_LOADERS.recipeOverlay, 'RecipeOverlay');
 const RecipeSheet = lazyScreen(OVERLAY_LOADERS.recipeSheet, 'RecipeSheet');
@@ -228,6 +229,7 @@ const OutboxView = lazyScreen(OVERLAY_LOADERS.outboxView, 'OutboxView');
 const VerdictCard = lazyScreen(OVERLAY_LOADERS.verdictCard, 'VerdictCard');
 const ArtifactViewer = lazyScreen(OVERLAY_LOADERS.artifactViewer, 'ArtifactViewer');
 const ReviewSheet = lazyScreen(OVERLAY_LOADERS.reviewSheet, 'ReviewSheet');
+const MentorPage = lazyScreen(OVERLAY_LOADERS.mentorPage, 'MentorPage');
 
 // What a not-yet-parsed screen shows. Deliberately quiet: a chunk parse is
 // tens of milliseconds after the idle prefetch, so anything busier than this
@@ -823,7 +825,7 @@ export default class App extends Component {
     // due" state, never confused with "not loaded yet")
     liveReviewToday: null, reviewOpenId: null, reviewDrawnExtra: null, reviewSheetOpen: false,
     reviewJust: null, reviewDemoAnswers: {},
-    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null,
+    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveMentors: null, mentorOpenId: null,
     libraryView: (() => { try { return localStorage.getItem('novaos.libraryView') === 'spines' ? 'spines' : 'grid'; } catch { return 'grid'; } })(), liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
     // "loaded and empty" can never be confused
@@ -2379,6 +2381,7 @@ export default class App extends Component {
       },
       async () => this.refreshReviewToday(),
       async () => { const r = await api.library(conn); this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); },
+      async () => { const r = await api.mentors(conn); this.setState({ liveMentors: r.people || [] }); },
       async () => this.setState({ liveLeader: await api.leader(conn) }),
       async () => this.setPracticeLive(await api.practice(conn)),
       async () => {
@@ -6255,6 +6258,40 @@ export default class App extends Component {
   closeLibraryItem() {
     this.withTransition(() => this.setState({ libraryOpenId: null }));
   }
+  // MENTORS (slice 1, 22 Nov 2026): the people Nova studies, as Library tiles
+  // (GET /api/mentors), and a mentor's own page, a history level of its own
+  // so the back swipe closes it (the recipe's reason). The page reads and
+  // refreshes its own data (src/mentors/MentorPage.jsx).
+  loadMentors() {
+    const conn = getConnection();
+    if (!conn || this.mentorsInFlight) return;
+    this.mentorsInFlight = api.mentors(conn)
+      .then((r) => this.setState({ liveMentors: r.people || [] }))
+      .catch(() => {})
+      .finally(() => { this.mentorsInFlight = null; });
+  }
+  openMentor(id) {
+    if (!id) return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'mentor') window.history.replaceState({ ...st, mentorId: id }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'mentor', mentorId: id }, '');
+    }
+    this.setState({ mentorOpenId: id });
+  }
+  closeMentor() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'mentor') { window.history.back(); return; }
+    this.setState({ mentorOpenId: null });
+    this.loadMentors();
+  }
+  // popstate's half: leaving the page's entry closes it; Forward reopens it
+  mentorFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'mentor';
+    if (!onEntry && this.state.mentorOpenId) { this.loadMentors(); return { mentorOpenId: null }; }
+    if (onEntry && !this.state.mentorOpenId && st.mentorId) return { mentorOpenId: st.mentorId };
+    return {};
+  }
   ensureLibraryDetail(id, force = false) {
     if (!id) return;
     const have = this.state.liveLibraryDetails[id];
@@ -6375,8 +6412,9 @@ export default class App extends Component {
   reviewSheetFromHistory() {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const onEntry = st?.novaOverlay === 'reviewSheet';
-    // the Skill sets sheet (mockup 97) rides along: its own entry, same rule
-    const skill = this.skillSheetFromHistory();
+    // the Skill sets sheet (mockup 97) rides along: its own entry, same rule;
+    // and a mentor's page (Mentors, slice 1), the same way
+    const skill = { ...this.skillSheetFromHistory(), ...this.mentorFromHistory() };
     if (!onEntry && this.state.reviewSheetOpen) return { reviewSheetOpen: false, ...skill };
     if (onEntry && !this.state.reviewSheetOpen) return { reviewSheetOpen: true, ...skill };
     return skill;
@@ -15296,6 +15334,14 @@ export default class App extends Component {
         {/* a document, opened from a chat card or the Documents screen — a
             page of its own with a history entry, so the back swipe closes it */}
         {v.artifactViewer && <Suspense fallback={null}><ArtifactViewer key={v.artifactViewer.id} d={v.artifactViewer} /></Suspense>}
+        {/* a mentor's own page (Library › Mentors), a history level of its own */}
+        {this.state.mentorOpenId && (
+          <Suspense fallback={null}>
+            <MentorPage key={this.state.mentorOpenId} id={this.state.mentorOpenId}
+              person={(this.state.liveMentors || []).find((p) => p.id === this.state.mentorOpenId) || null}
+              onClose={() => this.closeMentor()} />
+          </Suspense>
+        )}
         {/* THE DAILY REVIEW's sheet (mockup 96 Part 3) — "Open the page" on
             the card; its own history entry, closed by the back swipe */}
         {v.review?.sheetOpen && <Suspense fallback={null}><ReviewSheet v={v} /></Suspense>}

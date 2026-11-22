@@ -70,11 +70,17 @@ export function valsLibrary(app, ctx) {
   for (const it of items) counts[it.kind] = (counts[it.kind] || 0) + 1;
 
   const filter = st.libraryFilter || 'all';
-  const filtered = items.filter((it) =>
+  // MENTORS (slice 1, 22 Nov 2026): the people Nova studies are a filter of
+  // their own, a tile per person followed and per guest with a page, counted
+  // from GET /api/mentors (src/mentors/MentorTiles.jsx draws them)
+  const mentors = st.liveMentors || [];
+  counts.mentors = mentors.length;
+  const onMentors = filter === 'mentors';
+  const filtered = onMentors ? [] : items.filter((it) =>
     (filter === 'all' || it.kind === filter) &&
     (!q || `${it.title} ${it.author || ''} ${(it.concepts || []).join(' ')} ${(it.tags || []).join(' ')}`.toLowerCase().includes(q)));
 
-  const chips = [['all', 'ALL'], ['book', 'BOOKS'], ['video', 'VIDEOS'], ['podcast', 'PODCASTS'], ['article', 'ARTICLES']]
+  const chips = [['all', 'ALL'], ['book', 'BOOKS'], ['video', 'VIDEOS'], ['podcast', 'PODCASTS'], ['article', 'ARTICLES'], ['mentors', 'MENTORS']]
     .filter(([k]) => k === 'all' || counts[k] > 0)
     .map(([k, label]) => ({
       key: k, label: `${label}${counts[k] ? ` · ${counts[k]}` : ''}`, active: filter === k,
@@ -185,7 +191,9 @@ export function valsLibrary(app, ctx) {
     libraryShelf: shelf,
     libraryEmpty: st.liveLibrary && !items.length
       ? 'Your library is empty. Press ＋ ADD SOURCE above to research a book by title and author, paste your own notes, or drop in a video or podcast link — every source lands on this shelf.'
-      : (st.liveLibrary && !filtered.length ? 'Nothing matches that filter.' : null),
+      : (st.liveLibrary && !filtered.length && !onMentors ? 'Nothing matches that filter.' : null),
+    libraryMentors: onMentors ? { people: mentors, open: (id) => app.openMentor(id) } : null,
+    loadMentors: () => app.loadMentors(),
     libraryQuery: st.libraryQuery || '',
     setLibraryQuery: (e) => app.setState({ libraryQuery: e.target.value }),
     // the shelf owns this now — see the note in Library.jsx

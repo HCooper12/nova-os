@@ -9,6 +9,7 @@ import { artFor, artNow } from '../shelf3d/artPalette.js';
 import { useFlipList } from '../useFlipList.js';
 import { useSearchMotion } from '../motion/useSearchMotion.js';
 import { SearchCount } from '../motion/SearchCount.jsx';
+import { MentorTiles } from '../mentors/MentorTiles.jsx';
 
 // THE TINT, everywhere it is read. Untinted, this resolves to the theme's own
 // accent, so the fallback IS the current design and there is no second code
@@ -466,6 +467,17 @@ function Detail({ v }) {
   );
 }
 
+// LIBRARY › MENTORS: the filter row as ever, then a sleeve per person. The
+// shelf and its 3D stage have nothing to show here, so they step aside.
+function MentorsShelf({ v }) {
+  return (
+    <>
+      <ChipsRow v={v} />
+      <MentorTiles people={v.libraryMentors.people} onOpen={v.libraryMentors.open} />
+    </>
+  );
+}
+
 // THE VIEWPORT, as a number this component can lay out against. The canvas is
 // a real object in a real room and it needs real room: a 360px strip in a tall
 // empty column is the thing he called flat.
@@ -573,6 +585,8 @@ function Stage({ v, detail, closing, height, wide, tint, shelf, onClose }) {
 
 export function Library({ v }) {
   const wrap = useRef(null);
+  // the Mentors filter is counted from the people Nova studies: read on arrival
+  useEffect(() => { v.loadMentors?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const box = useViewportBox();
   // WebGL is probed once, not on every render; a lost context or a missing one
   // falls back for the rest of the session rather than flickering.
@@ -637,7 +651,9 @@ export function Library({ v }) {
         <Meta tone="faint">{v.libraryHeaderLabel}</Meta>
       </div>
       <div style={css('margin-top:18px')}>
-        {onStage
+        {v.libraryMentors
+          ? <MentorsShelf v={v} />
+          : onStage
           ? <Stage v={v} detail={d} closing={closing} height={stageHeight(box)}
               wide={box.w >= 900} tint={tint} shelf={shelf} onClose={() => setClosing(true)} />
           : (d ? <Detail v={v} /> : <Shelf v={v} fellBack={fellBack} />)}

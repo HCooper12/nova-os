@@ -77,6 +77,23 @@ async function call(conn, path, { timeoutMs } = {}) {
   return res.json();
 }
 
+// A GET whose failure carries the server's own sentence (its JSON `error`),
+// so a screen can say the real cause rather than "failed: 500". Used by the
+// mentor pages; a network failure is the same OFFLINE/TIMEOUT error as call().
+async function callSaying(conn, path, { timeoutMs } = {}) {
+  const res = await macFetch(baseOf(conn) + path, {
+    headers: { Authorization: `Bearer ${conn.token}` },
+    signal: reqSignal(timeoutMs),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    const err = new Error(detail?.error || `the Mac answered ${res.status} to ${path}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 // ONE WRITE, HOWEVER MANY TIMES IT IS SENT (offline mode, 2 Nov 2026). A
 // write the Outbox may replay carries an Idempotency-Key, the same on the
 // first try and on every replay, and the server answers a repeat with the
@@ -255,6 +272,17 @@ export const api = {
     if (!res.ok) return null; // no poster — the generated cover stands
     return URL.createObjectURL(await res.blob());
   },
+  // MENTORS (slice 1, 22 Nov 2026): the people Nova studies, read for the
+  // Library tiles and a mentor's own page; the pictures come through
+  // mediaBlobUrl (the cut-out, the wall's sprite, a video's frame)
+  mentors: (conn) => callSaying(conn, '/api/mentors'),
+  mentor: (conn, id) => callSaying(conn, `/api/mentors/${encodeURIComponent(id)}`),
+  mentorQueue: (conn) => callSaying(conn, '/api/mentors/queue'),
+  mentorWall: (conn, id) => callSaying(conn, `/api/mentors/${encodeURIComponent(id)}/wall`),
+  mentorBook: (conn, id) => callSaying(conn, `/api/mentors/${encodeURIComponent(id)}/book`, { timeoutMs: 40_000 }),
+  mentorPause: (conn, id, paused) => post(conn, `/api/mentors/${encodeURIComponent(id)}/${paused ? 'pause' : 'resume'}`),
+  mentorQueuePause: (conn, paused) => post(conn, '/api/mentors/queue/pause', { paused }),
+  mentorRetrySource: (conn, key) => post(conn, '/api/mentors/source/retry', { key }),
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
   // PROJECTS (phase 1, 29 Oct 2026): the kernel's records + the linked three
   projects: (conn) => call(conn, '/api/projects'),
