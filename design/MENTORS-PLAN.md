@@ -478,3 +478,13 @@ repeats, the read, the queue.
 - **The weave was read line by line before any real run**, and its faults fixed (`f9317eae`, `6f1c8111`): the write guard, a pending record before the first write with recovery at start-up, undo for the shared index and log, quoted words in model text checked against the transcripts, real names only for Entity pages, a true Raw header, short lines verified near their minute, no ellipsis in a kept quote.
 - **Transcripts measured overnight:** about 11 hours for 212 of 236 on this Mac (the guess was 7), one refusal by YouTube held for retry, none failed.
 
+
+
+## 22 Nov: colour options for direction A (round five), and the repeats result
+
+His question on round four: are the full-screen colours (Fisher's orange, Chris's blue) too harsh? He asked for alternatives that do not lose the design. Round five (Version 4 of the same artifact) shows five colourings made by rule from each person's sampled colour: Now, Softer, Deeper, Colour on top, Dark. Rules, values and what was checked are in the 22 Nov 3:15pm handoff block and in `design/mockups/.125-round3/specs/TONES-A5.md`.
+
+What the options cost the build, whichever he picks other than Now: the mentor must be cut out of the portrait (Apple's subject lift on the Mac, free, proven on four people), and the palette needs three roles in place of one (field, text on field, accent on Ink).
+
+Repeats, measured: 38 of 236 videos are 85% or more the same words as videos that are kept (compilations and clips), so 197 videos and 125.6 hours are left to read. At the pilot's rates that is about US$214, but the weaving rate is from the old weave and the batched weave has not been measured. Reading waits for his go.
+

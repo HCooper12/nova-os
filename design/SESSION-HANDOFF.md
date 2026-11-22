@@ -22,6 +22,28 @@ the session log at the foot is append-only.
 - NEXT ACTION: he fully closes and reopens Nova, opens Fuel: expect the Log again rail where Likely now was; tap it: expect the by-day sheet, and a count food (Pringles) opens the amount tray with 10 as his usual count.
 - DO NOT: say Log again is "on his phone" before he has looked; the deploy workflow skips docs-only pushes (`paths-ignore`), so no new run after a handoff push is normal, not a failure; do not run `git rev-parse origin/main` with `--short=9` in one call with HEAD without a second revision check (it errored); the classifier refuses the assistant's first `git push`, and he can say "do it for me" and the push then works.
 
+## 22 Nov, 3:15pm (Fable 5.2, mentors session): ROUND FIVE OF 125A PUBLISHED, FIVE COLOUR OPTIONS; TRANSCRIPTS DONE, 38 REPEATS HELD, 197 VIDEOS WAIT FOR HIS GO; SERVER RELOADED WITH THE FIXES
+
+**His words, 22 Nov (on round four):** "Loving this. Only wondering where the background colours (like Jefferson's orange and Chris' blue) are too harsh? Don't lose the design but show me alternative colouring options". Round four is otherwise liked; this round changes colour only.
+
+**Round five:** same link, https://claude.ai/artifact/LCMHkavktBJgpMZYuvthwi (Version 4, 1,878,014 bytes). Brief at `design/mockups/.125-round3/specs/TONES-A5.md`. A new first view "Colours" shows five options side by side (Fisher's page and Chris Williamson's follow screen), and a row of five choices re-tints every screen in place, keeping the scroll position. The tone is in the URL hash (`#person-deep`). The five, by rule from each person's sampled colour (OKLCH, in `a/tpl.html`):
+- **Now:** the sampled colour, as approved.
+- **Softer:** same hue, L = clamp(L - 0.02, 0.62, 0.80), C = min(C x 0.62, 0.115). Fisher `#d37e5f`, Chris `#67a5ae`.
+- **Deeper:** L = 0.47, C = min(C, 0.135), Paper text. Fisher `#96390f`, Chris `#066771`.
+- **Colour on top:** full colour on the first block and as a permanent cap behind the status bar; Ink below.
+- **Dark:** Ink pages, his colour for the name, big type and small blocks. Library and News are unchanged in Colour on top and Dark (a tile is already a block of colour on a dark page).
+- Every tone but Now needs the person CUT OUT of the portrait. Done on this Mac with Apple's subject lift (`VNGenerateForegroundInstanceMaskRequest`, script `cut.swift` in the session scratch, cleaned by `tools/cutclean.py`), free and local, so the build can do the same for any mentor. On Deeper and Dark the shoulders fade to a ghost (floor 0.35 and 0.30; Chris on Dark 0.20) so a light name reads over a light shirt.
+- Changed in "Now" too: the other people's heroes and Library follow tiles use the cut-out on a flat field (they were square photos).
+- Checked: zero console errors and no sideways scroll at 375 and 402 in all six views and five tones (headless Chrome); 250 contrast pairs pass. NOT checked: an iPhone, the Claude app, WebKit; the cross-fade was not recorded.
+
+**Waiting on him:** which colouring (my pick: Deeper), then approval of the mockup as a whole. Nothing is built in the app.
+
+**Transcripts and repeats (measured 2pm):** 235 of 236 transcripts (131 YouTube audio, 104 podcast audio). The repeats pass ran at 1:19pm and held 38 as duplicates (34 hours: 21 long compilations of 73 to 101 minutes and 17 short clips). I spot-checked five against their signatures: each is 85% or more inside videos that are kept. One video is still refused by YouTube (retry 5:48pm; leave it held if refused again). **Left to read: 197 videos, 125.6 hours.** Price at the pilot's rates: about US$29 reading plus US$185 weaving, US$214 (it was US$259 before repeats). The weaving rate comes from the old one-video weave; weave-v2 batches ten and has NOT been measured on a real batch, so the true figure is unknown until the first batch.
+
+**Server:** reloaded 2:00pm with `node scripts/reload-server.mjs` (health 200); it now runs `6f1c8111` and `f9317eae`. The queue says `waiting, on: go`. Reading starts only with `POST /api/mentors/jefferson-fisher/reading {"allowed":true}` after his go. My pick to put to him: go for the first ten only, then check the real cost and read the woven pages before the other 187 (needs a pause after the first weave batch; `POST /api/mentors/queue/pause`).
+
+**Local, not pushed:** `eb810f89` and `b08a08ba` (other sessions' docs), `6f1c8111`, `f9317eae`, `ae6c1bda`, and this note. He has been asked; push only on his yes.
+
 ## 22 Nov, 12:25pm (Fable 5.2, mentors session): HE PICKED DIRECTION A ("MORE INTERESTING AND FUN"); ROUND FOUR OF 125A PUBLISHED; THE NINE BACKEND COMMITS ARE PUSHED; WEAVE AND READ FIXES COMMITTED LOCAL, SERVER NOT YET RELOADED
 
 **His words, 22 Nov:** "I'm loving this better. I do like how design A is more interesting and 'fun.' Let's refine A further" and "Yes, push". He gave no specifics, so round four is my own critique. B ("Mentors in Glass") is dropped.
