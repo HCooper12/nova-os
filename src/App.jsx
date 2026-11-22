@@ -36,6 +36,7 @@ import { queuedPatch, historyWithQueued, isQueuedId, queuedItemId } from './outb
 import { alreadyOn, onAmount } from './shopAsk.js';
 import { OfflineMark } from './OfflineCard.jsx';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem, newIdempotencyKey, drainItems, idemSafe } from './outbox.js';
+import { snapshotPass } from './syncPass.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { pauseSession, resumeSession, isPaused, setSessionMinutes } from './sessionClock.js';
 import { syncHealth } from './healthSync.js';
@@ -2441,6 +2442,12 @@ export default class App extends Component {
       async () => this.setState({ liveLearning: await api.learning(conn) }),
       async () => this.setState({ liveDailyReview: await api.dailyReview(conn) }),
     ];
+    // THIS PASS'S GENERATION (src/syncPass.js). The watchdog below can free
+    // the flag under a pass iOS froze mid-flight; when that pass wakes and
+    // fails, a newer generation means it steps aside instead of running the
+    // per-slice fallback beside the newer sync (18 Nov, the double refresh).
+    const gen = (this.syncGen = (this.syncGen || 0) + 1);
+    const isCurrent = () => this.syncGen === gen;
     // Watchdog: per-request timeouts (api.js) make a hung pass near-impossible,
     // but if one ever slips through, the flag self-clears so the NEXT sync can
     // run — one bad pass must never freeze the pipeline forever again.
@@ -2450,7 +2457,7 @@ export default class App extends Component {
     const inFlight = (async () => {
       // ONE round-trip via /api/snapshot when the server supports it (the
       // ~25-requests-per-pass sync was latency + battery over Tailscale);
-      // any failure falls back to the individual fetches unchanged.
+      // a failure is retried once, then falls back to the individual fetches.
       let okCount = 0;
       let total = tasks.length;
       // REACHABLE IS NOT THE SAME AS FULLY SYNCED. A snapshot that answered
@@ -2458,9 +2465,21 @@ export default class App extends Component {
       // slice has a 6s budget) used to read as "Backend unreachable" for up
       // to five minutes, which was a lie about a server that had just spoken.
       let reachable = false;
-      try {
-        const startedAt = Date.now();
-        const { slices } = await api.snapshot(conn, { place: this.whereNow().place });
+      // A FAILED SNAPSHOT (22 Nov 2026, src/syncPass.js): a sync a newer one
+      // has overtaken steps aside silently; a current one pings, retries the
+      // snapshot once on a good ping, and only then falls back. OFFLINE is
+      // still only ever said after a failed ping.
+      let startedAt = 0;
+      const pass = await snapshotPass({
+        isCurrent,
+        snapshot: () => { startedAt = Date.now(); return api.snapshot(conn, { place: this.whereNow().place }); },
+        ping: () => api.ping(conn).then(() => true),
+        unreachable: macUnreachable,
+      });
+      if (pass.outcome === 'abandon') return;
+      if (pass.outcome === 'offline') { this.setState({ connectionStatus: 'offline' }); return; }
+      if (pass.outcome === 'ok') {
+        const { slices } = pass.value;
         reachable = true;
         okCount = this.applySnapshot(slices, startedAt);
         // The snapshot no longer waits on a slow slice (a cold CalDAV
@@ -2476,18 +2495,16 @@ export default class App extends Component {
             .then((r) => this.setState({ liveCalendar: r.events }))
             .catch(() => {}); // next sync tries again; the cached copy stands
         }
-      } catch (err) {
-        // no network at all: say OFFLINE now, rather than letting the
-        // fallback's self-swallowing fetches pass for a Mac that answered
+      } else {
+        // no network at all said OFFLINE above, rather than letting the
+        // fallback's self-swallowing fetches pass for a Mac that answered.
         // A STALLED SYNC IS NOT NO MAC (his report, 14 Oct evening: OFFLINE
-        // over and over on mobile data with the Mac fine). The snapshot is the
-        // one big download; when it times out or drops mid-body, a tiny ping
-        // settles it. Only a failed ping says OFFLINE.
-        if (macUnreachable(err)) {
-          const there = await api.ping(conn).then(() => true, () => false);
-          if (!there) { this.setState({ connectionStatus: 'offline' }); return; }
-        }
+        // over and over on mobile data with the Mac fine): only a failed
+        // ping says OFFLINE, and here the Mac answered.
         const results = await Promise.allSettled(tasks.map((t) => t()));
+        // a newer sync started while these ran: its answer is the one that
+        // counts, so this one sets no chip and asks for no degraded retry
+        if (!isCurrent()) return;
         okCount = results.filter((r) => r.status === 'fulfilled').length;
         total = results.length;
         reachable = okCount > 0;
