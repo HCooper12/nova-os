@@ -143,6 +143,10 @@ read after the start took 3.2 s (sign-in and discovery), the next five 2 to
 **Not confirmed yet.** That the 500 or so slow reads since 28 Oct were all
 this fault. The watcher only asks for fresh pictures while a client is
 connected, so the endpoint alone cannot show the difference with the app
-closed. The check: after a day of his real use, count the calendar reads,
-instruments reads and snapshots of 3 s or more in the request log from 22 Nov
-17:57 on, against the 518, 563 and 513 before it.
+closed. The check is `node scripts/slow-reads.mjs`, which counts the three
+routes in the request log on each side of the reload. Before it, from 28 Oct:
+553 of 7,549 calendar reads (7.3%), 597 of 4,534 instruments reads (13.2%)
+and 559 of 8,528 snapshots (6.6%) took 3 s or more (the counts in section 2
+were taken a day earlier). After it there is nothing to count yet. Run it
+again after a day of his real use. One slow calendar read right after any
+restart is expected: the first read has no cache to answer from.
