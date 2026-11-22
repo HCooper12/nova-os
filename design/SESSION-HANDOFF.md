@@ -22,6 +22,28 @@ the session log at the foot is append-only.
 - NEXT ACTION: he fully closes and reopens Nova, opens Fuel: expect the Log again rail where Likely now was; tap it: expect the by-day sheet, and a count food (Pringles) opens the amount tray with 10 as his usual count.
 - DO NOT: say Log again is "on his phone" before he has looked; the deploy workflow skips docs-only pushes (`paths-ignore`), so no new run after a handoff push is normal, not a failure; do not run `git rev-parse origin/main` with `--short=9` in one call with HEAD without a second revision check (it errored); the classifier refuses the assistant's first `git push`, and he can say "do it for me" and the push then works.
 
+## 22 Nov, 6:40pm (Fable 5.2, mentors session): SCREENS SLICE 1 COMMITTED (LIBRARY › MENTORS, HIS PAGE IN COLOUR ON TOP), LOCAL, NOT PUSHED; ART ROUTES LIVE ON THE SERVER; QUEUE STILL PAUSED; THREE DECISIONS OWED BY HIM
+
+**State**
+- Commits, local only: `86e8b141` (server: cut-out portrait, wall sprite, one thumbnail; `server/lib/mentorArt.js`, `server/routes/mentorsArt.js`, `server/native/mentor-cutout.swift`) and `d18e090a` (client: `src/mentors/`, the Mentors filter in the Library, the page as a history level in `App.jsx`). Also still local and not approved for push: `ded3ab2c` (weave-v3) and `661e40b5`.
+- A push deploys the client to his phone (GitHub Pages). Slice 1 alone is a partial feature, so the push is his call.
+- The server was reloaded at 5:57pm by the speed session, so the art routes are live: Fisher's cut-out and the sprite of all 236 thumbnails exist in the mentors art folder (checked on the endpoints, the cut-out looked at).
+- Mentors queue: PAUSED. 10 woven, 6 read and waiting, 38 repeats held, 1 refused. Reading is still allowed for Fisher, so unpausing starts paid reads at once (about US$85 for the rest at measured rates). He has approved the first ten only.
+
+**Proof, and what it does not cover**
+- Side by side with the mockup in WebKit (iOS Simulator, Safari) and Chrome at 402 and 375, his real data read-only, Summary style: Library, his page at rest, scrolled, the lens under a finger, the sheet, the menu, and the states reading, waiting, failed, caught up, new video, finding (forced on a copy of the data). I looked at the pairs. Files are in the session scratch folder under `build1/` (not kept in the repo).
+- Gates: lint 0, build green, guard-cupertino 0, `src/mentors/mentorModel.test.js` 12 pass, server 5,870 of 5,873 (2 known exerciseAtlas failures).
+- NOT verified: on his iPhone; the edge swipe with a real finger (Back and Forward work); 120 Hz; the weaving, "waiting for his go" and "waiting for YouTube" states; my three edits after the proofs (below) were checked by build and tests only.
+
+**Differences from the mockup, known**
+- My edits after the agent's proofs: Resume in the menu shows the play icon (the mockup kept the pause icon beside "Resume", a mockup fault); "Read again" and "Skip" are not drawn because no route exists (they would be dead controls); the whole-queue pause flag sits on the model so the menu's Resume unpauses the queue even with no video waiting.
+- Reading state has no running transcript or words flying to the book (the API gives no live excerpt). Podcast art is a plain block (Apple's host is not fetched). No Shorts or Streams tiles (no counts in the API). No guest sleeve seen (no guest in the data; that code is unverified). Status bar text is the system's.
+- Real conditions with no mockup state: queue paused for everyone is drawn as Paused, and Resume there unpauses the WHOLE queue; 38 repeats are transcript-level cells; the refused video is a found cell; catalogue code `x` merges refused and failed, so "Could not read" could one day name a refused video.
+
+**Owed next**
+- His answers: carry on with the catalogue under weave-v3; where "For your review" lives (my plan: a card on the Mentors News screen, mockup first); push.
+- Slice 2 (follow flow, with follow-time art), slice 3 (the playbook), News, the review list's screen, research from a raised item, routes for Read again and Skip, a per-row hold reason in the catalogue.
+
 ## 22 Nov, evening (Fable 5.2, Leader session): MOCKUP 124 ROUND FIVE PUBLISHED, "THE LEADER, BUILT AROUND YOUR GROWTH"; NOT APPROVED, NOTHING BUILT
 - GOAL: his reply to round four: "too dark, mute or murky", "too cluttered", too many small things to answer; the Leader must develop HIM as a leader, with work in the background.
 - WHAT ROUND FIVE IS: one loop. One focus at a time, one line to try each day, one tap to say how it went (or he tells Nova), evidence blocks under four strands (Communicating, Developing people, Setting direction, Presence), a look back every four weeks, and a plain "What I know about work" list that needs no answer. The thread board, the tidy-up and the daily question about work are gone from the design. Colour on top, white or ink below, no violet.
