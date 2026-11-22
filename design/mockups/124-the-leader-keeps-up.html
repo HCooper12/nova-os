@@ -3,907 +3,366 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=swap">
 <style>
-/* The page is the night outside; each phone is the Leader's lit room, in the looks his widgets already wear.
-   Round three: every thread is a string (tight = raised lately, slack = left alone), the rooms are flat colour,
-   and a rehearsal turns the room into a stage. Tangerine is Practice's own hue and means rehearsal everywhere. */
+/* Round five. Light first, neutral neutrals, colour in big flat fields.
+   Four strands of leadership own one hue each; the other person in a rehearsal owns pink.
+   The Leader's own voice has no hue: ink on white, or white on ink. */
 :root{
-  color-scheme:dark;
-  --pg:#0d0c1a; --pg-ink:#f4f2ff; --pg-ink2:rgba(244,242,255,.70); --pg-ink3:rgba(244,242,255,.50); --pg-line:rgba(244,242,255,.12);
-  --sun:#ffd02e; --coral:#ff5d3a; --lime:#b9f03c; --sky:#3fc8ff; --pink:#ff7ac0; --grape:#9b86ff; --on:#14121f;
-  --pg-gold:var(--sun);
+  color-scheme:light;
+  --pagebg:#e6e6e2; --pgink:#151517; --pgink2:rgba(21,21,23,.74); --pgline:rgba(21,21,23,.14);
+  --paper:#ffffff; --raise:#f1f1ee; --ink:#151517; --ink2:rgba(21,21,23,.70); --ink3:rgba(21,21,23,.62); --line:rgba(21,21,23,.12);
+  --say:#ff5436; --grow:#b6ee3a; --steer:#35b8ff; --stand:#ffcf24; --them:#ff78bd; --on:#151517;
+  --say-t:#c23414; --grow-t:#477000; --steer-t:#006a9e; --stand-t:#806000; --them-t:#b42c6c;
+  --btn:#151517; --btnink:#ffffff; --capink:#151517; --onquiet:rgba(21,21,23,.86);
   --serif:'Fraunces',ui-serif,'New York',Georgia,serif;
   --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,'Helvetica Neue',sans-serif;
   --out:cubic-bezier(.23,1,.32,1);
-  --drawer:cubic-bezier(.32,.72,0,1);
-  --spring:cubic-bezier(.34,1.32,.64,1);
-  --pop:cubic-bezier(.34,1.56,.64,1);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--pg);color:var(--pg-ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--pagebg);color:var(--pgink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.disp{font-family:var(--serif);font-weight:700;font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.02em}
+
+/* ---------- the explainer page ---------- */
 .pg{max-width:1000px;margin:0 auto;padding-block:48px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mast .who{font-size:13px;font-weight:650;color:var(--pgink2);margin:0 0 14px}
+h1{font:700 46px/1.03 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.025em;margin:0;max-width:16ch;text-wrap:balance}
+.lede{font-size:18px;line-height:1.5;color:var(--pgink2);max-width:50ch;margin:18px 0 0}
+.fine{font-size:13.5px;color:var(--pgink2);max-width:62ch;margin:14px 0 0}
+.lookrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:26px 0 0}
+.lookrow p{margin:0;font-size:13.5px;font-weight:650;color:var(--pgink2)}
+h2{font:700 32px/1.06 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.02em;margin:0 0 12px;text-wrap:balance}
+.scene{display:grid;grid-template-columns:minmax(0,1fr) 375px;gap:28px 72px;align-items:start;margin-top:112px;scroll-margin-top:24px}
+.copy{padding-top:56px;min-width:0}
+.copy p{margin:0;color:var(--pgink2);max-width:36ch;font-size:16px}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0;justify-self:end;width:375px;max-width:100%}
+.side .honest{margin:0;font-size:13px;color:var(--pgink2)}
+.side .under{margin:2px 4px 0;font-size:13.5px;color:var(--pgink2)}
+.stops{margin-top:120px;border-top:1px solid var(--pgline);padding-top:36px}
+.stops ul{list-style:none;margin:18px 0 0;padding:0;max-width:560px}
+.stops li{display:flex;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--pgline);font-size:16px}
+.stops li::before{content:"";flex:none;width:10px;height:10px;border-radius:3px;box-shadow:inset 0 0 0 1.5px var(--pgink);transform:translateY(-1px)}
+@media (max-width:880px){.scene{grid-template-columns:minmax(0,1fr);margin-top:84px}.copy{padding-top:0}.side{justify-self:start}h1{font-size:38px}}
 
-/* ---------- page type ---------- */
-.mast{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px;justify-content:space-between}
-.mast .who{display:flex;align-items:center;gap:10px;color:var(--pg-gold);font-size:13px;font-weight:600;margin:0 0 18px}
-.mast .who svg{width:16px;height:15px}
-h1{font:400 44px/1.04 var(--serif);letter-spacing:-.025em;margin:0;max-width:19ch;text-wrap:balance}
-.lede{font-size:17px;line-height:1.5;color:var(--pg-ink2);max-width:54ch;margin:16px 0 0}
-.fine{font-size:13px;color:var(--pg-ink3);max-width:60ch;margin:12px 0 0}
-h2{font:400 30px/1.1 var(--serif);letter-spacing:-.018em;margin:0 0 14px;text-wrap:balance}
-.copy p{color:var(--pg-ink2);margin:0 0 14px;max-width:42ch}
-.copy b{color:var(--pg-ink);font-weight:600}
-.copy p.rule{font-size:13.5px;color:var(--pg-ink3);border-top:1px solid var(--pg-line);padding-top:12px}
-.said{font-size:13px;color:var(--pg-gold);min-height:20px;margin:4px 0 0}
-.copy .tlink{color:var(--pg-gold)}
-.copy .homebox p{color:inherit;max-width:none;margin-bottom:0}
-.copy .homebox p.tt{margin:8px 0 14px}
-.tag{display:inline-block;font-size:11.5px;font-weight:600;color:var(--pg-gold);padding:3px 10px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(230,189,122,.38);margin:0 0 12px}
-.tag.ch{color:var(--pg-ink2);box-shadow:inset 0 0 0 1px var(--pg-line)}
-
-/* what is new, as a way down the page */
-.news{list-style:none;margin:26px 0 0;padding:0;max-width:560px;border-top:1px solid var(--pg-line)}
-.news li{border-bottom:1px solid var(--pg-line)}
-.news a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;align-items:baseline;padding:11px 2px;color:inherit;text-decoration:none;transition:transform 160ms var(--out)}
-.news a:active{transform:scale(.985)}
-.news b{font:400 18px/1.25 var(--serif);letter-spacing:-.01em;color:var(--pg-ink)}
-.news small{grid-column:1;font-size:13px;color:var(--pg-ink3)}
-.news i{grid-row:1/3;grid-column:2;align-self:center;font-style:normal;font-size:11.5px;font-weight:600;color:var(--pg-gold)}
-
-/* the look switch: one pill that slides */
-.look{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
-.look button{position:relative;z-index:1;appearance:none;border:0;background:none;padding:8px 18px;font-size:13.5px;font-weight:600;color:var(--pg-ink2);cursor:pointer;transition:color 240ms var(--out)}
-.look button[aria-pressed="true"]{color:#1d1a14}
-.look .knob{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--pg-gold);transition:transform 420ms var(--spring)}
-.look[data-at="1"] .knob{transform:translateX(100%)}
-.looklbl{font-size:12.5px;color:var(--pg-ink3);margin:0 0 8px}
-
-.scene{display:grid;grid-template-columns:minmax(0,1fr) 375px;gap:40px 72px;align-items:start;margin-top:120px;scroll-margin-top:24px}
-.scene .copy{padding-top:40px;min-width:0}
-@media (max-width:880px){.scene{grid-template-columns:minmax(0,1fr);margin-top:88px}.scene .copy{padding-top:0}h1{font-size:36px}}
+/* two-way switches on the page (the look, day one, tap or tell) */
+.seg{position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:3px;border-radius:999px;background:rgba(21,21,23,.08);align-self:flex-start}
+.seg button{position:relative;z-index:1;appearance:none;border:0;background:none;padding:8px 16px;font-size:13.5px;font-weight:700;color:var(--pgink2);cursor:pointer;white-space:nowrap;transition:color 200ms var(--out)}
+.seg button[aria-pressed="true"]{color:#fff}
+.seg .knob{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/2);border-radius:999px;background:var(--pgink);transform:translateX(calc(var(--at,0)*100%));transition:transform 380ms cubic-bezier(.34,1.25,.64,1)}
 
 /* ---------- the phone ---------- */
-.phone{width:375px;max-width:100%;border-radius:50px;padding:9px;background:#05060b;box-shadow:0 0 0 1px rgba(255,255,255,.10);justify-self:end}
-@media (max-width:880px){.phone{justify-self:start}}
-.scr{--sun:#ffd02e;--coral:#ff5d3a;--lime:#b9f03c;--sky:#3fc8ff;--pink:#ff7ac0;--grape:#9b86ff;--on:#14121f;
-  --sun-t:#ffd02e;--coral-t:#ff5d3a;--lime-t:#b9f03c;--sky-t:#3fc8ff;--pink-t:#ff7ac0;--grape-t:#9b86ff;
-  --ground:#131226;--card:#1f1d3d;--raised:#2a2750;--ink:#f4f2ff;--ink2:rgba(244,242,255,.70);--ink3:rgba(244,242,255,.54);--line:rgba(244,242,255,.12);--edge:transparent;
-  --field:var(--raised);--me:#ffffff;--meink:#14121f;--sheet:#1f1d3d;--stage:#0c0b1c;--stroke:var(--on);
-  --gold:var(--sun-t);--vio:var(--grape-t);--sage:var(--lime-t);--or:var(--coral-t);--bgB:var(--ground);--goldink:var(--on);--orink:var(--on);--hue:var(--sun);--hue-t:var(--sun-t);
-  position:relative;overflow:hidden;border-radius:42px;min-height:620px;padding:54px 18px 20px;color:var(--ink);
-  background:var(--ground);display:flex;flex-direction:column;gap:14px}
-body[data-look="paper"] .scr{--sun-t:#855b00;--coral-t:#bb3217;--lime-t:#466f00;--sky-t:#006ca3;--pink-t:#b32e74;--grape-t:#5a3fe0;
-  --ground:#fbf8f1;--card:#ffffff;--raised:#f1ecdf;--ink:#14121f;--ink2:rgba(20,18,31,.72);--ink3:rgba(20,18,31,.62);--line:rgba(20,18,31,.12);
-  --me:#14121f;--meink:#ffffff;--sheet:#ffffff;--stage:#f1ecdf}
-.scr>*{position:relative;z-index:1}
-.island{position:absolute!important;top:12px;left:50%;width:112px;height:32px;margin-left:-56px;border-radius:20px;background:#000;z-index:6!important}
-.scr.short{min-height:0}
+.phone{width:375px;max-width:100%;border-radius:50px;padding:9px;background:#151517}
+.scr{position:relative;overflow:hidden;border-radius:42px;min-height:780px;background:var(--paper);color:var(--ink);display:flex;flex-direction:column;isolation:isolate}
+body[data-look="ink"] .scr{--paper:#151517;--raise:#222226;--ink:#f5f5f2;--ink2:rgba(245,245,242,.72);--ink3:rgba(245,245,242,.60);--line:rgba(245,245,242,.14);
+  --say-t:#ff5436;--grow-t:#b6ee3a;--steer-t:#35b8ff;--stand-t:#ffcf24;--them-t:#ff78bd;--btn:#f5f5f2;--btnink:#151517;--capink:#2a2a2e}
+.island{position:absolute;top:12px;left:50%;width:112px;height:32px;margin-left:-56px;border-radius:20px;background:#000;z-index:20}
 
-/* app header */
-.hd{display:flex;align-items:center;gap:11px}
-.mk{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--gold);background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge)}
-.mk svg{width:14px;height:13px}
-.mk.sm{width:24px;height:24px}.mk.sm svg{width:10px;height:10px}
-.mk.nova{color:#59e6ff}
-.nv{display:flex;gap:4px}.nv::before,.nv::after{content:"";width:4px;height:6px;border-radius:2px;background:currentColor}
-.hd b{display:block;font-size:15px;font-weight:600;line-height:1.2}
-.hd small{display:block;font-size:12px;color:var(--ink3)}
-.kick{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--gold);margin:0}
-.kick svg{width:12px;height:11px;flex:none}
-.kick .r{margin-left:auto;font-size:11px;letter-spacing:.02em;text-transform:none;font-weight:500;color:var(--ink3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.kick.or{color:var(--or)}.kick.vio{color:var(--vio)}
+/* the colour cap: one hue per screen, the screen's one headline */
+.cap{background:var(--h,var(--say));color:var(--on);padding:60px 22px 24px;border-radius:0 0 28px 28px;flex:none}
+.cap.ink{background:var(--capink);color:#fff}
+.cap .strand{display:block;font-size:13px;font-weight:700;margin:0}
+.cap .hl{margin:6px 0 0;font-size:38px;line-height:1.02;text-wrap:balance}
+.cap.small .hl{font-size:34px}
+.cap .sub{margin:10px 0 0;font-size:15px;font-weight:600;color:var(--onquiet)}
+.cap.ink .sub{color:rgba(255,255,255,.80)}
+.prog{display:flex;align-items:center;gap:12px;margin:18px 0 0;font-size:13px;font-weight:700}
+.prog .tr{flex:1;height:3px;border-radius:2px;background:rgba(21,21,23,.18);overflow:hidden}
+.prog .tr i{display:block;height:100%;width:100%;background:var(--on);transform-origin:left}
+.cap .acts{margin-top:18px}
+.capbtn{background:var(--on);color:#fff}
+.capbtn2{background:transparent;color:var(--on);box-shadow:inset 0 0 0 2px var(--on)}
 
-/* bubbles: Nova talks in bubbles, the Leader in its own serif */
-.msg{max-width:84%;padding:10px 13px;border-radius:20px;font-size:15px;line-height:1.38}
-.me{align-self:flex-end;background:var(--me);border-bottom-right-radius:6px}
-.nova{align-self:flex-start;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-bottom-left-radius:6px}
-.lv{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;max-width:92%}
-.lv p{margin:0;font:400 18px/1.32 var(--serif);letter-spacing:-.01em}
-.lv.big p{font-size:22px;line-height:1.2;letter-spacing:-.018em}
-.lv .who{display:block;font:600 12px var(--sans);color:var(--gold);margin:0 0 2px;letter-spacing:0}
+.bd{padding:24px 22px 26px;display:flex;flex-direction:column;gap:26px;flex:1}
+.lab{display:block;margin:0 0 8px;font-size:13px;font-weight:700;color:var(--ink2)}
+.btn{appearance:none;border:0;min-height:44px;padding:0 18px;border-radius:999px;background:var(--raise);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--btn);color:var(--btnink)}
+.btn.capbtn{background:var(--on);color:#fff}
+.btn.capbtn2{background:transparent;color:var(--on);box-shadow:inset 0 0 0 2px var(--on)}
+.acts{display:flex;flex-wrap:wrap;gap:10px}
+.tlink{appearance:none;border:0;background:none;padding:8px 0;color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}
 
-/* the receipt */
-.slip{align-self:stretch;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:18px;padding:12px 14px 10px;transform-origin:top left}
-.slip .top{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--gold)}
-.slip .top svg{width:11px;height:10px}
-.slip .what{margin:5px 0 10px;font-size:14.5px;line-height:1.35}
-.slip .tn{display:flex;align-items:baseline;gap:8px;font-size:12px;color:var(--ink2)}
-.slip .tn span:first-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.slip .str{margin:4px 0 0}
-.slip .ft{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
-.slip .ft small{font-size:11.5px;color:var(--ink3)}
-.slip.gone{opacity:.5}
-.tlink{appearance:none;border:0;background:none;padding:6px 0;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;transition:transform 140ms var(--out)}
-.tlink:active{transform:scale(.95)}
+/* press feedback, everywhere (G). `scale` stays clear of any transform a motion owns */
+.prs{scale:.97}
+button,.blk,.strow,.wrow .fg{transition:scale 120ms var(--out)}
 
-/* a status word that rolls */
-.roll{display:inline-grid;height:1.3em;overflow:hidden;vertical-align:bottom;font-weight:600;color:var(--vio)}
-.roll i{grid-area:1/1;font-style:normal;transition:transform 520ms var(--spring),opacity 300ms var(--out)}
-.roll i:nth-child(2){transform:translateY(110%);opacity:0;color:var(--gold)}
-.roll.on i:first-child{transform:translateY(-110%);opacity:0}
-.roll.on i:nth-child(2){transform:none;opacity:1}
+/* ---------- Home ---------- */
+.try .line{margin:0;font:italic 500 22px/1.25 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em;text-wrap:pretty}
+.try .moment{margin:10px 0 18px;font-size:14px;color:var(--ink2)}
+.said{margin:16px 0 0;display:flex;flex-direction:column;gap:2px}
+.said p{margin:0;font:600 20px/1.25 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em}
+.said .meta{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2)}
 
-/* ---------- the string: the signature ----------
-   Hung from the first time he raised a thread to today. Slack is the days since he last raised it. */
-.axis{position:relative;height:16px;margin:0 28px 0 6px;font-size:10.5px;color:var(--ink3)}
-.axis span{position:absolute;top:0;transform:translateX(-50%)}
-.axis span.now{color:var(--gold);font-weight:600}
-.str{display:block;height:32px;margin:0 22px 0 0}
-.str svg{display:block;overflow:visible}
-.str path.solid,.str path.tail{fill:none;stroke:var(--c);stroke-width:1.6;stroke-linecap:round;transition:stroke 500ms var(--out)}
-.str path.tail{stroke-width:1.9;stroke-dasharray:.1 4.6;opacity:.85}
-.str .full path.tail{stroke-dasharray:none;stroke-width:1.6;opacity:1}
-.str .b{fill:var(--c);stroke:var(--bgB);stroke-width:2;transition:fill 500ms var(--out)}
-.str .pin{fill:var(--bgB);stroke:var(--gold);stroke-width:1.4}
-.str .nb{fill:var(--gold);stroke:var(--bgB);stroke-width:2;transition:transform 560ms var(--spring),opacity 260ms var(--out)}
-.str .nb.up{transform:translateY(-18px);opacity:0}
-.str .dia{fill:var(--bgB);stroke:var(--or);stroke-width:1.7;stroke-linejoin:round;transform-box:fill-box;transform-origin:center;transition:transform 640ms var(--spring),opacity 240ms var(--out)}
-.str .dia.up{transform:translateY(-16px) rotate(-90deg) scale(.5);opacity:0}
-.s-live{--c:var(--gold)}.s-open{--c:var(--vio)}.s-quiet{--c:var(--ink3)}.s-down{--c:var(--ink3)}
-.legend{display:flex;flex-wrap:wrap;gap:5px 14px;margin:8px 0 0;font-size:11.5px;color:var(--ink3)}
-.legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{width:8px;height:8px;border-radius:50%;background:var(--h)}
-.legend i.d{width:7px;height:7px;border-radius:1px;background:none;box-shadow:inset 0 0 0 1.5px var(--or);transform:rotate(45deg)}
+.rows{border-bottom:1px solid var(--line)}
+.strow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 12px;width:100%;appearance:none;border:0;background:none;padding:11px 0;text-align:left;cursor:pointer;border-top:1px solid var(--line)}
+.strow .nm{display:block;font-size:15px;font-weight:650;line-height:1.25}
+.strow .ct{display:block;font-size:13px;line-height:1.3;color:var(--ink2);margin-top:1px;font-variant-numeric:tabular-nums}
+.blks{display:flex;gap:4px;justify-content:flex-end;flex-wrap:nowrap}
+.blk{--c:var(--say);--ct:var(--say-t);position:relative;display:block;width:22px;height:22px;border-radius:7px;background:var(--c);flex:none}
+.blk.half{background:none;box-shadow:inset 0 0 0 2px var(--ct);overflow:hidden}
+.blk.half::after{content:"";position:absolute;left:2px;right:2px;bottom:2px;height:calc(50% - 2px);border-radius:0 0 5px 5px;background:var(--c)}
+.blk.flat,.blk.reh,.blk.none{background:none;box-shadow:inset 0 0 0 2px var(--ct)}
+.blk.none{box-shadow:inset 0 0 0 2px var(--line);border-radius:7px}
+.blk.none::after{content:"";position:absolute;inset:2px;border-radius:5px;border:1.5px dashed var(--ink3)}
+.blk.none{box-shadow:none}
+.s-say{--c:var(--say);--ct:var(--say-t)}.s-grow{--c:var(--grow);--ct:var(--grow-t)}.s-steer{--c:var(--steer);--ct:var(--steer-t)}.s-stand{--c:var(--stand);--ct:var(--stand-t)}.s-them{--c:var(--them);--ct:var(--them-t)}
+.blk.solid.s-grow,.blk.solid.s-stand{box-shadow:inset 0 0 0 1px rgba(21,21,23,.12)}
+.fanwrap{overflow:hidden}
+.fan{list-style:none;margin:0 0 12px;padding:0 0 0 2px;display:flex;flex-direction:column;gap:7px}
+.fan li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink2)}
+.fan .blk{width:14px;height:14px;border-radius:4px}
+.fan .blk.half,.fan .blk.flat,.fan .blk.reh{box-shadow:inset 0 0 0 1.6px var(--ct)}
+.knows{display:flex;align-items:center;justify-content:space-between;width:100%;appearance:none;border:0;background:none;padding:2px 0;font-size:14px;color:var(--ink2);cursor:pointer;text-align:left}
+.knows svg{width:8px;height:13px;flex:none}
+.odo{display:inline-grid;height:1.3em;line-height:1.3em;overflow:hidden;vertical-align:top}
+.odo span{grid-area:1/1}
 
-.page-t{font:400 27px/1.12 var(--serif);letter-spacing:-.02em;margin:6px 0 4px}
-.page-s{font-size:13.5px;color:var(--ink2);margin:0}
-.threads{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:22px;padding:14px 12px 4px}
-.th{border-top:.5px solid var(--line)}
-.th:first-of-type{border-top:0}
-.thb{appearance:none;border:0;background:none;width:100%;text-align:left;padding:12px 2px 10px;cursor:pointer;display:block;transition:transform 140ms var(--out)}
-.thb:active{transform:scale(.985)}
-.thb .nm{display:flex;align-items:baseline;gap:10px;margin:0 0 2px}
-.thb .nm b{flex:1;min-width:0;font:400 16.5px/1.22 var(--serif);letter-spacing:-.01em}
-.thb .nm small{font-size:11.5px;color:var(--ink3);white-space:nowrap}
-.thb .q{display:block;text-align:right;font-size:11.5px;color:var(--ink3);margin:0 22px 0 0}
-.th.live .thb .q{color:var(--gold)}
-.th.open .thb .q{color:var(--vio)}
-.thx{display:grid;grid-template-rows:0fr;transition:grid-template-rows 420ms var(--out)}
-.th.on .thx{grid-template-rows:1fr}
-.thx>div{overflow:hidden}
-.notes{list-style:none;margin:8px 0 12px;padding:0 0 0 2px}
-.notes li{position:relative;display:grid;grid-template-columns:46px 1fr;gap:10px;padding:0 0 10px;font-size:13.5px;line-height:1.38;color:var(--ink2)}
-.notes li time{font-size:11.5px;color:var(--ink3);padding-top:1px}
-.notes li::before{content:"";position:absolute;left:52px;top:6px;width:6px;height:6px;border-radius:50%;background:var(--vio)}
-.notes li::after{content:"";position:absolute;left:54.5px;top:14px;bottom:-2px;width:1px;background:var(--line)}
-.notes li:last-child::after{display:none}
-.notes li span{padding-left:14px}
-.acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
-.pill{appearance:none;border:0;padding:8px 13px;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);font-size:13px;font-weight:600;cursor:pointer;transition:transform 140ms var(--out),background 200ms,color 200ms}
-.pill:active{transform:scale(.96)}
-.pill svg{width:11px;height:11px;margin-right:6px;vertical-align:-1px}
-.pill.ok{color:var(--sage)}
-.pill.gold{color:var(--gold)}
-.pill.or{color:var(--or)}
-.pill.fill{background:var(--gold);color:var(--goldink);box-shadow:none}
-.pill.fill-or{background:var(--or);color:var(--orink);box-shadow:none}
-.downs{margin:6px 2px 10px;font-size:12px;color:var(--ink3)}
-.th.down .thb .nm b{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:1px}
-.bar{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);font-size:13px;min-height:44px;transition:opacity 260ms var(--out),transform 420ms var(--spring)}
-.bar.idle{opacity:0;transform:translateY(10px)}
-.bar span{flex:1;min-width:0}
+/* ---------- the sheet and the scrim ---------- */
+.scrim{position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:9;background:var(--paper);border-radius:28px 28px 0 0;padding:10px 22px 30px;box-shadow:0 -10px 30px -12px rgba(0,0,0,.35)}
+.grab{display:block;width:36px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 16px}
+.sheet .q{margin:0 0 18px;font-size:28px;line-height:1.08}
+.pick3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.big{appearance:none;border:0;position:relative;height:104px;border-radius:10px;padding:0 0 10px 12px;display:flex;align-items:flex-end;font-size:15px;font-weight:700;color:var(--on);text-align:left;cursor:pointer;background:var(--fc,var(--say));overflow:hidden}
+.big.half{background:var(--paper);box-shadow:inset 0 0 0 2.5px var(--fct,var(--say-t))}
+.big.half::before{content:"";position:absolute;left:0;right:0;bottom:0;height:50%;background:var(--fc,var(--say))}
+.big.half span{position:relative}
+.big.flat{background:var(--paper);box-shadow:inset 0 0 0 2.5px var(--fct,var(--say-t));color:var(--ink)}
+.sheet .nochance{display:block;margin:14px auto 0}
+.mic{display:flex;align-items:center;gap:12px;margin:16px 0 0;padding:12px 14px;border-radius:18px;background:var(--raise);width:100%;appearance:none;border:0;font-size:15px;font-weight:600;color:var(--ink2);cursor:pointer;text-align:left}
+.mic svg{width:18px;height:18px;flex:none;color:var(--ink)}
+.flyer{position:absolute;z-index:12;border-radius:10px;pointer-events:none;transform-origin:0 0;box-shadow:0 10px 24px -10px rgba(0,0,0,.45)}
 
-/* tidy */
-.ask{font:400 22px/1.22 var(--serif);letter-spacing:-.015em;margin:4px 0 0;text-wrap:pretty}
-.tidy{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-.tidy li{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:18px;padding:12px 12px 12px 14px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;transition:opacity 300ms var(--out)}
-.tidy li .t b{display:block;font:400 16px/1.22 var(--serif)}
-.tidy li .t small{display:block;font-size:12px;color:var(--ink3);margin-top:3px}
-.tidy li .t small.k{color:var(--sage)}
-.tk{appearance:none;border:0;width:38px;height:38px;border-radius:50%;background:var(--field);box-shadow:inset 0 0 0 .5px var(--edge);display:grid;place-items:center;cursor:pointer;color:var(--ink2);transition:transform 220ms var(--spring),background 220ms,color 220ms}
-.tk svg{width:15px;height:15px}
-.tk:active{transform:scale(.88)}
-.tk.y[aria-pressed="true"]{background:var(--sage);color:var(--bgB);box-shadow:none}
-.tk.n[aria-pressed="true"]{background:var(--ink);color:var(--bgB);box-shadow:none}
-.row2{display:flex;gap:8px;flex-wrap:wrap}
-.compose{margin-top:auto;display:flex;align-items:center;gap:8px;min-height:48px;padding:6px 6px 6px 14px;border-radius:26px;background:var(--field);box-shadow:inset 0 0 0 1px var(--line);transition:box-shadow 300ms var(--out)}
-.compose.lead{box-shadow:inset 0 0 0 1.5px var(--gold)}
-.compose .txt{flex:1;min-width:0;font-size:15px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.compose .txt.has{color:var(--ink)}
-.compose .send{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--gold);color:var(--goldink)}
-.compose .send svg{width:14px;height:14px}
-.compose.or .send{background:var(--or);color:var(--orink)}
-.to{display:inline-flex;align-items:center;gap:5px;flex:none;padding:4px 9px 4px 7px;border-radius:999px;background:var(--gold);color:var(--goldink);font-size:11.5px;font-weight:700;transition:transform 420ms var(--spring),opacity 200ms var(--out)}
-.to svg{width:9px;height:9px}
-.to.off{opacity:0;transform:scale(.7);position:absolute;pointer-events:none}
+/* ---------- Nova chat ---------- */
+.chat{display:flex;flex-direction:column;gap:12px}
+.msg{max-width:84%;padding:11px 14px;border-radius:20px;font-size:15.5px;line-height:1.38}
+.msg.me{align-self:flex-end;background:var(--btn);color:var(--btnink);border-bottom-right-radius:6px}
+.msg.nova{align-self:flex-start;background:var(--raise);border-bottom-left-radius:6px}
+.rcpt{display:flex;align-items:flex-start;gap:12px;padding:4px 0 0}
+.rcpt .blk{margin-top:1px}
+.rcpt p{margin:0;font-size:15px;line-height:1.35;flex:1}
+.rcpt .tlink{padding:0;margin-left:4px}
+.compose{margin-top:auto;display:flex;align-items:center;gap:10px;min-height:50px;padding:6px 6px 6px 18px;border-radius:26px;background:var(--raise);font-size:15px;color:var(--ink2)}
+.compose span{flex:1}
+.compose i{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--btn);color:var(--btnink)}
+.compose svg{width:16px;height:16px}
 
-/* the idea card, the large widget's face */
-.idea{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:24px;padding:18px 18px 14px;transition:transform 380ms var(--out),opacity 260ms var(--out),filter 260ms var(--out);transform-origin:top center}
-.idea .tt{font:500 26px/1.1 var(--serif);letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance}
-.idea p.how{font-size:15px;line-height:1.42;color:var(--ink2);margin:0 0 14px}
-.idea .acts{margin:0}
-.idea.away{transform:scale(.9) translateY(-14px);opacity:0;filter:blur(3px)}
-.rep{display:inline-flex;align-items:center;gap:6px}
-.rep svg{width:13px;height:13px;margin:0}
-.quote{display:block;border-left:2px solid var(--gold);padding:2px 0 2px 10px;margin:0 0 8px;font:italic 400 14.5px/1.3 var(--serif);color:var(--ink2)}
-.quote small{display:block;font:600 10px var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--gold);font-style:normal;margin-bottom:2px}
-.in{animation:rise 560ms var(--spring) both;animation-delay:calc(var(--i,0)*120ms)}
-@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
-
-/* ---------- the chat's five ways in ---------- */
-.starters{display:flex;gap:10px;overflow-x:auto;margin:0 -18px;padding:2px 18px 4px;scroll-snap-type:x proximity;scroll-padding-left:18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.starters::-webkit-scrollbar{display:none}
-.st{--hue:var(--gold);flex:none;width:138px;scroll-snap-align:start;appearance:none;border:0;text-align:left;padding:12px 12px 13px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);cursor:pointer;display:flex;flex-direction:column;gap:9px;transition:transform 160ms var(--out),box-shadow 260ms var(--out)}
-.st.or{--hue:var(--or)}
-.st:active{transform:scale(.97)}
-.st[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--hue)}
-.st .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:var(--hue);background:color-mix(in srgb,var(--hue) 15%,transparent)}
-.st .ic svg{width:16px;height:16px}
-.st b{font:400 15.5px/1.18 var(--serif);letter-spacing:-.01em}
-.st small{font-size:11.5px;line-height:1.3;color:var(--ink3)}
-.panel{background:var(--card);box-shadow:inset 0 0 0 .5px var(--edge);border-radius:22px;padding:14px 16px}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
-.chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:4px 10px 4px 8px;border-radius:999px;font-size:11.5px;font-weight:600;color:var(--ink2);background:var(--field);box-shadow:inset 0 0 0 .5px var(--line)}
-.chip svg{width:11px;height:11px;flex:none}
-.chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip.or{color:var(--or)}
-.panel .tt{font:500 20px/1.16 var(--serif);letter-spacing:-.015em;margin:0 0 14px;text-wrap:balance}
-.path{list-style:none;margin:0 0 12px;padding:0}
-.path li{position:relative;padding:0 0 14px 24px}
-.path li::before{content:"";position:absolute;left:2px;top:4px;width:10px;height:10px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--gold)}
-.path li::after{content:"";position:absolute;left:6.25px;top:17px;bottom:-1px;width:1.5px;background:var(--line)}
-.path li:last-child{padding-bottom:2px}.path li:last-child::after{display:none}
-.path small{display:block;font-size:11.5px;font-weight:600;color:var(--gold);margin:0 0 2px}
-.path p{margin:0;font:400 16px/1.3 var(--serif);letter-spacing:-.005em}
-
-/* a small sliding choice, in the room's own colours */
-.seg{position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:3px;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 .5px var(--line)}
-.seg button{position:relative;z-index:1;appearance:none;border:0;background:none;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;transition:color 240ms var(--out);white-space:nowrap}
-.seg button[aria-pressed="true"]{color:var(--segink,var(--goldink))}
-.seg .knob{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/var(--n,2));border-radius:999px;background:var(--seg,var(--gold));transform:translateX(calc(var(--at,0)*100%));transition:transform 420ms var(--spring)}
-.seg.or{--seg:var(--or);--segink:var(--orink)}
-
-/* find the words: his sentence wipes to the sharper one */
-.wbox{position:relative;display:grid;margin:14px 0 12px}
-.wbox>p{grid-area:1/1;margin:0;font:400 17px/1.34 var(--serif);letter-spacing:-.005em;transition:clip-path 640ms var(--out)}
-.wbox .ro{color:var(--ink2);clip-path:inset(0 0 0 0)}
-.wbox .be{clip-path:inset(0 100% 0 0)}
-.wipe.on .wbox .ro{clip-path:inset(0 0 0 100%)}
-.wipe.on .wbox .be{clip-path:inset(0 0 0 0)}
-.wbox .hl{position:absolute;inset:-4px 0;pointer-events:none;transition:transform 640ms var(--out)}
-.wbox .hl::before{content:"";position:absolute;left:-8px;top:0;bottom:0;width:2px;border-radius:2px;background:var(--gold)}
-.wipe.on .wbox .hl{transform:translateX(calc(100% + 14px))}
-.wnote{margin:0;font-size:13px;color:var(--ink2)}
-.wnote b{font-weight:600;color:var(--gold);font-variant-numeric:tabular-nums}
-
-/* ---------- rehearsal: a sheet that becomes a stage ---------- */
-.tu{display:flex;flex-direction:column;gap:10px}
-:focus-visible{outline:2px solid var(--pg-gold);outline-offset:2px}
-.scr.reh{min-height:700px}
-.under{display:flex;flex-direction:column;gap:12px;padding-bottom:4px}
-.under .urow b{display:block;font:400 16.5px/1.22 var(--serif);letter-spacing:-.01em;margin:0 0 2px}
-.scrim{position:absolute!important;inset:0;z-index:2!important;background:rgba(4,5,12,.6)}
-.sheet{z-index:3!important;flex:1;margin:0 -18px -20px;padding:8px 18px 20px;border-radius:30px 30px 0 0;background:var(--sheet);display:flex;flex-direction:column;gap:14px;transition:border-radius 420ms var(--out)}
-.sheet>*{position:relative}
-.reh:not([data-step="setup"]) .sheet{margin-top:-54px;padding-top:58px;border-radius:0}
-.grab{align-self:center;width:36px;height:5px;border-radius:3px;background:var(--line)}
-.reh:not([data-step="setup"]) .grab{display:none}
-.steps{list-style:none;display:flex;align-items:center;margin:0;padding:0;font-size:12px;font-weight:600;color:var(--ink3)}
-.steps li{display:flex;align-items:center;gap:7px;flex:none;transition:color 300ms var(--out)}
-.steps li+li{flex:1}
-.steps li+li::before{content:"";flex:1;min-width:12px;height:1.5px;margin:0 3px 0 4px;background:var(--line);transition:background 400ms var(--out)}
-.steps i{position:relative;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1.6px var(--line);color:var(--orink);transition:background 300ms var(--out),box-shadow 300ms var(--out)}
-.steps i svg{width:10px;height:10px;opacity:0;transition:opacity 200ms}
-.steps li.on{color:var(--ink)}
-.steps li.on i{box-shadow:inset 0 0 0 1.6px var(--or)}
-.steps li.on i::after{content:"";position:absolute;inset:5.5px;border-radius:50%;background:var(--or)}
-.steps li.done{color:var(--ink2)}
-.steps li.done i{background:var(--or);box-shadow:none}
-.steps li.done i svg{opacity:1}
-.steps li.on::before,.steps li.done::before{background:var(--or)}
-.sh-t{font:400 24px/1.12 var(--serif);letter-spacing:-.02em;margin:8px 0 0}
-.form{display:flex;flex-direction:column}
-.frow{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;align-items:baseline;padding:11px 0;border-top:.5px solid var(--line)}
-.frow>small{font-size:12px;color:var(--ink3)}
-.frow .v{display:block;font:400 16.5px/1.25 var(--serif);letter-spacing:-.005em}
-.frow .from{display:block;font-size:11.5px;color:var(--ink3);margin-top:3px}
-.mchips{display:flex;flex-wrap:wrap;gap:6px}
-.mchip{appearance:none;border:0;padding:6px 11px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--field);box-shadow:inset 0 0 0 .5px var(--line);color:var(--ink3);cursor:pointer;transition:transform 140ms var(--out),color 200ms,box-shadow 200ms}
-.mchip:active{transform:scale(.95)}
-.mchip[aria-pressed="true"]{color:var(--or);box-shadow:inset 0 0 0 1.2px var(--or)}
-.go{appearance:none;border:0;min-height:48px;margin-top:auto;border-radius:999px;background:var(--or);color:var(--orink);font-size:15px;font-weight:700;cursor:pointer;transition:transform 160ms var(--out)}
-.go:active{transform:scale(.97)}
-.pane{display:flex;flex-direction:column;gap:14px;flex:1}
-
-.cast{display:flex;align-items:center;gap:11px}
-.cast .av{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--or) 16%,transparent);box-shadow:inset 0 0 0 1.5px var(--or);color:var(--or)}
-.cast .av svg{width:16px;height:16px}
-.cast small{display:block;font-size:11.5px;font-weight:600;color:var(--or)}
-.cast b{display:block;font:400 17px/1.2 var(--serif);letter-spacing:-.01em}
-.cast .chip{margin-left:auto;flex:none}
-.talk{display:flex;flex-direction:column;gap:10px;min-height:250px;transition:opacity 320ms var(--out),filter 320ms var(--out)}
-.talk.dim{opacity:.3;filter:blur(1.5px)}
-.them{align-self:flex-start;background:color-mix(in srgb,var(--or) 13%,var(--card));box-shadow:inset 0 0 0 .5px var(--edge);border-bottom-left-radius:6px}
-.spk{display:flex;align-items:center;gap:5px;margin:-5px 0 0 4px;font-size:11px;color:var(--ink3)}
-.spk svg{width:11px;height:11px;color:var(--or)}
-.mv{align-self:flex-end;max-width:92%;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:2px 7px;margin:-5px 2px 0 0;font-size:12px;font-weight:600;color:var(--or);text-align:right}
-.mv svg{width:10px;height:10px;flex:none;align-self:center}
-.mv q{font:italic 400 12.5px var(--serif);color:var(--ink2);quotes:"\201C" "\201D"}
-.msg.taken{opacity:.42;text-decoration:line-through;text-decoration-thickness:1px}
-.whisper{display:grid;grid-template-columns:24px 1fr;gap:10px;padding:12px 14px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 55%,transparent)}
-.whisper p{margin:0;font:italic 400 17px/1.3 var(--serif);letter-spacing:-.005em}
-.whisper .who{display:block;font:600 12px var(--sans);font-style:normal;color:var(--gold);margin:0 0 2px}
-.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
-
-/* the debrief */
-.lab{font-size:11.5px;font-weight:600;color:var(--ink3);margin:0 0 6px}
-.best{margin:0;font:400 26px/1.14 var(--serif);letter-spacing:-.022em;text-wrap:balance}
-.best::before{content:"\201C";display:block;height:22px;font-size:54px;line-height:1;color:var(--gold)}
-.bestwhy{margin:8px 0 0;font-size:13.5px;color:var(--ink2)}
-.pegs{list-style:none;margin:0;padding:0}
-.pegs li{position:relative;padding:0 0 12px 26px}
-.pegs li::before{content:"";position:absolute;left:1px;top:3px;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--line)}
-.pegs li::after{content:"";position:absolute;left:6.25px;top:18px;bottom:0;width:1.5px;background:var(--line)}
-.pegs li:last-child{padding-bottom:0}.pegs li:last-child::after{display:none}
-.pegs li.hit::before{background:var(--or);box-shadow:none;animation:peg 520ms var(--spring) both;animation-delay:calc(var(--i,0)*170ms + 380ms)}
-@keyframes peg{from{background:transparent;box-shadow:inset 0 0 0 1.6px var(--line);transform:scale(.5)}}
-.pegs b{display:block;font-size:13.5px;font-weight:600;line-height:1.3}
-.pegs q{display:block;font:italic 400 14.5px/1.3 var(--serif);color:var(--ink2);quotes:"\201C" "\201D"}
-.pegs small{display:block;font-size:12px;color:var(--ink3)}
-.next p.lab{font:600 11.5px var(--sans);letter-spacing:0;margin:0 0 6px}
-.next b{display:block;font-size:13.5px;font-weight:600;color:var(--or);margin:0 0 3px}
-.next p{margin:0;font:400 17px/1.3 var(--serif);letter-spacing:-.005em}
-.flip{display:block;width:100%;appearance:none;border:0;background:none;padding:0;text-align:left;cursor:pointer;perspective:900px}
-.flip .in3{display:grid;transform-style:preserve-3d;transition:transform 720ms var(--drawer)}
-.flip[aria-pressed="true"] .in3{transform:rotateX(180deg)}
-.flip .f,.flip .bk{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:22px;padding:14px 16px;background:var(--sheet);box-shadow:inset 0 0 0 .5px var(--edge),inset 0 0 0 1px var(--line)}
-.flip .bk{transform:rotateX(180deg)}
-.flip .f b{display:block;font:400 18px/1.22 var(--serif);letter-spacing:-.01em;margin:0 0 6px}
-.flip .f small{font-size:12.5px;font-weight:600;color:var(--gold)}
-.flip .bk p{margin:0;font:400 16.5px/1.32 var(--serif);letter-spacing:-.005em}
-.dstr b{display:block;font:400 15px/1.22 var(--serif);margin:0 0 2px}
-.dstr .str{margin-right:4px}
-.ft2{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--ink2)}
-.ft2 span{display:inline-flex;align-items:center;gap:7px;min-width:0}
-.ft2 svg{width:11px;height:11px;color:var(--or);flex:none}
-
-/* ---------- test an idea, drill a skill ---------- */
-.against p{margin:8px 0 0;font:400 16.5px/1.34 var(--serif);letter-spacing:-.005em}
-.sharp .was{margin:8px 0 6px;font-size:13.5px;color:var(--ink3);text-decoration:line-through;text-decoration-thickness:1px}
-.sharp .nowt{margin:0 0 10px;font:500 21px/1.18 var(--serif);letter-spacing:-.018em;text-wrap:pretty}
-.sharp .chg{margin:0 0 14px;font-size:13px;color:var(--ink2)}
-.sharp .chg b{font-weight:600;color:var(--gold)}
-.sharp .acts{margin:0}
-.dr-t{font:400 25px/1.12 var(--serif);letter-spacing:-.02em;margin:8px 0 2px}
-.reps{list-style:none;margin:0;padding:0}
-.reps li{position:relative;padding:0 0 18px 32px}
-.reps li:last-child{padding-bottom:2px}
-.reps .n{position:absolute;left:0;top:0;width:21px;height:21px;border-radius:50%;display:grid;place-items:center;font:600 11.5px var(--sans);font-style:normal;color:var(--or);box-shadow:inset 0 0 0 1.5px var(--or);font-variant-numeric:tabular-nums}
-.reps li::after{content:"";position:absolute;left:10px;top:25px;bottom:3px;width:1.5px;background:var(--line)}
-.reps li:last-child::after{display:none}
-.reps .pr{margin:1px 0 8px;font:italic 400 14.5px/1.3 var(--serif);color:var(--ink2)}
-.reps .msg{max-width:100%;border-radius:16px;border-bottom-right-radius:16px;font-size:14.5px}
-.wc{display:flex;align-items:center;gap:9px;margin:8px 0 6px;font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
-.wc .tr{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
-.wc .fl{display:block;height:100%;width:calc(var(--w)*1%);border-radius:3px;background:var(--or);transform-origin:left;animation:grow 720ms var(--out) both;animation-delay:200ms}
-@keyframes grow{from{transform:scaleX(0)}}
-.reps .nt{margin:0;font-size:13px;color:var(--gold)}
-.dsum{margin:0;font:400 22px/1.2 var(--serif);letter-spacing:-.018em}
-.dsum b{font-weight:600;color:var(--or);font-variant-numeric:tabular-nums}
-.box{display:flex;flex-direction:column;gap:14px}
-
-/* Home's Leader box */
-.homebox{width:343px;max-width:100%;margin-top:22px;border-radius:24px;padding:16px;background:var(--grape);color:var(--on)}
-.homebox .kick{color:var(--on)}
-.homebox .tt{font:500 20px/1.16 var(--serif);letter-spacing:-.015em;margin:8px 0 14px}
-.homebox .row2 .pill{background:rgba(20,18,31,.14);color:var(--on)}
-.homebox .row2 .pill.fill{background:var(--on);color:#fff}
-.cap{font-size:12.5px;color:var(--pg-ink3);margin:10px 0 0}
-
-/* what it is made of */
-.made{margin-top:128px;border-top:1px solid var(--pg-line);padding-top:40px}
-.made dl{display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:18px 40px;margin:24px 0 0;max-width:820px}
-.made dt{font:400 18px/1.3 var(--serif)}
-.made dd{margin:0;color:var(--pg-ink2);font-size:14.5px}
-@media (max-width:560px){.made dl{grid-template-columns:1fr;gap:4px}.made dd{margin-bottom:16px}}
-
-
-
-/* ================= round four: flat colour, six hues, play ================= */
-.tag,.tag.ch{background:var(--h,var(--sun));color:var(--on);box-shadow:none;font-weight:700}
-#threads .tag{--h:var(--sun)}#chat .tag{--h:var(--grape)}#rehearse .tag{--h:var(--coral)}#ideas .tag{--h:var(--lime)}
-.look{background:rgba(255,255,255,.08);box-shadow:none}
-.look .knob{background:var(--sun)}
-.look button[aria-pressed="true"]{color:var(--on)}
-h1,h2{font-family:var(--serif);font-weight:700;font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.02em}
-h1{font-weight:800}
-.news b{font-family:var(--serif);font-weight:650;font-variation-settings:"SOFT" 100,"WONK" 1}
-.news i{color:var(--sun)}
-.made dt{font-family:var(--serif);font-weight:650;font-variation-settings:"SOFT" 100,"WONK" 1}
-
-/* display type */
-.page-t,.ask,.sh-t,.dr-t,.best,.idea .tt,.panel .tt,.sharp .nowt,.homebox .tt,.dsum,.lv.big p,.cast b,.next p,.icard,.dstage .dsent{font-family:var(--serif);font-weight:700;font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.02em}
-.th .nm b,.tidy li .t b,.frow .v,.urow b,.dstr b,.st b,.path p,.wbox>p,.flip .f b,.flip .bk p,.whisper p,.lv p,.against p,.reps .pr{font-family:var(--serif);font-weight:600;font-variation-settings:"SOFT" 100,"WONK" 1}
-.mv q,.pegs q,.quote,.reps .pr,.whisper p{font-style:italic;font-weight:500}
-.hd b,.lab,.kick,.path small,.steps,.pill,.chip,.mchip,.seg button,.tlink,.cast small,.flip .f small{font-weight:700}
-.kick{letter-spacing:.02em;text-transform:none;font-size:12px}
-.quote small{text-transform:none;letter-spacing:0;font-size:11.5px}
-
-/* avatars and bubbles */
-.mk{background:var(--grape);color:var(--on);box-shadow:none}
-.mk.nova{background:var(--raised);color:#59e6ff}
-.me{background:var(--me);color:var(--meink)}
-.me .quote{color:inherit;border-left-color:var(--grape)}
-.me .quote small{color:inherit;opacity:.7}
-.nova{background:var(--card);box-shadow:none}
-.lv p{background:var(--grape);color:var(--on);padding:10px 13px;border-radius:20px 20px 20px 6px;font-size:17px;line-height:1.3;font-weight:600}
-.lv.big p{background:none;color:var(--ink);padding:0;font-size:24px;font-weight:700}
-.lv .who{color:var(--on);opacity:.72}
-.lv.big .who{color:var(--grape-t);opacity:1}
-.slip,.threads,.idea,.panel,.tidy li{background:var(--card);box-shadow:none}
-.pill,.bar,.tk,.chip,.mchip{box-shadow:none}
-.pill{background:var(--raised)}
-.pill.fill{background:var(--hue);color:var(--on)}
-.pill.fill-or,.go{background:var(--coral);color:var(--on)}
-.pill.gold{color:var(--hue-t)}
-.bar{background:var(--raised)}
-.chip{background:var(--raised)}
-.mchip{background:var(--raised)}
-.tk{background:var(--raised)}
-.tk.y[aria-pressed="true"]{background:var(--lime);color:var(--on)}
-.tk.n[aria-pressed="true"]{background:var(--ink);color:var(--ground)}
-.compose{background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line)}
-.compose.lead{box-shadow:inset 0 0 0 2.5px var(--hue)}
-.compose .send{background:var(--hue);color:var(--on)}
-.compose.or .send{background:var(--coral)}
-.to{background:var(--grape);color:var(--on)}
-.seg{background:var(--raised);box-shadow:none}
-.seg .knob{background:var(--seg,var(--hue))}
-.seg button[aria-pressed="true"]{color:var(--on)}
-.seg.or{--seg:var(--coral)}
-#p8{--hue:var(--lime);--hue-t:var(--lime-t)}
-#p8.drilling{--hue:var(--sky);--hue-t:var(--sky-t)}
-#p7,#p7 .sheet{--hue:var(--coral);--hue-t:var(--coral-t)}
-#p4,#p5,#p6{--hue:var(--grape);--hue-t:var(--grape-t)}
-.scr .legend i.d{box-shadow:inset 0 0 0 2px var(--coral)}
-.pill.ok{color:var(--lime-t)}
-.pill.or{color:var(--coral-t)}
-.th.down .thb .nm b{color:var(--ink3)}
-
-/* strings: stroke 2.5px, beads 9px */
-.str{touch-action:none;cursor:grab}
-.str.drag{cursor:grabbing}
-.str path.solid,.str path.tail{stroke:var(--cl,var(--c));stroke-width:2.5}
-.str path.tail{stroke-width:2.6}
-.str .full path.tail{stroke-width:2.5}
-.s-live{--c:var(--sun);--cl:var(--sun-t)}
-.s-open{--c:var(--grape);--cl:var(--grape-t)}
-.s-quiet,.s-down{--c:var(--ink3);--cl:var(--ink3)}
-.str .b{fill:var(--c);stroke:var(--stroke);stroke-width:1.5;transform-box:fill-box;transform-origin:center;transition:transform 480ms var(--pop) calc(var(--k,0)*70ms),fill 500ms var(--out)}
-.str .hold .b{transform:scale(0)}
-.str .pin{fill:var(--ground);stroke:var(--sun-t);stroke-width:2}
-.str .nb{fill:var(--sun);stroke:var(--stroke);stroke-width:1.5}
-.str .dia{fill:var(--coral);stroke:var(--stroke);stroke-width:1.5}
-.roll i:nth-child(2){color:var(--sun-t)}
-
-/* starters: solid tiles that tilt */
-.starters{perspective:700px}
-.st{--t:var(--raised);--tk:var(--ink);background:var(--t);color:var(--tk);box-shadow:none;height:152px;justify-content:space-between;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(var(--sc,1));transition:transform 520ms var(--pop);will-change:transform}
-.st.tilt{transition:transform 70ms linear}
-.st:active{--sc:.96}
-.st.c-coral{--t:var(--coral);--tk:var(--on)}.st.c-lime{--t:var(--lime);--tk:var(--on)}.st.c-sky{--t:var(--sky);--tk:var(--on)}
-.st>span:last-child{display:flex;flex-direction:column;gap:5px}
-.st .ic{width:40px;height:40px;border-radius:0;background:none;color:inherit}
-.st .ic svg{width:38px;height:38px}
-.st b{font-size:17px;line-height:1.12;font-weight:700}
-.st small{color:inherit;opacity:.78;font-size:12px}
-.st b,.st small{display:block}.st small{margin-top:5px}
-.st[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--ink)}
-.panel::before{content:"";display:block;height:12px;margin:-14px -16px 12px;background:var(--ph,var(--grape));border-radius:22px 22px 0 0}
-.panel.next::before,.panel.against::before,.panel.sharp::before{display:none}
-.panel.rise{animation:panelup 520ms var(--pop) both}
-@keyframes panelup{from{opacity:0;transform:translateY(34px)}to{opacity:1;transform:none}}
-.chip.or{color:var(--coral-t)}
-.wbox .hl::before{background:var(--sun)}
-.wnote b{color:var(--hue-t)}
-
-/* rehearsal */
-.scrim{background:rgba(20,18,31,.62)}
-.reh[data-step="setup"] .sheet{border-top:12px solid var(--coral)}
-.reh[data-step="scene"] .sheet,.reh[data-step="debrief"] .sheet{background:var(--stage)}
-.steps li.on i{box-shadow:inset 0 0 0 2px var(--coral)}
-.steps li.on i::after{background:var(--coral)}
-.steps li.done i{background:var(--coral);color:var(--on)}
-.steps li.on::before,.steps li.done::before{background:var(--coral)}
-.face{display:block;overflow:visible}
-.cast .av .face{width:46px;height:46px}
-.cast .av{width:46px;height:46px;border-radius:0;background:none;box-shadow:none;color:inherit}
-.cast small{color:var(--pink-t)}
-.cast .chip{background:var(--coral);color:var(--on)}
-.face7{display:flex;justify-content:center;margin:4px 0 0}
-.face7 .face{width:92px;height:92px}
-.dialrow{display:flex;flex-direction:column;gap:8px;width:100%}
-.dial{position:relative;height:50px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
-.dial .tr{position:absolute;left:22px;right:22px;top:12px;height:10px;border-radius:5px;background:var(--raised)}
-.dial .fl{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:5px;background:var(--coral);transform-origin:left;transform:scaleX(.5);transition:transform 420ms var(--pop)}
-.dial .sp{position:absolute;top:8px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--ground);border:3px solid var(--raised)}
-.dial .kn{position:absolute;left:0;top:3px;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:var(--coral);border:3px solid var(--on);transition:transform 420ms var(--pop)}
-.dial.drag .fl,.dial.drag .kn{transition:none}
-.dial .lb{position:absolute;top:32px;font-size:11.5px;font-weight:700;color:var(--ink3);transform:translateX(-50%);white-space:nowrap}
-.dial .lb.on{color:var(--coral-t)}
-.dialline{font-size:12px;color:var(--ink2);margin:0}
-.them{background:var(--pink);color:var(--on);box-shadow:none}
-.spk{color:var(--ink2)}.spk svg{color:var(--pink-t)}
-.msg{position:relative}
-.msg.taken{opacity:.45;transform:scale(.94) rotate(1.5deg);transform-origin:right center;text-decoration:none;transition:transform 520ms var(--pop),opacity 400ms var(--out)}
-.msg.taken::after{content:"";position:absolute;left:10px;right:10px;top:50%;height:2.5px;margin-top:-1px;background:currentColor;animation:strike 520ms var(--out) 120ms both}
-@keyframes strike{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-.mv{color:var(--ink);align-items:center}
-.mv q{font-size:13px;font-family:var(--serif);color:var(--ink2)}
-.mv .stk,.stk{width:18px;height:18px;flex:none;transform:rotate(-4deg);overflow:visible}
-.stk .sf{fill:var(--sun);stroke:var(--on);stroke-width:1.6;stroke-linejoin:round}
-.stk.out .sf{fill:none;stroke:var(--ink3);stroke-width:1.6}
-.mv.stamp .stk{animation:stamp 420ms var(--pop) both}
-@keyframes stamp{from{transform:scale(1.6) rotate(-14deg);opacity:0}60%{opacity:1}to{transform:scale(1) rotate(-4deg);opacity:1}}
-.strip{display:flex;gap:6px;flex-wrap:wrap}
-.strip .pg2{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:999px;background:var(--raised);font-size:11.5px;font-weight:700;color:var(--ink3);transition:color 200ms}
-.strip .pg2.hit{color:var(--ink)}
-.strip .pg2.hit .stk .sf{fill:var(--sun)}
-.strip .pg2 .stk .sf{fill:none;stroke:var(--ink3)}
-.strip .pg2.hit .stk .sf{stroke:var(--on)}
-.hop{animation:hop 520ms var(--pop)}
-@keyframes hop{0%{transform:translateY(0)}35%{transform:translateY(-9px)}100%{transform:none}}
-.whisper{background:var(--grape);color:var(--on);box-shadow:none;border-radius:20px}
-.whisper .who{color:var(--on);opacity:.7}
-.whisper .mk{background:var(--on);color:var(--grape)}
-.talk.dim{opacity:.4;filter:none}
-#ask7{background:var(--grape);color:var(--on)}
-#end7{background:var(--coral);color:var(--on)}
-#tougher7{background:var(--coral);color:var(--on)}
-
-/* debrief */
-.sunc{background:var(--sun);color:var(--on);border-radius:22px;padding:14px 16px 16px}
-.sunc .lab,.sunc .bestwhy{color:rgba(20,18,31,.78)}
-.best::before{color:var(--on)}
-.best{font-weight:700}
-.best .w{display:inline-block;white-space:pre;font-weight:400;transition:font-weight 520ms var(--out)}
-.best .w.on{font-weight:700}
-.pegs li::before{display:none}
-.pegs li{padding-left:32px;padding-bottom:12px}
-.pegs li::after{left:9.5px;top:22px}
-.pegs .pk{position:absolute;left:0;top:0;width:20px;height:20px}
-.pegs .pk .stk{width:20px;height:20px}
-.pegs b{color:var(--ink)}
-.pegs q{font-family:var(--serif)}
-.next{background:var(--raised)}
-.next b{color:var(--coral-t)}
-.flip .f,.flip .bk{background:var(--raised);box-shadow:none}
-.flip .bk{background:var(--pink);color:var(--on)}
-.flip .bk .lab{color:rgba(20,18,31,.78)}
-.flip .f small{color:var(--pink-t)}
-.ft2 svg{color:var(--coral-t)}
-.burst{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;z-index:5}
-.burst i{position:absolute;left:-1px;top:-6px;width:3px;height:12px;border-radius:2px;background:var(--coral)}
-
-/* idea and drill */
-.icard{background:var(--lime);color:var(--on);border-radius:22px;padding:14px 16px;font-size:19px;line-height:1.2;transform-origin:50% 100%;transition:transform 640ms var(--pop)}
-.icard small{display:block;font:700 11.5px var(--sans);letter-spacing:0;opacity:.75;margin-bottom:4px}
-.obj{margin:8px 0 0;padding:0}
-.obj+.obj{padding-top:8px;border-top:1.5px solid var(--line)}
-.tally{margin:0;font-size:13px;color:var(--ink2)}
-.tally b{color:var(--lime-t)}
-.kick.lime,.sharp .kick{color:var(--lime-t)}
-.kick.sky{color:var(--sky-t)}
-.reps .n{color:var(--sky-t);box-shadow:inset 0 0 0 2px var(--sky)}
-.wc .fl{background:var(--sky)}
-.reps .nt{color:var(--ink2)}
-.dsum b{color:var(--sky-t)}
-.dstage{background:var(--sky);color:var(--on);border-radius:22px;padding:14px 16px}
-.dstage .dsent{display:block;font-size:18px;line-height:1.28;font-weight:600}
-.dstage .dw{display:inline-block;white-space:pre}
-.dstage .dtop{display:flex;align-items:center;gap:10px;margin:12px 0 0;font:700 12.5px var(--sans)}
-.dstage .dbar{flex:1;height:10px;border-radius:5px;background:rgba(20,18,31,.18);overflow:hidden}
-.dstage .dbar i{display:block;height:100%;width:100%;border-radius:5px;background:var(--on);transform-origin:left;transition:transform 640ms var(--out)}
-.odo{display:inline-grid;height:1.3em;overflow:hidden;vertical-align:bottom;font-variant-numeric:tabular-nums;min-width:2ch}
-.odo span{grid-area:1/1;text-align:right}
-.odo .out{animation:odoOut 380ms var(--out) both}
-.odo .in2{animation:odoIn 380ms var(--out) both}
-@keyframes odoOut{to{transform:translateY(-110%);opacity:0}}
-@keyframes odoIn{from{transform:translateY(110%);opacity:0}}
-.fall{animation:fall 640ms cubic-bezier(.5,0,.9,.4) both;animation-delay:calc(var(--j,0)*70ms)}
-@keyframes fall{to{transform:translateY(46px) rotate(var(--r,8deg));opacity:0}}
-.fadein{animation:rise 520ms var(--spring) both;animation-delay:calc(var(--j,0)*70ms + 260ms)}
-.homebox .row2 .pill{box-shadow:none}
-.said{color:var(--sun)}
-.copy .tlink{color:var(--sun)}
-
-body[data-look="paper"] .reh[data-step="scene"] .pill,body[data-look="paper"] .reh[data-step="debrief"] .pill,body[data-look="paper"] .reh .strip .pg2,body[data-look="paper"] .reh .next,body[data-look="paper"] .reh .flip .f{background:var(--card)}
-body[data-look="paper"] .reh .compose{background:var(--card)}
+/* ---------- rehearsal ---------- */
+.capface{display:flex;align-items:center;gap:16px}
+.capface .fc{flex:none;width:72px;height:72px}
+.capface.sm .fc{width:44px;height:44px}
+.capface .hl{margin:0}
+.capface.sm .hl{font-size:30px}
+.capface .role{display:block;font-size:14px;font-weight:650;color:var(--onquiet);margin-top:4px}
+.face{display:block;width:100%;height:100%;overflow:visible}
 .face .eye{transform-box:fill-box;transform-origin:center;transition:transform 90ms}
 .face.blink .eye{transform:scaleY(.1)}
-.dstr .str{position:relative}
-.mchip{display:inline-flex;align-items:center;gap:6px}
-.mchip .stk{width:16px;height:16px}
-.mchip[aria-pressed="false"] .stk .sf{fill:none;stroke:var(--ink3)}
-.mchip[aria-pressed="true"]{color:var(--ink);box-shadow:inset 0 0 0 2px var(--coral)}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.lvl{margin-left:auto;align-self:flex-start;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.55);font-size:13px;font-weight:700;color:var(--on)}
+.kv{display:flex;flex-direction:column;gap:18px}
+.kv .v{margin:0;font:600 19px/1.28 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em}
+.kv .from{margin:4px 0 0;font-size:13px;color:var(--ink2)}
+.moves{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.moves li{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:650}
+.stk{width:18px;height:18px;flex:none;transform:rotate(-4deg);overflow:visible}
+.stk .sf{fill:var(--say);stroke:var(--on);stroke-width:1.6;stroke-linejoin:round}
+.stk.out .sf{fill:none;stroke:var(--ink3)}
+body[data-look="ink"] .stk .sf{stroke:var(--paper)}
+body[data-look="ink"] .stk.out .sf{stroke:var(--ink3)}
+.dial{position:relative;height:52px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.dial .tr{position:absolute;left:22px;right:22px;top:12px;height:8px;border-radius:4px;background:var(--raise)}
+.dial .fl{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:4px;background:var(--them);transform-origin:left;transform:scaleX(.5);transition:transform 420ms cubic-bezier(.34,1.3,.64,1)}
+.dial .sp{position:absolute;top:8px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:var(--paper);border:3px solid var(--raise)}
+.dial .kn{position:absolute;left:0;top:2px;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:var(--them);border:3px solid var(--ink);transition:transform 420ms cubic-bezier(.34,1.3,.64,1)}
+.dial.drag .fl,.dial.drag .kn{transition:none}
+.dial .lb{position:absolute;top:34px;font-size:12.5px;font-weight:700;color:var(--ink2);transform:translateX(-50%);white-space:nowrap}
+.dial .lb.on{color:var(--ink)}
+.dialline{margin:2px 0 0;font-size:13px;color:var(--ink2)}
+.more{display:flex;flex-direction:column;gap:6px}
+.more p{margin:0;font-size:14px;color:var(--ink2)}
+
+.talk{display:flex;flex-direction:column;gap:10px}
+.tu{display:flex;flex-direction:column;gap:6px}
+.msg.them{align-self:flex-start;background:var(--them);color:var(--on);border-bottom-left-radius:6px;font-family:var(--serif);font-weight:500;font-size:16.5px;line-height:1.3}
+.msg.mine{align-self:flex-end;background:var(--btn);color:var(--btnink);border-bottom-right-radius:6px;font-family:var(--serif);font-weight:500;font-size:16.5px;line-height:1.3}
+.mv{align-self:flex-end;display:flex;align-items:center;gap:7px;margin:0 4px 0 0;font-size:13px;font-weight:700;color:var(--ink)}
+.mv.stamp .stk{animation:stamp 420ms cubic-bezier(.34,1.56,.64,1) both}
+@keyframes stamp{from{transform:scale(1.6) rotate(-14deg);opacity:0}60%{opacity:1}to{transform:scale(1) rotate(-4deg);opacity:1}}
+.tu.in{animation:fade 150ms linear both}
+@keyframes fade{from{opacity:0}}
+.msg.taken{position:relative;opacity:.45;transform:scale(.94) rotate(1.5deg);transform-origin:right center;transition:transform 520ms cubic-bezier(.34,1.56,.64,1),opacity 400ms var(--out)}
+.msg.taken::after{content:"";position:absolute;left:12px;right:12px;top:50%;height:2.5px;margin-top:-1px;background:currentColor;animation:strike 520ms var(--out) 120ms both}
+@keyframes strike{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.ctl .btn{min-height:42px;padding:0 14px;font-size:14px}
+.whisper{position:absolute;left:18px;right:18px;bottom:96px;z-index:9;background:#151517;color:#fff;border-radius:18px;padding:16px 18px 10px}
+body[data-look="ink"] .whisper{box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.whisper .who{display:block;font-size:13px;font-weight:700;color:rgba(255,255,255,.78)}
+.whisper p{margin:6px 0 4px;font:600 21px/1.25 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em}
+.whisper .tlink{color:#fff}
+
+.sayc{background:var(--say);color:var(--on);border-radius:18px;padding:16px 18px 18px}
+.sayc .lab{color:var(--onquiet)}
+.best{margin:0;font-size:27px;line-height:1.12;text-wrap:balance}
+.best .w{display:inline-block;white-space:pre;font-weight:400;transition:font-weight 520ms var(--out),opacity 300ms var(--out),transform 520ms cubic-bezier(.34,1.3,.64,1);opacity:0;transform:translateY(8px)}
+.best .w.on{font-weight:700;opacity:1;transform:none}
+.bestwhy{margin:10px 0 0;font-size:14px;color:var(--onquiet)}
+.pegs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.pegs li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:2px 10px;align-items:start}
+.pegs .stk{width:20px;height:20px;margin-top:1px}
+.pegs b{font-size:15px;font-weight:650;line-height:1.3}
+.pegs q{grid-column:2;font:italic 500 15px/1.3 var(--serif);color:var(--ink2);quotes:"\201C" "\201D"}
+.pegs small{grid-column:2;font-size:13px;color:var(--ink2)}
+.flip{display:block;width:100%;appearance:none;border:0;background:none;padding:0;text-align:left;cursor:pointer;perspective:900px}
+.flip .in3{display:grid;transform-style:preserve-3d;transition:transform 720ms cubic-bezier(.32,.72,0,1)}
+.flip[aria-pressed="true"] .in3{transform:rotateX(180deg)}
+.flip .f,.flip .bk{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;padding:16px 18px;background:var(--raise)}
+.flip .bk{transform:rotateX(180deg);background:var(--them);color:var(--on)}
+.flip .f b{display:block;font:600 19px/1.22 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;margin:0 0 4px}
+.flip .f small{font-size:13px;font-weight:700;color:var(--them-t)}
+.flip .bk .lab{color:var(--onquiet)}
+.flip .bk p{margin:0;font:600 18px/1.3 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1}
+.nextl{margin:0;font:600 19px/1.28 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em}
+
+/* ---------- the look back ---------- */
+.kfor{margin:0;font:600 22px/1.22 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em}
+.kfor.none{font:500 16px/1.4 var(--sans);color:var(--ink2)}
+.wipe{position:relative;display:grid;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:ew-resize;--x:14%}
+.wipe{margin-bottom:16px}.wipe .card{grid-area:1/1;border-radius:18px;padding:14px 22px 22px;min-height:132px}
+.wipe .card small{display:block;font-size:13px;font-weight:700;margin:0 0 6px}
+.wipe .card p{margin:0;font:600 18px/1.3 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.005em}
+.wipe .then{background:var(--raise);color:var(--ink);clip-path:inset(0 calc(100% - var(--x)) 0 0 round 18px)}
+.wipe .then small{color:var(--ink2)}
+.wipe .now{background:var(--h,var(--say));color:var(--on);clip-path:inset(0 0 0 var(--x) round 18px)}
+.wipe .now small{text-align:right;color:var(--onquiet)}
+.wipe .hd{position:absolute;top:-6px;bottom:-6px;left:var(--x);width:0;pointer-events:none}
+.wipe .hd::before{content:"";position:absolute;top:0;bottom:0;left:-1.5px;width:3px;border-radius:2px;background:var(--ink)}
+.wipe .hd i{position:absolute;top:auto;bottom:-12px;left:-17px;width:34px;height:34px;margin-top:0;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center}
+.wipe .hd svg{width:16px;height:12px}
+.sees{display:flex;flex-direction:column;gap:18px}
+.see{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:start}
+.see .k{grid-column:1/-1;font-size:13px;font-weight:700;color:var(--ink2)}
+.see p{margin:0;font:600 19px/1.26 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.01em}
+.see .basis{display:block;margin-top:4px;font:500 13px var(--sans);color:var(--ink2)}
+.tc{display:flex;gap:8px}
+.tk{appearance:none;border:0;width:40px;height:40px;border-radius:50%;background:var(--raise);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.tk svg{width:16px;height:16px}
+.tk[aria-pressed="true"]{background:var(--btn);color:var(--btnink)}
+.see .tell{grid-column:1/-1;margin:6px 0 0;padding:12px 14px;border-radius:14px;background:var(--raise);display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--ink)}
+.see .tell svg{width:16px;height:16px;flex:none}
+.see.kept .k::after{content:", kept";font-weight:650}
+.nf{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.nf .blk{width:30px;height:30px;border-radius:9px}
+.nf b{display:block;font-size:13px;font-weight:700;color:var(--ink2)}
+.nf span.t{display:block;font:700 22px/1.12 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;letter-spacing:-.02em}
+.empty{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:10px 0}
+.empty p{margin:0;font:600 20px/1.3 var(--serif);font-variation-settings:"SOFT" 100,"WONK" 1;max-width:24ch}
+
+/* ---------- what the Leader knows about work ---------- */
+.wlist{list-style:none;margin:0;padding:0;border-bottom:1px solid var(--line)}
+.wrow{position:relative;overflow:hidden;border-top:1px solid var(--line)}
+.wrow .bk{position:absolute;top:0;bottom:0;right:0;display:flex;align-items:center;gap:8px;padding-right:2px}
+.wrow .bk .btn{min-height:40px;padding:0 14px;font-size:14px}
+.wrow .fg{position:relative;display:block;width:100%;appearance:none;border:0;padding:13px 0;background:var(--paper);text-align:left;cursor:pointer;touch-action:pan-y;transform:translateX(var(--sx,0px))}
+.wrow .fg b{display:block;font-size:15.5px;font-weight:650;line-height:1.3}
+.wrow .fg small{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:13px;color:var(--ink2)}
+.wrow .fg small .blk{width:12px;height:12px;border-radius:3px}
+.wrow.fading .fg b,.wrow.fading .fg small{color:var(--ink3)}
+.wrow.gone{padding:13px 0;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;color:var(--ink2)}
+.wrow.gone .tlink{padding:0}
+.foot{margin:0;font-size:13.5px;color:var(--ink2)}
+
+@media (max-width:420px){.bd{padding-left:18px;padding-right:18px}.cap{padding-left:18px;padding-right:18px}.cap .hl{font-size:34px}.cap.small .hl{font-size:31px}h2{font-size:28px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:opacity 150ms linear!important}.prs{scale:1}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="chev" viewBox="0 0 13 12"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5.5l5-4 5 4"/><path d="M1.5 10.5l5-4 5 4"/></g></symbol>
-  <symbol id="tick" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="cross" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-  <symbol id="up" viewBox="0 0 16 16"><path d="M8 13V3.5M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="reply" viewBox="0 0 16 16"><path d="M6.5 3.5L2.5 7.5l4 4M3 7.5h6.5a4 4 0 014 4v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="dia" viewBox="0 0 16 16"><path d="M8 2.2L13.8 8 8 13.8 2.2 8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
-  <symbol id="wave" viewBox="0 0 16 16"><path d="M3 7v2M6.3 4.5v7M9.7 2.5v11M13 6v4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
-  <symbol id="steps" viewBox="0 0 16 16"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="3" cy="8" r="2" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="currentColor"/><circle cx="13" cy="8" r="2" fill="currentColor"/></symbol>
-  <symbol id="lines" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h7.5M2.5 12h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
-  <symbol id="vs" viewBox="0 0 16 16"><path d="M2.5 5.5H12L9.4 2.9M13.5 10.5H4l2.6 2.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="thrd" viewBox="0 0 16 16"><path d="M1.5 5.5q6.5 7 13 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="9" r="2" fill="currentColor"/></symbol>
+  <symbol id="tick" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="cross" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="chevr" viewBox="0 0 8 13"><path d="M1.5 1.5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="mic" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 7.5a5 5 0 0010 0M8 12.5v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="lr" viewBox="0 0 16 12"><path d="M5 2L1.5 6 5 10M11 2l3.5 4-3.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
 <main class="pg">
   <header class="mast">
-    <div>
-      <p class="who"><svg><use href="#chev"/></svg>Mockup 124, round three, for your approval</p>
-      <h1>The Leader keeps up with work, and rehearses it with you</h1>
-      <p class="lede">Tell Nova anything about work and the Leader writes it down. See what it thinks is going on, set things down in a tap, and answer anything it says. This round it also plays the other person so you can rehearse, argues against an idea so you can test it, and helps you find the words.</p>
-      <p class="fine">Everything on this page is sample content.</p>
-      <ul class="news" id="news">
-        <li><a href="#threads"><b>Threads are strings now</b><i>Changed</i><small>Tight when you raised it lately, slack when it has been left alone</small></a></li>
-        <li><a href="#chat"><b>What the Leader's chat can do</b><i>New</i><small>Six ways in, and it shows what it read before it answers</small></a></li>
-        <li><a href="#rehearse"><b>Rehearse a conversation</b><i>New</i><small>It plays the other person, then tells you what landed</small></a></li>
-        <li><a href="#ideas"><b>Test an idea, or drill a skill</b><i>New</i><small>The case against your idea first, and three tries at one sentence</small></a></li>
-      </ul>
-    </div>
-    <div>
-      <p class="looklbl">The Leader's look follows the day, like its widgets</p>
-      <div class="look" id="look" data-at="0"><span class="knob"></span><button type="button" aria-pressed="true" data-l="night">Evening</button><button type="button" aria-pressed="false" data-l="paper">Midday</button></div>
-    </div>
+    <p class="who">Mockup 124, round five, for your approval</p>
+    <h1>The Leader, built around your growth</h1>
+    <p class="lede">One focus at a time. One thing to try each day. One tap to say how it went. Work is where you practise, and it stays in the background.</p>
+    <p class="fine">Everything on this page is sample content. The counts, the blocks and the look back show what a month in could look like.</p>
+    <div class="lookrow"><p>Below the colour</p><div class="seg" id="look" style="--at:0"><span class="knob"></span><button type="button" aria-pressed="true" data-v="0">Bright</button><button type="button" aria-pressed="false" data-v="1">Ink below</button></div></div>
   </header>
 
-  <!-- 1 -->
-  <section class="scene">
+  <section class="scene" id="s-home">
     <div class="copy">
-      <span class="tag ch" style="--h:var(--grape)">Changed</span>
-      <h2>Tell Nova, and the Leader hears it</h2>
-      <p>Anything you say about work, in the Nova chat, by voice, Siri or Telegram, reaches the Leader's record. <b>No asking first.</b> A note lands under Nova's answer saying what was written down and which thread it moved.</p>
-      <p>Each thread is now a <b>string</b>. It hangs slack while a thread is left alone, and pulls tight when you raise it. Here the new mark lands at today and the string tightens. <b>Undo</b> lets it go again.</p>
-      <p class="said" id="s1" aria-live="polite"></p>
+      <h2>You, as a leader</h2>
+      <p>Home holds one focus, one line to try today, and a row of evidence for each part of leading. Tap a row to see what is in it.</p>
     </div>
-    <div class="phone"><div class="scr" id="p1">
-      <span class="island"></span>
-      <div class="hd"><span class="mk nova"><i class="nv"></i></span><div><b>Nova</b><small id="p1day"></small></div></div>
-      <div class="msg me" id="c1his"></div>
-      <div class="msg nova" id="c1nova"></div>
-      <div class="slip" id="slip">
-        <div class="top"><svg><use href="#chev"/></svg>Leader noted</div>
-        <p class="what" id="c1noted"></p>
-        <div class="tn"><span id="c1thread"></span><span class="roll" id="roll"><i>Open</i><i>Easing</i></span></div>
-        <div class="str" id="c1str"></div>
-        <div class="ft"><small id="c1when"></small><button class="tlink" type="button" id="undo1">Undo</button></div>
-      </div>
-      <div class="compose"><span class="txt">Ask Nova</span><span class="send"><svg><use href="#up"/></svg></span></div>
-    </div></div>
+    <div class="side">
+      <p class="honest">A month in is an example. Day one is what you would see first.</p>
+      <div class="seg dayseg" style="--at:1"><span class="knob"></span><button type="button" aria-pressed="false" data-v="0">Day one</button><button type="button" aria-pressed="true" data-v="1">A month in</button></div>
+      <div class="phone"><div class="scr" id="p1"><span class="island"></span></div></div>
+    </div>
   </section>
 
-  <!-- 2 -->
-  <section class="scene" id="threads">
+  <section class="scene" id="s-loop">
     <div class="copy">
-      <span class="tag ch">Changed</span>
-      <h2>See what the Leader thinks is going on</h2>
-      <p>One string for each thing going on at work, hung across the weeks, with a bead for every time you raised it. <b>Yellow and tight</b> means you raised it in the last fortnight. <b>Faded and slack</b> means it has been left alone for over a month.</p>
-      <p><b>Tap a thread</b> for what the Leader wrote down. Then <b>That's done</b>, <b>Not right anymore</b>, <b>Talk about this</b>, or <b>Rehearse it</b>.</p>
-      <p class="said" id="s2" aria-live="polite"></p>
+      <h2>One tap says how it went</h2>
+      <p>Tap how it went, or just mention it to Nova in passing. Either way it counts on your row, with Undo.</p>
     </div>
-    <div class="phone"><div class="scr" id="p2">
-      <span class="island"></span>
-      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Your situation</small></div></div>
-      <div>
-        <p class="page-t">What I know about work</p>
-        <p class="page-s" id="p2sum"></p>
-        <p class="legend"><span><i style="--h:var(--gold)"></i>Raised lately</span><span><i style="--h:var(--vio)"></i>Open</span><span><i style="--h:var(--ink3)"></i>Quiet over a month</span><span><i class="d"></i>Rehearsed</span></p>
-      </div>
-      <div class="threads"><div class="axis" id="axis"></div><div id="thr"></div><p class="downs" id="downs" hidden></p></div>
-      <div class="bar idle" id="bar2"><span id="bar2t"></span><button class="tlink" type="button" id="bar2u">Undo</button></div>
-    </div></div>
+    <div class="side">
+      <div class="seg" id="mode2" style="--at:0"><span class="knob"></span><button type="button" aria-pressed="true" data-v="0">Tap</button><button type="button" aria-pressed="false" data-v="1">Tell Nova</button></div>
+      <div class="phone"><div class="scr" id="p2"><span class="island"></span></div></div>
+    </div>
   </section>
 
-  <!-- 3 -->
-  <section class="scene">
+  <section class="scene" id="s-reh">
     <div class="copy">
-      <h2>One tidy-up, the first time</h2>
-      <p>The Leader asks once about threads that have gone quiet for over a month, instead of carrying them into every answer.</p>
-      <p><b>A tick sets one down, a cross keeps it.</b> One button does them all, or you just say where they're at. Anything set down can be undone.</p>
-      <p class="said" id="s3" aria-live="polite"></p>
+      <h2>Rehearse it first</h2>
+      <p>The Leader plays the other person, already set up from your focus. A finished rehearsal counts as practice, drawn as an outline.</p>
     </div>
-    <div class="phone"><div class="scr" id="p3">
-      <span class="island"></span>
-      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Before we go on</small></div></div>
-      <p class="ask" id="tidyQ"></p>
-      <ul class="tidy" id="tidy"></ul>
-      <div class="row2"><button class="pill fill" type="button" id="tidyAll">Set them all down</button><button class="pill gold" type="button" id="tidyTalk">Tell it where they're at</button></div>
-      <div class="compose" id="tcomp"><span class="txt">Answer the Leader</span><span class="send"><svg><use href="#up"/></svg></span></div>
-    </div></div>
+    <div class="side">
+      <div class="phone"><div class="scr" id="p3"><span class="island"></span></div></div>
+      <p class="under">Test an idea and Drill a skill still exist, behind More ways to practise on this screen.</p>
+    </div>
   </section>
 
-  <!-- 4 -->
-  <section class="scene">
+  <section class="scene" id="s-back">
     <div class="copy">
-      <h2>Reply to anything it says</h2>
-      <p>Every card the Leader shows gets a <b>Reply</b>: today's idea, a question, anything it noticed. The conversation opens with the card quoted, so it knows what you mean.</p>
-      <p>Tapping your situation widget does the same with its question.</p>
-      <p><button class="tlink" type="button" id="again4" hidden>Show the card again</button></p>
+      <h2>Four weeks of you</h2>
+      <p>Once a month the Leader looks back with you, says what he sees, and proposes the next focus. You decide.</p>
     </div>
-    <div class="phone"><div class="scr" id="p4">
-      <span class="island"></span>
-      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Today's idea</small></div></div>
-      <div class="idea" id="idea">
-        <p class="kick"><svg><use href="#chev"/></svg><span id="ik"></span><span class="r" id="iday"></span></p>
-        <p class="tt" id="it"></p>
-        <p class="how" id="il"></p>
-        <div class="acts"><button class="pill gold rep" type="button" id="replyBtn"><svg><use href="#reply"/></svg>Reply</button></div>
-      </div>
-      <div id="convo" hidden style="display:flex;flex-direction:column;gap:14px">
-        <div class="msg me"><span class="quote"><small>Today's idea</small><span id="qt"></span></span><span id="qs"></span></div>
-        <div class="lv"><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader</span><span id="qa"></span></p></div>
-      </div>
-      <div class="compose"><span class="txt">Answer the Leader</span><span class="send"><svg><use href="#up"/></svg></span></div>
-    </div></div>
+    <div class="side">
+      <div class="seg dayseg" style="--at:1"><span class="knob"></span><button type="button" aria-pressed="false" data-v="0">Day one</button><button type="button" aria-pressed="true" data-v="1">A month in</button></div>
+      <div class="phone"><div class="scr" id="p4"><span class="island"></span></div></div>
+    </div>
   </section>
 
-  <!-- 5 -->
-  <section class="scene">
+  <section class="scene" id="s-work">
     <div class="copy">
-      <h2>Talk to the Leader directly</h2>
-      <p><b>Start with "Leader"</b> in the Nova chat, typed or spoken, and the Leader answers you itself, the way Coach does. Without it, Nova answers and the Leader still hears what matters.</p>
-      <p>Its own chat stays on the Leader page, and the Leader box on Home gets a <b>Talk</b> button, one tap from Home.</p>
-      <div class="homebox">
-        <p class="kick"><svg><use href="#chev"/></svg>Leader</p>
-        <p class="tt" id="ht"></p>
-        <div class="row2"><button class="pill fill" type="button" id="hTalk">Talk</button><button class="pill" type="button">Why it works</button></div>
-      </div>
-      <p class="cap">The Leader box on Home, with Talk added.</p>
-      <p><button class="tlink" type="button" id="again5">Play it again</button></p>
+      <h2>Work stays in the background</h2>
+      <p>What the Leader has heard about work, kept short and fading on its own. He uses it to pick good moments, and nothing here needs an answer.</p>
     </div>
-    <div class="phone"><div class="scr" id="p5">
-      <span class="island"></span>
-      <div class="hd" id="hd5"></div>
-      <div id="d5" style="display:flex;flex-direction:column;gap:14px"></div>
-      <div class="compose" id="comp5"><span class="to off" id="to5"><svg><use href="#chev"/></svg>Leader</span><span class="txt" id="txt5">Ask Nova</span><span class="send"><svg><use href="#up"/></svg></span></div>
-    </div></div>
+    <div class="side">
+      <div class="phone"><div class="scr" id="p5"><span class="island"></span></div></div>
+    </div>
   </section>
 
-  <!-- 6 -->
-  <section class="scene" id="chat">
-    <div class="copy">
-      <span class="tag">New</span>
-      <h2>What the Leader's chat can do</h2>
-      <p>The Leader's chat opens with <b>six ways in</b>, so you never start from a blank box. Tap one, or just talk.</p>
-      <p>It can read <b>your Practice pages</b> and the thread you are talking about, and it shows what it read as a small tag on the answer.</p>
-      <p><b>Prepare for a meeting</b> gives you three lines to walk in with. <b>Find the words</b> takes what you would say and hands it back sharper. Tap the starters to see each.</p>
-      <p class="said" id="s6" aria-live="polite"></p>
-    </div>
-    <div class="phone"><div class="scr" id="p6">
-      <span class="island"></span>
-      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Your chat</small></div></div>
-      <div class="lv big"><span class="mk sm"><svg><use href="#chev"/></svg></span><p>What's on your mind about work?</p></div>
-      <div class="starters" id="starters"></div>
-      <div class="panel" id="pn-prep" hidden>
-        <p class="chips" id="prepChips"></p>
-        <p class="tt" id="prepT"></p>
-        <ol class="path">
-          <li style="--i:1"><small>Open with</small><p id="prepOpen"></p></li>
-          <li style="--i:2"><small>Expect</small><p id="prepExpect"></p></li>
-          <li style="--i:3"><small>Hold</small><p id="prepHold"></p></li>
-        </ol>
-        <button class="pill fill-or" type="button" id="prepGo"><svg><use href="#dia"/></svg>Rehearse this</button>
-      </div>
-      <div class="panel wipe" id="pn-words" hidden>
-        <div class="seg" id="wseg" style="--n:2;--at:0"><span class="knob"></span><button type="button" aria-pressed="true" data-v="0">Yours</button><button type="button" aria-pressed="false" data-v="1">Sharper</button></div>
-        <div class="wbox"><p class="ro" id="wRough"></p><p class="be" id="wBetter"></p><span class="hl"></span></div>
-        <p class="wnote" id="wNote"></p>
-      </div>
-      <div class="panel" id="pn-tell" hidden>
-        <p class="kick"><svg><use href="#chev"/></svg>Just say it</p>
-        <p class="tt" style="margin:10px 0 6px">Say what happened, however it comes out.</p>
-        <p class="wnote">The Leader files it on the right thread and shows you the note, with Undo.</p>
-      </div>
-      <div class="compose" id="comp6"><span class="txt" id="txt6">Talk to the Leader</span><span class="send"><svg><use href="#up"/></svg></span></div>
-    </div></div>
-  </section>
-
-  <!-- 7 -->
-  <section class="scene" id="rehearse">
-    <div class="copy">
-      <span class="tag">New</span>
-      <h2>Rehearse a conversation</h2>
-      <p>The Leader plays the other person and stays in character, out loud, every turn. The sheet arrives <b>already filled in</b> from the thread and your Practice page. Change anything, or just start.</p>
-      <p>Under each thing you say it marks <b>the move you used</b>, in your own words. <b>Ask the Leader</b> pauses the scene for one line of advice.</p>
-      <p>The debrief comes once, at the end: your strongest line, what landed, one thing to try next time, and <b>what the other person was holding back</b>.</p>
-      <p class="rule">Nothing said in a rehearsal is taken as news about work, so the string gets a mark but does not tighten. No streaks, no reminders, no daily prompt. It is there when you want it.</p>
-      <p class="said" id="s7" aria-live="polite"></p>
-      <p><button class="tlink" type="button" id="reset7" hidden>Start over</button></p>
-    </div>
-    <div class="phone"><div class="scr reh" id="p7" data-step="setup">
-      <span class="island"></span>
-      <div class="under" id="under7">
-        <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Your situation</small></div></div>
-        <div class="urow"><b id="u7name"></b><div class="str" id="u7str"></div></div>
-      </div>
-      <div class="scrim" id="scrim7"></div>
-      <div class="sheet" id="sheet">
-        <span class="grab"></span>
-        <ol class="steps" id="steps7">
-          <li data-k="setup" class="on"><i><svg><use href="#tick"/></svg></i>Set up</li>
-          <li data-k="scene"><i><svg><use href="#tick"/></svg></i>Scene</li>
-          <li data-k="debrief"><i><svg><use href="#tick"/></svg></i>Debrief</li>
-        </ol>
-
-        <div class="pane" id="r-setup">
-          <p class="sh-t">Rehearse this conversation</p>
-          <div class="face7" id="face7"></div>
-          <div class="form">
-            <div class="frow"><small>With</small><div><span class="v" id="fWho"></span><span class="from" id="fFrom"></span></div></div>
-            <div class="frow"><small>You want</small><div><span class="v" id="fWant"></span></div></div>
-            <div class="frow"><small>How hard</small><div class="dialrow"><div class="dial" id="lvl7" role="slider" tabindex="0" aria-label="How hard" aria-valuemin="0" aria-valuemax="2" aria-valuenow="1" aria-valuetext="Realistic"><div class="tr"><i class="fl"></i></div><i class="sp"></i><i class="sp"></i><i class="sp"></i><i class="kn"></i><span class="lb">Easy</span><span class="lb">Realistic</span><span class="lb">Tough</span></div><p class="dialline" id="dialLine"></p></div></div>
-            <div class="frow"><small>Practise</small><div><div class="mchips" id="mv7"></div><span class="from" id="fPage"></span></div></div>
-          </div>
-          <button class="go" type="button" id="go7">Start the scene</button>
-        </div>
-
-        <div class="pane" id="r-scene" hidden>
-          <div class="cast"><span class="av" id="castFace"></span><div><small>The Leader is playing</small><b id="castWho"></b></div><span class="chip" id="castLvl"></span></div>
-          <div class="strip" id="strip7"></div>
-          <div class="talk" id="talk7"></div>
-          <div class="whisper" id="whisper7" hidden><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader, out of character</span><span id="whisperT"></span></p></div>
-          <div class="ctl"><button class="pill gold" type="button" id="ask7">Ask the Leader</button><button class="pill" type="button" id="again7">Try that line again</button><button class="pill or" type="button" id="end7">End scene</button></div>
-          <div class="compose or" style="margin-top:0"><span class="txt">Say your line</span><span class="send"><svg><use href="#wave"/></svg></span></div>
-        </div>
-
-        <div class="pane" id="r-debrief" hidden>
-          <div class="sunc"><p class="lab">Your strongest line</p><p class="best" id="dbBest"></p><p class="bestwhy" id="dbWhy"></p></div>
-          <div><p class="lab">What landed</p><ul class="pegs" id="pegs7"></ul></div>
-          <div class="panel next"><p class="lab">Try next time</p><b id="nxMove"></b><p id="nxLine"></p></div>
-          <button class="flip" type="button" id="held7" aria-pressed="false"><span class="in3"><span class="f"><b>What they were holding back</b><small>Tap to turn it over</small></span><span class="bk"><span class="lab" style="display:block">What they were holding back</span><p id="heldT"></p></span></span></button>
-          <div class="dstr"><p class="lab">Marked on the thread</p><b id="d7name"></b><div class="str" id="d7str"></div></div>
-          <div class="ft2"><span><svg><use href="#dia"/></svg><span id="dbSaved">Saved to your Practice page</span></span><button class="tlink" type="button" id="undo7">Undo</button></div>
-          <div class="row2"><button class="pill or" type="button" id="tougher7">Run it again, tougher</button><button class="pill" type="button" id="done7">Done</button></div>
-        </div>
-      </div>
-    </div></div>
-  </section>
-
-  <!-- 8 -->
-  <section class="scene" id="ideas">
-    <div class="copy">
-      <span class="tag">New</span>
-      <h2>Test an idea, or drill a skill</h2>
-      <p><b>Test an idea.</b> Say it, and the Leader gives the strongest case against it before it helps. What comes back is your idea with the weak spot fixed, and you choose whether to keep it.</p>
-      <p><b>Drill.</b> One small skill, three tries, one note each. Code counts the words in each answer, so you can see the sentence getting shorter.</p>
-      <p class="said" id="s8" aria-live="polite"></p>
-      <p><button class="tlink" type="button" id="again8">Play it again</button></p>
-    </div>
-    <div class="phone"><div class="scr" id="p8">
-      <span class="island"></span>
-      <div class="hd"><span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Your chat</small></div><div class="seg" id="mode8" style="--n:2;--at:0;margin-left:auto"><span class="knob"></span><button type="button" aria-pressed="true" data-v="0">Idea</button><button type="button" aria-pressed="false" data-v="1">Drill</button></div></div>
-      <div class="box" id="i8"></div>
-      <div class="box" id="d8" hidden></div>
-      <div class="compose"><span class="txt">Answer the Leader</span><span class="send"><svg><use href="#up"/></svg></span></div>
-    </div></div>
-  </section>
-
-  <section class="made">
-    <h2>What it is made of</h2>
-    <dl>
-      <dt>Hearing it</dt><dd>When something you say anywhere in Nova is about work, a cheap model reads it once and says what is new, what is easing and what is done. Code checks each item against what you actually said, writes it, and keeps an Undo.</dd>
-      <dt>The threads</dt><dd>The Leader groups your notes into threads, and again when a new one arrives. Code stores which note belongs where.</dd>
-      <dt>The strings</dt><dd>Code draws each string from the dates in the record. The slack is the count of days since you last raised the thread, and the colour comes from the same count. Nothing about a string is a model's opinion.</dd>
-      <dt>The tidy-up</dt><dd>Code picks the threads quiet for over 30 days; the Leader only words the question. Nothing is set down without your tick.</dd>
-      <dt>What it reads</dt><dd>Mid-answer, the Leader can ask your Practice pages, the Researcher or Coach, and the answer names what it read.</dd>
-      <dt>Rehearsals</dt><dd>They run on the Practice rails Nova already has. The moves come from your Practice page. After every turn the Leader names the move you used and quotes you; code checks each name against the page before it shows. The debrief is saved to the page with Undo. What the other person was holding back never reaches the screen until the debrief.</dd>
-      <dt>Ideas and drills</dt><dd>The Leader argues against the idea first, then rewrites it, and nothing is kept on a thread unless you tap to keep it. In a drill, code counts the words from what you said.</dd>
-      <dt>No nagging</dt><dd>Rehearsals and drills never send a reminder, keep a streak or ask daily.</dd>
-      <dt>The daily idea</dt><dd>Stays general and separate. Threads feed the Leader's questions about your situation, never the daily idea.</dd>
-      <dt>Privacy</dt><dd>The threads live on your Mac in the Leader's own record. The situation widget stays hidden on the lock screen.</dd>
-    </dl>
+  <section class="stops">
+    <h2>What the Leader stops doing</h2>
+    <ul>
+      <li>The daily question about work</li>
+      <li>The board of threads</li>
+      <li>The first-time tidy-up</li>
+      <li>Asking for a reply to each thing you say</li>
+      <li>Six ways in</li>
+    </ul>
   </section>
 </main>
 
 <script>
-const D = {"threads": [{"name": "The new closing roster", "notes": [{"text": "He wrote a new closing roster and is unsure the late team will follow it.", "at": "2026-09-22"}, {"text": "Two people swapped shifts without telling him and the close ran late.", "at": "2026-10-02"}]}, {"name": "Saying no when he means no", "notes": [{"text": "He agrees to extra work in the moment and regrets it later.", "at": "2026-10-09"}, {"text": "He wants a sentence ready for when he is asked to cover more.", "at": "2026-10-14"}, {"text": "He held a no on extra cover and it was accepted.", "at": "2026-10-27"}]}, {"name": "Coaching the new starter", "notes": [{"text": "The new starter is quick but skips the checklist.", "at": "2026-10-16"}, {"text": "He showed the new starter the checklist once, start to finish.", "at": "2026-11-10"}]}, {"name": "A late delivery every Monday", "notes": [{"text": "The Monday delivery keeps arriving an hour late and pushes the whole close back.", "at": "2026-09-15"}]}], "chat": {"his": "Told my manager we can only cover the front half tonight. She was fine with it.", "nova": "Good. You said it plainly and it held.", "noted": "You said no to extra cover, and it was accepted.", "thread": 1}, "direct": {"his": "Leader, my manager wants us on the back dock tonight as well", "leader": "What would the team have to drop to cover it?", "noted": "The back dock asked for tonight, on top of the front half.", "thread": 1}, "idea": {"kind": "Try this", "title": "Ask what they would do first", "line": "When someone brings you a problem today, ask what they would do before you answer.", "reply": "I could try this with the new starter on Thursday.", "answer": "Good pick. Ask before you look at the problem yourself, so the answer is theirs."}, "home": {"title": "Ask what they would do first"}, "page": "Holding a no", "prep": {"thread": 1, "title": "Before your manager asks for more cover", "open": "No, we can't cover that tonight.", "expect": "\"It's one night. Everyone else is stretching.\"", "hold": "Say what you can do, with a time on it. Then stop."}, "words": {"rough": "I was kind of hoping we could maybe look at the roster again at some point, if that's okay, because it's been a bit hard to follow.", "better": "The roster is hard to follow. Can we fix it on Thursday?", "why": "The ask comes first and it has a day on it."}, "sim": {"thread": 1, "who": "Dana, your manager", "want": "To say no to extra cover tonight, and have it hold.", "level": 1, "moves": [{"name": "Say the no first"}, {"name": "Offer what you can do"}, {"name": "Hold the silence"}], "turns": [{"by": "them", "text": "I need your team on the back dock tonight as well. We're short."}, {"by": "me", "text": "No, we can't do the dock tonight. We can finish the front half properly.", "move": 0, "quote": "No, we can't do the dock tonight."}, {"by": "them", "text": "It's one night. Everyone else is stretching."}, {"by": "me", "text": "I get it, and I'm sorry, I just think maybe if we split it we might not finish either one."}, {"by": "them", "text": "So you can do it, then?"}], "retry": {"text": "If we split, neither gets finished. I can give you the front half done by nine.", "move": 1, "quote": "I can give you the front half done by nine.", "them": "Fine. Front half by nine. I'll find cover for the dock."}, "hint": "You're apologising. Say what you can do, with a time on it.", "debrief": {"best": "No, we can't do the dock tonight.", "why": "You said the no before the reason, so there was nothing to argue with.", "next": {"move": "Hold the silence", "line": "Say the no, then count to three before you add anything."}, "held": "Dana had already told the area manager the dock would be done tonight."}}, "idea2": {"thread": 0, "his": "I want to post the closing roster on the wall so nobody has to ask me who's on.", "against": "A wall roster goes stale the first time two people swap. Then it's wrong in public and they trust it less than asking you.", "sharper": {"before": "Post the roster on the wall.", "after": "Post the roster on the wall, with one rule: a swap isn't real until it's written on it.", "changed": "The swap rule keeps it true."}}, "drill": {"skill": "One sentence, then stop", "reps": [{"prompt": "Tell me why the close ran late on Monday.", "his": "So basically the delivery came in an hour late again, which pushed everything back, and then two people had swapped so we were kind of short, and it just snowballed from there really.", "note": "Three reasons in one breath. Pick the one that matters."}, {"prompt": "Again. One reason.", "his": "The delivery was an hour late, so the whole close started an hour behind, which is why we ran over.", "note": "Closer. You said it twice."}, {"prompt": "Once more, and stop when the sentence stops.", "his": "The delivery was an hour late, so the close was too.", "note": "That's it. Nothing left to argue with."}]}};
+const D = {"threads": [{"name": "The new closing roster", "notes": [{"at": "2026-10-30"}, {"at": "2026-11-19"}]}, {"name": "Saying no when he means no", "notes": [{"at": "2026-10-27"}, {"at": "2026-11-15"}]}, {"name": "Coaching the new starter", "notes": [{"at": "2026-10-16"}, {"at": "2026-11-08"}]}, {"name": "A late delivery every Monday", "notes": [{"at": "2026-11-04"}]}], "page": "Holding a no", "sim": {"thread": 1, "who": "Dana, your manager", "want": "To say no to extra cover tonight, and have it hold.", "level": 1, "moves": [{"name": "Say the no first"}, {"name": "Offer what you can do"}, {"name": "Hold the silence"}], "turns": [{"by": "them", "text": "I need your team on the back dock tonight as well. We're short."}, {"by": "me", "text": "No, we can't do the dock tonight. We can finish the front half properly.", "move": 0, "quote": "No, we can't do the dock tonight."}, {"by": "them", "text": "It's one night. Everyone else is stretching."}, {"by": "me", "text": "I get it, and I'm sorry, I just think maybe if we split it we might not finish either one."}, {"by": "them", "text": "So you can do it, then?"}], "retry": {"text": "If we split, neither gets finished. I can give you the front half done by nine.", "move": 1, "quote": "I can give you the front half done by nine.", "them": "Fine. Front half by nine. I'll find cover for the dock."}, "hint": "You're apologising. Say what you can do, with a time on it.", "debrief": {"best": "No, we can't do the dock tonight.", "why": "You said the no before the reason, so there was nothing to argue with.", "next": {"move": "Hold the silence", "line": "Say the no, then count to three before you add anything."}, "held": "Dana had already told the area manager the dock would be done tonight."}}, "leader": {"strand": "say", "focus": "Say the hard thing early.", "day": 6, "of": 14, "line": "I'd rather raise this now while it is still small.", "moment": "your 2pm one-to-one", "reply": "Good. Tomorrow, try it with someone senior to you.", "tell": {"his": "Raised the roster thing with Sam early, it went fine.", "nova": "Good. Early is the hard part, and you did it."}, "knownFor": "Someone who says the hard thing kindly, and early.", "sees": [{"k": "A strength", "text": "You put the point first now, before the reasons.", "basis": "From 3 tries that landed"}, {"k": "A blind spot", "text": "When someone pushes, you add an apology and the point gets argued.", "basis": "From 2 tries that half landed or fell flat"}], "next": {"strand": "grow", "title": "Ask before you answer."}, "feeds": 0}};
+const L = D.leader;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -911,245 +370,263 @@ const DAY = 86400000;
 const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 const dt = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const short = (d) => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
-const days = (d) => Math.round((today - d) / DAY);
-const all = D.threads.flatMap((t) => t.notes.map((n) => dt(n.at)));
-const first = new Date(Math.min(...all)); const start = new Date(first.getFullYear(), first.getMonth(), 1);
-const pct = (d) => Math.max(0, Math.min(100, ((d - start) / (today - start)) * 100));
-const lastOf = (t) => new Date(Math.max(...t.notes.map((n) => dt(n.at))));
-const quietWords = (n) => n <= 0 ? 'Raised today' : n === 1 ? 'Raised yesterday' : n < 14 ? `Raised ${n} days ago` : `Quiet for ${n} days`;
-const n2w = (n) => ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][n] || String(n);
-function axis() {
-  let h = ''; const d = new Date(start);
-  while (d < today) { const p = pct(d); if (p < 88) h += `<span style="left:${p}%">${d.toLocaleDateString('en-AU', { month: 'short' })}</span>`; d.setMonth(d.getMonth() + 1); }
-  return h + `<span class="now" style="left:100%">Today</span>`;
-}
-
-/* small helpers */
+const ago = (n) => new Date(today - n * DAY);
 const wait = (ms) => new Promise((r) => setTimeout(r, calm ? 0 : ms));
-const go = (id) => { const el = $(id); if (el) el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }); };
-const setSeg = (el, at) => { el.style.setProperty('--at', at); [...el.querySelectorAll('button')].forEach((b, i) => b.setAttribute('aria-pressed', String(i === at))); };
-const wc = (s) => s.trim().split(/\s+/).filter(Boolean).length;
-const quiet = (i) => days(lastOf(D.threads[i]));
-const kindFor = (q) => q <= 14 ? 'live' : q <= 30 ? 'open' : 'quiet';
-const sagFor = (q) => Math.min(16, q * 0.4);
-const io = (el, fn, th = 0.55) => { const o = new IntersectionObserver((es) => { if (es[0].isIntersecting) { o.disconnect(); fn(); } }, { threshold: th }); o.observe(el); };
 const pace = (ms) => new Promise((r) => setTimeout(r, ms));
-
-/* the look switch */
-const look = $('look');
-look.addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  document.body.dataset.look = b.dataset.l; look.dataset.at = b.dataset.l === 'paper' ? '1' : '0';
-  look.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-});
-$('news').addEventListener('click', (e) => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); go(a.getAttribute('href').slice(1)); });
-
-/* ---------- the string ----------
-   One quadratic hung from the first note to today. Slack is its sag. The beads ride the same curve,
-   and x uses the same maths as the axis, so a bead sits under its month. */
-const H = 32, Y0 = 8, PAD = 4;
-const strs = new Set();
 const f1 = (n) => Math.round(n * 10) / 10;
-function mkStr(host, m) {
-  for (const s of [...strs]) if (s.host === host || !s.host.isConnected) { cancelAnimationFrame(s.raf); strs.delete(s); }
-  const inst = { host, m, sag: m.sag, v: 0, raf: 0, target: m.sag, W: 0, svg: null };
-  strs.add(inst); build(inst); if (m.pluck) attachPluck(inst); return inst;
+const io = (el, fn, th = 0.35) => { const o = new IntersectionObserver((es) => { if (es[0].isIntersecting) { o.disconnect(); fn(); } }, { threshold: th }); o.observe(el); };
+const go = (id) => { const el = $(id); if (el) el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }); };
+const rel = (el, host) => { const a = el.getBoundingClientRect(), b = host.getBoundingClientRect(); return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }; };
+
+/* springs: a damped spring sampled into a CSS linear() easing, so WAAPI motion is a real spring */
+const LINEAR_OK = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('animation-timing-function', 'linear(0, 1)');
+function spring(k = 190, c = 20) {
+  if (!LINEAR_OK) return { easing: 'cubic-bezier(.34,1.3,.64,1)', duration: 560 };
+  let x = 0, v = 0; const dt2 = 1 / 240, pts = [0]; let t = 0;
+  while (t < 3) { for (let i = 0; i < 4; i++) { v += (k * (1 - x) - c * v) * dt2; x += v * dt2; } t += 4 * dt2; pts.push(x); if (Math.abs(1 - x) < 0.001 && Math.abs(v) < 0.01) break; }
+  pts[pts.length - 1] = 1; const step = Math.max(1, Math.ceil(pts.length / 60));
+  const s = pts.filter((p, i) => i % step === 0 || i === pts.length - 1).map((p) => Math.round(p * 1000) / 1000);
+  return { easing: `linear(${s.join(', ')})`, duration: Math.round(t * 1000) };
 }
-function build(inst) {
-  const { host, m } = inst; const W = host.clientWidth; inst.W = W;
-  if (!W) { host.innerHTML = ''; inst.svg = null; return; }
-  const x = (d) => PAD + pct(d) / 100 * (W - 2 * PAD);
-  const by = new Map(); m.notes.forEach((d) => { const k = +d; by.set(k, (by.get(k) || 0) + 1); });
-  const keys = [...by.keys()].sort((a, b) => a - b);
-  inst.xa = x(new Date(keys[0])); inst.xl = x(new Date(keys[keys.length - 1])); inst.xb = W - PAD;
-  const beads = keys.map((k, i) => { const c = by.get(k); const r = c >= 3 ? 5.4 : c === 2 ? 4.8 : 4.2; const op = f1(0.6 + 0.4 * pct(new Date(k)) / 100);
-    return `<circle class="b" r="${r}" data-x="${f1(x(new Date(k)))}" style="opacity:${op};--k:${i}"/>`; }).join('');
-  host.innerHTML = `<svg class="s-${m.kind}${m.kind === 'live' ? ' full' : ''}${m.hold ? ' hold' : ''}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
-    <path class="tail"/><path class="solid"/>${beads}<circle class="pin" r="3.2" cx="${inst.xb}" cy="${Y0}"/>
-    ${m.nb === null || m.nb === undefined ? '' : `<circle class="nb${m.nb ? '' : ' up'}" r="4.2" cx="${inst.xb}" cy="${Y0}"/>`}
-    ${m.dia === null || m.dia === undefined ? '' : `<path class="dia${m.dia ? '' : ' up'}" d="M${inst.xb} ${Y0 - 5.5} l5.5 5.5 -5.5 5.5 -5.5 -5.5z"/>`}</svg>`;
-  inst.svg = host.firstElementChild; inst.bs = [...inst.svg.querySelectorAll('.b')];
-  place(inst);
-}
-function place(inst) {
-  const { svg, xa, xb, sag } = inst; if (!svg) return;
-  const xl = inst.m.nb === true ? xb : inst.xl;
-  const P0 = [xa, Y0], P1 = [(xa + xb) / 2, Y0 + 2 * sag], P2 = [xb, Y0];
-  const span = xb - xa; const tl = span < 0.5 ? 1 : Math.min(1, Math.max(0, (xl - xa) / span));
-  const L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-  const Q0 = L(P0, P1, tl), Q1 = L(P1, P2, tl), R = L(Q0, Q1, tl);
-  const p = (a) => `${f1(a[0])} ${f1(a[1])}`;
-  svg.querySelector('.solid').setAttribute('d', `M${p(P0)} Q${p(Q0)} ${p(R)}`);
-  svg.querySelector('.tail').setAttribute('d', `M${p(R)} Q${p(Q1)} ${p(P2)}`);
-  inst.bs.forEach((b) => { const bx = +b.dataset.x; const t = span < 0.5 ? 0 : (bx - xa) / span; b.setAttribute('cx', bx); b.setAttribute('cy', f1(Y0 + 4 * sag * t * (1 - t))); });
-}
-function tighten(inst, target, o) {
-  const K = (o && o.k) || 170, Cd = (o && o.c) || 14;
-  cancelAnimationFrame(inst.raf); inst.target = target;
-  if (calm || !inst.svg) { inst.sag = target; inst.v = 0; place(inst); return; }
+const SP = { sheet: spring(230, 27), fly: spring(150, 17), land: spring(420, 14), soft: spring(200, 24), fan: spring(260, 21) };
+function springNum(st, to, set, k = 200, c = 22) {
+  cancelAnimationFrame(st.raf); st.to = to;
+  if (calm) { st.x = to; st.v = 0; set(to); return; }
   let last = performance.now();
-  const step = (t) => {
-    const dtt = Math.min(0.032, (t - last) / 1000); last = t;
-    inst.v += (K * (inst.target - inst.sag) - Cd * inst.v) * dtt; inst.sag += inst.v * dtt; place(inst);
-    if (Math.abs(inst.v) < 0.03 && Math.abs(inst.target - inst.sag) < 0.03) { inst.sag = inst.target; inst.v = 0; place(inst); return; }
-    inst.raf = requestAnimationFrame(step);
-  };
-  inst.raf = requestAnimationFrame(step);
+  const step = (t) => { const d = Math.min(0.032, (t - last) / 1000); last = t; st.v += (k * (st.to - st.x) - c * st.v) * d; st.x += st.v * d; set(st.x);
+    if (Math.abs(st.v) < 0.0005 && Math.abs(st.to - st.x) < 0.0005) { st.x = st.to; st.v = 0; set(st.x); return; } st.raf = requestAnimationFrame(step); };
+  st.raf = requestAnimationFrame(step);
 }
-function setKind(inst, k) { inst.m.kind = k; if (inst.svg) inst.svg.setAttribute('class', `s-${k}${k === 'live' ? ' full' : ''}${inst.m.hold ? ' hold' : ''}`); }
-function unhold(inst) { inst.m.hold = false; if (inst.svg) inst.svg.classList.remove('hold'); }
-function setNb(inst, on) { inst.m.nb = on; const c = inst.svg && inst.svg.querySelector('.nb'); if (c) c.classList.toggle('up', !on); place(inst); }
-function setDia(inst, on) { inst.m.dia = on; const c = inst.svg && inst.svg.querySelector('.dia'); if (c) c.classList.toggle('up', !on); }
-/* pluck: drag the curve, release and it rings back to its real slack */
-const PLUCK = { k: 300, c: 6.5 };
-function pluckKick(inst, amp) { if (calm || !inst.svg) return; inst.sag = inst.target + amp; place(inst); tighten(inst, inst.target, PLUCK); }
-function attachPluck(inst) {
-  if (calm) return; const h = inst.host;
-  h.addEventListener('pointerdown', (e) => {
-    if (e.button > 0 || !inst.svg) return;
-    try { h.setPointerCapture(e.pointerId); } catch (x) {}
-    cancelAnimationFrame(inst.raf); inst.v = 0; const y0 = e.clientY; let moved = false; h.classList.add('drag');
-    const mv = (ev) => { const dy = ev.clientY - y0; if (Math.abs(dy) > 4) moved = true; const d = 15 * Math.tanh(dy / 15); inst.sag = inst.target + d; place(inst); };
-    const up = () => {
-      h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); h.classList.remove('drag');
-      if (moved) { const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); }; h.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => h.removeEventListener('click', stop, true), 80); tighten(inst, inst.target, PLUCK); }
-      else pluckKick(inst, 5);
-    };
-    h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
-  });
-}
-function relayout() { for (const s of [...strs]) { if (!s.host.isConnected) { strs.delete(s); continue; } if (s.host.clientWidth !== s.W) build(s); } }
-let rz = 0; addEventListener('resize', () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(relayout); });
-const notesOf = (t) => t.notes.map((n) => dt(n.at));
 
-/* 1: Leader noted */
-const T1 = D.threads[D.chat.thread]; const q1 = quiet(D.chat.thread);
-$('p1day').textContent = 'Chat';
-$('c1his').textContent = D.chat.his; $('c1nova').textContent = D.chat.nova; $('c1noted').textContent = D.chat.noted;
-$('c1thread').textContent = T1.name; $('c1when').textContent = 'Written to the Leader’s record just now';
-const s1 = mkStr($('c1str'), { notes: notesOf(T1), kind: kindFor(q1), sag: sagFor(q1), nb: false, dia: null });
-let noted = false;
-function setNoted(on) {
-  noted = on; setKind(s1, on ? 'live' : kindFor(q1)); tighten(s1, on ? 0 : sagFor(q1)); setNb(s1, on);
-  $('roll').classList.toggle('on', on); $('slip').classList.toggle('gone', !on); $('undo1').textContent = on ? 'Undo' : 'Redo';
-}
-$('undo1').addEventListener('click', () => { setNoted(!noted); $('s1').textContent = noted ? 'Written down again.' : 'Undone. The record is back to how it was.'; });
-$('slip').classList.add('gone');
-$('slip').addEventListener('animationend', (e) => { if (e.target === $('slip')) $('slip').classList.remove('in'); });
-io($('p1'), () => { $('slip').classList.add('in'); setTimeout(() => setNoted(true), calm ? 0 : 520); }, 0.3);
+/* press feedback (G): scale .97 on pointer-down for every button and block */
+const PRESS = 'button,.blk,.big';
+document.addEventListener('pointerdown', (e) => { const el = e.target.closest(PRESS); if (el) el.classList.add('prs'); }, true);
+const unpress = () => document.querySelectorAll('.prs').forEach((el) => el.classList.remove('prs'));
+['pointerup', 'pointercancel', 'dragstart'].forEach((t) => document.addEventListener(t, unpress, true));
 
-/* 2: threads */
-$('axis').innerHTML = axis();
-const state = D.threads.map(() => 'open'); const opened = new Set(); const rehearsed = new Set(); let lastAct = null; let p2seen = false;
-function drawThreads() {
-  const order = D.threads.map((t, i) => i).sort((a, b) => (state[a] === 'down') - (state[b] === 'down') || lastOf(D.threads[b]) - lastOf(D.threads[a]));
-  $('thr').innerHTML = order.map((i) => {
-    const t = D.threads[i]; const q = quiet(i); const dn = state[i] === 'down'; const k = dn ? 'down' : kindFor(q);
-    return `<div class="th ${k} ${opened.has(i) ? 'on' : ''}" data-i="${i}">
-      <button class="thb" type="button" aria-expanded="${opened.has(i)}"><span class="nm"><b>${esc(t.name)}</b><small>${dn ? 'Set down' : t.notes.length + (t.notes.length === 1 ? ' note' : ' notes')}</small></span>
-      <span class="str"></span><span class="q">${quietWords(q)}</span></button>
-      <div class="thx"><div><ul class="notes">${t.notes.map((n) => `<li><time>${short(dt(n.at))}</time><span>${esc(n.text)}</span></li>`).join('')}</ul>
-      <div class="acts">${dn ? '<button class="pill ok" type="button" data-a="open">Open it again</button>' : '<button class="pill ok" type="button" data-a="down">That’s done</button><button class="pill" type="button" data-a="wrong">Not right anymore</button><button class="pill gold" type="button" data-a="talk">Talk about this</button><button class="pill or" type="button" data-a="reh"><svg><use href="#dia"/></svg>Rehearse it</button>'}</div></div></div></div>`;
+function setSeg(el, at) { el.style.setProperty('--at', at); [...el.querySelectorAll('button')].forEach((b, i) => b.setAttribute('aria-pressed', String(i === at))); }
+
+/* ---------- the strands and the evidence ---------- */
+const STR = { say: 'Communicating', grow: 'Developing people', steer: 'Setting direction', stand: 'Presence' };
+const ORDER = ['say', 'grow', 'steer', 'stand'];
+const KW = { landed: 'landed', half: 'half landed', flat: 'fell flat', reh: 'rehearsed' };
+/* Example history, the same in both outputs: no one has a month of this yet. */
+let events = [
+  { id: 'e1', s: L.strand, d: 21, k: 'landed', w: 'at work' }, { id: 'e2', s: L.strand, d: 17, k: 'flat', w: 'at work' },
+  { id: 'e3', s: L.strand, d: 13, k: 'half', w: 'at work' }, { id: 'e4', s: L.strand, d: 9, k: 'landed', w: 'at work' },
+  { id: 'e5', s: L.strand, d: 4, k: 'landed', w: 'at work' },
+  { id: 'e6', s: 'grow', d: 15, k: 'half', w: 'at work' },
+  { id: 'e7', s: 'steer', d: 19, k: 'landed', w: 'at work' }, { id: 'e8', s: 'steer', d: 8, k: 'half', w: 'at work' },
+];
+let dayOne = false, started1 = false, prop1 = 0, skipped = false, removed = new Set();
+const PROPS = [{ s: L.strand, t: L.focus, line: L.line },
+  { s: 'grow', t: 'Ask before you answer.', line: 'What would you try first?' },
+  { s: 'steer', t: 'Say where we are heading.', line: 'Here is the one thing that matters this week.' },
+  { s: 'stand', t: 'Let the silence work.', line: 'Let me think about that for a second.' }].filter((p, i, a) => i === 0 || p.s !== a[0].s);
+const tries = (es) => es.filter((e) => e.k !== 'reh').length;
+const words = (es) => { const t = tries(es), r = es.length - t; const a = [];
+  if (t) a.push(`<span class="odo"><span>${t}</span></span> ${t === 1 ? 'try' : 'tries'}`); if (r) a.push(`${r} ${r === 1 ? 'rehearsal' : 'rehearsals'}`); return a.length ? a.join(', ') : 'Not started'; };
+const kcls = (k) => (k === 'landed' ? 'solid' : k);
+const blk = (s, k, id, extra = '') => `<i class="blk ${kcls(k)} s-${s}"${id ? ` data-id="${id}"` : ''}${extra}></i>`;
+const evOf = (s) => events.filter((e) => e.s === s).sort((a, b) => b.d - a.d);
+
+/* ---------- Home: drawn twice (phone 1, and behind the sheet on phone 2) ---------- */
+const H1 = { id: 'h1', host: null, fixed: false, open: new Set(), prev: {} };
+const H2 = { id: 'h2', host: null, fixed: true, open: new Set(), prev: {} };
+function rowsHTML(H, d1) {
+  return ORDER.map((s) => {
+    const es = d1 ? [] : evOf(s); const open = H.open.has(s) && es.length;
+    return `<button class="strow" type="button" data-s="${s}" aria-expanded="${open ? 'true' : 'false'}"><span><span class="nm">${STR[s]}</span><span class="ct">${es.length ? words(es) : 'Not started'}</span></span>
+      <span class="blks">${es.length ? es.map((e) => blk(s, e.k, e.id)).join('') : '<i class="blk none"></i>'}</span></button>
+      <div class="fanwrap">${open ? `<ul class="fan" data-s="${s}">${es.slice().reverse().map((e) => `<li>${blk(s, e.k, '', ` data-of="${e.id}"`)}<span>${short(ago(e.d))}, ${KW[e.k]}${e.k === 'reh' ? '' : ', ' + e.w}</span></li>`).join('')}</ul>` : ''}</div>`;
   }).join('');
-  document.querySelectorAll('#thr .th').forEach((el) => {
-    const i = +el.dataset.i; const q = quiet(i); const dn = state[i] === 'down';
-    mkStr(el.querySelector('.str'), { notes: notesOf(D.threads[i]), kind: dn ? 'down' : kindFor(q), sag: p2seen ? sagFor(q) : 0, base: sagFor(q), nb: null, dia: rehearsed.has(i) ? true : null, hold: !p2seen, pluck: true });
+}
+function drawHome(H, o = {}) {
+  const d1 = !H.fixed && dayOne; const p = PROPS[prop1];
+  const proposing = d1 && !started1; const s = d1 ? p.s : L.strand;
+  const focus = d1 ? p.t : L.focus; const line = d1 ? p.line : L.line;
+  const tapped = !d1 && events.some((e) => e.id === 'tap');
+  const known = D.threads.length - removed.size;
+  const cap = proposing
+    ? `<div class="cap" style="--h:var(--${s})"><span class="strand">${STR[s]}</span><p class="sub" style="margin-top:2px">The Leader suggests starting here</p><h3 class="hl disp">${esc(focus)}</h3>
+       <div class="acts"><button class="btn capbtn" type="button" data-a="start">Start with this</button><button class="btn capbtn2" type="button" data-a="another">Pick another</button></div></div>`
+    : `<div class="cap" style="--h:var(--${s})"><span class="strand">${STR[s]}</span><h3 class="hl disp">${esc(focus)}</h3>
+       <div class="prog"><span>Day ${d1 ? 1 : L.day} of ${L.of}</span><span class="tr"><i style="transform:scaleX(${f1((d1 ? 1 : L.day) / L.of * 100) / 100})"></i></span></div></div>`;
+  const said = tapped ? `<div class="said"><p>${esc(L.reply)}</p><span class="meta">${blk(L.strand, events.find((e) => e.id === 'tap').k)}Counted on your row<button class="tlink" type="button" data-a="undo">Undo</button></span></div>`
+    : (skipped && !d1 ? `<div class="said"><p>No harm. It keeps for tomorrow.</p></div>` : '');
+  const tryB = proposing ? '' : `<div class="try"><span class="lab">Try this today</span><p class="line">“${esc(line)}”</p>
+    <p class="moment">Good moment: ${esc(d1 ? 'whenever it fits today' : L.moment)}</p>
+    ${tapped ? '' : `<div class="acts"><button class="btn pri" type="button" data-a="rehearse">Rehearse it first</button><button class="btn" type="button" data-a="tried">I tried it</button></div>`}${said}</div>`;
+  H.host.innerHTML = `${cap}<div class="bd">${tryB}<div><span class="lab">What you are building</span><div class="rows">${rowsHTML(H, d1)}</div></div>
+    ${d1 ? '<p class="foot">The Leader has not heard anything about work yet.</p>' : `<button class="knows" type="button" data-a="work"><span>The Leader knows ${known} ${known === 1 ? 'thing' : 'things'} about work</span><svg><use href="#chevr"/></svg></button>`}</div>`;
+  /* the count rolls when it changed (A) */
+  ORDER.forEach((s2) => {
+    const n = d1 ? 0 : tries(evOf(s2)); const was = H.prev[s2]; H.prev[s2] = n;
+    if (o.roll && was != null && was !== n && n > 0 && was > 0) { const od = H.host.querySelector(`.strow[data-s="${s2}"] .odo`); if (od) roll(od, was, n, o.rollDelay || 0); }
   });
-  const quietN = D.threads.filter((t, i) => state[i] !== 'down' && quiet(i) > 30).length;
-  const live = state.filter((s) => s !== 'down').length; const notes = D.threads.reduce((n, t, i) => n + (state[i] === 'down' ? 0 : t.notes.length), 0);
-  $('p2sum').textContent = `${n2w(live)} ${live === 1 ? 'thread' : 'threads'} from ${notes} notes.${quietN ? ` ${n2w(quietN)} ${quietN === 1 ? 'has' : 'have'} been quiet for over a month.` : ''}`;
-  const dd = state.filter((s) => s === 'down').length; $('downs').hidden = !dd; $('downs').textContent = dd ? `${n2w(dd)} set down, kept at the bottom.` : '';
+  if (o.hide) { const b = H.host.querySelector(`.blks [data-id="${o.hide}"]`); if (b) b.style.visibility = 'hidden'; }
+  if (o.pop && !calm) { const b = H.host.querySelector(`.blks [data-id="${o.pop}"]`); if (b) b.animate([{ transform: 'scale(0)' }, { transform: 'none' }], SP.land); }
 }
-function flip(fn) {
-  const before = new Map([...document.querySelectorAll('#thr .th')].map((el) => [el.dataset.i, el.getBoundingClientRect().top]));
-  fn();
-  if (calm) return;
-  document.querySelectorAll('#thr .th').forEach((el) => { const b = before.get(el.dataset.i); if (b == null) return; const dy = b - el.getBoundingClientRect().top; if (dy) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 560, easing: 'cubic-bezier(.34,1.18,.64,1)' }); });
+function roll(od, from, to, delay) {
+  if (calm) return; const up = to > from;
+  od.innerHTML = `<span>${from}</span><span>${to}</span>`; const [a, b] = od.children;
+  const o = { ...SP.soft, delay, fill: 'both' };
+  a.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${up ? -100 : 100}%)`, opacity: 0 }], o);
+  const an = b.animate([{ transform: `translateY(${up ? 100 : -100}%)`, opacity: 0 }, { transform: 'none', opacity: 1 }], o);
+  an.onfinish = () => { if (od.isConnected) { od.innerHTML = `<span>${to}</span>`; } };
 }
-drawThreads();
-io($('p2'), () => { p2seen = true; [...strs].filter((s) => s.host.closest('#thr')).forEach((s, k) => setTimeout(() => { unhold(s); tighten(s, s.m.base); }, calm ? 0 : k * 160)); }, 0.3);
-function bar(text, undo) { $('bar2t').textContent = text; $('bar2u').hidden = !undo; lastAct = undo; $('bar2').classList.remove('idle'); }
-$('thr').addEventListener('click', (e) => {
-  const th = e.target.closest('.th'); if (!th) return; const i = +th.dataset.i; const t = D.threads[i]; const a = e.target.closest('[data-a]');
-  if (!a) { const on = th.classList.toggle('on'); if (on) opened.add(i); else opened.delete(i); th.querySelector('.thb').setAttribute('aria-expanded', String(on)); return; }
-  if (a.dataset.a === 'down' || a.dataset.a === 'open') {
-    const was = state[i]; flip(() => { state[i] = a.dataset.a === 'down' ? 'down' : 'open'; drawThreads(); });
-    bar(state[i] === 'down' ? `Set down: ${t.name}` : `Open again: ${t.name}`, () => flip(() => { state[i] = was; drawThreads(); }));
-  } else if (a.dataset.a === 'wrong') bar('The Leader asks what is true now, with this thread quoted.', null);
-  else if (a.dataset.a === 'reh') { bar('The rehearsal opens below, set up from this thread.', null); resetRehearsal(); go('rehearse'); }
-  else bar('The Leader’s chat opens with this thread quoted.', null);
-});
-$('bar2u').addEventListener('click', () => { if (lastAct) { lastAct(); $('bar2t').textContent = 'Undone.'; $('bar2u').hidden = true; lastAct = null; } });
-
-/* 3: tidy-up */
-const oldI = D.threads.map((t, i) => i).filter((i) => quiet(i) > 30);
-const since = oldI.length ? new Date(Math.max(...oldI.map((i) => lastOf(D.threads[i])))).toLocaleDateString('en-AU', { month: 'long' }) : '';
-$('tidyQ').textContent = oldI.length ? `${n2w(oldI.length)} ${oldI.length === 1 ? 'thread has' : 'threads have'} gone quiet since ${since}. Should I set ${oldI.length === 1 ? 'it' : 'them'} down?` : 'Nothing has gone quiet for over a month, so there is nothing to tidy.';
-const pick = oldI.map(() => null);
-$('tidy').innerHTML = oldI.map((i, k) => `<li data-k="${k}"><span class="t"><b>${esc(D.threads[i].name)}</b><small></small></span>
-  <button class="tk y" type="button" aria-label="Set down" aria-pressed="false" data-v="1"><svg><use href="#tick"/></svg></button>
-  <button class="tk n" type="button" aria-label="Keep open" aria-pressed="false" data-v="0"><svg><use href="#cross"/></svg></button></li>`).join('');
-function updTidy() {
-  [...$('tidy').children].forEach((li, k) => {
-    const p = pick[k]; const sm = li.querySelector('small');
-    sm.textContent = p === true ? 'Set down' : p === false ? 'Kept open' : quietWords(quiet(oldI[k])); sm.classList.toggle('k', p === true); sm.style.color = p === false ? 'var(--ink2)' : '';
-    li.querySelector('.y').setAttribute('aria-pressed', String(p === true)); li.querySelector('.n').setAttribute('aria-pressed', String(p === false));
-  });
-  const y = pick.filter((v) => v === true).length, n = pick.filter((v) => v === false).length;
-  $('s3').textContent = y || n ? `${y ? `${y} set down` : ''}${y && n ? ', ' : ''}${n ? `${n} kept` : ''}. Each can be undone from the Leader’s record.` : '';
-  $('tidyAll').textContent = pick.length && pick.every((v) => v === true) ? 'Take them all back' : 'Set them all down';
-}
-updTidy();
-$('tidy').addEventListener('click', (e) => { const b = e.target.closest('.tk'); if (!b) return; const k = +b.closest('li').dataset.k, v = b.dataset.v === '1'; pick[k] = pick[k] === v ? null : v; updTidy(); });
-$('tidyAll').addEventListener('click', () => { const allY = pick.every((v) => v === true); pick.fill(allY ? null : true); updTidy(); });
-$('tidyTalk').addEventListener('click', () => { $('tcomp').classList.add('lead'); $('tcomp').querySelector('.txt').textContent = 'Say where they’re at, by voice or typing'; });
-
-/* 4: reply */
-$('ik').textContent = D.idea.kind; $('iday').textContent = short(today); $('it').textContent = D.idea.title; $('il').textContent = D.idea.line;
-$('qt').textContent = D.idea.title; $('qs').textContent = D.idea.reply; $('qa').textContent = D.idea.answer;
-$('replyBtn').addEventListener('click', () => {
-  $('idea').classList.add('away');
-  setTimeout(() => { $('idea').hidden = true; const c = $('convo'); c.hidden = false; [...c.children].forEach((m, i) => { m.style.animation = calm ? 'none' : `rise 560ms var(--spring) ${i * 380}ms both`; }); $('again4').hidden = false; }, calm ? 0 : 260);
-});
-$('again4').addEventListener('click', () => { $('convo').hidden = true; const c = $('idea'); c.hidden = false; c.classList.add('away'); requestAnimationFrame(() => requestAnimationFrame(() => c.classList.remove('away'))); $('again4').hidden = true; });
-
-/* 5: "Leader," in the Nova chat */
-let run5 = 0;
-$('ht').textContent = D.home.title;
-const HD_NOVA = '<span class="mk nova"><i class="nv"></i></span><div><b>Nova</b><small>Chat</small></div>';
-const HD_LEAD = '<span class="mk"><svg><use href="#chev"/></svg></span><div><b>Leader</b><small>Opened from Home</small></div>';
-$('hd5').innerHTML = HD_NOVA;
-$('hTalk').addEventListener('click', () => {
-  run5++; $('d5').innerHTML = ''; $('hd5').innerHTML = HD_LEAD; $('hd5').classList.add('in');
-  $('to5').classList.add('off'); $('comp5').classList.add('lead'); const t = $('txt5'); t.classList.remove('has'); t.textContent = 'Talk to the Leader';
-  $('d5').insertAdjacentHTML('beforeend', `<div class="lv in"><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader</span>What’s on your mind about work?</p></div>`);
-});
-const T5 = D.threads[D.direct.thread];
-async function play5() {
-  const me = ++run5; const alive = () => me === run5;
-  const d5 = $('d5'), txt = $('txt5'), to = $('to5'), comp = $('comp5');
-  d5.innerHTML = ''; $('hd5').innerHTML = HD_NOVA; $('hd5').classList.remove('in'); txt.textContent = 'Ask Nova'; txt.classList.remove('has'); to.classList.add('off'); comp.classList.remove('lead');
-  const words = D.direct.his; const cut = words.indexOf(',') + 1;
-  await wait(400);
-  for (let i = 1; i <= words.length; i++) {
-    if (!alive()) return;
-    if (i === cut) { to.classList.remove('off'); comp.classList.add('lead'); }
-    const shown = i >= cut ? words.slice(cut).trimStart() : words.slice(0, i);
-    txt.textContent = shown || ' '; txt.classList.add('has');
-    if (!calm) await wait(i < cut ? 70 : 26);
+/* a strand row fans out into its events (B): each line's block flies out of the row's block */
+function toggleFan(H, s) {
+  const row = H.host.querySelector(`.strow[data-s="${s}"]`); if (!row || !evOf(s).length || (!H.fixed && dayOne)) return;
+  const wrap = row.nextElementSibling; const ul = wrap.querySelector('.fan');
+  if (H.open.has(s)) {
+    H.open.delete(s); row.setAttribute('aria-expanded', 'false');
+    if (calm || !ul) { wrap.innerHTML = ''; return; }
+    const lis = [...ul.children]; let left = lis.length; H.closing = H.closing || {};
+    const tok = (H.closing[s] = (H.closing[s] || 0) + 1);
+    lis.reverse().forEach((li, i) => { const a = li.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(-10px) scale(.96)', opacity: 0 }], { duration: 170, delay: i * 30, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
+      a.onfinish = () => { if (--left === 0 && H.closing[s] === tok && !H.open.has(s)) wrap.innerHTML = ''; }; });
+    return;
   }
-  await wait(500); if (!alive()) return;
-  txt.textContent = 'Ask Nova'; txt.classList.remove('has'); to.classList.add('off'); comp.classList.remove('lead');
-  d5.insertAdjacentHTML('beforeend', `<div class="msg me in">${esc(words)}</div>`);
-  await wait(900); if (!alive()) return;
-  d5.insertAdjacentHTML('beforeend', `<div class="lv in"><span class="mk sm"><svg><use href="#chev"/></svg></span><p><span class="who">Leader</span>${esc(D.direct.leader)}</p></div>`);
-  await wait(800); if (!alive()) return;
-  d5.insertAdjacentHTML('beforeend', `<div class="slip in"><div class="top"><svg><use href="#chev"/></svg>Leader noted</div><p class="what">${esc(D.direct.noted)}</p><div class="tn"><span>${esc(T5.name)}</span></div><div class="ft"><small>Added to the thread</small><button class="tlink" type="button">Undo</button></div></div>`);
+  H.open.add(s); H.closing && (H.closing[s] = (H.closing[s] || 0) + 1); row.setAttribute('aria-expanded', 'true');
+  const es = evOf(s);
+  wrap.innerHTML = `<ul class="fan" data-s="${s}">${es.slice().reverse().map((e) => `<li>${blk(s, e.k, '', ` data-of="${e.id}"`)}<span>${short(ago(e.d))}, ${KW[e.k]}${e.k === 'reh' ? '' : ', ' + e.w}</span></li>`).join('')}</ul>`;
+  if (calm) return;
+  [...wrap.querySelectorAll('li')].forEach((li, i) => {
+    const mini = li.querySelector('.blk'); const src = row.querySelector(`.blks [data-id="${mini.dataset.of}"]`);
+    if (src) { const a = src.getBoundingClientRect(), b = mini.getBoundingClientRect();
+      mini.animate([{ transform: `translate(${f1(a.left - b.left)}px,${f1(a.top - b.top)}px) scale(${f1(a.width / b.width)})` }, { transform: 'none' }], { ...SP.fan, delay: i * 40, fill: 'backwards' }); }
+    li.querySelector('span').animate([{ opacity: 0, transform: 'translateX(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 80 + i * 40, easing: 'ease-out', fill: 'backwards' });
+  });
 }
-$('again5').addEventListener('click', play5);
-io($('p5'), play5, 0.3);
+function drawAll(o = {}) {
+  drawHome(H1, o.h1 || {}); if (mode2 === 0) drawHome(H2, o.h2 || {}); drawBack(); drawWork();
+}
+function homeClicks(H) {
+  H.host.addEventListener('click', (e) => {
+    const r = e.target.closest('.strow'); if (r) { toggleFan(H, r.dataset.s); return; }
+    const a = e.target.closest('[data-a]'); if (!a) return; const k = a.dataset.a;
+    if (k === 'start') { started1 = true; drawHome(H1); }
+    else if (k === 'another') { prop1 = (prop1 + 1) % PROPS.length; drawHome(H1); }
+    else if (k === 'rehearse') { resetRehearsal(); go('s-reh'); }
+    else if (k === 'tried') { if (H === H2) openSheet(); else { setMode2(0); go('s-loop'); setTimeout(openSheet, calm ? 0 : 750); } }
+    else if (k === 'undo') { undoTap(); }
+    else if (k === 'work') go('s-work');
+  });
+}
 
-/* ---------- stickers and faces ---------- */
+/* ---------- phone 1 ---------- */
+H1.host = document.createElement('div'); H1.host.style.cssText = 'display:flex;flex-direction:column;flex:1'; $('p1').appendChild(H1.host);
+homeClicks(H1);
+function setDayOne(v) {
+  const was = dayOne; dayOne = v; document.querySelectorAll('.dayseg').forEach((el) => setSeg(el, v ? 0 : 1));
+  if (v) { started1 = false; prop1 = 0; }
+  drawHome(H1); drawBack();
+  /* F: going back to a month in, the blocks drop in one by one */
+  if (was && !v && !calm) H1.host.querySelectorAll('.blks .blk').forEach((b, i) => b.animate([{ transform: 'translateY(-16px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...SP.soft, delay: i * 40, fill: 'backwards' }));
+}
+document.querySelectorAll('.dayseg').forEach((el) => el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setDayOne(b.dataset.v === '0'); }));
+
+/* ---------- phone 2: closing the loop ---------- */
+let mode2 = 0;
+const P2 = $('p2');
+P2.insertAdjacentHTML('beforeend', `<div class="v-tap" style="display:flex;flex-direction:column;flex:1"></div>
+  <div class="scrim" id="scrim2" hidden></div>
+  <div class="sheet" id="sheet2" hidden role="dialog" aria-label="How did it go?" style="--fc:var(--${L.strand});--fct:var(--${L.strand}-t)">
+    <span class="grab"></span><h3 class="q disp">How did it go?</h3>
+    <div class="pick3"><button class="big" type="button" data-k="landed"><span>Landed</span></button><button class="big half" type="button" data-k="half"><span>Half</span></button><button class="big flat" type="button" data-k="flat"><span>Fell flat</span></button></div>
+    <button class="tlink nochance" type="button" id="nochance">Didn’t get the chance</button>
+    <button class="mic" type="button"><svg><use href="#mic"/></svg>Say what happened, if you like</button>
+  </div>
+  <div class="v-tell" hidden style="display:flex;flex-direction:column;flex:1">
+    <div class="cap small" style="--h:var(--${L.strand})"><span class="strand">Nova</span><h3 class="hl disp">Chat</h3></div>
+    <div class="bd"><div class="chat" id="chat2"></div><div class="compose"><span>Ask Nova</span><i><svg><use href="#mic"/></svg></i></div></div>
+  </div>`);
+H2.host = P2.querySelector('.v-tap'); homeClicks(H2);
+const sheet = $('sheet2'), scrim = $('scrim2');
+let sheetOpen = false, sAnim = null, cAnim = null, flight = 0;
+function sheetFrames() {
+  const sr = sheet.getBoundingClientRect(); const b = H2.host.querySelector('[data-a="tried"]');
+  if (!b || !b.offsetParent) return [{ transform: `translateY(${f1(sr.height)}px)`, clipPath: 'inset(0px 0px 0px 0px round 28px 28px 0px 0px)', opacity: 1 }, { transform: 'translateY(0px)', clipPath: 'inset(0px 0px 0px 0px round 28px 28px 0px 0px)', opacity: 1 }];
+  const br = b.getBoundingClientRect();
+  return [{ transform: `translateY(${f1(br.top - sr.top)}px)`, clipPath: `inset(0px ${f1(sr.right - br.right)}px ${f1(sr.height - br.height)}px ${f1(br.left - sr.left)}px round 22px)`, opacity: 0 },
+    { transform: 'translateY(0px)', clipPath: 'inset(0px 0px 0px 0px round 28px 28px 0px 0px)', opacity: 1 }];
+}
+function openSheet() {
+  if (mode2 !== 0 || sheetOpen) return; sheetOpen = true;
+  sheet.querySelectorAll('.big').forEach((b) => { b.style.visibility = ''; b.getAnimations().forEach((a) => a.cancel()); });
+  scrim.hidden = false; sheet.hidden = false; if (sAnim) sAnim.cancel(); if (cAnim) cAnim.cancel();
+  if (calm) return;
+  sAnim = sheet.animate(sheetFrames(), { ...SP.sheet, fill: 'none' });
+  cAnim = scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+}
+function closeSheet(done) {
+  if (!sheetOpen) { if (done) done(); return; } sheetOpen = false;
+  const cs = getComputedStyle(sheet); const fromT = cs.transform === 'none' ? 'translateY(0px)' : cs.transform; const fromC = cs.clipPath === 'none' ? 'inset(0px 0px 0px 0px round 28px 28px 0px 0px)' : cs.clipPath;
+  if (sAnim) sAnim.cancel(); if (cAnim) cAnim.cancel();
+  if (calm) { sheet.hidden = true; scrim.hidden = true; if (done) done(); return; }
+  const fr = sheetFrames(); const end = fr[0];
+  sAnim = sheet.animate([{ transform: fromT, clipPath: fromC, opacity: 1 }, end], { duration: 300, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
+  cAnim = scrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
+  const me = sAnim; me.onfinish = () => { if (sAnim !== me) return; sheet.hidden = true; scrim.hidden = true; me.cancel(); cAnim && cAnim.cancel(); if (done) done(); };
+}
+scrim.addEventListener('click', () => closeSheet());
+$('nochance').addEventListener('click', () => { skipped = true; closeSheet(() => drawAll()); });
+sheet.querySelector('.pick3').addEventListener('click', (e) => { const b = e.target.closest('.big'); if (b && sheetOpen) choose(b); });
+/* A: the chosen block lifts, the sheet drops away, the block flies to the end of its row and lands */
+async function choose(big) {
+  const me = ++flight; const k = big.dataset.k; skipped = false;
+  const from = rel(big, P2);
+  if (!calm) await big.animate([{ transform: 'none' }, { transform: 'translateY(-8px) scale(1.04)' }], { duration: 160, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => {});
+  if (me !== flight) return;
+  const fly = big.cloneNode(true); fly.classList.add('flyer'); fly.removeAttribute('data-k');
+  Object.assign(fly.style, { left: from.x + 'px', top: (from.y - (calm ? 0 : 8)) + 'px', width: from.w + 'px', height: from.h + 'px', margin: 0 });
+  fly.style.setProperty('--fc', `var(--${L.strand})`); fly.style.setProperty('--fct', `var(--${L.strand}-t)`);
+  P2.appendChild(fly); big.style.visibility = 'hidden';
+  events = events.filter((e) => e.id !== 'tap'); events.push({ id: 'tap', s: L.strand, d: 0, k, w: 'at work' });
+  closeSheet();
+  drawHome(H2, { hide: 'tap' }); drawHome(H1, { pop: 'tap', roll: true }); drawBack(); drawWork();
+  const tgt = H2.host.querySelector('.blks [data-id="tap"]'); const said = H2.host.querySelector('.said');
+  if (said) said.style.opacity = '0';
+  const to = rel(tgt, P2);
+  const done = () => { if (me !== flight) return; fly.remove(); tgt.style.visibility = '';
+    if (!calm) tgt.animate([{ transform: 'scale(1.35,.7)' }, { transform: 'none' }], SP.land);
+    const od = H2.host.querySelector(`.strow[data-s="${L.strand}"] .odo`); const n = tries(evOf(L.strand)); if (od) roll(od, n - 1, n, 0);
+    if (said) { said.style.opacity = ''; if (!calm) said.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'linear' }); } };
+  if (calm) { done(); return; }
+  fly.querySelector('span').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' });
+  const a = fly.animate([{ transform: 'translate(0px,-8px) scale(1.04)', borderRadius: '10px' },
+    { transform: `translate(${f1(to.x - from.x)}px,${f1(to.y - from.y + (calm ? 0 : 8))}px) scale(${f1(to.w / from.w * 1000) / 1000},${f1(to.h / from.h * 1000) / 1000})`, borderRadius: `${f1(7 * from.w / to.w)}px / ${f1(7 * from.h / to.h)}px` }],
+    { ...SP.fly, delay: 120, fill: 'forwards' });
+  a.onfinish = done;
+}
+function undoTap() { flight++; P2.querySelectorAll('.flyer').forEach((f) => f.remove()); const n0 = tries(evOf(L.strand)); events = events.filter((e) => e.id !== 'tap');
+  drawHome(H1, { roll: true }); if (mode2 === 0) drawHome(H2, { roll: true }); drawBack(); void n0; }
+
+/* Tell Nova: he mentions it in passing, a receipt lands in the feed as content */
+let tellRun = 0;
+async function playTell() {
+  const me = ++tellRun; const c = $('chat2'); c.innerHTML = ''; events = events.filter((e) => e.id !== 'tell'); drawHome(H1);
+  const add = (h) => { c.insertAdjacentHTML('beforeend', h); const el = c.lastElementChild; if (!calm) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'linear' }); return el; };
+  await wait(350); if (me !== tellRun) return; add(`<div class="msg me">${esc(L.tell.his)}</div>`);
+  await wait(900); if (me !== tellRun) return; add(`<div class="msg nova">${esc(L.tell.nova)}</div>`);
+  await wait(700); if (me !== tellRun) return;
+  events.push({ id: 'tell', s: L.strand, d: 0, k: 'landed', w: 'told Nova' });
+  add(`<div class="rcpt">${blk(L.strand, 'landed')}<p>Counted as a try: ${STR[L.strand]}, landed. <button class="tlink" type="button" id="untell">Undo</button></p></div>`);
+  drawHome(H1, { pop: 'tell', roll: true }); drawBack();
+  $('untell').addEventListener('click', () => { const on = events.some((e) => e.id === 'tell');
+    if (on) events = events.filter((e) => e.id !== 'tell'); else events.push({ id: 'tell', s: L.strand, d: 0, k: 'landed', w: 'told Nova' });
+    $('untell').previousSibling.textContent = on ? 'Taken off your row. ' : `Counted as a try: ${STR[L.strand]}, landed. `; $('untell').textContent = on ? 'Redo' : 'Undo';
+    drawHome(H1, { roll: true, pop: on ? null : 'tell' }); drawBack(); });
+}
+function setMode2(v) {
+  if (mode2 === v) return; mode2 = v; setSeg($('mode2'), v);
+  if (v === 1) { closeSheet(); sheetOpen = false; sheet.hidden = true; scrim.hidden = true; P2.querySelector('.v-tap').hidden = true; P2.querySelector('.v-tell').hidden = false; playTell(); }
+  else { tellRun++; P2.querySelector('.v-tell').hidden = true; P2.querySelector('.v-tap').hidden = false; drawHome(H2); }
+}
+$('mode2').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setMode2(+b.dataset.v); });
+
+/* ---------- phone 3: rehearse ---------- */
 const SHAPES = [
   '<circle class="sf" cx="10" cy="10" r="7.6"/>',
   '<rect class="sf" x="3" y="3" width="14" height="14" rx="4.2"/>',
@@ -1158,7 +635,6 @@ const SHAPES = [
   '<path class="sf" d="M10 2.4 L16.6 6.2 V13.8 L10 17.6 L3.4 13.8 V6.2 Z"/>',
 ];
 const stk = (i, out) => `<svg class="stk${out ? ' out' : ''}" viewBox="0 0 20 20" aria-hidden="true">${SHAPES[i % SHAPES.length]}</svg>`;
-
 const POSES = {
   calm: { ba: 0, by: 0, mw: 9, mc: 0, mo: 0, lean: 0 },
   press: { ba: 16, by: 2, mw: 6, mc: -2, mo: 0, lean: 0 },
@@ -1166,14 +642,15 @@ const POSES = {
   soft: { ba: -4, by: -6, mw: 13, mc: 9, mo: 0, lean: 0 },
 };
 const faces = new Set(); let faceRaf = 0;
-function makeFace(host) {
-  host.innerHTML = `<svg class="face" viewBox="0 0 100 100" aria-hidden="true"><g class="fg">
-    <path d="M50 5 C75 3 97 22 95 50 C99 77 74 97 50 95 C24 99 3 78 5 50 C1 23 26 7 50 5 Z" fill="var(--pink)" stroke="var(--on)" stroke-width="3.5"/>
-    <ellipse class="eye" cx="36" cy="47" rx="5.6" ry="7" fill="#14121f"/><ellipse class="eye" cx="64" cy="47" rx="5.6" ry="7" fill="#14121f"/>
-    <path class="b1" d="M26 33 L46 33" stroke="#14121f" stroke-width="4" stroke-linecap="round"/><path class="b2" d="M54 33 L74 33" stroke="#14121f" stroke-width="4" stroke-linecap="round"/>
-    <path class="mo" fill="#14121f" stroke="#14121f" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></g></svg>`;
-  const svg = host.firstElementChild; const g = svg.querySelector('.fg');
-  const f = { svg, g, cur: { ...POSES.calm }, v: { ba: 0, by: 0, mw: 0, mc: 0, mo: 0, lean: 0 }, tgt: { ...POSES.calm }, talking: false, blinkT: 0 };
+function makeFace() {
+  const box = document.createElement('div'); box.style.cssText = 'width:100%;height:100%';
+  box.innerHTML = `<svg class="face" viewBox="0 0 100 100" aria-hidden="true"><g class="fg">
+    <path d="M50 5 C75 3 97 22 95 50 C99 77 74 97 50 95 C24 99 3 78 5 50 C1 23 26 7 50 5 Z" fill="#ffb3d9" stroke="#151517" stroke-width="3.5"/>
+    <ellipse class="eye" cx="36" cy="47" rx="5.6" ry="7" fill="#151517"/><ellipse class="eye" cx="64" cy="47" rx="5.6" ry="7" fill="#151517"/>
+    <path class="b1" d="M26 33 L46 33" stroke="#151517" stroke-width="4" stroke-linecap="round"/><path class="b2" d="M54 33 L74 33" stroke="#151517" stroke-width="4" stroke-linecap="round"/>
+    <path class="mo" fill="#151517" stroke="#151517" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></g></svg>`;
+  const svg = box.firstElementChild; const g = svg.querySelector('.fg');
+  const f = { box, svg, g, cur: { ...POSES.calm }, v: { ba: 0, by: 0, mw: 0, mc: 0, mo: 0, lean: 0 }, tgt: { ...POSES.calm }, talking: false };
   f.draw = () => {
     const c = f.cur; const a = c.ba;
     svg.querySelector('.b1').setAttribute('transform', `translate(0 ${f1(c.by)}) rotate(${f1(a)} 36 33)`);
@@ -1185,309 +662,255 @@ function makeFace(host) {
   f.pose = (name) => { f.tgt = { ...POSES[name] }; if (calm) { f.cur = { ...f.tgt }; f.draw(); } else kick(); };
   f.talk = (on) => { if (calm) return; f.talking = on; if (on) kick(); };
   f.draw(); faces.add(f);
-  if (!calm) { const blink = () => { f.blinkT = setTimeout(() => { if (svg.isConnected) { svg.classList.add('blink'); setTimeout(() => svg.classList.remove('blink'), 130); } blink(); }, 4000 + Math.random() * 2000); }; blink(); }
+  if (!calm) { const blink = () => setTimeout(() => { if (svg.isConnected) { svg.classList.add('blink'); setTimeout(() => svg.classList.remove('blink'), 130); } blink(); }, 4000 + Math.random() * 2000); blink(); }
   return f;
 }
 function kick() { if (!faceRaf) { let last = performance.now(); const tick = (t) => {
-  const dt = Math.min(0.032, (t - last) / 1000); last = t; let busy = false;
+  const d = Math.min(0.032, (t - last) / 1000); last = t; let busy = false;
   faces.forEach((f) => {
-    for (const k of ['ba', 'by', 'mw', 'mc', 'lean']) { f.v[k] += (220 * (f.tgt[k] - f.cur[k]) - 17 * f.v[k]) * dt; f.cur[k] += f.v[k] * dt; if (Math.abs(f.v[k]) > 0.05 || Math.abs(f.tgt[k] - f.cur[k]) > 0.05) busy = true; }
-    if (f.talking) { f.cur.mo = 5 + 5 * Math.sin(t * 0.017); busy = true; } else { f.v.mo += (220 * (0 - f.cur.mo) - 17 * f.v.mo) * dt; f.cur.mo += f.v.mo * dt; if (Math.abs(f.cur.mo) > 0.05 || Math.abs(f.v.mo) > 0.05) busy = true; }
+    for (const k of ['ba', 'by', 'mw', 'mc', 'lean']) { f.v[k] += (220 * (f.tgt[k] - f.cur[k]) - 17 * f.v[k]) * d; f.cur[k] += f.v[k] * d; if (Math.abs(f.v[k]) > 0.05 || Math.abs(f.tgt[k] - f.cur[k]) > 0.05) busy = true; }
+    if (f.talking) { f.cur.mo = 5 + 5 * Math.sin(t * 0.017); busy = true; } else { f.v.mo += (220 * (0 - f.cur.mo) - 17 * f.v.mo) * d; f.cur.mo += f.v.mo * d; if (Math.abs(f.cur.mo) > 0.05 || Math.abs(f.v.mo) > 0.05) busy = true; }
     f.draw();
   });
   faceRaf = busy ? requestAnimationFrame(tick) : 0; }; faceRaf = requestAnimationFrame(tick); } }
 
-/* 6: what the chat can do */
-const STARTS = [
-  ['reh', 'c-coral', 'dia', 'Rehearse a conversation', 'It plays the other person'],
-  ['idea', 'c-lime', 'vs', 'Test an idea', 'The case against it, first'],
-  ['drill', 'c-sky', 'wave', 'Drill a skill', 'Three tries at one sentence'],
-  ['prep', '', 'steps', 'Prepare for a meeting', 'Three lines to walk in with'],
-  ['words', '', 'lines', 'Find the words', 'Yours, handed back sharper'],
-  ['tell', '', 'thrd', 'Tell it what happened', 'Filed on the right thread'],
-];
-$('starters').innerHTML = STARTS.map(([k, c, ic, t, sm]) => `<button class="st ${c}" type="button" data-k="${k}" aria-pressed="false"><span class="ic"><svg><use href="#${ic}"/></svg></span><span><b>${t}</b><small>${sm}</small></span></button>`).join('');
-const PT = D.threads[D.prep.thread];
-$('prepChips').innerHTML = `<span class="chip"><svg><use href="#thrd"/></svg><span>Read: ${esc(PT.name)}</span></span><span class="chip or"><svg><use href="#dia"/></svg><span>Read: Practice, ${esc(D.page)}</span></span>`;
-$('prepT').textContent = D.prep.title; $('prepOpen').textContent = D.prep.open; $('prepExpect').textContent = D.prep.expect; $('prepHold').textContent = D.prep.hold;
-$('wRough').textContent = D.words.rough; $('wBetter').textContent = D.words.better;
-$('wNote').innerHTML = `<b>${wc(D.words.rough)}</b> words to <b>${wc(D.words.better)}</b>. ${esc(D.words.why)}`;
-let wiped = false;
-function setWipe(on) { $('pn-words').classList.toggle('on', on); setSeg($('wseg'), on ? 1 : 0); }
-const SAID6 = { prep: 'It read the thread and your Practice page first, then wrote three lines.', words: 'Your sentence first, then the sharper one. The words are counted by code.', tell: 'Nothing is written until you say it, and every note has an Undo.', reh: 'Opening the rehearsal below.', idea: 'Opening the idea test below.', drill: 'Opening the drill below.' };
-function show6(k) {
-  document.querySelectorAll('#starters .st').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === k && (k === 'prep' || k === 'words' || k === 'tell'))));
-  $('s6').textContent = SAID6[k] || '';
-  if (k === 'reh') { resetRehearsal(); go('rehearse'); return; }
-  if (k === 'idea') { go('ideas'); setMode8(0); return; }
-  if (k === 'drill') { go('ideas'); setMode8(1); return; }
-  ['prep', 'words', 'tell'].forEach((n) => { const p = $('pn-' + n); const on = n === k; p.hidden = !on; p.classList.remove('rise'); if (on) { void p.offsetWidth; p.classList.add('rise'); } });
-  const lead = k === 'tell'; $('comp6').classList.toggle('lead', lead); $('txt6').textContent = lead ? 'Say what happened, by voice or typing' : 'Talk to the Leader';
-  if (k === 'words') { setWipe(false); if (!wiped) { wiped = true; setTimeout(() => setWipe(true), calm ? 0 : 900); } }
-}
-$('starters').addEventListener('click', (e) => { const b = e.target.closest('.st'); if (b) show6(b.dataset.k); });
-if (!calm) {
-  const st = $('starters');
-  st.addEventListener('pointermove', (e) => { const b = e.target.closest('.st'); if (!b || e.pointerType === 'touch') return; const r = b.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5; b.classList.add('tilt'); b.style.setProperty('--ry', f1(px * 16) + 'deg'); b.style.setProperty('--rx', f1(-py * 16) + 'deg'); });
-  const rest = (e) => { const b = e.target.closest && e.target.closest('.st'); if (!b) return; b.classList.remove('tilt'); b.style.removeProperty('--rx'); b.style.removeProperty('--ry'); };
-  st.addEventListener('pointerout', rest); st.addEventListener('pointerup', rest); st.addEventListener('pointercancel', rest);
-}
-$('wseg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setWipe(b.dataset.v === '1'); });
-$('prepGo').addEventListener('click', () => { resetRehearsal(); go('rehearse'); });
-io($('p6'), () => show6('prep'), 0.3);
-
-/* 7: rehearse */
-const RT = D.sim.thread; const TR = D.threads[RT]; const LV = ['Easy', 'Realistic', 'Tough'];
+const P3 = $('p3'); const F3 = makeFace();
+const [WHO, ...ROLE] = D.sim.who.split(/,\s*/); const ROLEs = ROLE.join(', ');
+const LV = ['Easy', 'Realistic', 'Tough'];
 const LVLINE = ['Pushes back once.', 'Pushes back and repeats the ask.', 'Interrupts and holds the line.'];
 const LVPOSE = ['calm', 'press', 'press2'];
-let level = D.sim.level, run7 = 0, shown7 = 0, r7 = 0, paused7 = false, saved7 = true, burst7 = false;
-const p7 = $('p7'); const talk7 = $('talk7');
-const face7 = makeFace($('face7')); const castF = makeFace($('castFace'));
-const STEPS = ['setup', 'scene', 'debrief'];
-function setStep(k) {
-  p7.dataset.step = k; const at = STEPS.indexOf(k);
-  STEPS.forEach((s) => { $('r-' + s).hidden = s !== k; });
-  [...$('steps7').children].forEach((li, i) => { li.classList.toggle('on', i === at); li.classList.toggle('done', i < at); });
-  $('under7').hidden = $('scrim7').hidden = k !== 'setup'; $('reset7').hidden = k === 'setup';
-  relayout(); if (k === 'setup') layoutDial();
+let level = D.sim.level, run3 = 0, shown3 = 0, r3 = 0, paused3 = false, step3 = 'setup';
+P3.insertAdjacentHTML('beforeend', `<div id="c3"></div><div class="bd" id="b3"></div><div class="scrim" id="scrim3" hidden></div>
+  <div class="whisper" id="whisper3" hidden role="dialog" aria-label="The Leader"><span class="who">The Leader, out of the scene</span><p id="whisperT"></p><button class="tlink" type="button" id="back3">Back to the scene</button></div>`);
+function cap3(k) {
+  const c = $('c3');
+  if (k === 'setup') c.innerHTML = `<div class="cap" style="--h:var(--them)"><div class="capface"><span class="fc"></span><div><span class="strand">Rehearse with</span><h3 class="hl disp">${esc(WHO)}</h3>${ROLEs ? `<span class="role">${esc(ROLEs)}</span>` : ''}</div></div></div>`;
+  else c.innerHTML = `<div class="cap small" style="--h:var(--them);padding-bottom:18px"><div class="capface sm"><span class="fc"></span><div><h3 class="hl disp">${k === 'scene' ? esc(WHO) : 'How it went'}</h3>${k === 'debrief' ? `<span class="role">With ${esc(WHO)}</span>` : ''}</div>${k === 'scene' ? `<span class="lvl" id="lvl3">${LV[level]}</span>` : ''}</div></div>`;
+  c.querySelector('.fc').appendChild(F3.box);
+}
+function setupHTML() {
+  return `<div class="kv">
+    <div><span class="lab">You want</span><p class="v">${esc(D.sim.want)}</p><p class="from">From your focus, ${esc(STR[L.strand])}: ${esc(L.focus)}</p></div>
+    <div><span class="lab">Moves to use</span><ul class="moves">${D.sim.moves.map((m, i) => `<li>${stk(i)}<span>${esc(m.name)}</span></li>`).join('')}</ul></div>
+    <div><span class="lab">How hard</span><div class="dial" id="dial3" role="slider" tabindex="0" aria-label="How hard" aria-valuemin="0" aria-valuemax="2"><div class="tr"><i class="fl"></i></div><i class="sp"></i><i class="sp"></i><i class="sp"></i><i class="kn"></i><span class="lb">Easy</span><span class="lb">Realistic</span><span class="lb">Tough</span></div><p class="dialline" id="dialLine"></p></div>
+  </div>
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px"><button class="btn pri" type="button" id="go3">Start</button>
+  <button class="tlink" type="button" id="more3" aria-expanded="false" style="align-self:center">More ways to practise</button><p class="foot" id="more3t" hidden style="text-align:center">Also here: Test an idea, and Drill a skill.</p></div>`;
 }
 /* the pressure dial */
-const dial = $('lvl7'); let dragging = false;
-const dW = () => Math.max(1, dial.clientWidth - 44);
-function posOf(frac) { return 22 + frac * dW(); }
-function layoutDial() {
-  if (!dial.clientWidth) return;
-  [...dial.querySelectorAll('.sp')].forEach((e, i) => { e.style.left = posOf(i / 2) + 'px'; });
-  [...dial.querySelectorAll('.lb')].forEach((e, i) => { e.style.left = posOf(i / 2) + 'px'; });
-  paintDial(level / 2);
-}
-function paintDial(frac) { dial.querySelector('.kn').style.transform = `translateX(${f1(posOf(frac))}px)`; dial.querySelector('.fl').style.transform = `scaleX(${f1(Math.max(0.001, frac))})`; }
+let dragging = false;
+const dial = () => $('dial3');
+const dW = () => Math.max(1, dial().clientWidth - 44);
+const posOf = (fr) => 22 + fr * dW();
+function paintDial(fr) { const d = dial(); if (!d) return; d.querySelector('.kn').style.transform = `translateX(${f1(posOf(fr))}px)`; d.querySelector('.fl').style.transform = `scaleX(${f1(Math.max(0.001, fr) * 1000) / 1000})`; }
+function layoutDial() { const d = dial(); if (!d || !d.clientWidth) return; [...d.querySelectorAll('.sp')].forEach((e, i) => { e.style.left = posOf(i / 2) + 'px'; }); [...d.querySelectorAll('.lb')].forEach((e, i) => { e.style.left = posOf(i / 2) + 'px'; }); paintDial(level / 2); }
 function setLevel(n) {
-  level = n; dial.setAttribute('aria-valuenow', n); dial.setAttribute('aria-valuetext', LV[n]);
-  [...dial.querySelectorAll('.lb')].forEach((e, i) => e.classList.toggle('on', i === n));
-  $('dialLine').textContent = LVLINE[n]; face7.pose(LVPOSE[n]); castF.pose(LVPOSE[n]); $('castLvl').textContent = LV[n];
-  if (!dragging) paintDial(n / 2);
+  level = n; F3.pose(step3 === 'debrief' ? 'soft' : LVPOSE[n]); if ($('lvl3')) $('lvl3').textContent = LV[n];
+  const d = dial(); if (!d) return; d.setAttribute('aria-valuenow', n); d.setAttribute('aria-valuetext', LV[n]);
+  [...d.querySelectorAll('.lb')].forEach((e, i) => e.classList.toggle('on', i === n)); $('dialLine').textContent = LVLINE[n]; if (!dragging) paintDial(n / 2);
 }
-dial.addEventListener('pointerdown', (e) => {
-  dragging = true; dial.classList.add('drag'); try { dial.setPointerCapture(e.pointerId); } catch (x) {}
-  const mv = (ev) => {
-    const r = dial.getBoundingClientRect(); let fr = Math.min(1, Math.max(0, (ev.clientX - r.left - 22) / dW()));
-    const near = Math.round(fr * 2); const d = Math.abs(fr - near / 2); if (d < 0.15) fr += (near / 2 - fr) * 0.7;
-    paintDial(fr); const n = Math.round(fr * 2); if (n !== level) setLevel(n);
-  };
-  mv(e);
-  const up = () => { dragging = false; dial.classList.remove('drag'); dial.removeEventListener('pointermove', mv); dial.removeEventListener('pointerup', up); dial.removeEventListener('pointercancel', up); paintDial(level / 2); };
-  dial.addEventListener('pointermove', mv); dial.addEventListener('pointerup', up); dial.addEventListener('pointercancel', up);
-});
-dial.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setLevel(Math.min(2, level + 1)); e.preventDefault(); } if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setLevel(Math.max(0, level - 1)); e.preventDefault(); } });
+function wireDial() {
+  const d = dial();
+  d.addEventListener('pointerdown', (e) => {
+    dragging = true; d.classList.add('drag'); try { d.setPointerCapture(e.pointerId); } catch (x) {}
+    const mv = (ev) => { const r = d.getBoundingClientRect(); let fr = Math.min(1, Math.max(0, (ev.clientX - r.left - 22) / dW()));
+      const near = Math.round(fr * 2); if (Math.abs(fr - near / 2) < 0.15) fr += (near / 2 - fr) * 0.7; paintDial(fr); const n = Math.round(fr * 2); if (n !== level) setLevel(n); };
+    mv(e);
+    const up = () => { dragging = false; d.classList.remove('drag'); d.removeEventListener('pointermove', mv); d.removeEventListener('pointerup', up); d.removeEventListener('pointercancel', up); paintDial(level / 2); };
+    d.addEventListener('pointermove', mv); d.addEventListener('pointerup', up); d.addEventListener('pointercancel', up);
+  });
+  d.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setLevel(Math.min(2, level + 1)); e.preventDefault(); } if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setLevel(Math.max(0, level - 1)); e.preventDefault(); } });
+}
 addEventListener('resize', () => requestAnimationFrame(layoutDial));
-function fillSetup() {
-  $('fWho').textContent = D.sim.who; $('fFrom').textContent = `From your thread, ${TR.name}`; $('fWant').textContent = D.sim.want;
-  $('fPage').textContent = `From your Practice page, ${D.page}`;
-  $('u7name').textContent = TR.name; const q = quiet(RT);
-  mkStr($('u7str'), { notes: notesOf(TR), kind: kindFor(q), sag: sagFor(q), nb: null, dia: rehearsed.has(RT) ? true : null });
-  setLevel(level); layoutDial();
+function setStep3(k) {
+  step3 = k; P3.dataset.step = k; cap3(k); const b = $('b3');
+  closeWhisper();
+  if (k === 'setup') { b.innerHTML = setupHTML(); wireDial(); setLevel(level); layoutDial();
+    $('go3').addEventListener('click', () => { setStep3('scene'); playScene(); });
+    $('more3').addEventListener('click', () => { const t = $('more3t'); t.hidden = !t.hidden; $('more3').setAttribute('aria-expanded', String(!t.hidden)); }); }
+  else if (k === 'scene') { b.innerHTML = `<div class="talk" id="talk3"></div><div class="ctl"><button class="btn" type="button" id="ask3">Ask the Leader</button><button class="btn" type="button" id="again3">Try again</button><button class="btn pri" type="button" id="end3">End scene</button></div>`;
+    $('ask3').addEventListener('click', openWhisper); $('again3').addEventListener('click', retry3); $('end3').addEventListener('click', endScene); }
 }
-$('mv7').innerHTML = D.sim.moves.map((m, i) => `<button class="mchip" type="button" aria-pressed="true" data-m="${i}">${stk(i)}<span>${esc(m.name)}</span></button>`).join('');
-$('mv7').addEventListener('click', (e) => {
-  const b = e.target.closest('.mchip'); if (!b) return; b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
-  const sv = b.querySelector('.stk'); sv.classList.remove('hop'); void sv.getBoundingClientRect(); sv.classList.add('hop');
-});
-function slideUp() {
-  if (calm) return;
-  $('sheet').animate([{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 760, easing: 'cubic-bezier(.32,.72,0,1)' });
-  $('scrim7').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 520, easing: 'ease-out' });
-}
+const talk3 = () => $('talk3');
 function turnHTML(t, stamp) {
-  if (t.by === 'them') return `<div class="msg them">${esc(t.text)}</div><div class="spk"><svg><use href="#wave"/></svg>Spoken aloud</div>`;
-  const mv = t.move == null ? '' : `<div class="mv${stamp && !calm ? ' stamp' : ''}" data-m="${t.move}">${stk(t.move)}<span>${esc(D.sim.moves[t.move].name)}</span><q>${esc(t.quote)}</q></div>`;
-  return `<div class="msg me">${esc(t.text)}</div>${mv}`;
-}
-function markStrip(mi) {
-  const p = $('strip7').querySelector(`[data-m="${mi}"]`); if (!p) return; p.classList.add('hit');
-  if (!calm) { p.classList.remove('hop'); void p.offsetWidth; p.classList.add('hop'); }
+  if (t.by === 'them') return `<div class="msg them">${esc(t.text)}</div>`;
+  const mv = t.move == null ? '' : `<div class="mv${stamp && !calm ? ' stamp' : ''}" data-m="${t.move}">${stk(t.move)}<span>${esc(D.sim.moves[t.move].name)}</span></div>`;
+  return `<div class="msg mine">${esc(t.text)}</div>${mv}`;
 }
 function addTu(t, animate) {
-  const el = document.createElement('div'); el.className = 'tu' + (animate && !calm ? ' in' : ''); el.innerHTML = turnHTML(t, animate); talk7.appendChild(el);
-  if (animate) {
-    if (t.by === 'them') {
-      castF.pose(t.soft ? 'soft' : LVPOSE[level]);
-      castF.talk(true); setTimeout(() => castF.talk(false), Math.min(2000, 60 * t.text.length));
-    } else if (t.move != null) setTimeout(() => markStrip(t.move), calm ? 0 : 260);
-  } else if (t.by === 'me' && t.move != null) markStrip(t.move);
+  const el = document.createElement('div'); el.className = 'tu' + (animate && !calm ? ' in' : ''); el.innerHTML = turnHTML(t, animate); talk3().appendChild(el);
+  if (animate && t.by === 'them') { F3.pose(t.soft ? 'soft' : LVPOSE[level]); F3.talk(true); setTimeout(() => F3.talk(false), Math.min(2000, 60 * t.text.length)); }
   return el;
 }
-/* Ask the Leader: the scene dims behind a card that rises from the button */
+/* Ask the Leader: white on ink, over a 60% scrim, rising from the button and returning to it */
 let wAnim = null;
-function closeWhisper() { paused7 = false; if (wAnim) { wAnim.cancel(); wAnim = null; } $('whisper7').hidden = true; talk7.classList.remove('dim'); $('ask7').textContent = 'Ask the Leader'; }
-function whisperTravel() { const b = $('ask7').getBoundingClientRect(), w = $('whisper7').getBoundingClientRect(); return (b.top + b.height / 2) - (w.top + w.height / 2); }
+function closeWhisper() { paused3 = false; if (wAnim) { wAnim.cancel(); wAnim = null; } $('whisper3').hidden = true; $('scrim3').hidden = true; }
+function wTravel() { const b = $('ask3').getBoundingClientRect(), w = $('whisper3').getBoundingClientRect(); return (b.top + b.height / 2) - (w.top + w.height / 2); }
 function openWhisper() {
-  const w = $('whisper7'); if (wAnim) { wAnim.cancel(); wAnim = null; }
-  w.hidden = false; talk7.classList.add('dim'); paused7 = true; $('ask7').textContent = 'Back to the scene';
-  if (!calm) { const dy = whisperTravel(); wAnim = w.animate([{ transform: `translateY(${dy}px) scale(.5)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.34,1.4,.64,1)' }); }
+  const w = $('whisper3'); if (wAnim) { wAnim.cancel(); wAnim = null; }
+  $('whisperT').textContent = D.sim.hint; w.hidden = false; $('scrim3').hidden = false; paused3 = true;
+  if (!calm) { wAnim = w.animate([{ transform: `translateY(${f1(wTravel())}px) scale(.5)`, opacity: 0 }, { transform: 'none', opacity: 1 }], SP.sheet);
+    $('scrim3').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }); }
 }
 function dismissWhisper() {
-  const w = $('whisper7'); if (wAnim) { wAnim.cancel(); wAnim = null; }
-  talk7.classList.remove('dim'); paused7 = false; $('ask7').textContent = 'Ask the Leader';
-  if (calm) { w.hidden = true; return; }
-  const dy = whisperTravel(); wAnim = w.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${dy}px) scale(.5)`, opacity: 0 }], { duration: 360, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
-  const mine = wAnim; mine.onfinish = () => { if (wAnim === mine) { w.hidden = true; wAnim = null; mine.cancel(); } };
+  const w = $('whisper3'); if (w.hidden) return; if (wAnim) { wAnim.cancel(); wAnim = null; } paused3 = false;
+  if (calm) { closeWhisper(); return; }
+  const me = (wAnim = w.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${f1(wTravel())}px) scale(.5)`, opacity: 0 }], { duration: 300, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }));
+  $('scrim3').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
+  me.onfinish = () => { if (wAnim === me) closeWhisper(); };
 }
-async function beat(me, ms) { await wait(ms); while (paused7 && me === run7) await pace(120); return me === run7; }
-function buildStrip() {
-  const sel = [...$('mv7').children].map((b, i) => b.getAttribute('aria-pressed') === 'true' ? i : -1).filter((i) => i >= 0);
-  const use = sel.length ? sel : D.sim.moves.map((m, i) => i);
-  $('strip7').innerHTML = use.map((i) => `<span class="pg2" data-m="${i}">${stk(i)}<span>${esc(D.sim.moves[i].name)}</span></span>`).join('');
-}
+$('back3').addEventListener('click', dismissWhisper); $('scrim3').addEventListener('click', dismissWhisper);
+async function beat(me, ms) { await wait(ms); while (paused3 && me === run3) await pace(120); return me === run3; }
 async function playScene() {
-  const me = ++run7; talk7.innerHTML = ''; shown7 = 0; r7 = 0; closeWhisper(); buildStrip();
-  $('again7').disabled = false; $('again7').style.opacity = ''; $('castWho').textContent = D.sim.who; $('castLvl').textContent = LV[level]; $('whisperT').textContent = D.sim.hint;
-  castF.pose(LVPOSE[level]);
+  const me = ++run3; talk3().innerHTML = ''; shown3 = 0; r3 = 0; F3.pose(LVPOSE[level]);
   if (!(await beat(me, 450))) return;
-  while (shown7 < D.sim.turns.length) {
-    addTu(D.sim.turns[shown7], true); shown7++;
-    if (shown7 < D.sim.turns.length && !(await beat(me, 1450))) return;
-  }
+  while (shown3 < D.sim.turns.length) { addTu(D.sim.turns[shown3], true); shown3++; if (shown3 < D.sim.turns.length && !(await beat(me, 1350))) return; }
 }
-function finish7() {
-  run7++; closeWhisper(); castF.talk(false);
-  while (shown7 < D.sim.turns.length) { addTu(D.sim.turns[shown7], false); shown7++; }
-  if (r7 === 1) { addTu({ by: 'them', text: D.sim.retry.them, soft: true }, false); castF.pose('soft'); r7 = 2; }
+function finish3() {
+  run3++; closeWhisper(); F3.talk(false); if (!talk3()) return;
+  while (shown3 < D.sim.turns.length) { addTu(D.sim.turns[shown3], false); shown3++; }
+  if (r3 === 1) { addTu({ by: 'them', text: D.sim.retry.them, soft: true }, false); F3.pose('soft'); r3 = 2; }
 }
-$('go7').addEventListener('click', () => { setStep('scene'); playScene(); });
-$('ask7').addEventListener('click', () => { if ($('whisper7').hidden || $('ask7').textContent === 'Ask the Leader') openWhisper(); else dismissWhisper(); });
-$('again7').addEventListener('click', async () => {
-  if ($('again7').disabled) return; $('again7').disabled = true; $('again7').style.opacity = '.45';
-  finish7(); $('s7').textContent = 'Your first try is struck out and does not count.';
-  const me = ++run7; const tus = [...talk7.querySelectorAll('.tu')]; let li = -1; tus.forEach((el, i) => { if (el.querySelector('.msg.me')) li = i; });
+async function retry3() {
+  const btn = $('again3'); if (btn.hidden) return; btn.hidden = true;
+  finish3(); const me = ++run3; const tus = [...talk3().querySelectorAll('.tu')]; let li = -1; tus.forEach((el, i) => { if (el.querySelector('.msg.mine')) li = i; });
   if (li < 0) return;
   tus[li].querySelector('.msg').classList.add('taken'); const mv = tus[li].querySelector('.mv'); if (mv) mv.remove();
   if (!(await beat(me, 950))) return;
-  tus.slice(li + 1).forEach((el) => el.remove());
-  castF.pose(LVPOSE[level]);
-  const R = D.sim.retry; addTu({ by: 'me', text: R.text, move: R.move, quote: R.quote }, true); r7 = 1;
-  if (!(await beat(me, 1400))) return;
-  addTu({ by: 'them', text: R.them, soft: true }, true); r7 = 2;
-});
-function played() {
-  const T = D.sim.turns; const R = D.sim.retry;
-  return r7 >= 1 ? [...T.slice(0, 3), { by: 'me', text: R.text, move: R.move, quote: R.quote }] : T;
+  tus.slice(li + 1).forEach((el) => el.remove()); F3.pose(LVPOSE[level]);
+  const R = D.sim.retry; addTu({ by: 'me', text: R.text, move: R.move, quote: R.quote }, true); r3 = 1;
+  if (!(await beat(me, 1300))) return;
+  addTu({ by: 'them', text: R.them, soft: true }, true); r3 = 2;
 }
-function doBurst(inst) {
-  if (calm || !inst.svg) return;
-  const b = document.createElement('div'); b.className = 'burst'; b.style.left = inst.xb + 'px'; b.style.top = Y0 + 'px'; inst.host.appendChild(b);
-  for (let i = 0; i < 8; i++) {
-    const l = document.createElement('i'); b.appendChild(l); const a = i * 45;
-    l.animate([{ transform: `rotate(${a}deg) translateY(-8px) scaleY(.4)`, opacity: 1 }, { transform: `rotate(${a}deg) translateY(-26px) scaleY(1)`, opacity: 0 }], { duration: 560, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
-  }
-  setTimeout(() => b.remove(), 700);
-}
-$('end7').addEventListener('click', () => {
-  finish7(); const B = D.sim.debrief;
-  const from = {}; talk7.querySelectorAll('.mv').forEach((m) => { const sv = m.querySelector('.stk'); if (sv) from[m.dataset.m] = sv.getBoundingClientRect(); });
-  setStep('debrief');
-  $('dbWhy').textContent = B.why;
-  const bw = B.best.split(' '); $('dbBest').innerHTML = bw.map((w, i) => `<span class="w" style="transition-delay:${i * 40}ms">${esc(w)} </span>`).join('');
-  const ws = [...$('dbBest').children]; if (calm) ws.forEach((w) => w.classList.add('on')); else requestAnimationFrame(() => requestAnimationFrame(() => ws.forEach((w) => w.classList.add('on'))));
-  const sel = [...$('mv7').children].map((b, i) => b.getAttribute('aria-pressed') === 'true' ? i : -1).filter((i) => i >= 0);
+function played() { const T = D.sim.turns; const R = D.sim.retry; return r3 >= 1 ? [...T.slice(0, 3), { by: 'me', text: R.text, move: R.move, quote: R.quote }] : T; }
+function endScene() {
+  finish3(); const B = D.sim.debrief;
+  const from = {}; talk3().querySelectorAll('.mv').forEach((m) => { const sv = m.querySelector('.stk'); if (sv) from[m.dataset.m] = sv.getBoundingClientRect(); });
+  step3 = 'debrief'; cap3('debrief'); F3.pose('soft');
   const mine = played().filter((t) => t.by === 'me' && t.move != null);
-  $('pegs7').innerHTML = (sel.length ? sel : D.sim.moves.map((m, i) => i)).map((mi, k) => { const hit = mine.find((t) => t.move === mi);
-    return hit ? `<li class="hit" data-m="${mi}" style="--i:${k}"><span class="pk">${stk(mi)}</span><b>${esc(D.sim.moves[mi].name)}</b><q>${esc(hit.quote)}</q></li>` : `<li data-m="${mi}" style="--i:${k}"><span class="pk">${stk(mi, true)}</span><b>${esc(D.sim.moves[mi].name)}</b><small>Not used this time</small></li>`; }).join('');
-  if (!calm) $('pegs7').querySelectorAll('li.hit').forEach((li) => {
-    const sv = li.querySelector('.stk'); const a = from[li.dataset.m]; if (!a) return; const r = sv.getBoundingClientRect();
-    const dx = a.left - r.left, dy = a.top - r.top, sc = a.width / r.width;
-    sv.animate([{ transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(-4deg)` }, { transform: 'translate(0,0) scale(1) rotate(-4deg)' }], { duration: 820, delay: 420, easing: 'cubic-bezier(.34,1.3,.64,1)', fill: 'backwards' });
-    li.animate([{ transform: 'none' }, { transform: 'translateY(-7px)' }, { transform: 'none' }], { duration: 420, delay: 1200, easing: 'ease-out' });
-  });
-  $('nxMove').textContent = B.next.move; $('nxLine').textContent = B.next.line; $('heldT').textContent = B.held; $('held7').setAttribute('aria-pressed', 'false');
-  saved7 = true; $('dbSaved').textContent = 'Saved to your Practice page'; $('undo7').textContent = 'Undo';
-  $('d7name').textContent = TR.name; const q = quiet(RT);
-  const ds = mkStr($('d7str'), { notes: notesOf(TR), kind: kindFor(q), sag: sagFor(q), nb: null, dia: false });
-  if (calm) setDia(ds, true);
-  else setTimeout(() => { setDia(ds, true); setTimeout(() => { pluckKick(ds, 9); if (!burst7) { burst7 = true; doBurst(ds); } }, 380); }, 1500);
-  burst7 = false;
-  rehearsed.add(RT); drawThreads(); $('s2').textContent = `The rehearsal left a diamond on ${TR.name}. The string did not change.`;
-});
-$('held7').addEventListener('click', () => { const b = $('held7'); b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); });
-$('undo7').addEventListener('click', () => { saved7 = !saved7; $('dbSaved').textContent = saved7 ? 'Saved to your Practice page' : 'Taken back off your Practice page'; $('undo7').textContent = saved7 ? 'Undo' : 'Redo'; });
-$('tougher7').addEventListener('click', () => { setLevel(2); setStep('scene'); $('s7').textContent = 'The same scene, with them pushing harder. In the build the lines change. Here they repeat.'; playScene(); });
-$('done7').addEventListener('click', () => { $('s7').textContent = 'Closed. The mark stays on the thread, above.'; opened.add(RT); drawThreads(); go('threads'); });
-function resetRehearsal() { run7++; closeWhisper(); castF.talk(false); talk7.innerHTML = ''; shown7 = 0; r7 = 0; $('s7').textContent = ''; setStep('setup'); fillSetup(); slideUp(); }
-$('reset7').addEventListener('click', resetRehearsal);
-setStep('setup'); fillSetup();
-io(p7, slideUp, 0.3);
+  $('b3').innerHTML = `<div class="sayc"><span class="lab">Your strongest line</span><p class="best disp" id="best3">${B.best.split(' ').map((w, i) => `<span class="w" style="transition-delay:${i * 40}ms">${esc(w)} </span>`).join('')}</p><p class="bestwhy">${esc(B.why)}</p></div>
+    <div><span class="lab">What landed</span><ul class="pegs" id="pegs3">${D.sim.moves.map((m, mi) => { const hit = mine.find((t) => t.move === mi);
+      return hit ? `<li class="hit" data-m="${mi}">${stk(mi)}<b>${esc(m.name)}</b><q>${esc(hit.quote)}</q></li>` : `<li data-m="${mi}">${stk(mi, true)}<b>${esc(m.name)}</b><small>Not used this time</small></li>`; }).join('')}</ul></div>
+    <button class="flip" type="button" id="held3" aria-pressed="false"><span class="in3"><span class="f"><b>What they were holding back</b><small>Tap to turn it over</small></span><span class="bk"><span class="lab">What they were holding back</span><p>${esc(B.held)}</p></span></span></button>
+    <div><span class="lab">Try next time</span><p class="nextl">${esc(B.next.line)}</p></div>
+    <div class="rcpt" id="rr3">${blk(L.strand, 'reh')}<p>Added to ${STR[L.strand]} as a rehearsal. <button class="tlink" type="button" id="unreh">Undo</button></p></div>
+    <div class="acts" style="margin-top:auto"><button class="btn pri" type="button" id="done3">Done</button><button class="btn" type="button" id="tougher3">Run it again, tougher</button></div>`;
+  const ws = [...$('best3').children]; if (calm) ws.forEach((w) => w.classList.add('on')); else requestAnimationFrame(() => requestAnimationFrame(() => ws.forEach((w) => w.classList.add('on'))));
+  if (!calm) $('pegs3').querySelectorAll('li.hit').forEach((li) => { const sv = li.querySelector('.stk'); const a = from[li.dataset.m]; if (!a) return; const r = sv.getBoundingClientRect();
+    sv.animate([{ transform: `translate(${f1(a.left - r.left)}px,${f1(a.top - r.top)}px) rotate(-4deg)` }, { transform: 'rotate(-4deg)' }], { ...SP.fly, delay: 300, fill: 'backwards' }); });
+  $('held3').addEventListener('click', () => { const b = $('held3'); b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); });
+  $('done3').addEventListener('click', () => go('s-home'));
+  $('tougher3').addEventListener('click', () => { setStep3('scene'); setLevel(2); playScene(); });
+  $('unreh').addEventListener('click', () => { const on = events.some((e) => e.id === 'reh');
+    if (on) events = events.filter((e) => e.id !== 'reh'); else events.push({ id: 'reh', s: L.strand, d: 0, k: 'reh', w: 'rehearsal' });
+    $('unreh').previousSibling.textContent = on ? 'Taken off your row. ' : `Added to ${STR[L.strand]} as a rehearsal. `; $('unreh').textContent = on ? 'Redo' : 'Undo';
+    drawAll({ h1: { pop: on ? null : 'reh' } }); });
+  /* one outline block drops onto Home's row */
+  events = events.filter((e) => e.id !== 'reh'); events.push({ id: 'reh', s: L.strand, d: 0, k: 'reh', w: 'rehearsal' });
+  drawAll({ h1: { pop: 'reh' }, h2: { pop: 'reh' } });
+}
+function resetRehearsal() { run3++; F3.talk(false); shown3 = 0; r3 = 0; level = D.sim.level; setStep3('setup'); }
+setStep3('setup');
 
-/* 8: test an idea, drill a skill */
-let run8 = 0, mode8 = 0, keep8 = false;
-const I2 = D.idea2, IT = D.threads[I2.thread];
-function setMode8(v) { mode8 = v; setSeg($('mode8'), v); $('p8').classList.toggle('drilling', v === 1); $('i8').hidden = v !== 0; $('d8').hidden = v !== 1; play8(); }
-async function playIdea() {
-  const me = ++run8; const b = $('i8'); b.innerHTML = ''; $('s8').textContent = ''; keep8 = false;
-  b.insertAdjacentHTML('beforeend', `<div class="icard" id="icard"><small>Your idea</small>${esc(I2.his)}</div>`);
-  const card = $('icard'); const objs = I2.against.split(/(?<=[.!?])\s+/).filter(Boolean);
-  await wait(1000); if (me !== run8) return;
-  b.insertAdjacentHTML('beforeend', `<div class="panel against in"><div class="kick lime"><svg><use href="#vs"/></svg>The strongest case against it</div><div id="objs"></div></div>`);
-  for (let i = 0; i < objs.length; i++) {
-    await wait(i ? 1500 : 700); if (me !== run8) return;
-    $('objs').insertAdjacentHTML('beforeend', `<p class="obj in">${esc(objs[i])}</p>`);
-    card.style.transform = `rotate(${i % 2 ? -5 : 5}deg) translateY(2px)`;
-  }
-  await wait(1500); if (me !== run8) return;
-  card.style.transform = 'none';
-  b.insertAdjacentHTML('beforeend', `<div class="panel sharp in"><div class="kick"><svg><use href="#chev"/></svg>Your idea, sharper</div><p class="was">${esc(I2.sharper.before)}</p><p class="nowt">${esc(I2.sharper.after)}</p><p class="chg"><b>What changed.</b> ${esc(I2.sharper.changed)}</p><div class="acts"><button class="pill gold" type="button" id="keep8">Keep it on the thread</button></div></div>`);
-  await wait(500); if (me !== run8) return;
-  b.insertAdjacentHTML('beforeend', `<p class="tally in"><b>${objs.length}</b> ${objs.length === 1 ? 'point' : 'points'} against, <b>1</b> rewrite that answers ${objs.length === 1 ? 'it' : 'them'}.</p>`);
-  $('keep8').addEventListener('click', () => {
-    keep8 = !keep8; const k = $('keep8'); k.className = keep8 ? 'pill ok' : 'pill gold'; k.innerHTML = keep8 ? '<svg><use href="#tick"/></svg>Kept on the thread' : 'Keep it on the thread';
-    $('s8').textContent = keep8 ? `Kept on “${IT.name}”. Tap again to take it off.` : 'Taken off again.';
+/* ---------- phone 4: the look back ---------- */
+const P4 = $('p4');
+const myTurns = D.sim.turns.filter((t) => t.by === 'me');
+const THEN = (myTurns.find((t) => t.move == null) || myTurns[0]).text; const NOW = D.sim.retry.text;
+const NEXTS = [L.next, ...PROPS.slice(1).filter((p) => p.s !== L.next.strand).map((p) => ({ strand: p.s, title: p.t }))];
+let next4 = 0, started4 = false, seen4 = new Map(), wipeX = { x: 0.88, v: 0, raf: 0 }, wipeSeen = false;
+function grewMost() { const n = {}; events.filter((e) => e.d <= 28).forEach((e) => { n[e.s] = (n[e.s] || 0) + 1; }); return ORDER.reduce((a, s) => ((n[s] || 0) > (n[a] || 0) ? s : a), L.strand); }
+function drawBack() {
+  const g = dayOne ? L.strand : grewMost();
+  const cap = `<div class="cap small" style="--h:var(--${g})"><span class="strand">Look back</span><h3 class="hl disp">Four weeks of you</h3></div>`;
+  if (dayOne) { P4.innerHTML = `<span class="island"></span>${cap}<div class="bd"><div class="empty">${blk(L.strand, 'flat')}<p>Nothing to look back on yet. Your first try or rehearsal starts it.</p></div></div>`; return; }
+  const nx = NEXTS[next4];
+  P4.innerHTML = `<span class="island"></span>${cap}<div class="bd">
+    <div><span class="lab">You said you want to be known for</span>${L.knownFor ? `<p class="kfor">“${esc(L.knownFor)}”</p>` : '<p class="kfor none">You have not said yet. The Leader will ask once.</p>'}</div>
+    <div><span class="lab">Then and now, in your own words</span><div class="wipe" id="wipe4" style="--h:var(--${g});--x:${f1(wipeX.x * 1000) / 10}%" role="slider" tabindex="0" aria-label="Then and now" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(wipeX.x * 100)}">
+      <div class="card then"><small>Then, your first rehearsal</small><p>${esc(THEN)}</p></div><div class="card now"><small>Now, your latest</small><p>${esc(NOW)}</p></div><span class="hd"><i><svg><use href="#lr"/></svg></i></span></div></div>
+    <div><span class="lab">What the Leader sees</span><div class="sees">${L.sees.map((s, i) => { const st = seen4.get(i);
+      return `<div class="see${st === 'y' ? ' kept' : ''}" data-i="${i}"><span class="k">${esc(s.k)}</span><p>${esc(s.text)}<span class="basis">${esc(s.basis)}</span></p>
+      <span class="tc"><button class="tk" type="button" data-v="y" aria-label="That is right" aria-pressed="${st === 'y'}"><svg width="16" height="16"><use href="#tick"/></svg></button><button class="tk" type="button" data-v="n" aria-label="That is wrong" aria-pressed="${st === 'n'}"><svg width="16" height="16"><use href="#cross"/></svg></button></span>
+      ${st === 'n' ? '<div class="tell"><svg><use href="#mic"/></svg>Tell the Leader what is wrong with it.</div>' : ''}</div>`; }).join('')}</div></div>
+    <div><span class="lab">Next focus, proposed</span><div class="nf">${blk(nx.strand, 'landed')}<span><b>${STR[nx.strand]}</b><span class="t">${esc(nx.title)}</span></span></div>
+      ${started4 ? `<p class="foot">Starts when this focus ends. <button class="tlink" type="button" data-a="unstart" style="padding:0">Undo</button></p>` : '<div class="acts"><button class="btn pri" type="button" data-a="startnext">Start it</button><button class="btn" type="button" data-a="pick">Pick another</button></div>'}</div>
+  </div>`;
+  wireWipe();
+}
+P4.addEventListener('click', (e) => {
+  const t = e.target.closest('.tk'); if (t) { const i = +t.closest('.see').dataset.i; seen4.set(i, seen4.get(i) === t.dataset.v ? null : t.dataset.v); drawBack(); return; }
+  const a = e.target.closest('[data-a]'); if (!a) return;
+  if (a.dataset.a === 'startnext') started4 = true; else if (a.dataset.a === 'unstart') started4 = false; else if (a.dataset.a === 'pick') next4 = (next4 + 1) % NEXTS.length;
+  drawBack();
+});
+/* E: the wipe follows the finger 1:1, rubber-banded past the ends */
+const WMIN = 0.04, WMAX = 0.96;
+function setWipe(x) { const w = $('wipe4'); wipeX.x = x; if (!w) return; w.style.setProperty('--x', f1(x * 1000) / 10 + '%'); w.setAttribute('aria-valuenow', Math.round(Math.min(1, Math.max(0, x)) * 100)); }
+function wireWipe() {
+  const w = $('wipe4'); if (!w) return;
+  w.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return; cancelAnimationFrame(wipeX.raf); try { w.setPointerCapture(e.pointerId); } catch (x) {}
+    const r = w.getBoundingClientRect();
+    const mv = (ev) => { let x = (ev.clientX - r.left) / r.width; const band = 24 / r.width;
+      if (x < WMIN) x = WMIN - band * Math.tanh((WMIN - x) / band); else if (x > WMAX) x = WMAX + band * Math.tanh((x - WMAX) / band); setWipe(x); };
+    mv(e);
+    const up = () => { w.removeEventListener('pointermove', mv); w.removeEventListener('pointerup', up); w.removeEventListener('pointercancel', up);
+      const c = Math.min(WMAX, Math.max(WMIN, wipeX.x)); if (c !== wipeX.x) { wipeX.v = 0; springNum(wipeX, c, setWipe, 260, 24); } };
+    w.addEventListener('pointermove', mv); w.addEventListener('pointerup', up); w.addEventListener('pointercancel', up);
   });
+  w.addEventListener('keydown', (e) => { const d = e.key === 'ArrowRight' ? 0.1 : e.key === 'ArrowLeft' ? -0.1 : 0; if (d) { e.preventDefault(); springNum(wipeX, Math.min(WMAX, Math.max(WMIN, wipeX.to != null ? wipeX.to + d : wipeX.x + d)), setWipe); } });
 }
-/* drill: the words that get cut fall out of the sentence, the rest close up */
-function lcsMatch(a, b) {
-  const n = a.length, m = b.length; const t = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) t[i][j] = a[i] === b[j] ? t[i + 1][j + 1] + 1 : Math.max(t[i + 1][j], t[i][j + 1]);
-  const mp = new Array(b.length).fill(-1); let i = 0, j = 0;
-  while (i < n && j < m) { if (a[i] === b[j]) { mp[j] = i; i++; j++; } else if (t[i + 1][j] >= t[i][j + 1]) i++; else j++; }
-  return mp;
+drawBack();
+io(P4, () => { if (!wipeSeen) { wipeSeen = true; setTimeout(() => springNum(wipeX, WMIN, setWipe, 120, 16), calm ? 0 : 500); } }, 0.5);
+
+/* ---------- phone 5: what the Leader knows about work ---------- */
+const P5 = $('p5');
+const lastOf = (t) => new Date(Math.max(...t.notes.map((n) => +dt(n.at))));
+const quietDays = (t) => Math.round((today - lastOf(t)) / DAY);
+const heard = (n) => (n <= 0 ? 'heard today' : n === 1 ? 'heard yesterday' : `heard ${n} days ago`);
+let openRow = null;
+P5.insertAdjacentHTML('beforeend', `<div class="cap small ink"><span class="strand">Leader</span><h3 class="hl disp">What I know about work</h3><p class="sub">Nothing here needs an answer.</p></div>
+  <div class="bd"><div><ul class="wlist" id="wl5"></ul><p class="foot" style="margin-top:12px">Things fade after 21 quiet days unless you bring them up.</p></div>
+  <p class="foot" style="margin-top:auto">Heard from your chat with Nova. You never have to come here.</p></div>`);
+function drawWork() {
+  const order = D.threads.map((t, i) => i).sort((a, b) => lastOf(D.threads[b]) - lastOf(D.threads[a]));
+  $('wl5').innerHTML = order.map((i) => {
+    const t = D.threads[i]; const q = quietDays(t); const fading = q >= 14;
+    if (removed.has(i)) return `<li class="wrow gone" data-i="${i}"><span>${esc(t.name)}: ${removedWhy[i] === 'sorted' ? 'sorted, off the list' : 'taken off as wrong'}.</span><button class="tlink" type="button" data-a="restore">Undo</button></li>`;
+    return `<li class="wrow${fading ? ' fading' : ''}" data-i="${i}"><div class="bk"><button class="btn pri" type="button" data-a="sorted">Sorted</button><button class="btn" type="button" data-a="wrong">Wrong</button></div>
+      <button class="fg" type="button" aria-expanded="false"><b>${esc(t.name)}</b><small>${i === L.feeds ? `${blk(L.strand, 'landed')}Used in today’s card, ` : ''}${heard(q)}${fading ? ', fading' : ''}</small></button></li>`;
+  }).join('');
+  openRow = null;
 }
-function rollTo(el, val, animate) {
-  const old = el.lastElementChild; const nw = document.createElement('span'); nw.textContent = val;
-  if (old && animate && !calm) { old.className = 'out'; nw.className = 'in2'; setTimeout(() => old.remove(), 420); } else if (old) old.remove();
-  el.appendChild(nw);
+const removedWhy = {};
+function snapRow(li, open) {
+  const fg = li.querySelector('.fg'); const W = li.querySelector('.bk').offsetWidth + 10; const to = open ? -W : 0;
+  const cur = new DOMMatrix(getComputedStyle(fg).transform).m41;
+  fg.style.setProperty('--sx', to + 'px'); fg.setAttribute('aria-expanded', String(open));
+  if (!calm && Math.abs(cur - to) > 0.5) fg.animate([{ transform: `translateX(${f1(cur)}px)` }, { transform: `translateX(${to}px)` }], SP.soft);
+  if (open) { if (openRow && openRow !== li && openRow.isConnected) snapRow(openRow, false); openRow = li; } else if (openRow === li) openRow = null;
 }
-function cutTo(box, nextWords) {
-  const spans = [...box.querySelectorAll('.dw:not(.fall)')]; const prevW = spans.map((x) => x.dataset.w);
-  const mp = lcsMatch(prevW.map((w) => w.toLowerCase()), nextWords.map((w) => w.toLowerCase()));
-  const keptIdx = new Set(mp.filter((x) => x >= 0)); const first = new Map(spans.map((x) => [x, x.getBoundingClientRect()]));
-  const br = box.getBoundingClientRect(); let jj = 0;
-  const dropped = spans.filter((_, i) => !keptIdx.has(i));
-  dropped.forEach((x) => { const r = first.get(x); x.style.position = 'absolute'; x.style.left = (r.left - br.left) + 'px'; x.style.top = (r.top - br.top) + 'px'; x.style.setProperty('--j', jj); x.style.setProperty('--r', (jj % 2 ? 11 : -12) + 'deg'); jj++; });
-  const els = nextWords.map((w, k) => { if (mp[k] >= 0) { const e = spans[mp[k]]; e.dataset.w = w; e.textContent = w + ' '; return e; } const n = document.createElement('span'); n.className = 'dw fadein'; n.dataset.w = w; n.style.setProperty('--j', k % 3); n.textContent = w + ' '; return n; });
-  if (calm) dropped.forEach((x) => x.remove()); else dropped.forEach((x) => x.classList.add('fall'));
-  els.forEach((e) => box.appendChild(e));
-  if (!calm) {
-    els.forEach((e) => { const f0 = first.get(e); if (!f0) return; const r = e.getBoundingClientRect(); const dx = f0.left - r.left, dy = f0.top - r.top; if (dx || dy) e.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: 620, delay: 260, easing: 'cubic-bezier(.34,1.2,.64,1)', fill: 'backwards' }); });
-    setTimeout(() => dropped.forEach((x) => x.remove()), 900);
-  }
-}
-async function playDrill() {
-  const me = ++run8; const b = $('d8'); const R = D.drill.reps; const counts = R.map((r) => wc(r.his)); $('s8').textContent = '';
-  b.innerHTML = `<div class="in"><div class="kick sky"><svg><use href="#wave"/></svg>Three tries</div><p class="dr-t">${esc(D.drill.skill)}</p></div>
-    <div class="dstage"><span class="dsent" id="dsent" style="position:relative"></span><div class="dtop"><span><span class="odo" id="odo"></span> words</span><span class="dbar"><i id="dbar"></i></span></div></div><ol class="reps" id="reps8"></ol>`;
-  const sent = $('dsent'); const setWords = (ws) => { sent.innerHTML = ''; ws.forEach((w) => { const n = document.createElement('span'); n.className = 'dw'; n.dataset.w = w; n.textContent = w + ' '; sent.appendChild(n); }); };
-  const addRep = (i) => $('reps8').insertAdjacentHTML('beforeend', `<li class="in"><i class="n">${i + 1}</i><p class="pr">${esc(R[i].prompt)}</p><div class="msg me">${esc(R[i].his)}</div><div class="wc"><span class="tr"><span class="fl" style="--w:${f1(counts[i] / Math.max(...counts) * 100)}"></span></span><span>${counts[i]} words</span></div><p class="nt">${esc(R[i].note)}</p></li>`);
-  await wait(700); if (me !== run8) return;
-  setWords(R[0].his.split(/\s+/).filter(Boolean)); rollTo($('odo'), counts[0], false); addRep(0);
-  for (let i = 1; i < R.length; i++) {
-    await wait(1700); if (me !== run8) return;
-    cutTo(sent, R[i].his.split(/\s+/).filter(Boolean)); rollTo($('odo'), counts[i], true);
-    $('dbar').style.transform = `scaleX(${f1(counts[i] / counts[0] * 100) / 100})`; addRep(i);
-  }
-  await wait(1300); if (me !== run8) return;
-  b.insertAdjacentHTML('beforeend', `<p class="dsum in">From <b>${counts[0]}</b> words to <b>${counts[counts.length - 1]}</b>.</p>`);
-}
-function play8() { return mode8 === 0 ? playIdea() : playDrill(); }
-$('mode8').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setMode8(+b.dataset.v); });
-$('again8').addEventListener('click', play8);
-io($('p8'), play8, 0.3);
+P5.addEventListener('pointerdown', (e) => {
+  const fg = e.target.closest('.wrow .fg'); if (!fg || e.button > 0) return; const li = fg.closest('.wrow');
+  const W = li.querySelector('.bk').offsetWidth + 10; const base = li === openRow ? -W : 0; const x0 = e.clientX, y0 = e.clientY; let drag = false;
+  const mv = (ev) => { const dx = ev.clientX - x0; if (!drag && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(ev.clientY - y0)) { drag = true; try { fg.setPointerCapture(ev.pointerId); } catch (x) {} fg.getAnimations().forEach((a) => a.cancel()); }
+    if (!drag) return; let x = base + dx; if (x > 0) x = 18 * Math.tanh(x / 18); if (x < -W) x = -W - 18 * Math.tanh((-W - x) / 18); fg.style.setProperty('--sx', f1(x) + 'px'); };
+  const up = () => { fg.removeEventListener('pointermove', mv); fg.removeEventListener('pointerup', up); fg.removeEventListener('pointercancel', up);
+    if (drag) { const x = new DOMMatrix(getComputedStyle(fg).transform).m41; snapRow(li, x < -W / 2); fg.dataset.dragged = '1'; setTimeout(() => delete fg.dataset.dragged, 60); } };
+  fg.addEventListener('pointermove', mv); fg.addEventListener('pointerup', up); fg.addEventListener('pointercancel', up);
+});
+P5.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-a]'); const li = e.target.closest('.wrow'); if (!li) return; const i = +li.dataset.i;
+  if (a && (a.dataset.a === 'sorted' || a.dataset.a === 'wrong')) { removed.add(i); removedWhy[i] = a.dataset.a; drawAll(); return; }
+  if (a && a.dataset.a === 'restore') { removed.delete(i); drawAll(); return; }
+  const fg = e.target.closest('.fg'); if (fg && !fg.dataset.dragged) snapRow(li, li !== openRow);
+});
+
+/* ---------- the look ---------- */
+$('look').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; const v = +b.dataset.v; setSeg($('look'), v); if (v) document.body.dataset.look = 'ink'; else delete document.body.dataset.look; });
+
+/* first draw */
+drawHome(H1); drawHome(H2); drawWork();
+io(P2, () => { if (mode2 === 0 && !events.some((e) => e.id === 'tap')) setTimeout(openSheet, calm ? 0 : 300); }, 0.5);
+addEventListener('resize', () => { if (sheetOpen && sAnim) { sAnim.cancel(); } });
 </script>
