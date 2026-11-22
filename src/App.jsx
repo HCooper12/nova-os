@@ -37,6 +37,7 @@ import { alreadyOn, onAmount } from './shopAsk.js';
 import { OfflineMark } from './OfflineCard.jsx';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem, newIdempotencyKey, drainItems, idemSafe } from './outbox.js';
 import { snapshotPass } from './syncPass.js';
+import { createTurnPhase, createSyncGate, bindTurnPhase } from './turnPhase.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { pauseSession, resumeSession, isPaused, setSessionMinutes } from './sessionClock.js';
 import { syncHealth } from './healthSync.js';
@@ -958,6 +959,16 @@ export default class App extends Component {
   }
 
   componentDidMount() {
+    // A SPOKEN TURN IS NEVER SHARED WITH A SYNC (22 Nov 2026, src/turnPhase.js):
+    // the voice code marks the turn's phase; while it is live the whole-app
+    // sync waits, and while he talks or waits the targeted ones wait too.
+    // Bound first, so no mark can land before the gate exists.
+    this.turnPhase = createTurnPhase({ onChange: (next, prev, why) => this.onTurnPhase(next, prev, why) });
+    this.syncGate = createSyncGate({
+      phase: () => this.turnPhase.phase(),
+      run: (c) => (c.bulk ? this.refreshLiveData() : this.refreshSlices(c.slices)),
+    });
+    this.unbindTurnPhase = bindTurnPhase(this.turnPhase);
     // APPLE HEALTH, READ BY NOVA ITSELF (14 Oct, src/healthSync.js): on open
     // and on every return to the front; a no-op outside the native shell
     this.healthSyncNow();
@@ -1343,6 +1354,9 @@ export default class App extends Component {
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
   }
   componentWillUnmount() {
+    this.unbindTurnPhase?.();
+    this.turnPhase?.dispose();
+    this.syncGate?.dispose();
     if (this.healthVisH) document.removeEventListener('visibilitychange', this.healthVisH);
     if (this.stopValsWarm) this.stopValsWarm();
     clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
@@ -2351,6 +2365,9 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     if (this.refreshInFlight) return; // a full sync is already running and covers these
+    // while he talks or waits for the answer it is owed, never lost; while
+    // Nova speaks it runs (src/turnPhase.js)
+    if (this.syncGate && !this.syncGate.allow('slices', only)) return;
     try {
       const startedAt = Date.now();
       const { slices } = await api.snapshot(conn, { only, place: this.whereNow().place });
@@ -2370,9 +2387,17 @@ export default class App extends Component {
   }
 
   async refreshLiveData() {
-    const conn = getConnection();
-    if (!conn) return;
+    const plain = getConnection();
+    if (!plain) return;
     if (this.refreshInFlight) return this.refreshInFlight;
+    // A SPOKEN TURN IS LIVE (src/turnPhase.js): the whole-app sync is owed
+    // and runs as one call once the turn is over, never beside it
+    if (this.syncGate && !this.syncGate.allow('bulk')) return;
+    // ONE SIGNAL FOR THE WHOLE PASS (api.js readSignal): every read below
+    // carries it, so his turn beginning calls off the snapshot, its retry or
+    // the per-slice fallback, whichever is on the wire (abortBulkForTurn)
+    const ctl = new AbortController();
+    const conn = { ...plain, signal: ctl.signal };
     const tasks = [
       async () => { const r = await api.stash(conn); this.setState({ liveStash: r.categories, liveStashFull: r }); },
       async () => {
@@ -2447,7 +2472,7 @@ export default class App extends Component {
     // fails, a newer generation means it steps aside instead of running the
     // per-slice fallback beside the newer sync (18 Nov, the double refresh).
     const gen = (this.syncGen = (this.syncGen || 0) + 1);
-    const isCurrent = () => this.syncGen === gen;
+    const isCurrent = () => this.syncGen === gen && !ctl.signal.aborted;
     // Watchdog: per-request timeouts (api.js) make a hung pass near-impossible,
     // but if one ever slips through, the flag self-clears so the NEXT sync can
     // run — one bad pass must never freeze the pipeline forever again.
@@ -2575,9 +2600,50 @@ export default class App extends Component {
       } else {
         this.setState({ connectionStatus: 'offline' });
       }
-    })().finally(() => { clearTimeout(watchdog); if (this.refreshInFlight === inFlight) this.refreshInFlight = null; });
+    })().finally(() => {
+      clearTimeout(watchdog);
+      if (this.refreshInFlight === inFlight) this.refreshInFlight = null;
+      if (this.bulkAbort === ctl) this.bulkAbort = null;
+    });
     this.refreshInFlight = inFlight;
+    this.bulkAbort = ctl;
     return this.refreshInFlight;
+  }
+  // HIS TURN BEGAN WITH A WHOLE-APP SYNC ON THE WIRE (src/turnPhase.js): it
+  // is called off, and owed. The generation moves on, so the called-off pass
+  // steps aside without its fallback (src/syncPass.js), and the flag is freed
+  // now, so the owed sync can start the moment the turn is over.
+  abortBulkForTurn() {
+    const ctl = this.bulkAbort;
+    if (!ctl || !this.refreshInFlight) return false;
+    this.bulkAbort = null;
+    this.syncGen = (this.syncGen || 0) + 1;
+    this.refreshInFlight = null;
+    try { ctl.abort(); } catch { /* already done */ }
+    this.syncGate?.owe('bulk');
+    return true;
+  }
+  // The phase changed (the tracker's onChange): listening calls off a bulk
+  // sync on the wire; the gate runs what was owed when the phase lets it.
+  onTurnPhase(next) {
+    if (next === 'listen') this.abortBulkForTurn();
+    this.syncGate?.onPhase(next);
+  }
+  // THE TURN'S OWN MARKS, made by the ask that came from his microphone
+  // (askNova stamps turn.phase). The reply's sounds keep it at 'speak'; a
+  // reply that began after the 30 s fall-back reclaims an idle phase; its end
+  // makes the phase idle only while this turn still owns it, so a reply
+  // finishing late never ends a turn he started over it.
+  turnSpeaking(turn) {
+    const t = this.turnPhase;
+    if (!t || !turn?.phase) return;
+    const next = t.markIf(turn.phase, 'speak') || (t.phase() === 'idle' ? t.mark('speak') : null);
+    if (next) turn.phase = next;
+  }
+  turnDone(turn) {
+    if (!this.turnPhase || !turn?.phase) return;
+    this.turnPhase.markIf(turn.phase, 'idle');
+    turn.phase = null;
   }
   refreshWorkoutRoutines() {
     const conn = getConnection();
@@ -8781,8 +8847,9 @@ export default class App extends Component {
       // shown, never spoken over him; the note his next ask carries says it
       // was not heard (App.keepInterrupt, below at delivery)
       if (this.cutJob && this.cutJob === jobId) { onPlay(); return; }
-      // the reply's first sound, stamped when its audio really starts
-      const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); } : null;
+      // the reply's first sound, stamped when its audio really starts; every
+      // sentence's start keeps the turn at 'speak' (src/turnPhase.js)
+      const onStart = turn ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); this.turnSpeaking(turn); } : null;
       // What is SPOKEN is stripped of markdown; what is stored stays raw, so
       // the glass's character offsets into it never move. (spokenProse.js)
       // …and a document is never read aloud: its card is not a sentence.
@@ -8804,7 +8871,7 @@ export default class App extends Component {
     const postTurn = () => {
       // the answer is over (heard, cut short, or failed): the mic may open
       this.endAnswer(turn);
-      if (!turn || turn.posted) return;
+      if (!turn || turn.posted) { this.turnDone(turn); return; }
       turn.posted = true;
       const rel = (at) => (at && turn.askAt ? at - turn.askAt : undefined);
       reportTurnEnd('ask', this.state.voiceHold, {
@@ -8821,6 +8888,8 @@ export default class App extends Component {
         // this ask carried the note of a reply he cut into (interruptTurn.js)
         ...(turn.interrupted ? { interrupted: true } : {}),
       });
+      // the turn is over; what it held back may run (src/turnPhase.js)
+      this.turnDone(turn);
     };
     const speakNewSentences = (text, flushAll) => {
       // READING RATHER THAN LISTENING. The glass is driven by the voice, so
@@ -8928,7 +8997,7 @@ export default class App extends Component {
             stream.docSeenAt = stream.docSeenAt || Date.now();
             if (doc.titled || doc.settled || Date.now() - stream.docSeenAt > 800) {
               stream.docLineSaid = true;
-              const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); } : null;
+              const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); this.turnSpeaking(turn); } : null;
               if (elevenPath) this.speakTtsSentence(doc.line, null, { onStart });
               else { this.speakIncremental(doc.line); onStart?.(); }
             }
@@ -12667,6 +12736,10 @@ export default class App extends Component {
     // lines and, driving, the glass; the receipt records the place too
     const where = this.whereNow();
     const turn = { askAt: null, lane: null, place: where.place, droppedBase: this.ttsDropped || 0 };
+    // A QUESTION FROM HIS MICROPHONE (src/turnPhase.js): until its answer has
+    // been heard, the phone's syncs wait. 'wait' now; turnSpeaking at the
+    // reply's first sound; turnDone when the receipt posts or the ask fails
+    if (this.spokenInput && this.turnPhase) turn.phase = this.turnPhase.mark('wait');
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
@@ -12793,6 +12866,7 @@ export default class App extends Component {
         if (resp.modelChoicePending?.kind === 'act') this.armActGate(resp.modelChoicePending);
         const reflexReceipt = () => {
           this.endAnswer(turn);   // the reflex answer has been heard: the mic may open
+          this.turnDone(turn);
           reportTurnEnd('ask', this.state.voiceHold, {
             ms: Date.now() - turn.askAt, restarts: 0, heard: true, lane: 'reflex',
             firstTextMs: turn.firstTextAt - turn.askAt, firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.askAt : undefined,
@@ -12804,7 +12878,7 @@ export default class App extends Component {
         };
         // held silent while he is adding to the question (claimContinuation)
         if (this.state.voiceSpeak && !(this.lastSent?.claimed && this.lastSent.turn === turn)) {
-          this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); } });
+          this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); this.turnSpeaking(turn); } });
           this.sayFirstThingAfter(askSeq);
           this.queueTtsFinalize(reflexReceipt);
         } else { show(); this.endAnswer(turn); this.maybeAutoListen(); reflexReceipt(); }
@@ -12833,6 +12907,7 @@ export default class App extends Component {
     }).catch((e) => {
       if (askSeq !== this.askSeq) return;
       this.endAnswer(turn);
+      this.turnDone(turn);
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message, ...(meta || {}) }] }));
       // the presence says a failed turn aloud (the words are hidden there)
       if (meta?.via === 'presence') this.liveTalkFailed(e.message, { logged: true });

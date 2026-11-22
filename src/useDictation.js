@@ -14,6 +14,7 @@ import { bargeInDecision, echoScore } from './bargeIn.js';
 import { vadBlind } from './vad.js';
 import { afterPaint, watchFrames } from './afterPaint.js';
 import { openBurst, stepBurst, burstDue, rewindDue, carryHeard, keepCarry, skipReceiptDue, earWanted } from './bargeListen.js';
+import { markTurn, markTurnIf, touchTurn } from './turnPhase.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -211,6 +212,24 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   keepMicRef.current = keepMic;       // read at the END of a turn, so always this render's
   const keepMicNow = () => { try { return !!keepMicRef.current?.(); } catch { return false; } };
   const blindRef = useRef(null);      // own ears, meter deaf: the reads that decide { reads, pending, lastReadAt, useText, useMs }
+  // THE TURN'S PHASE (22 Nov 2026, src/turnPhase.js): while a spoken turn is
+  // live the phone's syncs wait. A turn that posts a receipt (onTurnEnd: the
+  // Voice screen, the thread, the presence, the Briefing, Practice) is a
+  // spoken turn with Nova; a dictation box is not, and marks nothing. The ref
+  // holds this turn's mark, so its end can only end its own phase.
+  const phaseMarks = typeof onTurnEnd === 'function';
+  const phaseRef = useRef(null);
+  const openPhase = () => { phaseRef.current = phaseMarks ? markTurn('listen') : null; };
+  // his speech ended: the clip goes to the Mac ('wait'); the returned mark is
+  // the one the end of the turn may clear
+  const speechEnded = () => {
+    const had = phaseRef.current;
+    phaseRef.current = null;
+    return had ? markTurn('wait') : null;
+  };
+  // the turn is over; idle unless his words already started an ask (which
+  // made its own mark) or a newer turn took the phase
+  const closePhase = (owner) => { if (owner) markTurnIf(owner, 'idle'); };
   const [extended, setExtended] = useState(false);
   const [on, setOn] = useState(false);
   const [hearing, setHearing] = useState(false);  // recorded, waiting on the Mac for the words
@@ -282,6 +301,14 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   // and micStopped() decrements a counter that must stay balanced.
   const closeOut = (fireDone = true, extra = null) => {
     if (!liveRef.current) return;
+    // the browser engine's words go straight to an ask, which marks 'wait'
+    // itself; every other end of this path (an error, a refused mic, the
+    // screen going away, nothing heard) leaves the phase idle
+    const owner = phaseRef.current;
+    phaseRef.current = null;
+    try { closeOutTurn(fireDone, extra); } finally { closePhase(owner); }
+  };
+  const closeOutTurn = (fireDone, extra) => {
     liveRef.current = false;
     wantRef.current = false;
     if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
@@ -403,6 +430,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   // His turn is over when turnEnd.js says so — never when the engine says so.
   const tick = () => {
     if (!liveRef.current || !wantRef.current || !turnRef.current) return;
+    touchTurn(phaseRef.current);   // he still has the floor: the phase stays 'listen'
     const now = Date.now();
     const act = nextAction(turnRef.current, now, { holdMs, leadMs });
     if (act === 'wait') return;
@@ -428,6 +456,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const TAP_CAP_MS = 300_000;      // tap-to-end surfaces (the Inbox composer) still stop eventually
 
   const finishNova = async () => {
+    if (!liveRef.current) return;
+    const owner = speechEnded();
+    try { await finishNovaTurn(); } finally { closePhase(owner); }
+  };
+  const finishNovaTurn = async () => {
     if (!liveRef.current) return;
     const meta = metaRef.current || newMeta('tap', Date.now());
     metaRef.current = null;
@@ -615,6 +648,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
 
   const tickNova = () => {
     if (!liveRef.current || !wantRef.current || !turnRef.current) return;
+    touchTurn(phaseRef.current);   // he still has the floor: the phase stays 'listen'
     const now = Date.now();
     const handle = recordingRef.current;
     // the page froze between ticks (29 Oct 2026): that time is not the mic's
@@ -724,6 +758,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
 
   const startNova = (trigger = 'tap') => {
     stopEar();   // his turn's microphone, never beside the ear's
+    openPhase();   // the recorder is asked for now: no sync beside it (src/turnPhase.js)
     baseRef.current = getBase();
     saidRef.current = '';
     finalsRef.current = '';
@@ -791,6 +826,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
 
   const startTurn = (trigger = 'tap') => {
     stopEar();
+    openPhase();   // the engine starts recording now: no sync beside it (src/turnPhase.js)
     metaRef.current = newMeta(trigger, Date.now());
     baseRef.current = getBase();
     saidRef.current = '';
@@ -1024,6 +1060,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     try { recRef.current?.stop(); } catch { /* already gone */ }
     recRef.current = null;
     if (liveRef.current) { liveRef.current = false; stopMeter(); letMic(); }
+    closePhase(phaseRef.current);   // a turn the surface took with it is over
+    phaseRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1047,6 +1085,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       letMic();
       setOn(false);
       setBlind(false);
+      closePhase(phaseRef.current);   // nothing said, nothing asked: the turn is over
+      phaseRef.current = null;
       return;
     }
     wantRef.current = false;

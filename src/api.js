@@ -30,6 +30,28 @@ const REQUEST_TIMEOUT_MS = 20_000;
 function reqSignal(ms = REQUEST_TIMEOUT_MS) {
   try { return AbortSignal.timeout(ms); } catch { return undefined; } // older WebKit — degrade to no timeout
 }
+// A READ THE CALLER CAN CALL OFF (22 Nov 2026). `signal`, or `conn.signal`
+// when a caller hands one connection to a whole batch of reads: that is how
+// App.refreshLiveData calls off its snapshot, its retry and its per-slice
+// fallback together when a spoken turn begins (src/turnPhase.js). The
+// timeout still applies; whichever fires first aborts the request, and a
+// timeout keeps its own name (macFetch below), so a caller's abort is never
+// mistaken for one. Shared by call() and callSaying().
+function readSignal(conn, timeoutMs, signal) {
+  const timeout = reqSignal(timeoutMs);
+  const own = signal || conn?.signal || null;
+  if (!own) return timeout;
+  if (!timeout) return own;
+  try { if (typeof AbortSignal.any === 'function') return AbortSignal.any([timeout, own]); } catch { /* below */ }
+  const ctl = new AbortController();
+  const follow = (s) => {
+    if (s.aborted) ctl.abort(s.reason);
+    else s.addEventListener('abort', () => ctl.abort(s.reason), { once: true });
+  };
+  follow(timeout);
+  follow(own);
+  return ctl.signal;
+}
 
 // What any feature that needs the Mac says when there is no network (his
 // wording, 14 Oct 2026). A network failure is rethrown as a TypeError with
@@ -62,10 +84,10 @@ async function macFetch(url, opts) {
   }
 }
 
-async function call(conn, path, { timeoutMs } = {}) {
+async function call(conn, path, { timeoutMs, signal } = {}) {
   const res = await macFetch(baseOf(conn) + path, {
     headers: { Authorization: `Bearer ${conn.token}` },
-    signal: reqSignal(timeoutMs),
+    signal: readSignal(conn, timeoutMs, signal),
   });
   if (!res.ok) {
     // the status travels with the error: a 404 on a job means the server
@@ -80,10 +102,10 @@ async function call(conn, path, { timeoutMs } = {}) {
 // A GET whose failure carries the server's own sentence (its JSON `error`),
 // so a screen can say the real cause rather than "failed: 500". Used by the
 // mentor pages; a network failure is the same OFFLINE/TIMEOUT error as call().
-async function callSaying(conn, path, { timeoutMs } = {}) {
+async function callSaying(conn, path, { timeoutMs, signal } = {}) {
   const res = await macFetch(baseOf(conn) + path, {
     headers: { Authorization: `Bearer ${conn.token}` },
-    signal: reqSignal(timeoutMs),
+    signal: readSignal(conn, timeoutMs, signal),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
