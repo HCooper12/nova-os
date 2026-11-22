@@ -464,3 +464,19 @@ test('several calendars: collected in their own order, hidden ones never asked, 
   assert.ok(fake.gates.every((g) => g.calendar.url !== CAL_URL('C')), 'a hidden calendar is never asked');
   assert.deepEqual(r.value.map((e) => e.calendar), ['Cal A', 'Cal E', 'Cal G', 'Cal H']);
 });
+
+test('calendars are asked together, never more than four at once', async () => {
+  await scriptSeveral();
+  const r = watch(read());
+  await until(() => fake.gates.length >= 4, 'four calendars were asked together');
+  await settle();
+  assert.equal(fake.gates.length, 4, 'a fifth waits for a free slot');
+  assert.equal(fake.inFlight, 4);
+  fake.gates[1].open();
+  await until(() => fake.gates.length === 5, 'the freed slot went to the next calendar');
+  assert.equal(fake.inFlight, 4);
+  await drain(r);
+  assert.ok(r.done);
+  assert.equal(fake.maxInFlight, 4);
+  assert.deepEqual(labels(r.value), ['Team sync', 'Echo', 'Golf', 'Hotel']);
+});

@@ -515,6 +515,14 @@ export function prewarmCalendarCache() {
   collectEvents(startOfDay(now), endOfDay(now)).catch(() => {});
 }
 
+// How many calendars are asked at once inside one round trip. Each calendar is
+// its own CalDAV query (tsdav sends a query, then a multiget), and walking them
+// one after another made the round trip the SUM of every calendar's latency.
+// Four together brings it toward the slowest of each group and is still gentle
+// on iCloud. The answers are folded in below in the calendars' own order, so
+// nothing downstream can tell the difference (22 Nov 2026).
+const CALENDAR_FETCH_CONCURRENCY = 4;
+
 async function collectEventsUncached(rangeStart, rangeEnd) {
   const client = await getClient();
   const calendars = await client.fetchCalendars();
@@ -522,15 +530,25 @@ async function collectEventsUncached(rangeStart, rangeEnd) {
   const hiddenSet = new Set(hidden);
   const timeRange = { start: rangeStart.toISOString(), end: rangeEnd.toISOString() };
 
-  const events = [];
-  for (const calendar of calendars) {
-    if (hiddenSet.has(calendar.url)) continue;
-    let objects;
-    try {
-      objects = await client.fetchCalendarObjects({ calendar, timeRange });
-    } catch {
-      continue;
+  const visible = calendars.filter((calendar) => !hiddenSet.has(calendar.url));
+  // answers[i] stays null for a calendar whose fetch failed: it is skipped, as it always was
+  const answers = new Array(visible.length).fill(null);
+  let next = 0;
+  const worker = async () => {
+    while (next < visible.length) {
+      const i = next++;
+      try {
+        answers[i] = { objects: await client.fetchCalendarObjects({ calendar: visible[i], timeRange }) };
+      } catch { /* this calendar is skipped */ }
     }
+  };
+  await Promise.all(Array.from({ length: Math.min(CALENDAR_FETCH_CONCURRENCY, visible.length) }, () => worker()));
+
+  const events = [];
+  for (let i = 0; i < visible.length; i++) {
+    const calendar = visible[i];
+    if (!answers[i]) continue;
+    const { objects } = answers[i];
     const byUid = new Map();
     for (const obj of objects) {
       if (!obj.data) continue;
