@@ -91,11 +91,18 @@ export function transcriptWords(rawText) {
 
 // Where does this quote start in the transcript? { atSeconds } on a hit, null
 // otherwise. A quote with an ellipsis is checked piece by piece, in order.
-export function findInTranscript(quote, words) {
+// Optional third argument: `minWords` (default 4) is the shortest piece that
+// may count, so a caller can ask for a 2 or 3 word line; `near` is
+// { atSeconds, window } and keeps the search to words spoken within `window`
+// seconds either side of `atSeconds`, so a short line is only matched where
+// the notes say it was said.
+export function findInTranscript(quote, words, { minWords = 4, near = null } = {}) {
   if (!words?.length) return null;
-  const pieces = titleOf(quote).split(/\.{3}|…/).map(normWords).filter((p) => p.length >= 4);
+  const pieces = titleOf(quote).split(/\.{3}|…/).map(normWords).filter((p) => p.length >= minWords);
   if (!pieces.length) return null;
-  const hay = words.map((x) => x.w);
+  const lo = near ? near.atSeconds - near.window : -Infinity;
+  const hi = near ? near.atSeconds + near.window : Infinity;
+  const hay = words.map((x) => (x.t >= lo && x.t <= hi ? x.w : null));
   let from = 0;
   let first = null;
   for (const piece of pieces) {

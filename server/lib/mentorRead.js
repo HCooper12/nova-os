@@ -218,6 +218,23 @@ const fieldsOf = (line) => Object.fromEntries(line.split('|').map((p) => p.trim(
   return m ? [m[1].toLowerCase(), m[2].trim()] : [null, p];
 }).filter(([k]) => k));
 
+// A Say field holding two or more separately quoted spans joined only by
+// "or", "and", "," and the like gives one string per span; anything else (one
+// span, none, or quotes inside quotes) is the one string it always was.
+const SAY_JOINER = /^[\s,;/]*(?:or|and|vs\.?|then)?[\s,;/]*$/i;
+function sayParts(say) {
+  const t = String(say || '').trim();
+  const spans = [...t.matchAll(/["“]([^"“”]+)["”]/g)];
+  if (spans.length < 2) return [unquote(t)];
+  let at = 0;
+  for (const m of spans) {
+    if (!SAY_JOINER.test(t.slice(at, m.index)) || !/[\p{L}\p{N}]/u.test(m[1])) return [unquote(t)];
+    at = m.index + m[0].length;
+  }
+  if (!SAY_JOINER.test(t.slice(at))) return [unquote(t)];
+  return spans.map((m) => m[1].trim());
+}
+
 /** Reading notes markdown -> structure. Tolerant: a missing heading is an
  *  empty list, never a throw. */
 export function parseNotes(md) {
@@ -244,7 +261,10 @@ export function parseNotes(md) {
     const f = fieldsOf(b);
     if (!f.say) continue;
     const instead = f['instead of'] ? unquote(f['instead of']) : null;
-    out.scripts.push({ situation: f.situation || null, say: unquote(f.say), insteadOf: instead && !/^none$/i.test(instead) ? instead : null, by: f.by || null, at: lastAt(b) });
+    // `Say: "No." or "Thank you, and no."` is two scripts, each its own words
+    for (const say of sayParts(f.say)) {
+      out.scripts.push({ situation: f.situation || null, say, insteadOf: instead && !/^none$/i.test(instead) ? instead : null, by: f.by || null, at: lastAt(b) });
+    }
   }
   for (const b of bullets(get('Stories and examples'))) out.stories.push({ text: b.replace(/\s*\[[\d:, ]+\]\s*$/, '').trim(), at: lastAt(b) });
   for (const b of bullets(get('Lines'))) {
@@ -298,14 +318,33 @@ export function verifyNotes(parsed, transcript) {
   const words = transcriptWords(transcript);
   const tokens = alignedTokens(transcript);
   const aligned = tokens.length === words.length && tokens.every((t, i) => t.w === words[i].w);
+  const ELL = /\.{3}|…/;
   const check = (item, field) => {
-    const hit = findInTranscript(item[field], words);
-    item.verified = !!hit;
-    if (hit) {
-      if (aligned) item[field] = ownWords(tokens, hit.start, hit.end) || item[field];
-      item.at = secondsToTime(hit.atSeconds);
+    const text = item[field];
+    const ell = ELL.test(text);
+    let hit = findInTranscript(text, words);
+    // A 2 or 3 word line ("No, thank you.") is too short to trust anywhere in
+    // an hour of speech, so it counts only where the notes say it was said.
+    if (!hit && !ell) {
+      const n = normWords(text).length;
+      const cited = timeToSeconds(item.at);
+      if ((n === 2 || n === 3) && cited != null) hit = findInTranscript(text, words, { minWords: 2, near: { atSeconds: cited, window: 90 } });
     }
-    return !!hit;
+    item.verified = !!hit;
+    delete item.heldWhy;
+    if (!hit) return false;
+    if (ell) {
+      // a kept quote never holds "...": the span must be one stretch of speech
+      const pieceWords = text.split(ELL).map(normWords).filter((p) => p.length >= 4).reduce((n, p) => n + p.length, 0);
+      const own = aligned && hit.end - hit.start <= pieceWords + 12 ? ownWords(tokens, hit.start, hit.end).replace(/\s*(?:\.{3,}|…)\s*/g, ' ').trim() : '';
+      if (!aligned) item.heldWhy = 'its words could not be matched to the transcript one for one';
+      else if (hit.end - hit.start > pieceWords + 12) item.heldWhy = 'it joins two separate moments of the transcript';
+      else if (!own) item.heldWhy = 'its words could not be matched to the transcript one for one';
+      if (item.heldWhy) { item.verified = false; return false; }
+      item[field] = own;
+    } else if (aligned) item[field] = ownWords(tokens, hit.start, hit.end) || item[field];
+    item.at = secondsToTime(hit.atSeconds);
+    return true;
   };
   let verifiedLines = 0;
   let verifiedScripts = 0;

@@ -292,3 +292,23 @@ test('a passed-on line reaches the card only when verified; who said it here sta
   assert.equal(q.origin, 'The Show', 'the captions say "show" right before the line');
   assert.equal(q.who, 'Mara Ellison');
 });
+
+/* ---------------------- findInTranscript: minWords and near ---------------------- */
+
+test('findInTranscript minWords: a 2 or 3 word piece counts only when asked for, the default stays 4', () => {
+  const words = transcriptWords('[00:10] we talk and then he says no thank you and walks on\n');
+  assert.equal(findInTranscript('No, thank you.', words), null, 'three words never count by default');
+  const hit = findInTranscript('No, thank you.', words, { minWords: 3 });
+  assert.equal(hit.atSeconds, 10);
+  assert.equal(findInTranscript('thank you', words, { minWords: 2 }).start, 7);
+  assert.equal(findInTranscript('thank', words, { minWords: 2 }), null, 'one word is under any minimum of two');
+});
+
+test('findInTranscript near: only words within the window of the cited time are searched', () => {
+  const words = transcriptWords('[01:00] he says no thank you here\n[11:00] and later again no thank you there\n');
+  const at = (sec) => findInTranscript('no thank you', words, { minWords: 3, near: { atSeconds: sec, window: 90 } });
+  assert.equal(at(60).atSeconds, 60);
+  assert.equal(at(660).atSeconds, 660, 'the same words are found at the other minute when that is cited');
+  assert.equal(at(360), null, 'five minutes from both is outside the window');
+  assert.equal(findInTranscript('no thank you', words, { minWords: 3 }).atSeconds, 60, 'no near: the first hit, as before');
+});

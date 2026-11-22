@@ -226,3 +226,69 @@ test('notes and JSON are written where stated, with counts, cost and model', asy
   assert.equal(r.costUsd, 0.0412);
   assert.equal(r.parts, 1);
 });
+
+/* ------------------------- short lines, ellipses, split says ------------------------- */
+
+const SHORT_T = `[00:10] we opened with some small talk about the weather and the trip
+[05:00] when she asks you to join you can just say no thank you and mean it
+[15:30] at the very end he warned that no thank you can sound cold if you rush it
+`;
+const shortNotes = (say, at) => `## Scripts\n- Situation: invited | Say: "${say}" | Instead of: none | By: Sam | [${at}]\n\n## Lines\n- "${say}" | By: Sam | [${at}]\n`;
+
+test('verifyNotes: a 2 or 3 word script verifies only near its cited minute, and takes the transcript\'s own words', () => {
+  const near = Rd.parseNotes(shortNotes('No, thank you.', '05:05'));
+  Rd.verifyNotes(near, SHORT_T);
+  assert.equal(near.scripts[0].verified, true);
+  assert.equal(near.scripts[0].say, 'no thank you');
+  assert.equal(near.scripts[0].at, '5:00');
+  const far = Rd.parseNotes(shortNotes('No, thank you.', '10:00'));
+  Rd.verifyNotes(far, SHORT_T);
+  assert.equal(far.scripts[0].verified, false, 'five minutes from both places it appears');
+  assert.equal(far.scripts[0].say, 'No, thank you.');
+});
+
+test('verifyNotes: a one word quote is never verified', () => {
+  const p = Rd.parseNotes(shortNotes('Regardless.', '00:10'));
+  const c = Rd.verifyNotes(p, '[00:10] regardless of that we went on to the next thing for a while\n');
+  assert.equal(p.scripts[0].verified, false);
+  assert.equal(p.lines[0].verified, false);
+  assert.equal(c.verifiedScripts + c.verifiedLines, 0);
+});
+
+const ELL_T = `[00:20] and the reason he gave was that I've thought about it for a long time
+[01:20] later on a different subject came up and we moved to something else entirely
+[02:20] then at the end he finally said we should all just go home and rest
+`;
+test('verifyNotes: an ellipsis never survives; one stretch of speech keeps the transcript\'s own words, two moments are held with the reason', () => {
+  const p = Rd.parseNotes(`## Lines\n- "to... I've thought about it for a long time" | By: Sam | [00:20]\n- "and the reason he gave... we should all just go home and rest" | By: Sam | [00:20]\n- "I've thought about it... go home and rest" | By: Sam | [00:20]\n`);
+  Rd.verifyNotes(p, ELL_T);
+  const [one, two, three] = p.lines;
+  assert.equal(one.verified, true);
+  assert.equal(one.quote, "I've thought about it for a long time");
+  assert.ok(!/\.{3}|…/.test(one.quote));
+  assert.equal(two.verified, false);
+  assert.equal(two.heldWhy, 'it joins two separate moments of the transcript');
+  assert.equal(three.verified, false);
+  assert.equal(three.heldWhy, 'it joins two separate moments of the transcript');
+});
+
+test('verifyNotes: an ellipsis quote over a transcript whose tokens do not line up one for one is held with the reason', () => {
+  // "foo' 'bar" normalises to two words in the line but three raw tokens drift, so no alignment
+  const odd = "[00:20] the reason foo' 'bar was that I thought about it for a long time\n";
+  const p = Rd.parseNotes("## Lines\n- \"the reason foo' 'bar... thought about it for a long time\" | By: Sam | [00:20]\n- \"the reason foo' 'bar was that I thought about it\" | By: Sam | [00:20]\n");
+  Rd.verifyNotes(p, odd);
+  assert.equal(p.lines[0].verified, false);
+  assert.equal(p.lines[0].heldWhy, 'its words could not be matched to the transcript one for one');
+  assert.equal(p.lines[1].verified, true, 'without an ellipsis the model\'s words are still checked as before');
+});
+
+test('parseNotes: a Say with two quoted spans is two scripts with the same situation, by and time; one span or none is as before', () => {
+  const p = Rd.parseNotes(`## Scripts
+- Situation: pushback | Say: "No." or "Thank you for asking, and no." | Instead of: "Maybe later" | By: Sam | [04:10]
+- Situation: calm | Say: "Let me think about it." | Instead of: none | By: Sam | [05:10]
+- Situation: bare | Say: just stay quiet | Instead of: none | By: Sam | [06:10]
+- Situation: nested | Say: "He said "hi" there" | Instead of: none | By: Sam | [07:10]
+`);
+  assert.deepEqual(p.scripts.map((s) => s.say), ['No.', 'Thank you for asking, and no.', 'Let me think about it.', 'just stay quiet', 'He said "hi" there']);
+  assert.deepEqual(p.scripts.slice(0, 2).map((s) => [s.situation, s.insteadOf, s.by, s.at]), [['pushback', 'Maybe later', 'Sam', '04:10'], ['pushback', 'Maybe later', 'Sam', '04:10']]);
+});
