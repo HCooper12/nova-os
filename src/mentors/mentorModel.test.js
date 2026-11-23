@@ -52,6 +52,15 @@ test('waiting on his Claude usage: "Resumes" and the reset time, "Claude usage" 
   assert.equal(m.act.word, 'Claude usage');
 });
 
+test('a weave that failed three times: waiting, not caught up, and the video says the weave stopped', () => {
+  const cat = [['v1', 600, 'w'], ['v2', 600, 'r'], ['v3', 600, 'r']];
+  const m = pageModel(detail({ catalogue: cat, counts: counts({ total: 3, read: 2, woven: 1 }) }), queue('waiting', { waiting: { on: 'weave', until: null, why: 'Unknown system error -11, read', failed: 3 } }), WALL);
+  assert.equal(m.k, 'waiting');
+  assert.deepEqual(m.tok, ['wait', 'Waiting', 3]);
+  assert.equal(m.act.word, 'Weave stopped');
+  assert.equal(m.act.id, 'v2', 'the newest video read and not yet woven');
+});
+
 test('a failed video: need token with the count, Try again names the source key', () => {
   const c = counts({ ...C, held: { ...C.held, refused: 0, failed: 1 } });
   const m = pageModel(detail({ counts: c }), queue('idle'), WALL);

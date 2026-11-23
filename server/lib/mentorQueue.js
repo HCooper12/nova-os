@@ -600,7 +600,16 @@ export async function queueStatus() {
           if (block && lastUsage !== null) { doing = 'waiting'; waiting = block; }
           else if (!lastUsage) { doing = 'waiting'; waiting = { on: 'usage', until: null, why: 'usage not known' }; }
         }
-      } else doing = 'done';
+      } else {
+        // a weave of his that failed is not "done": it waits an hour, or for
+        // his retry after three, and the status says which and why
+        const wf = s.weaveFailures[p.id];
+        const toWeave = wf && work.scoped.some((x) => x.stage === 'read' && !x.hold && !x.working);
+        const again = wf ? new Date(wf.at).getTime() + FAILED_WAIT_MS : 0;
+        if (toWeave && wf.n >= MAX_FAILS) { doing = 'waiting'; waiting = { on: 'weave', until: null, why: wf.why, failed: wf.n }; }
+        else if (toWeave && now < again) { doing = 'waiting'; waiting = { on: 'weave', until: new Date(again).toISOString(), why: wf.why, failed: wf.n }; }
+        else doing = 'done';
+      }
     }
     people.push({ id: p.id, name: p.name, doing, item, counts, waiting, readingAllowed: !!s.readingAllowed[p.id] });
   }

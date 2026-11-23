@@ -461,9 +461,36 @@ test('weave: one at a time across everyone; a failure frees the sources and wait
   assert.equal((await R.getSource('yt:b')).stage, 'read');
   const n = weaves.length;
   assert.deepEqual(await Q.tick(), [], 'an hour before it is tried again');
+  // the status says the weave failed and when it is tried again, never "done"
+  const failedAt = clock;
+  let st = (await Q.queueStatus()).people.find((x) => x.id === 'fisher');
+  assert.equal(st.doing, 'waiting');
+  assert.deepEqual(st.waiting, { on: 'weave', until: new Date(failedAt + 3600_000).toISOString(), why: 'the weave\'s sort step failed its checks twice', failed: 1 });
   clock += 3600_000 + 1;
   delete env.fail['weave:fisher'];
   await Q.runUntilIdle();
   assert.equal(weaves.length, n + 1);
   assert.equal((await R.getSource('yt:b')).stage, 'woven');
+  assert.equal((await Q.queueStatus()).people.find((x) => x.id === 'fisher').doing, 'done');
+});
+
+test('weave: after three failures it waits for his retry, and the status says so until he does', async () => {
+  await person({ repeatsCheckedAt: day(1) });
+  await readSources(['a']);
+  installWeave();
+  await Q.allowReading('fisher');
+  env.fail['weave:fisher'] = 'Unknown system error -11, read';
+  for (let i = 0; i < 3; i++) { await Q.runUntilIdle(); clock += 3600_000 + 1; }
+  const tried = weaves.length;
+  clock += 24 * 3600_000;
+  assert.deepEqual(await Q.tick(), [], 'no fourth try on its own');
+  let st = (await Q.queueStatus()).people[0];
+  assert.equal(st.doing, 'waiting');
+  assert.deepEqual(st.waiting, { on: 'weave', until: null, why: 'Unknown system error -11, read', failed: 3 });
+  delete env.fail['weave:fisher'];
+  await Q.retryWeave('fisher');
+  await Q.runUntilIdle();
+  assert.equal(weaves.length, tried + 1);
+  assert.equal((await R.getSource('yt:a')).stage, 'woven');
+  assert.equal((await Q.queueStatus()).people[0].doing, 'done');
 });

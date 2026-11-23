@@ -138,7 +138,7 @@ export function pageModel(detail, queue, wall) {
     const until = clock(waiting?.until);
     tokWord = until ? `Resumes ${until}` : 'Waiting';
     const id = nextAt(col - 1);
-    act = id ? { kind: 'waiting', id, word: on === 'usage' ? 'Claude usage' : on === 'youtube' ? 'YouTube' : 'Waiting', on: on || null } : null;
+    act = id ? { kind: 'waiting', id, word: on === 'usage' ? 'Claude usage' : on === 'youtube' ? 'YouTube' : on === 'weave' ? 'Weave stopped' : 'Waiting', on: on || null } : null;
   } else if (doing === 'done') {
     const fresh = order.filter((id) => codes.get(id) === 'f');
     if (fresh.length) { k = 'fresh'; col = 1; tokKind = 'dim'; tokWord = `${fresh.length} new`; }
