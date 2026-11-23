@@ -593,6 +593,10 @@ function conceptPrompt(ctx, group) {
     '',
     'RULES',
     '- "points": the substance of the ideas, in your own words, each with "cites": the S number and time mark of the idea it comes from, exactly as given below.',
+    // an existing page shows its cites as page links, with no S number: a model
+    // that repeats one of its points has to guess the number, and the cite check
+    // then stops the batch (23 Nov 2026, "Keep the Door Open With Estranged Family")
+    '- Write points ONLY from the ideas listed under each concept, and cite only the S numbers and times on those lines. An existing page is shown so you do not repeat it: code keeps its points and adds yours after them, so leave out whatever it already says.',
     "- \"by\": who the idea comes from. A guest's idea is the guest's.",
     '- "gist": two or three sentences. "adds": for each source when there are two or more, what it adds that the others do not. "tensions": only a real disagreement with the existing page or between sources, else [].',
     '- Keep each title exactly as given, in the same order.',
@@ -629,7 +633,7 @@ function checkConcepts(reply, ctx, group) {
       if (!Array.isArray(p?.cites) || !p.cites.length) f.push(`the point "${one(p?.text).slice(0, 60)}" of "${c.title}" has no cite`);
       for (const ci of Array.isArray(p?.cites) ? p.cites : []) {
         const bad = citeFailure(ctx, ci?.s, ci?.t, `a point of "${c.title}"`);
-        if (bad) f.push(bad);
+        if (bad) f.push(c.existingText ? `${bad} (cite only the ideas listed for this concept; the existing page's points are kept by code, so do not repeat them)` : bad);
       }
     }
     for (const a of Array.isArray(r.adds) ? r.adds : []) {

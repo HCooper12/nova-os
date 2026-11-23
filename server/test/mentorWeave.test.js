@@ -503,6 +503,22 @@ test('the one retry: a reply that fails once is asked again with the failures li
   assert.match(retry, /idea I1\.1 appears 0 times/);
 });
 
+test('a point that repeats the existing page with a guessed S number: the prompt forbids it, and the retry says why', async () => {
+  // 23 Nov 2026: the fourth real batch died here. The existing page shows its
+  // cites as page links, the model repeated a point of it and guessed "S32".
+  breakers.concepts = (r, attempt) => (attempt === 1
+    ? { concepts: r.concepts.map((c) => (c.title === 'Strategic Silence' ? { ...c, points: [...c.points, { text: 'A point the page already makes.', cites: [{ s: 1, t: '59:59' }] }] } : c)) }
+    : r);
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  const prompts = asks.filter((a) => a.step === 'concepts').map((a) => a.prompt);
+  assert.ok(prompts.every((x) => /Write points ONLY from the ideas listed under each concept/.test(x)), 'every concepts prompt carries the rule');
+  const retry = prompts.find((x) => /YOUR LAST REPLY FAILED THESE CHECKS/.test(x));
+  assert.ok(retry, 'the bad cite was sent back once');
+  assert.match(retry, /a point of "Strategic Silence" cites S1 59:59, a time that does not appear in that source's notes \(cite only the ideas listed for this concept; the existing page's points are kept by code, so do not repeat them\)/);
+  assert.ok(rec.calls.some((c) => c.step === 'concepts' && c.retried));
+  assert.doesNotMatch(read('Wiki/Concepts/Strategic Silence.md'), /A point the page already makes/);
+});
+
 test('a reply that is not JSON at all counts as a failed check', async () => {
   W._setWeaveDepsForTest({ now: () => (clock += 1000), ask: async () => ({ text: 'I cannot do that.', usd: 0.01 }) });
   const before = snapshot();
