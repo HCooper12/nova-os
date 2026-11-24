@@ -11,6 +11,27 @@ the session log at the foot is append-only.
 
 ---
 
+## 25 Nov 2026 (Fable 5.2, mentors session): FISHER'S CATALOGUE IS WOVEN (197); MENTORS NEWS IS BUILT, SERVER LIVE ON THE MAC, CLIENT COMMITTED AND NOT PUSHED; HIS DECISIONS OWED
+
+**State.**
+- Catalogue: 197 woven, 39 repeats held, 0 waiting. Book: 8 principles, 104 chapters, 237 concepts, about 1,245 scripts, 60 raised items, every one with three questions. Weave stops are a class: three are now settled by code after the model's retry (`repairSort`, `repairBook`, `repairChapter` in `server/lib/mentorWeave.js`).
+- Server half of News is LIVE on 4173 (reloaded 25 Nov, about 10:03am, on `8bbfd63c`): `GET /api/mentors/news`, `GET /api/mentors/source/transcript?key=&at=&span=&rest=1`, `POST /api/mentors/source/brief`, `POST /api/mentors/:id/raised/:rid/research`, lanes `mentor-brief` and `mentor-research` (Sonnet). The queue briefs a new video by itself for its first 7 days.
+- Client half is committed, local: `bd8cb6ed` (`src/mentors/NewsPage.jsx`, `newsModel.js`, `news.css`, `art.js`, the way in from Library > Mentors, the stopped weave on his page). Contract: mockup 125 A, Version 8, https://claude.ai/artifact/LCMHkavktBJgpMZYuvthwi. Briefs: `design/mockups/.125-round3/specs/BUILD-2-SERVER.md` and `BUILD-2-CLIENT.md` (untracked).
+- NOT PUSHED, so nothing of News is on his phone: `1c9e5a56`, `2e5fa7c0`, `078455f8`, `de645ef8`, `0337db04`, `0edc32f1`, `8bbfd63c`, `bd8cb6ed`. Pushed with his yes: `74671d9f` only (deploy run 45488291279 green).
+- The nine mockup-126 commits of the speed session sit under mine on local main and are NOT mine to push. Their hashes changed on 25 Nov when I pushed `74671d9f` alone and replayed them (tip was `5057d842`; the tree is identical). To push only the Mentors commits again: scratch worktree at origin/main, cherry-pick, test, push, replay the others, `git update-ref` (memory `nova-concurrent-sessions`).
+
+**Verified (how).** Gates on `bd8cb6ed`: lint 0 in the touched files, `npx vite build` green (NewsPage is its own 38 kB chunk), `guard-cupertino` unchanged, `node --test src/mentors/*.test.js` 28 pass, `server/test/mentor*.test.js` 208 (207 pass, 1 skipped), `sheetDrag.test.js` 11 pass. Full server suite: only the known exerciseAtlas failure (and `planBuildStep` fails under load, passes alone). Side by side with the mockup, state by state, in Chrome (402 and 375) and in Safari in the iPhone 18 Pro Simulator (Summary, glass): session scratchpad `build2/sbs/` and `build2/sim/` (grids `sim/g1.png` to `g7.png`, recordings `sim/r1` to `r10`). Live data, read only, in Safari: scratchpad `round8/shots/webkit-live-grid.png`.
+
+**NOT verified.** Anything on his iPhone or in the installed app. Every POST against the real server (Keep, Dismiss, Research, Brief me, Undo, Try again were proven on a scratch copy and an in-memory fixture only; Keep and Dismiss write his vault page, Research and Brief me cost money). Audio really playing (a scripted tap is not a gesture). The edge swipe back, the sheet drag, the keyboard with his own words, dictation.
+
+**Where the build departs from Version 8, by choice, his call owed.** (1) Transcript on a video opens the whole transcript from the start (the mockup opened at the first takeaway). (2) The sheet reads on to the end of the video (the mockup drew an excerpt). (3) Not drawn, built from the mockup's parts: the News block at the top of Library > Mentors, the two-press Undo on "What I learned", "Research failed" and "Could not read" with Details. (4) A video is the large card for its first week or while unread, then a compact row.
+
+**Known, not fixed.** The cost of a failed weave batch is not recorded. Some videos have no podcast twin, so no Listen. Research was run for real once, kind `true` only. A raised method's text is a "use when" clause (the client labels it). Compact rows do nothing on tap.
+
+**Next.** His answers, then a push of the eight commits (not the nine of the other session), a green deploy, the served bundle checked for `NewsPage`, and his own look. Then slice 2 proper (the follow flow) and slice 3 (the playbook opens).
+
+---
+
 ## 23 Nov 2026: speed and display study, and the folder that moved
 
 **State.** `design/SPEED-DISPLAY-STUDY.md` is the record; its section 4 table
