@@ -466,9 +466,6 @@ test('undo leaves a file he edited since and says so', async () => {
 // Each breaker breaks the reply on every attempt (twice: the batch fails) or
 // on the first only (the one retry mends it).
 const BREAKS = {
-  'B: an idea in no concept': ['sort', (r) => ({ ...r, concepts: r.concepts.slice(1) }), /appears 0 times across the concepts/],
-  'B: a framework in two chapters': ['sort', (r) => ({ ...r, chapters: [...r.chapters, { ...r.chapters[0], title: 'Again' }] }), /appears 2 times across the chapters/],
-  'B: an id never shown': ['sort', (r) => ({ ...r, concepts: [...r.concepts, { title: 'Ghost', ideas: ['I9.9'] }] }), /not an idea id shown/],
   'B: a title with a colon': ['sort', (r) => ({ ...r, concepts: r.concepts.map((c, i) => (i ? c : { ...c, title: 'Bad: Title' })) }), /contains one of/],
   'C: a cite at a time the notes do not have': ['concepts', (r) => ({ concepts: r.concepts.map((c) => ({ ...c, points: [{ text: 'x', cites: [{ s: 1, t: '09:59' }] }] })) }), /does not appear in that source's notes/],
   'C: a cite to a source nowhere': ['concepts', (r) => ({ concepts: r.concepts.map((c) => ({ ...c, points: [{ text: 'x', cites: [{ s: 7, t: '00:30' }] }] })) }), /not a source in this batch or the book/],
@@ -492,6 +489,61 @@ for (const [name, [step, brk, re]] of Object.entries(BREAKS)) {
     assert.deepEqual(await W.listWeaves('sam'), []);
   });
 }
+
+// A sort reply that is still wrong after the retry in a way code can settle
+// by rule (a stray id, an item placed nowhere or twice) no longer stops the
+// batch: the item becomes a note, or keeps its first place, and the record
+// counts the mends.
+const MENDS = {
+  'an idea in no concept becomes a note': [(r) => ({ ...r, concepts: r.concepts.slice(1) }), (rec, clean) => rec.counts.notes === clean.counts.notes + 1 && rec.counts.concepts === clean.counts.concepts - 1],
+  'a framework in two chapters keeps its first': [(r) => ({ ...r, chapters: [...r.chapters, { ...r.chapters[0], title: 'Again' }] }), (rec, clean) => rec.counts.chapters === clean.counts.chapters],
+  'an id never shown is dropped': [(r) => ({ ...r, concepts: [...r.concepts, { title: 'Ghost', ideas: ['I9.9'] }] }), (rec, clean) => rec.counts.concepts === clean.counts.concepts],
+};
+for (const [name, [brk, ok]] of Object.entries(MENDS)) {
+  test(`a sort fault code can settle by rule does not stop the batch: ${name}`, async () => {
+    const clean = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+    assert.equal(clean.mended, 0);
+    await W.undoWeave(clean.batchId, { vaultPath: vault });
+    breakers.sort = (r) => brk(r);
+    const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+    assert.deepEqual(rec.calls.filter((c) => c.step === 'sort').map((c) => c.retried), [false, true], 'the model had its retry first');
+    assert.ok(rec.mended >= 1);
+    assert.ok(ok(rec, clean), JSON.stringify([rec.counts, clean.counts]));
+    assert.match(read('Wiki/log.md'), /placings? in the sort settled by code/);
+  });
+}
+
+test('repairSort: every mend moves toward a note, nothing is promoted, and a clean reply is left alone', () => {
+  const idea = (id, s, by) => ({ id, s, by, name: id, text: '', t: '00:30', candidates: [] });
+  const fw = (id, s, by) => ({ id, s, by, name: id, useWhen: '', steps: [], t: '00:30' });
+  const ctx = {
+    person: { name: 'Sam Host' }, book: { concepts: [], chapters: [], principles: [] }, quoteWords: [],
+    g: { candidates: [], items: { ideas: [idea('I1.1', 1, 'Sam Host'), idea('I1.2', 1, 'Gail Rowan'), idea('I1.3', 1, 'Gail Rowan'), idea('I1.4', 1, 'Gail Rowan'), idea('I1.5', 1, 'Gail Rowan'), idea('I1.6', 1, 'Gail Rowan'), idea('I1.7', 1, 'Sam Host')], frameworks: [fw('F1.1', 1, 'Gail Rowan')] } },
+  };
+  const why = 'a claim that is worth checking';
+  const clean = { concepts: [{ title: 'His Idea', existing: false, ideas: ['I1.1', 'I1.7'] }], chapters: [], notes: ['I1.2', 'I1.3', 'I1.4', 'I1.5', 'F1.1'], raise: [{ id: 'I1.6', why }] };
+  assert.deepEqual(W.checkSort(clean, ctx), []);
+  const copy = JSON.parse(JSON.stringify(clean));
+  assert.equal(W.repairSort(copy, ctx), 0);
+  assert.deepEqual(copy, clean);
+  const bad = {
+    concepts: [{ title: 'His Idea', existing: false, ideas: ['I1.1'] }, { title: 'Empty One', existing: false, ideas: [] }, { title: 'Guest One Off', existing: false, ideas: ['I1.2'] }],
+    chapters: [{ title: 'Her Method', existing: false, frameworks: ['F1.1'] }],
+    notes: ['I1.1'],
+    raise: [{ id: 'I1.3', why }, { id: 'I1.4', why }, { id: 'I1.5', why }, { id: 'I1.6', why }],
+  };
+  assert.ok(W.checkSort(bad, ctx).length >= 5);
+  assert.ok(W.repairSort(bad, ctx) >= 5);
+  assert.deepEqual(W.checkSort(bad, ctx), []);
+  assert.deepEqual(bad.concepts.map((c) => c.title), ['His Idea']);
+  assert.deepEqual(bad.chapters, []);
+  assert.deepEqual(bad.raise.map((r) => r.id), ['I1.3', 'I1.4', 'I1.5']);
+  assert.deepEqual([...bad.notes].sort(), ['F1.1', 'I1.2', 'I1.6', 'I1.7']);
+  // a bad title is the model's to fix: code does not rename a page
+  const titled = { ...clean, concepts: [{ title: 'Bad: Title', existing: false, ideas: ['I1.1', 'I1.7'] }] };
+  assert.equal(W.repairSort(titled, ctx), 0);
+  assert.equal(W.checkSort(titled, ctx).length, 1);
+});
 
 test('the one retry: a reply that fails once is asked again with the failures listed, and the batch goes on', async () => {
   breakers.sort = (r, attempt) => (attempt === 1 ? { ...r, concepts: r.concepts.slice(1) } : r);
@@ -943,17 +995,27 @@ test('v3 3b: the check also refuses a guest chapter that earns nothing, and a ch
 
 test('v3 4: a raised item needs a why of five words, at most three per source, and lands in the book, on the mentor page and on its source page', async () => {
   const before = snapshot();
-  // a why of four words
-  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: 'Worth a look today' }] });
-  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => /the raised item I2\.1 needs a "why" of at least 5 words/.test(e.message) && /failed its checks twice/.test(e.message));
-  // four raised items for one source: the fourth fails
-  breakers.sort = () => ({ concepts: [], chapters: [], notes: ['I2.1', 'I2.2', 'F2.1'], raise: ['I1.1', 'I1.2', 'I1.3', 'F1.1'].map((id) => ({ id, why: 'This one is worth his time to follow up.' })) });
-  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => /source S1 has 4 raised items; the most is 3: move the rest to "notes"/.test(e.message));
-  // a question that is not a string
-  breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY, question: 7 }] });
-  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), /the "question" of the raised item I2\.1 is not a string/);
-  assert.deepEqual(snapshot(), before, 'three failed weaves left the vault as it was');
-  assert.equal(await W.getBook('sam'), null);
+  // Each fault is put to the model once more in its own words; when the retry
+  // still has it, code settles it toward a note and the batch goes on.
+  const settled = async (brk, re) => {
+    asks = [];
+    breakers.sort = brk;
+    const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+    assert.match(asks.filter((a) => a.step === 'sort')[1].prompt, re);
+    assert.ok(rec.mended >= 1);
+    await W.undoWeave(rec.batchId, { vaultPath: vault });
+    return rec;
+  };
+  // a why of four words: the item becomes a note
+  const short = await settled((r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: 'Worth a look today' }] }), /the raised item I2\.1 needs a "why" of at least 5 words/);
+  assert.deepEqual([short.counts.raised, short.counts.notes], [0, 2]);
+  // four raised items for one source: the fourth becomes a note
+  const four = await settled(() => ({ concepts: [], chapters: [], notes: ['I2.1', 'I2.2', 'F2.1'], raise: ['I1.1', 'I1.2', 'I1.3', 'F1.1'].map((id) => ({ id, why: 'This one is worth his time to follow up.' })) }), /source S1 has 4 raised items; the most is 3: move the rest to "notes"/);
+  assert.equal(four.counts.raised, 3);
+  // a question that is not a string: the item is raised with no question
+  const noq = await settled((r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY, question: 7 }] }), /the "question" of the raised item I2\.1 is not a string/);
+  assert.equal(noq.counts.raised, 1);
+  assert.deepEqual(snapshot(), before, 'three weaves, each undone, left the vault as it was');
   // three raised for one source is allowed; one of them here, with a question
   breakers.sort = (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1'), raise: [{ id: 'I2.1', why: WHY, question: QUESTION }] });
   const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
@@ -976,7 +1038,7 @@ test('v3 4: a raised item needs a why of five words, at most three per source, a
   assert.deepEqual((await W.listRaised('sam')).map((r) => r.rid), ['R2.1']);
 });
 
-test('v3 5: an idea or framework missing from all three places, or in two, fails the check', async () => {
+test('v3 5: an idea or framework missing from all three places, or in two, is put to the model again, then settled by code', async () => {
   const before = snapshot();
   const cases = [
     ['an idea in no place', (r) => ({ ...r, notes: withoutId(r.notes, 'I2.1') }), /idea I2\.1 appears 0 times across the concepts, notes and raise/],
@@ -990,12 +1052,18 @@ test('v3 5: an idea or framework missing from all three places, or in two, fails
   for (const [name, brk, re] of cases) {
     asks = [];
     breakers.sort = (r) => brk(r);
-    await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), (e) => re.test(e.message) && /failed its checks twice/.test(e.message), name);
+    const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+    assert.match(asks.filter((a) => a.step === 'sort')[1].prompt, re, name);
+    assert.ok(rec.mended >= 1, name);
+    await W.undoWeave(rec.batchId, { vaultPath: vault });
     assert.deepEqual(snapshot(), before, name);
   }
-  // a chapter's supporting idea must also be placed once: dropping it from every place fails
+  // a chapter's supporting idea must also be placed once: dropped from every place, it becomes a note
   breakers.sort = (r) => ({ ...r, chapters: r.chapters.map((c) => ({ ...c, ideas: ['I1.1'] })), concepts: r.concepts.map((c) => ({ ...c, ideas: withoutId(c.ideas, 'I1.1') })).filter((c) => c.ideas.length) });
-  await assert.rejects(W.weaveBatch('sam', [K1, K2], { vaultPath: vault }), /idea I1\.1 appears 0 times/);
+  asks = [];
+  await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.match(asks.filter((a) => a.step === 'sort')[1].prompt, /idea I1\.1 appears 0 times/);
+  assert.ok((await W.getBook('sam')).sources[0].notes.some((x) => x.t && /./.test(x.name)), 'the idea is a note on its source');
 });
 
 test('v3 6: quote marks around words that are in no transcript lose their marks in a note, and a quote that is in the transcript keeps them', async () => {

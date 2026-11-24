@@ -366,7 +366,9 @@ export function parseReply(text) {
 }
 
 // One step's call, checked by `check`; one retry with the failures listed.
-async function askChecked(ctx, step, prompt, check) {
+// `mend`, when a step has one, is code's last word on a reply that still fails
+// after the retry: it changes the reply in place and says how many mends it made.
+async function askChecked(ctx, step, prompt, check, mend) {
   const d = D();
   let failures = [];
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -384,6 +386,10 @@ async function askChecked(ctx, step, prompt, check) {
     if (reply && attempt === 1 && failures.length && failures.every(isQuoteFailure)) {
       const n = unquoteUnverified(ctx, reply);
       if (n) { ctx.unquoted = (ctx.unquoted || 0) + n; failures = check(reply); }
+    }
+    if (reply && attempt === 1 && failures.length && mend) {
+      const n = mend(reply);
+      if (n) { ctx.mended = (ctx.mended || 0) + n; failures = check(reply); }
     }
     if (!failures.length) return reply;
   }
@@ -582,6 +588,92 @@ export function checkSort(reply, ctx) {
     if (n !== 1) f.push(`framework ${id} appears ${n} times across the chapters, notes and raise; it must appear exactly once`);
   }
   return f;
+}
+
+/**
+ * The mechanical faults of a sort reply, mended by code once the model's
+ * retry has still failed. A batch holds some 300 ideas and the model drops or
+ * doubles one of them often enough that three batches in a row stopped on a
+ * single stray item, a different one each time (23 Nov 2026). Every mend moves
+ * toward the default the rules name, a note on the source: an item placed
+ * nowhere becomes a note, an item placed twice keeps its first place (a page
+ * before the raised list before a note), a page that is empty or was not
+ * earned is dropped and its items become notes, a raised item over the limit
+ * or without a why becomes a note, and an id that was never shown is dropped.
+ * Code promotes nothing to a page and raises nothing. A bad title is not
+ * mended. Changes the reply in place; returns how many mends it made.
+ */
+export function repairSort(reply, ctx) {
+  if (!Array.isArray(reply?.concepts) || !Array.isArray(reply?.chapters)) return 0;
+  const who = ctx.person.name;
+  const ideaById = new Map(ctx.g.items.ideas.map((i) => [i.id, i]));
+  const fwById = new Map(ctx.g.items.frameworks.map((x) => [x.id, x]));
+  const offered = new Set([
+    ...ctx.g.candidates.map((c) => norm(c.title)),
+    ...ctx.book.concepts.flatMap((c) => [norm(c.title), norm(linkOf(c.page))]),
+  ]);
+  const bookChapters = new Set(ctx.book.chapters.map((c) => norm(c.title)));
+  const earnedBy = (list) => list.some((x) => byPerson(x.by, who)) || new Set(list.map((x) => x.s)).size >= 2;
+  let n = 0;
+  const onPage = new Set();   // ideas in a concept, frameworks in a chapter
+  const toNotes = [];
+  const concepts = [];
+  for (const c of reply.concepts) {
+    const ids = [];
+    for (const id of Array.isArray(c?.ideas) ? c.ideas : []) {
+      if (!ideaById.has(id) || onPage.has(id) || ids.includes(id)) n++;
+      else ids.push(id);
+    }
+    if (!ids.length) { n++; continue; }
+    const joins = c.existing === true && offered.has(norm(c.title));
+    if (!joins && !earnedBy(ids.map((id) => ideaById.get(id)))) { n++; toNotes.push(...ids); continue; }
+    for (const id of ids) onPage.add(id);
+    concepts.push({ ...c, ideas: ids });
+  }
+  const chapters = [];
+  for (const c of reply.chapters) {
+    const fws = [];
+    for (const id of Array.isArray(c?.frameworks) ? c.frameworks : []) {
+      if (!fwById.has(id) || onPage.has(id) || fws.includes(id)) n++;
+      else fws.push(id);
+    }
+    const supporting = [];
+    for (const id of Array.isArray(c?.ideas) ? c.ideas : []) {
+      if (!ideaById.has(id)) n++;
+      else supporting.push(id);
+    }
+    // a chapter that listed frameworks and kept none was a second home for them
+    if (!fws.length && (!supporting.length || (Array.isArray(c?.frameworks) && c.frameworks.length))) { n++; continue; }
+    const judged = fws.length ? fws.map((id) => fwById.get(id)) : supporting.map((id) => ideaById.get(id));
+    if (!bookChapters.has(norm(c.title)) && !earnedBy(judged)) { n++; toNotes.push(...fws); continue; }
+    for (const id of fws) onPage.add(id);
+    chapters.push({ ...c, frameworks: fws, ideas: supporting });
+  }
+  const raise = [];
+  const raised = new Set();
+  const raisedPer = new Map();
+  for (const r of Array.isArray(reply.raise) ? reply.raise : []) {
+    const id = r?.id;
+    const item = ideaById.get(id) || fwById.get(id);
+    if (!item || onPage.has(id) || raised.has(id)) { n++; continue; }
+    const k = (raisedPer.get(item.s) || 0) + 1;
+    if (k > MAX_RAISED_PER_SOURCE || one(r.why).split(' ').filter(Boolean).length < 5) { n++; toNotes.push(id); continue; }
+    raisedPer.set(item.s, k);
+    raised.add(id);
+    if (r.question == null || typeof r.question === 'string') raise.push(r);
+    else { n++; raise.push({ ...r, question: '' }); }
+  }
+  const notes = [];
+  const noted = new Set();
+  const free = (id) => (ideaById.has(id) || fwById.has(id)) && !onPage.has(id) && !raised.has(id) && !noted.has(id);
+  for (const id of Array.isArray(reply.notes) ? reply.notes : []) {
+    if (!free(id)) { n++; continue; }
+    noted.add(id); notes.push(id);
+  }
+  for (const id of toNotes) if (free(id)) { noted.add(id); notes.push(id); }
+  for (const id of [...ideaById.keys(), ...fwById.keys()]) if (free(id)) { n++; noted.add(id); notes.push(id); }
+  if (n) { reply.concepts = concepts; reply.chapters = chapters; reply.raise = raise; reply.notes = notes; }
+  return n;
 }
 
 /* ------------------------------- C concepts -------------------------------- */
@@ -1098,7 +1190,7 @@ async function runWeave(person, keys, vaultPath) {
   const ctx = { person, book, g, times: g.times, model, calls: [], costUsd: 0, answeredBy: null, quoteWords: await quoteWordLists(g, book) };
 
   /* B */
-  const sorted = await askChecked(ctx, 'sort', sortPrompt(ctx), (r) => checkSort(r, ctx));
+  const sorted = await askChecked(ctx, 'sort', sortPrompt(ctx), (r) => checkSort(r, ctx), (r) => repairSort(r, ctx));
   // Ideas and frameworks sorted to a note or to the raised list take no more
   // model calls: their text is the read notes' own. That text is model-written,
   // so a quote mark in it must hold transcript words or lose its marks.
@@ -1442,7 +1534,7 @@ async function runWeave(person, keys, vaultPath) {
     `## [${today}] ingest | Mentors weave: ${book.name} (${g.batch.length} source${g.batch.length === 1 ? '' : 's'})`,
     `- Created: ${createdRels.map(wl).join(', ') || 'none'}`,
     `- Updated: ${editedRels.map(wl).join(', ') || 'none'}`,
-    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
+    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : '', ctx.mended ? `${ctx.mended} placing${ctx.mended === 1 ? '' : 's'} in the sort settled by code` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
   ].join('\n');
   let logLead = '\n';
   await planFile('Wiki/log.md', async (before) => {
@@ -1467,6 +1559,7 @@ async function runWeave(person, keys, vaultPath) {
     batchId, personId: person.id, at: new Date(t0).toISOString(), version: WEAVE_VERSION, model, answeredBy: ctx.answeredBy, modelWhy: why,
     keys, calls: ctx.calls, costUsd: Math.round(ctx.costUsd * 10000) / 10000,
     unquoted: ctx.unquoted || 0,
+    mended: ctx.mended || 0,
     dirsCreated, bookBefore: bookBefore || null, vaultBefore,
     counts: {
       sources: g.batch.length, concepts: conceptsCreated.length, conceptsEdited: conceptsEdited.length,
