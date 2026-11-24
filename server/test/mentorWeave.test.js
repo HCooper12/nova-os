@@ -527,6 +527,19 @@ test('a book reply with more principles than the book may hold does not stop the
   assert.doesNotMatch(read('Wiki/log.md'), /in the sort settled by code/);
 });
 
+test('a chapter reply with a fourth takeaway does not stop the batch: the first three stay', async () => {
+  breakers.chapter = (r) => ({ ...r, takeaways: [...r.takeaways, 'A fourth one that should not be here.'] });
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.ok(rec.mendedBy.chapter >= 1);
+  const book = await W.getBook('sam');
+  assert.ok(book.chapters.length > 0 && book.chapters.every((c) => c.takeaways.length === 3), JSON.stringify(book.chapters.map((c) => c.takeaways.length)));
+  assert.ok(!JSON.stringify(book.chapters).includes('A fourth one'));
+  assert.match(read('Wiki/log.md'), /takeaways? beyond three left out by code/);
+  assert.equal(W.repairChapter({ takeaways: ['a', 'b', 'c'] }), 0);
+  assert.equal(W.repairChapter({ takeaways: ['a', 'b'] }), 0, 'too few is not mended');
+  assert.equal(W.repairChapter({ takeaways: 'no' }), 0);
+});
+
 test('repairBook: the book keeps what it holds, the new one with the fewest sources goes first, and a reply within the limit is left alone', () => {
   const P = (name, sources, extra = {}) => ({ name, sentence: 's', sources, at: { s: 1, t: '00:30' }, ...extra });
   const held = Array.from({ length: 7 }, (_, i) => ({ id: `pr${i + 1}`, name: `Held ${i + 1}`, sentence: 's', sources: [1] }));

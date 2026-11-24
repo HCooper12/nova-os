@@ -946,6 +946,20 @@ function existingPrinciple(book, p) {
 }
 
 /**
+ * The one fault of a chapter reply that code settles by rule, once the model
+ * has had its retry: more than three takeaways. The first three stay, in the
+ * model's own order. Fewer than three still fails the step, because code
+ * cannot write one. Changes the reply in place; returns how many it left out.
+ */
+export function repairChapter(reply) {
+  if (!Array.isArray(reply?.takeaways)) return 0;
+  const said = reply.takeaways.filter((t) => one(t));
+  if (said.length <= 3) return 0;
+  reply.takeaways = said.slice(0, 3);
+  return said.length - 3;
+}
+
+/**
  * The one fault of a book reply that code settles by rule, once the model has
  * had its retry: more principles than the book may hold. The book keeps the
  * ones it has (each stands on every batch before this one); of the new ones
@@ -1295,7 +1309,7 @@ async function runWeave(person, keys, vaultPath) {
   for (let i = 0; i < concepts.length; i += CONCEPTS_PER_CALL) groups.push(concepts.slice(i, i + CONCEPTS_PER_CALL));
   const tasks = [
     ...groups.map((grp) => async () => ({ kind: 'c', grp, reply: await askChecked(ctx, 'concepts', conceptPrompt(ctx, grp), (r) => checkConcepts(r, ctx, grp)) })),
-    ...chapters.map((ch) => async () => ({ kind: 'd', ch, reply: await askChecked(ctx, 'chapter', chapterPrompt(ctx, ch), (r) => checkChapter(r, ctx, ch)) })),
+    ...chapters.map((ch) => async () => ({ kind: 'd', ch, reply: await askChecked(ctx, 'chapter', chapterPrompt(ctx, ch), (r) => checkChapter(r, ctx, ch), (r) => repairChapter(r)) })),
   ];
   const results = await pool(tasks, PARALLEL_CALLS);
 
@@ -1575,7 +1589,7 @@ async function runWeave(person, keys, vaultPath) {
     `## [${today}] ingest | Mentors weave: ${book.name} (${g.batch.length} source${g.batch.length === 1 ? '' : 's'})`,
     `- Created: ${createdRels.map(wl).join(', ') || 'none'}`,
     `- Updated: ${editedRels.map(wl).join(', ') || 'none'}`,
-    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : '', ctx.mendedBy?.sort ? `${ctx.mendedBy.sort} placing${ctx.mendedBy.sort === 1 ? '' : 's'} in the sort settled by code` : '', ctx.mendedBy?.book ? `${ctx.mendedBy.book} principle${ctx.mendedBy.book === 1 ? '' : 's'} beyond the ${PRINCIPLES_MAX} left out by code` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
+    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : '', ctx.mendedBy?.sort ? `${ctx.mendedBy.sort} placing${ctx.mendedBy.sort === 1 ? '' : 's'} in the sort settled by code` : '', ctx.mendedBy?.chapter ? `${ctx.mendedBy.chapter} takeaway${ctx.mendedBy.chapter === 1 ? '' : 's'} beyond three left out by code` : '', ctx.mendedBy?.book ? `${ctx.mendedBy.book} principle${ctx.mendedBy.book === 1 ? '' : 's'} beyond the ${PRINCIPLES_MAX} left out by code` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
   ].join('\n');
   let logLead = '\n';
   await planFile('Wiki/log.md', async (before) => {
