@@ -186,6 +186,13 @@ test('transcript: the span either side of the mark, the marked paragraph, the de
   assert.equal(first.body.at, null);
   assert.deepEqual(first.body.paras.map((p) => p.s), [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]);
   assert.ok(first.body.paras.every((p) => p.m === false));
+  // rest=1 reads on to the end: from the span before the mark, or the whole of it
+  const on = await get('/mentors/source/transcript?key=yt:t1&at=1590&rest=1');
+  const all = await get('/mentors/source/transcript?key=yt:t1&rest=1');
+  assert.deepEqual(on.body.paras.slice(0, 3).map((p) => [p.t, p.m]), [['25:30', false], ['26:00', false], ['26:30', true]], 'the same first lines as the excerpt');
+  assert.equal(on.body.paras.at(-1).s, all.body.paras.at(-1).s, 'and on to the last paragraph');
+  assert.ok(all.body.paras.length > 12 && all.body.paras[0].s === 0 && all.body.paras.every((p) => p.m === false));
+  assert.equal(on.body.paras.filter((p) => p.m).length, 1);
   assert.equal((await get('/mentors/source/transcript?key=yt:t2&at=10')).status, 404, 'no transcript');
   assert.equal((await get('/mentors/source/transcript?key=yt:nope')).status, 404);
   assert.equal((await get('/mentors/source/transcript?key=yt:t1&at=abc')).status, 400);

@@ -92,10 +92,12 @@ const fail = (message, flag) => { const e = new Error(message); e[flag] = true; 
 /**
  * GET /mentors/source/transcript: the paragraphs within `span` seconds either
  * side of `at` (default 75, at most 600), the one holding the mark marked;
- * with no `at`, the first 12. `notFound` when there is no transcript,
- * `refused` when it has no time marks.
+ * with no `at`, the first 12. With `rest`, it reads on to the end: from
+ * `span` seconds before the mark (or from the start, with no `at`) to the
+ * last paragraph, so he can read the source himself. `notFound` when there
+ * is no transcript, `refused` when it has no time marks.
  */
-export async function transcriptAround(key, { at = null, span = 75 } = {}) {
+export async function transcriptAround(key, { at = null, span = 75, rest = false } = {}) {
   const src = await getSource(key);
   if (!src) throw fail(`no source with key "${key}"`, 'notFound');
   let text;
@@ -104,6 +106,10 @@ export async function transcriptAround(key, { at = null, span = 75 } = {}) {
   if (!paras.length) throw fail(`the transcript of ${src.title || key} has no time marks, so no moment in it can be found`, 'refused');
   const notes = src.stage === 'read' || src.stage === 'woven' ? await readNotes(key) : null;
   const note = notes?.summary ? String(notes.summary).trim() || null : null;
-  const picked = at == null ? paras.slice(0, 12).map((p) => ({ ...p, m: false })) : paragraphsAround(paras, at, Math.min(600, span));
+  const near = Math.min(600, span);
+  const marked = at == null ? null : paragraphsAround(paras, at, Infinity);
+  const picked = at == null
+    ? (rest ? paras : paras.slice(0, 12)).map((p) => ({ ...p, m: false }))
+    : rest ? marked.filter((p) => p.m || p.s >= at - near) : paragraphsAround(paras, at, near);
   return { key, title: src.title ?? null, at, note, paras: picked.map((p) => ({ t: p.t, s: p.s, x: p.x, m: p.m })) };
 }

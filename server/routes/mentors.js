@@ -128,7 +128,7 @@ export function mentorsRouter(vaultPath) {
       };
       const at = num(req.query.at, 'at');
       const span = num(req.query.span, 'span');
-      res.json(await transcriptAround(key, { at: at ?? null, span: span ?? 75 }));
+      res.json(await transcriptAround(key, { at: at ?? null, span: span ?? 75, rest: req.query.rest === '1' }));
     } catch (err) {
       if (err?.badRequest) return res.status(400).json({ error: err.message });
       if (err?.notFound) return res.status(404).json({ error: err.message });
