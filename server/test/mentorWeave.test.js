@@ -473,7 +473,7 @@ const BREAKS = {
   'D: a matrix with three nodes': ['chapter', (r) => ({ ...r, diagram: { shape: 'matrix', title: 'm', nodes: [{ label: 'a' }, { label: 'b' }, { label: 'c' }] } }), /exactly four cells/],
   'D: a rule cite out of the notes': ['chapter', (r) => ({ ...r, rules: [{ text: 'r', kind: 'stated', s: 1, t: '08:00' }] }), /does not appear/],
   'D: two takeaways': ['chapter', (r) => ({ ...r, takeaways: ['a', 'b'] }), /exactly three/],
-  'E: nine principles': ['book', (r) => ({ ...r, principles: [...r.principles, ...r.principles.slice(0, 4).map((p, i) => ({ ...p, name: `${p.name} ${i}` }))] }), /it must hold 5 to 8/],
+  'E: four principles': ['book', (r) => ({ ...r, principles: r.principles.slice(0, 4) }), /it must hold 5 to 8/],
   'E: a count in a sentence': ['book', (r) => ({ ...r, principles: r.principles.map((p, i) => (i ? p : { ...p, sentence: 'Said in 2 of 2 videos.' })) }), /count in its sentence/],
   'E: a guest who does not speak': ['book', (r) => ({ ...r, fromGuests: [{ guest: 'Nobody Known', idea: 'x', response: 'y', s: 1, t: '00:30' }] }), /not a guest who speaks/],
 };
@@ -512,6 +512,37 @@ for (const [name, [brk, ok]] of Object.entries(MENDS)) {
     assert.match(read('Wiki/log.md'), /placings? in the sort settled by code/);
   });
 }
+
+// The book step has one fault code settles: more principles than the book
+// may hold. The surplus new ones are left out and the batch lands.
+test('a book reply with more principles than the book may hold does not stop the batch: the surplus is left out by code', async () => {
+  breakers.book = (r) => ({ ...r, principles: [...r.principles, ...r.principles.slice(0, 4).map((p, i) => ({ ...p, name: `${p.name} ${i}`, sources: p.sources.slice(0, 1) }))] });
+  const rec = await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  assert.deepEqual(rec.calls.filter((c) => c.step === 'book').map((c) => c.retried), [false, true], 'the model had its retry first');
+  assert.ok(rec.mendedBy.book >= 1);
+  assert.equal(rec.mended, rec.mendedBy.book);
+  const book = await W.getBook('sam');
+  assert.ok(book.principles.length >= W.PRINCIPLES_MIN && book.principles.length <= W.PRINCIPLES_MAX, String(book.principles.length));
+  assert.match(read('Wiki/log.md'), /principles? beyond the 8 left out by code/);
+  assert.doesNotMatch(read('Wiki/log.md'), /in the sort settled by code/);
+});
+
+test('repairBook: the book keeps what it holds, the new one with the fewest sources goes first, and a reply within the limit is left alone', () => {
+  const P = (name, sources, extra = {}) => ({ name, sentence: 's', sources, at: { s: 1, t: '00:30' }, ...extra });
+  const held = Array.from({ length: 7 }, (_, i) => ({ id: `pr${i + 1}`, name: `Held ${i + 1}`, sentence: 's', sources: [1] }));
+  const ctx = { book: { principles: held } };
+  const fine = { principles: [P('Held 1', [1, 2], { existing: true }), P('A new one', [1])] };
+  assert.equal(W.repairBook(fine, ctx), 0);
+  assert.equal(fine.principles.length, 2);
+  const over = { principles: [P('Held 2', [2], { existing: true }), P('Thin', [1]), P('Reworded', [1], { existing: true, was: 'Held 3' }), P('Strong', [1, 2, 3]), P('Thin too', [2])] };
+  assert.equal(W.repairBook(over, ctx), 2);
+  assert.deepEqual(over.principles.map((p) => p.name), ['Held 2', 'Reworded', 'Strong']);
+  const full = { book: { principles: [...held, { id: 'pr8', name: 'Held 8', sentence: 's', sources: [1] }] } };
+  const all = { principles: [P('Brand new', [1, 2, 3])] };
+  assert.equal(W.repairBook(all, full), 1);
+  assert.deepEqual(all.principles, []);
+  assert.equal(W.repairBook({ principles: 'no' }, full), 0);
+});
 
 test('repairSort: every mend moves toward a note, nothing is promoted, and a clean reply is left alone', () => {
   const idea = (id, s, by) => ({ id, s, by, name: id, text: '', t: '00:30', candidates: [] });

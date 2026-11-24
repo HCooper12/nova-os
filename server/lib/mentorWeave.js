@@ -389,7 +389,7 @@ async function askChecked(ctx, step, prompt, check, mend) {
     }
     if (reply && attempt === 1 && failures.length && mend) {
       const n = mend(reply);
-      if (n) { ctx.mended = (ctx.mended || 0) + n; failures = check(reply); }
+      if (n) { ctx.mended = (ctx.mended || 0) + n; ctx.mendedBy = { ...(ctx.mendedBy || {}), [step]: ((ctx.mendedBy || {})[step] || 0) + n }; failures = check(reply); }
     }
     if (!failures.length) return reply;
   }
@@ -867,6 +867,7 @@ function bookPrompt(ctx, conceptsDone, chaptersDone, firstBatch) {
     'RULES',
     '- "glance": three sentences, who he is and what he teaches, from the sources only.',
     `- "principles": ${PRINCIPLES_MIN} to ${PRINCIPLES_MAX} in the WHOLE book, the ideas he returns to most. Each { "name", "sentence" (one sentence, no counts in it), "existing" (true for one already in the book), "sources" (the S numbers FROM THIS BATCH that make it), "at": { "s", "t" } }. To rename an existing one, add "was": "<old name>". Code adds counts; never write "in 2 of 4" or similar.`,
+    ...(b.principles.length >= PRINCIPLES_MAX ? [`- The book already holds ${b.principles.length} principles, the most it may hold. Return only those ("existing": true, the name exactly as below, or "was" when you reword one), each with the S numbers from this batch that support it, and leave out any this batch does not touch. Add no new principle.`] : []),
     '- "chapterOrder": every chapter title below in a sensible learning order.',
     `- "cards": up to ${cardRoom} revision cards { "q", "a" (one sentence), "s", "t" }.`,
     '- "fromGuests": what he took from each guest who speaks: { "guest", "idea", "response" (how he responded), "s", "t" }. [] when there is no guest.',
@@ -938,6 +939,26 @@ function existingPrinciple(book, p) {
   if (!p?.existing) return null;
   const want = norm(p.was || p.name);
   return book.principles.find((x) => norm(x.name) === want) || null;
+}
+
+/**
+ * The one fault of a book reply that code settles by rule, once the model has
+ * had its retry: more principles than the book may hold. The book keeps the
+ * ones it has (each stands on every batch before this one); of the new ones
+ * the reply adds, the surplus is left out, the one with the fewest sources in
+ * this batch first, and among equals the one the model listed last. Nothing
+ * else is touched: too few principles, a bad cite or a count in a sentence
+ * still fail the step. Changes the reply in place; returns how many it left out.
+ */
+export function repairBook(reply, ctx) {
+  if (!Array.isArray(reply?.principles)) return 0;
+  const fresh = reply.principles.map((p, i) => ({ p, i })).filter((x) => !existingPrinciple(ctx.book, x.p));
+  const over = ctx.book.principles.length + fresh.length - PRINCIPLES_MAX;
+  if (over <= 0) return 0;
+  const count = (p) => (Array.isArray(p?.sources) ? p.sources.length : 0);
+  const out = new Set(fresh.sort((a, b) => count(a.p) - count(b.p) || b.i - a.i).slice(0, over).map((x) => x.p));
+  reply.principles = reply.principles.filter((p) => !out.has(p));
+  return out.size;
 }
 
 /* ------------------------------ vault writing ------------------------------ */
@@ -1282,7 +1303,7 @@ async function runWeave(person, keys, vaultPath) {
   // the order call must see every chapter title the book will hold
   const allChapterTitles = uniq([...book.chapters.map((c) => c.title), ...chapters.map((c) => c.title)]);
   const { prompt: ePrompt, cardRoom } = bookPrompt(ctx, conceptsDone, chaptersDone.concat(book.chapters.filter((c) => !chapters.some((x) => norm(x.title) === norm(c.title))).map((c) => ({ title: c.title, purpose: c.purpose, takeaways: c.takeaways }))), firstBatch);
-  const front = await askChecked(ctx, 'book', ePrompt, (r) => checkBook(r, ctx));
+  const front = await askChecked(ctx, 'book', ePrompt, (r) => checkBook(r, ctx), (r) => repairBook(r, ctx));
 
   /* ---- everything has passed: build the new book and the plan of files ---- */
 
@@ -1534,7 +1555,7 @@ async function runWeave(person, keys, vaultPath) {
     `## [${today}] ingest | Mentors weave: ${book.name} (${g.batch.length} source${g.batch.length === 1 ? '' : 's'})`,
     `- Created: ${createdRels.map(wl).join(', ') || 'none'}`,
     `- Updated: ${editedRels.map(wl).join(', ') || 'none'}`,
-    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : '', ctx.mended ? `${ctx.mended} placing${ctx.mended === 1 ? '' : 's'} in the sort settled by code` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
+    `- Notes: ${g.held.length} quoted line${g.held.length === 1 ? '' : 's'} held back (not word for word in the transcript); ${concepts.reduce((n, c) => n + c.reply.tensions.length, 0)} tension${concepts.reduce((n, c) => n + c.reply.tensions.length, 0) === 1 ? '' : 's'} recorded, none resolved${[noteItems.length ? `${noteItems.length} idea${noteItems.length === 1 ? '' : 's'} kept as notes on their source pages` : '', raisedItems.length ? `${raisedItems.length} raised for his review` : '', ctx.mendedBy?.sort ? `${ctx.mendedBy.sort} placing${ctx.mendedBy.sort === 1 ? '' : 's'} in the sort settled by code` : '', ctx.mendedBy?.book ? `${ctx.mendedBy.book} principle${ctx.mendedBy.book === 1 ? '' : 's'} beyond the ${PRINCIPLES_MAX} left out by code` : ''].filter(Boolean).map((t) => `; ${t}`).join('')}. Woven by code from ${ctx.calls.length} model calls on ${model}.`,
   ].join('\n');
   let logLead = '\n';
   await planFile('Wiki/log.md', async (before) => {
@@ -1560,6 +1581,7 @@ async function runWeave(person, keys, vaultPath) {
     keys, calls: ctx.calls, costUsd: Math.round(ctx.costUsd * 10000) / 10000,
     unquoted: ctx.unquoted || 0,
     mended: ctx.mended || 0,
+    mendedBy: ctx.mendedBy || {},
     dirsCreated, bookBefore: bookBefore || null, vaultBefore,
     counts: {
       sources: g.batch.length, concepts: conceptsCreated.length, conceptsEdited: conceptsEdited.length,
