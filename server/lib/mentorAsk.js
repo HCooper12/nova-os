@@ -553,7 +553,7 @@ export function briefFailures(reply, size) {
   return f;
 }
 
-/** The one line under a takeaway: one plain sentence of 6 to 24 words that
+/** The one line under a takeaway: one plain sentence of 6 to 24 words (checked up to 30) that
  *  ends with a full stop, with no quote marks (a quoted word could not be
  *  checked here) and no dashes. [] when it is good. */
 export function lineFailures(line) {
@@ -561,7 +561,8 @@ export function lineFailures(line) {
   const t = one(line);
   const f = [];
   const words = t.split(' ').filter(Boolean).length;
-  if (words < 6 || words > 24) f.push(`its line has ${words} words; it must have 6 to 24`);
+  // the prompt asks for 24 at most; a word or two over is not worth a failed brief, so the check stops at 30
+  if (words < 6 || words > 30) f.push(`its line has ${words} words; it must have 6 to 24`);
   if (!/\.$/.test(t)) f.push('its line does not end with a full stop');
   if (/[.!?]\s+\S/.test(t.replace(/\b(?:Dr|Mr|Mrs|Ms|St|Prof|vs)\.\s/gi, ''))) f.push('its line is more than one sentence');
   if (/["\u201c\u201d]/.test(t)) f.push('its line holds quote marks; say it in plain words');

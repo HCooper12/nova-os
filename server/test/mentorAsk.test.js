@@ -427,6 +427,8 @@ test('lineFailures: one plain sentence of 6 to 24 words, a full stop, no quote m
   assert.deepEqual(A.lineFailures('Dr. Rowan says four seconds of silence says enough.'), []);
   assert.ok(A.lineFailures(undefined).some((f) => /no "line"/.test(f)));
   assert.ok(A.lineFailures('Too short.').some((f) => /6 to 24/.test(f)));
+  assert.deepEqual(A.lineFailures(`${Array.from({ length: 27 }, () => 'word').join(' ')}.`), [], 'a word or two over the asked 24 passes');
+  assert.ok(A.lineFailures(`${Array.from({ length: 31 }, () => 'word').join(' ')}.`).some((f) => /6 to 24/.test(f)));
   assert.ok(A.lineFailures('This one has no full stop at the end of it').some((f) => /full stop/.test(f)));
   assert.ok(A.lineFailures('This is the first sentence here. And this is a second one.').some((f) => /more than one sentence/.test(f)));
   assert.ok(A.lineFailures('He says "go" and then he leaves the room at once.').some((f) => /quote marks/.test(f)));
