@@ -305,6 +305,16 @@ export const api = {
   mentorPause: (conn, id, paused) => post(conn, `/api/mentors/${encodeURIComponent(id)}/${paused ? 'pause' : 'resume'}`),
   mentorQueuePause: (conn, paused) => post(conn, '/api/mentors/queue/pause', { paused }),
   mentorRetrySource: (conn, key) => post(conn, '/api/mentors/source/retry', { key }),
+  // MENTORS NEWS (slice 2, 25 Nov 2026): the feed, the review items and his
+  // calls on them, a brief of one video, the transcript around a mark, the
+  // newest weave taken back, a stopped weave tried again
+  mentorNews: (conn) => callSaying(conn, '/api/mentors/news'),
+  mentorTranscript: (conn, key, at) => callSaying(conn, `/api/mentors/source/transcript?key=${encodeURIComponent(key)}${at == null ? '' : `&at=${Math.round(at)}`}&rest=1`),
+  mentorResearch: (conn, id, rid, kind, question) => post(conn, `/api/mentors/${encodeURIComponent(id)}/raised/${encodeURIComponent(rid)}/research`, { kind, question }),
+  mentorRaisedStatus: (conn, id, rid, status) => post(conn, `/api/mentors/${encodeURIComponent(id)}/raised/${encodeURIComponent(rid)}`, { status }),
+  mentorBrief: (conn, key) => post(conn, '/api/mentors/source/brief', { key }),
+  mentorWeaveUndo: (conn, batchId) => post(conn, '/api/mentors/weave/undo', { batchId }),
+  mentorWeaveRetry: (conn, id) => post(conn, `/api/mentors/${encodeURIComponent(id)}/weave/retry`),
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
   // PROJECTS (phase 1, 29 Oct 2026): the kernel's records + the linked three
   projects: (conn) => call(conn, '/api/projects'),

@@ -11,6 +11,8 @@
 //   weaving     a batch of his is being woven into the vault now
 //   paused      he paused this person, or the whole queue is paused
 //   failed      a video of his could not be read (held as failed)
+//   stopped     his weave failed its checks and stopped (the queue's
+//               waiting.on === 'weave'; slice 2): the tries, the cause, Try again
 //   waiting     the queue waits: for his go, for his Claude usage, for YouTube
 //   fresh       everything was done and a new video has arrived
 //   caught      nothing of his is left to do
@@ -75,6 +77,20 @@ export function cumulative(counts) {
   return [total, (c.transcript || 0) + (c.read || 0) + (c.woven || 0), (c.read || 0) + (c.woven || 0), c.woven || 0];
 }
 
+// THE STOPPED WEAVE'S CAUSE LINE, by the step the server names (the queue's
+// waiting.step: the weave's own askChecked steps in server/lib/mentorWeave.js).
+// The server's own words (waiting.why) are under Details, verbatim.
+export const WEAVE_CAUSE = {
+  sort: 'A sorting check failed',
+  concepts: 'A concepts check failed',
+  chapter: 'A chapter check failed',
+  book: 'A book check failed',
+};
+export const weaveCause = (step) => WEAVE_CAUSE[step] || 'A weave check failed';
+// the step named in the server's sentence, for a queue answer that predates waiting.step
+export const stepIn = (why) => (String(why || '').match(/the weave's (\w+) step/) || [])[1] || null;
+export const triesLabel = (n) => (n > 0 ? `${n} ${n === 1 ? 'try' : 'tries'}` : '');
+
 const keyToId = (key) => (String(key || '').startsWith('yt:') ? String(key).slice(3) : key || null);
 
 /**
@@ -132,6 +148,10 @@ export function pageModel(detail, queue, wall) {
   } else if ((held.failed || 0) > 0 && failedId) {
     k = 'failed'; col = nextCol(); tokKind = 'need'; tokWord = `${held.failed} failed`;
     act = { kind: 'failed', id: failedId, word: 'Could not read', key: `yt:${failedId}` };
+  } else if (doing === 'waiting' && waiting?.on === 'weave') {
+    // the weave stopped: the Woven column carries it, the block says why
+    k = 'stopped'; col = 3; tokKind = 'need'; tokWord = 'Weave stopped';
+    act = { kind: 'halt', id: null, word: 'Weave stopped', tries: triesLabel(Number(waiting.failed) || 0), cause: weaveCause(waiting.step !== undefined ? waiting.step : stepIn(waiting.why)), why: waiting.why || '', until: waiting.until || null };
   } else if (doing === 'waiting') {
     k = 'waiting'; col = nextCol(); tokKind = 'wait';
     const on = waiting?.on;

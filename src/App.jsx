@@ -222,6 +222,7 @@ const OVERLAY_LOADERS = {
   artifactViewer: () => import('./ArtifactViewer.jsx'),
   reviewSheet: () => import('./ReviewSheet.jsx'),
   mentorPage: () => import('./mentors/MentorPage.jsx'),
+  mentorNews: () => import('./mentors/NewsPage.jsx'),
 };
 const RecipeOverlay = lazyScreen(OVERLAY_LOADERS.recipeOverlay, 'RecipeOverlay');
 const RecipeSheet = lazyScreen(OVERLAY_LOADERS.recipeSheet, 'RecipeSheet');
@@ -233,6 +234,7 @@ const VerdictCard = lazyScreen(OVERLAY_LOADERS.verdictCard, 'VerdictCard');
 const ArtifactViewer = lazyScreen(OVERLAY_LOADERS.artifactViewer, 'ArtifactViewer');
 const ReviewSheet = lazyScreen(OVERLAY_LOADERS.reviewSheet, 'ReviewSheet');
 const MentorPage = lazyScreen(OVERLAY_LOADERS.mentorPage, 'MentorPage');
+const NewsPage = lazyScreen(OVERLAY_LOADERS.mentorNews, 'NewsPage');
 // the clock src/turnNet.js sets against Resource Timing's (the same timeline)
 const perfNow = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
 
@@ -830,7 +832,7 @@ export default class App extends Component {
     // due" state, never confused with "not loaded yet")
     liveReviewToday: null, reviewOpenId: null, reviewDrawnExtra: null, reviewSheetOpen: false,
     reviewJust: null, reviewDemoAnswers: {},
-    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveMentors: null, mentorOpenId: null,
+    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveMentors: null, mentorOpenId: null, mentorNewsOpen: false,
     libraryView: (() => { try { return localStorage.getItem('novaos.libraryView') === 'spines' ? 'spines' : 'grid'; } catch { return 'grid'; } })(), liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
     // "loaded and empty" can never be confused
@@ -6424,8 +6426,30 @@ export default class App extends Component {
   mentorFromHistory() {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const onEntry = st?.novaOverlay === 'mentor';
-    if (!onEntry && this.state.mentorOpenId) { this.loadMentors(); return { mentorOpenId: null }; }
-    if (onEntry && !this.state.mentorOpenId && st.mentorId) return { mentorOpenId: st.mentorId };
+    const news = this.mentorNewsFromHistory();
+    if (!onEntry && this.state.mentorOpenId) { this.loadMentors(); return { mentorOpenId: null, ...news }; }
+    if (onEntry && !this.state.mentorOpenId && st.mentorId) return { mentorOpenId: st.mentorId, ...news };
+    return news;
+  }
+  // MENTORS NEWS (slice 2, 25 Nov 2026): the News page, opened from Library ›
+  // Mentors; a history level of its own, the same recipe as a mentor's page
+  openMentorNews() {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay !== 'mentorNews') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'mentorNews' }, '');
+    }
+    this.setState({ mentorNewsOpen: true });
+  }
+  closeMentorNews() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'mentorNews') { window.history.back(); return; }
+    this.setState({ mentorNewsOpen: false });
+    this.loadMentors();
+  }
+  mentorNewsFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'mentorNews';
+    if (!onEntry && this.state.mentorNewsOpen) { this.loadMentors(); return { mentorNewsOpen: false }; }
+    if (onEntry && !this.state.mentorNewsOpen) return { mentorNewsOpen: true };
     return {};
   }
   ensureLibraryDetail(id, force = false) {
@@ -15500,6 +15524,12 @@ export default class App extends Component {
             <MentorPage key={this.state.mentorOpenId} id={this.state.mentorOpenId}
               person={(this.state.liveMentors || []).find((p) => p.id === this.state.mentorOpenId) || null}
               onClose={() => this.closeMentor()} />
+          </Suspense>
+        )}
+        {/* Mentors News (Library › Mentors › News), a history level of its own */}
+        {this.state.mentorNewsOpen && (
+          <Suspense fallback={null}>
+            <NewsPage onClose={() => this.closeMentorNews()} />
           </Suspense>
         )}
         {/* THE DAILY REVIEW's sheet (mockup 96 Part 3) — "Open the page" on

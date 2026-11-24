@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api, getConnection } from '../api.js';
-import { resolveMediaSrc } from '../MediaImg.jsx';
 import { paletteFor, regionVars, duotoneTables } from './palette.js';
 import { pageModel, filterCounts, advanced, vmeta, STAGES, SWORD, fmt, mins } from './mentorModel.js';
 import { odo, fitBig, fitName, Spring, sheetDrag, popCell, reducedMotion } from './motion.js';
-import { Ic, St } from './MentorBits.jsx';
+import { plainCause } from '../../server/lib/plainCause.js';
+import { Ic, St, Thumb } from './MentorBits.jsx';
+import { useArt, springEase } from './art.js';
 import { STATE_SVG } from './stateSvg.js';
 import './mentors.css';
+import './news.css';
 
 // A MENTOR'S OWN PAGE (Mentors, build slice 1; the approved mockup 125 A,
 // "His page", in the colouring he picked, "Colour on top"). Everything on it
@@ -64,30 +66,6 @@ function useMentorLive(id) {
     return () => clearInterval(t);
   }, [load, fast]);
   return { ...st, reload: load };
-}
-
-// a picture behind the token: undefined while it loads, null when there is none
-function useArt(src) {
-  const [url, setUrl] = useState(undefined);
-  useEffect(() => {
-    let live = true;
-    if (!src) { setUrl(null); return undefined; }
-    setUrl(undefined);
-    resolveMediaSrc(src).then((u) => { if (live) setUrl(u || null); });
-    return () => { live = false; };
-  }, [src]);
-  return url;
-}
-
-// the app's spring curves, for the Web Animations API (which takes no var())
-const springEase = (n) => (typeof document === 'undefined' ? 'ease' : getComputedStyle(document.documentElement).getPropertyValue(`--nv-spring-${n}`).trim() || 'cubic-bezier(.32,.72,0,1)');
-
-const thumb = (vid, hi) => (vid ? `/api/mentors/thumb/${encodeURIComponent(vid)}${hi ? '?size=hi' : ''}` : null);
-
-function Thumb({ vid, hi, className, style }) {
-  const url = useArt(thumb(vid, hi));
-  if (!url) return <span className={className} style={{ display: 'block', background: 'var(--nv-m-a)', ...style }} />;
-  return <img className={className} src={url} alt="" style={style} />;
 }
 
 /* --------------------------------- sprite --------------------------------- */
@@ -412,7 +390,25 @@ export function MentorPage({ id, person: person0, onClose }) {
   const wallSprite = spriteUrl && sprite ? sprite : null;
 
   // the skeleton before his page has loaded: his tile's own counts, plain cells
-  const shown = model || (person ? skeletonModel(person) : null);
+  // Try again on a stopped weave: the strip and the block say Weaving from his
+  // tap until the queue's next answer says otherwise (1 going, 2 the working mark)
+  const [retry, setRetry] = useState({ phase: 0, after: 0 });
+  useEffect(() => {
+    if (!retry.phase || !retry.after || live.at <= retry.after) return;
+    // an answer after the POST: a stopped weave again, or a real state, ends the mark
+    if (model && model.k !== 'idle') setRetry({ phase: 0, after: 0 });
+  }, [live.at]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = model || (person ? skeletonModel(person) : null);
+  // between his tap and the weave starting the queue may answer "idle": the
+  // block keeps its Weaving mark from the stopped state it came from
+  const lastStopped = useRef(null);
+  if (base?.k === 'stopped') lastStopped.current = base;
+  const shown = useMemo(() => {
+    const from = base?.k === 'stopped' ? base : base?.k === 'idle' ? lastStopped.current : null;
+    if (!retry.phase || !from) return base;
+    const m = base.m.slice(); m[3] = 'work';
+    return { ...base, k: 'stopped', act: from.act, m, tok: ['work', 'Weaving', 3] };
+  }, [base, retry.phase]);
 
   /* the numeral and the strip */
   const cntRef = useRef(null), bigRef = useRef(null), ofRef = useRef(null), nameRef = useRef(null);
@@ -475,6 +471,20 @@ export function MentorPage({ id, person: person0, onClose }) {
     if (!conn || acting) return;
     setActing(true); setActErr(null);
     try { await fn(conn); await live.reload(); } catch (e) { setActErr(e?.message || 'it did not go through'); } finally { setActing(false); }
+  };
+  const weaveRetry = async () => {
+    const conn = getConnection();
+    if (!conn || retry.phase) return;
+    setActErr(null);
+    setRetry({ phase: 1, after: 0 });
+    try {
+      await api.mentorWeaveRetry(conn, id);
+      setRetry((r) => ({ ...r, after: Date.now() }));
+      await live.reload();
+    } catch (e) {
+      setRetry({ phase: 0, after: 0 });
+      setActErr(plainCause(e));
+    }
   };
   const isPaused = shown?.k === 'paused';
   const everyone = !!shown?.everyone;
@@ -541,7 +551,8 @@ export function MentorPage({ id, person: person0, onClose }) {
               })}
             </div>
             <div className="stok" ref={stokRef}>{shown.tok && <><span className="stem" /><St kind={shown.tok[0]} word={shown.tok[1]} /></>}</div>
-            <Act model={model} onResume={pauseOrResume} onRetry={(key) => run((conn) => api.mentorRetrySource(conn, key))} acting={acting} err={actErr} />
+            <Act model={retry.phase && shown?.k === 'stopped' ? shown : model} onResume={pauseOrResume} onRetry={(key) => run((conn) => api.mentorRetrySource(conn, key))} acting={acting} err={actErr}
+              retry={retry.phase} onWeaveRetry={weaveRetry} onPhase={(phase) => setRetry((r) => ({ ...r, phase }))} />
             {/* the playbook as an object; opening it is slice 3 */}
             <div className={`pb${blank ? ' blank' : ''}`} aria-hidden={blank ? 'true' : undefined}>
               <span className={`bk${blank ? ' blank' : ''}`} style={{ '--th': (shown.thick || 0.15).toFixed(3) }}>
@@ -578,7 +589,7 @@ export function MentorPage({ id, person: person0, onClose }) {
 }
 
 function Pair({ n, w }) {
-  return <><dt>{n}</dt><dd>{w}</dd></>;
+  return <><dt>{fmt(n)}</dt><dd>{w}</dd></>;
 }
 
 // 1,170,000 → 1.17M, as the channel writes it
@@ -600,8 +611,9 @@ function skeletonModel(person) {
 
 /* ------------------------------ what is moving ----------------------------- */
 
-function Act({ model, onResume, onRetry, acting, err }) {
+function Act({ model, onResume, onRetry, acting, err, retry, onWeaveRetry, onPhase }) {
   const a = model?.act;
+  if (a?.kind === 'halt') return <div className="act"><Halt a={a} retry={retry} onRetry={onWeaveRetry} onPhase={onPhase} />{err && <p className="err" style={{ margin: '12px 0 0' }}>{err}</p>}</div>;
   if (!a || !a.id) return <div className="act" />;
   const r = model.rows.get(a.id);
   const title = r?.title || '';
@@ -634,6 +646,77 @@ function Act({ model, onResume, onRetry, acting, err }) {
     );
   }
   return <div className="act">{body}{err && <p className="err" style={{ margin: '12px 0 0' }}>{err}</p>}</div>;
+}
+
+// THE STOPPED WEAVE (slice 2; the mockup's "stopped" state): the token and
+// the tries, the cause line from the step, Try again and Details (the
+// server's own sentence, verbatim). Try again: the button closes into the
+// working mark and the block says Weaving, as the mockup's tryAgain acts it.
+const easeOf = (n) => getComputedStyle(document.documentElement).getPropertyValue(`--nv-spring-${n}`).trim() || 'ease-out';
+const msOf = (n, d) => { const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(`--nv-spring-${n}-ms`)); return Number.isFinite(v) && v > 0 ? v : d; };
+function shiftBelow(root, fn) {
+  const page = root?.closest('.pp');
+  const els = page ? [...page.querySelectorAll('.pb,.latest,.rail')] : [];
+  const t0 = els.map((e) => e.getBoundingClientRect().top);
+  fn();
+  return () => {
+    if (reducedMotion()) return;
+    els.forEach((e, i) => { const dy = t0[i] - e.getBoundingClientRect().top; if (Math.abs(dy) > 0.5) e.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: msOf('snappy', 640), easing: easeOf('snappy') }); });
+  };
+}
+function Halt({ a, retry, onRetry, onPhase }) {
+  const [det, setDet] = useState(false);
+  const root = useRef(null), btn = useRef(null), detRef = useRef(null);
+  const after = useRef(null);
+  useLayoutEffect(() => {
+    const play = after.current;
+    after.current = null;
+    if (play) play();
+  });
+  const toggleDet = () => {
+    const open = !det;
+    const shift = shiftBelow(root.current, () => {});
+    after.current = () => {
+      shift();
+      if (open && detRef.current && !reducedMotion()) detRef.current.animate([{ opacity: 0, clipPath: 'inset(0 0 100% 0 round 4px)' }, { opacity: 1, clipPath: 'inset(0 0 0 0 round 4px)' }], { duration: msOf('smooth', 800), easing: easeOf('smooth') });
+    };
+    setDet(open);
+  };
+  const tryAgain = () => {
+    if (retry) return;
+    const b = btn.current;
+    const w = b ? b.offsetWidth : 48;
+    const shift = shiftBelow(root.current, () => {});
+    after.current = () => {
+      shift();
+      if (reducedMotion() || !b) { onPhase(2); return; }
+      const hh = root.current?.querySelector('.hh .st');
+      hh?.animate([{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'none' }], { duration: msOf('bouncy', 800), easing: easeOf('bouncy') });
+      b.querySelectorAll('svg,span').forEach((x) => x.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' }));
+      b.animate([{ clipPath: 'inset(0 0 0 0 round 24px)' }, { clipPath: `inset(0 ${w - 48}px 0 0 round 24px)` }], { duration: 260, easing: easeOf('snappy') }).onfinish = () => onPhase(2);
+    };
+    onRetry();
+  };
+  // the working mark arrives
+  const was = useRef(retry);
+  useLayoutEffect(() => {
+    if (retry === 2 && was.current !== 2 && btn.current && !reducedMotion()) btn.current.animate([{ opacity: 0.4, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: msOf('bouncy', 800), easing: easeOf('bouncy') });
+    was.current = retry;
+  }, [retry]);
+  const busy = retry === 2;
+  return (
+    <div className="halt" ref={root}>
+      <div className="hh">{retry ? <St kind="work" word="Weaving" /> : <><St kind="need" word="Weave stopped" />{a.tries ? <span className="tries">{a.tries}</span> : null}</>}</div>
+      {!retry && <p className="cause">{a.cause}</p>}
+      <div className="btns">
+        <button ref={btn} className={`nbtn${busy ? ' busy' : ''}`} type="button" aria-label={retry ? 'Weaving' : 'Try again'} disabled={!!retry} onClick={tryAgain}>
+          {busy ? <Ic key="busy" n="s-work" /> : [<Ic key="again" n="i-again" />, <span key="w">Try again</span>]}
+        </button>
+        {!retry && a.why ? <button className="qbtn" type="button" aria-expanded={det} onClick={toggleDet}>Details<Ic n="i-chev" /></button> : null}
+      </div>
+      {!retry && det && <div className="det" ref={detRef}>{a.why}</div>}
+    </div>
+  );
 }
 
 function FailedCell({ id }) {

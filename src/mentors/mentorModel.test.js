@@ -5,7 +5,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pageModel, cumulative, filterCounts, advanced, dateLabel, levels } from './mentorModel.js';
+import { pageModel, cumulative, filterCounts, advanced, dateLabel, levels, weaveCause, stepIn } from './mentorModel.js';
 import { paletteFor, rgb2oklch, oklch2hex, hex2rgb } from './palette.js';
 
 const person = { id: 'p', name: 'Jefferson Fisher', colour: '#fb6b2f', status: 'following' };
@@ -52,13 +52,41 @@ test('waiting on his Claude usage: "Resumes" and the reset time, "Claude usage" 
   assert.equal(m.act.word, 'Claude usage');
 });
 
-test('a weave that failed three times: waiting, not caught up, and the video says the weave stopped', () => {
+test('a weave that stopped after three tries: the Woven column carries "Weave stopped", the block has the tries, the cause and the server\'s words', () => {
   const cat = [['v1', 600, 'w'], ['v2', 600, 'r'], ['v3', 600, 'r']];
-  const m = pageModel(detail({ catalogue: cat, counts: counts({ total: 3, read: 2, woven: 1 }) }), queue('waiting', { waiting: { on: 'weave', until: null, why: 'Unknown system error -11, read', failed: 3 } }), WALL);
-  assert.equal(m.k, 'waiting');
-  assert.deepEqual(m.tok, ['wait', 'Waiting', 3]);
-  assert.equal(m.act.word, 'Weave stopped');
-  assert.equal(m.act.id, 'v2', 'the newest video read and not yet woven');
+  const why = 'the weave\'s sort step failed its checks twice: chapter "X" is a guest\'s one-off method';
+  const m = pageModel(detail({ catalogue: cat, counts: counts({ total: 3, read: 2, woven: 1 }) }), queue('waiting', { waiting: { on: 'weave', until: null, why, failed: 3, step: 'sort' } }), WALL);
+  assert.equal(m.k, 'stopped');
+  assert.deepEqual(m.tok, ['need', 'Weave stopped', 3]);
+  assert.deepEqual(m.m, ['done', 'done', 'done', 'need'], 'every one read, so only the Woven column carries the stop');
+  assert.equal(m.col, 3, 'the numeral is the woven count');
+  assert.equal(m.act.kind, 'halt');
+  assert.equal(m.act.tries, '3 tries');
+  assert.equal(m.act.cause, 'A sorting check failed');
+  assert.equal(m.act.why, why, 'Details is the server\'s sentence, verbatim');
+});
+
+test('a stopped weave that will retry by itself is the same block; one try says "1 try"', () => {
+  const m = pageModel(detail(), queue('waiting', { waiting: { on: 'weave', until: '2026-11-25T04:00:00.000Z', why: 'x', failed: 1, step: 'chapter' } }), WALL);
+  assert.equal(m.k, 'stopped');
+  assert.equal(m.act.tries, '1 try');
+  assert.equal(m.act.cause, 'A chapter check failed');
+  assert.equal(m.act.until, '2026-11-25T04:00:00.000Z');
+});
+
+test('the cause table: every weave step by name, and no step at all', () => {
+  assert.equal(weaveCause('sort'), 'A sorting check failed');
+  assert.equal(weaveCause('concepts'), 'A concepts check failed');
+  assert.equal(weaveCause('chapter'), 'A chapter check failed');
+  assert.equal(weaveCause('book'), 'A book check failed');
+  assert.equal(weaveCause(null), 'A weave check failed');
+  assert.equal(weaveCause('something new'), 'A weave check failed');
+  // a queue answer from before waiting.step: the step is read from the server's sentence
+  assert.equal(stepIn('the weave\'s concepts step failed its checks twice'), 'concepts');
+  assert.equal(stepIn('Unknown system error -11, read'), null);
+  const m = pageModel(detail(), queue('waiting', { waiting: { on: 'weave', until: null, why: 'Unknown system error -11, read', failed: 2 } }), WALL);
+  assert.equal(m.act.cause, 'A weave check failed');
+  assert.equal(m.act.tries, '2 tries');
 });
 
 test('a failed video: need token with the count, Try again names the source key', () => {

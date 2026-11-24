@@ -192,7 +192,7 @@ export function valsLibrary(app, ctx) {
     libraryEmpty: st.liveLibrary && !items.length
       ? 'Your library is empty. Press ＋ ADD SOURCE above to research a book by title and author, paste your own notes, or drop in a video or podcast link — every source lands on this shelf.'
       : (st.liveLibrary && !filtered.length && !onMentors ? 'Nothing matches that filter.' : null),
-    libraryMentors: onMentors ? { people: mentors, open: (id) => app.openMentor(id) } : null,
+    libraryMentors: onMentors ? { people: mentors, open: (id) => app.openMentor(id), openNews: () => app.openMentorNews() } : null,
     loadMentors: () => app.loadMentors(),
     libraryQuery: st.libraryQuery || '',
     setLibraryQuery: (e) => app.setState({ libraryQuery: e.target.value }),

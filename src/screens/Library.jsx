@@ -473,7 +473,7 @@ function MentorsShelf({ v }) {
   return (
     <>
       <ChipsRow v={v} />
-      <MentorTiles people={v.libraryMentors.people} onOpen={v.libraryMentors.open} />
+      <MentorTiles people={v.libraryMentors.people} onOpen={v.libraryMentors.open} onNews={v.libraryMentors.openNews} />
     </>
   );
 }
