@@ -58,7 +58,7 @@ const RELOAD_QUIET_MS = 90_000;
 const YIELD_POLL_MS = 5_000;
 const YIELD_MAX_MS = 10 * 60_000;
 const LOG_MAX = 200;
-export const BRIEF_RECENT_DAYS = 14;
+export const BRIEF_RECENT_DAYS = 7; // a video is "new" in News for a week: the full frame with its takeaways; after that it is a compact row
 const BRIEFS_AT_START = 3;
 const QUESTIONS_RETRY_MS = 3600_000;
 
@@ -372,7 +372,7 @@ async function runRead(person, src, { brief = true } = {}) {
     await persist();
     await log(person.id, src.key, 'read', `$${r.costUsd} on ${r.model}, ${r.counts.ideas} ideas, ${r.counts.verifiedLines} of ${r.counts.lines} lines word for word`);
     if (job) job.status = 'done';
-    // a video published in the last 14 days is briefed right after its read;
+    // a video published in the last 7 days is briefed right after its read;
     // a failure is logged and never fails the read
     if (brief && recent(src, d.now()) && r.jsonPath && existsSync(r.jsonPath) && !briefJobs.has(src.key)) await autoBrief(person.id, src.key);
     return { ok: true, why: null };
@@ -742,7 +742,7 @@ export function researchRaised(personId, rid, body, { vaultPath } = {}) {
   return startResearch(personId, rid, body || {}, { vaultPath, gate: paidBlock });
 }
 
-// at start-up: up to three read or woven videos of the last 14 days that
+// at start-up: up to three read or woven videos of the last 7 days that
 // have no brief get one, one after another, under his ceilings
 async function startupBriefs() {
   const now = D().now();

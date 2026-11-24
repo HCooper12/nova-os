@@ -309,7 +309,7 @@ test('the research route: 400, 404, 200 with the item, his status call refused w
   assert.equal(more.body.raised.answer.text, 'No. It is not.', '"Ask more" keeps the last answer');
 });
 
-test('the queue\'s own read of a video from the last 14 days makes its brief right after; an older one gets none; a failed brief never fails the read', async () => {
+test('the queue\'s own read of a video from the last 7 days makes its brief right after; an older one gets none; a failed brief never fails the read', async () => {
   await P.savePerson({ id: 'sam', name: 'Sam Host', status: 'following', repeatsCheckedAt: ago(5) });
   await R.upsertSources([vid('q1', 'sam', { publishedAt: ago(3) }), vid('q2', 'sam', { publishedAt: ago(20) })]);
   for (const k of ['yt:q1', 'yt:q2']) { writeTranscript(k); await R.setStage(k, 'transcript', { transcript: { source: 'youtube-audio', timed: true } }); }
