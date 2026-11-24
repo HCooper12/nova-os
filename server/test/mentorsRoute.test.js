@@ -262,7 +262,7 @@ test('the book, the weaves, the week, and undo by batch (part 3)', async () => {
   assert.match(refused.body.error, /undo the newest first/);
   const ok = await post('/mentors/weave/undo', { batchId: 'w-2' });
   assert.equal(ok.status, 200);
-  assert.deepEqual(ok.body, { restored: [], left: [] });
+  assert.deepEqual(ok.body, { restored: [], left: [], carried: 0 });
   assert.equal((await get('/mentors/w/book')).body.book, null, 'the book went back to what it was before the batch');
   assert.equal((await post('/mentors/weave/undo', { batchId: 'w-1' })).status, 200);
 });

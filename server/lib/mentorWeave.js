@@ -1783,13 +1783,44 @@ export async function undoWeave(batchId, { vaultPath } = {}) {
   return undoRecord(rec, vaultPath);
 }
 
-// Puts a batch back: its files where they still match, the book as it was, the
-// register stages back to read; then marks the record. Shared by an undo and
-// by the start-up recovery of a weave that never finished.
+/**
+ * What he decided about a raised item, and what was written for it, since the
+ * batch being undone: his call (kept, dismissed), the questions, what he
+ * asked and the answer. The Book from before the batch gets these back on
+ * every item it also holds (same id, same name), so an undo of a weave never
+ * takes back a call of his. Returns { book, carried }; `before` is not changed.
+ */
+const HIS_ON_RAISED = ['status', 'questions', 'asked', 'answer', 'researchError'];
+export function carryRaised(before, now) {
+  if (!Array.isArray(before?.raised) || !before.raised.length) return { book: before, carried: 0 };
+  const cur = new Map((now?.raised || []).map((r) => [r.rid, r]));
+  let carried = 0;
+  const raised = before.raised.map((r) => {
+    const c = cur.get(r.rid);
+    if (!c || c.name !== r.name) return r;
+    const out = { ...r };
+    for (const k of HIS_ON_RAISED) {
+      if (c[k] === undefined || JSON.stringify(c[k]) === JSON.stringify(r[k])) continue;
+      out[k] = c[k];
+      carried += 1;
+    }
+    return out;
+  });
+  return { book: { ...before, raised }, carried };
+}
+
+// Puts a batch back: its files where they still match, the book as it was
+// (with his calls on the raised items kept, carryRaised), the register stages
+// back to read; then marks the record. Shared by an undo and by the start-up
+// recovery of a weave that never finished.
 async function undoRecord(rec, vaultPath, { recovered = false } = {}) {
   const out = await restoreFiles(vaultPath, rec.files || [], rec.dirsCreated || [], rec);
-  if (rec.bookBefore) await writeAtomic(bookPath(rec.personId), JSON.stringify(rec.bookBefore, null, 2));
-  else { try { await unlink(bookPath(rec.personId)); } catch { /* never written */ } }
+  let carried = 0;
+  if (rec.bookBefore) {
+    const kept = carryRaised(rec.bookBefore, await getBook(rec.personId).catch(() => null));
+    carried = kept.carried;
+    await writeAtomic(bookPath(rec.personId), JSON.stringify(kept.book, null, 2));
+  } else { try { await unlink(bookPath(rec.personId)); } catch { /* never written */ } }
   for (const key of rec.keys || []) {
     try { await setStage(key, 'read', { woven: null, vault: rec.vaultBefore?.[key] ?? null }, { force: true }); } catch (e) { out.left.push({ relPath: key, why: `the register could not move it back to read: ${e.message}` }); }
   }
@@ -1797,6 +1828,16 @@ async function undoRecord(rec, vaultPath, { recovered = false } = {}) {
   rec.undo = out;
   if (recovered) rec.recovered = true;
   await writeAtomic(path.join(weavesDir(), `${rec.batchId}.json`), JSON.stringify(rec, null, 2));
+  out.carried = carried;
+  if (carried) {
+    // the mentor page came back as it was before the batch; it is rendered
+    // again from the Book, so it says what he decided (the guarded path, which
+    // also tells the standing weave record the page's new hash)
+    const first = ((await getBook(rec.personId).catch(() => null))?.raised || [])[0]?.rid;
+    if (first) {
+      try { await changeRaised(rec.personId, first, () => {}, { vaultPath }); } catch (e) { out.left.push({ relPath: 'the mentor page', why: `his calls on the review items are in the book, but the page could not be written again: ${e.message}` }); }
+    }
+  }
   return out;
 }
 

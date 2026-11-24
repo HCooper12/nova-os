@@ -452,6 +452,38 @@ test('undo: refused out of order, then exact, newest first, back to the vault as
   await assert.rejects(W.undoWeave('no-such-batch', { vaultPath: vault }), (e) => e.notFound);
 });
 
+test('undo keeps his calls: an item he kept, its questions and its answer stay when a newer batch is undone', async () => {
+  breakers.sort = (r) => ({ ...r, notes: r.notes.filter((id) => id !== 'I2.1'), raise: [{ id: 'I2.1', why: 'A claim about wrong guesses that is worth a check.', question: 'Do people correct wrong guesses faster?' }] });
+  await W.weaveBatch('sam', [K1, K2], { vaultPath: vault });
+  breakers = {};
+  const rid = (await W.getBook('sam')).raised[0].rid;
+  await seedSource(K3, 'Gail Again', TRANSCRIPT_3, NOTES_3, '2026-03-05T00:00:00Z');
+  const r2 = await W.weaveBatch('sam', [K3], { vaultPath: vault });
+  // after the second batch: he keeps it, and questions and an answer are written for it
+  const answer = { text: 'Partly. One study says so.', sources: [{ title: 'A study', url: 'https://example.org/s' }], at: '2026-11-22T03:00:00.000Z', model: 'sonnet', costUsd: 0.1 };
+  await W.changeRaised('sam', rid, (it) => { it.questions = { true: 'Is it so?', deeper: 'Why is it so?', use: 'How would he use it?' }; it.asked = { kind: 'true', text: 'Is it so?', at: '2026-11-22T02:30:00.000Z' }; it.answer = answer; }, { vaultPath: vault });
+  await W.setRaisedStatus('sam', rid, 'kept', { vaultPath: vault });
+  const u = await W.undoWeave(r2.batchId, { vaultPath: vault });
+  assert.deepEqual(u.left, []);
+  assert.equal(u.carried, 4, 'status, questions, asked, answer');
+  const it = (await W.getBook('sam')).raised.find((r) => r.rid === rid);
+  assert.equal(it.status, 'kept');
+  assert.equal(it.questions.deeper, 'Why is it so?');
+  assert.deepEqual(it.answer, answer);
+  assert.match(read('Wiki/Mentors/Sam Host.md'), /\[kept\]/, 'the page says what he decided');
+  assert.equal((await R.getSource(K3)).stage, 'read');
+  // and the first batch can still be undone cleanly after it
+  const top = (await W.listWeaves('sam')).find((w) => w.undoable);
+  assert.deepEqual((await W.undoWeave(top.batchId, { vaultPath: vault })).left, []);
+  // carryRaised alone: a different item under the same id is left as it was
+  const before = { raised: [{ rid: 'R1.1', name: 'A', status: 'new' }, { rid: 'R1.2', name: 'B', status: 'new' }] };
+  const now = { raised: [{ rid: 'R1.1', name: 'A', status: 'dismissed' }, { rid: 'R1.2', name: 'Another', status: 'kept' }, { rid: 'R9.1', name: 'New', status: 'kept' }] };
+  const c = W.carryRaised(before, now);
+  assert.deepEqual(c.book.raised, [{ rid: 'R1.1', name: 'A', status: 'dismissed' }, { rid: 'R1.2', name: 'B', status: 'new' }]);
+  assert.equal(c.carried, 1);
+  assert.equal(before.raised[0].status, 'new', 'the record is not changed');
+});
+
 test('undo leaves a file he edited since and says so', async () => {
   const r1 = await W.weaveBatch('sam', [K1], { vaultPath: vault });
   fs.appendFileSync(path.join(vault, 'Wiki/Playbooks/Did You Mean.md'), '- his own note\n');
