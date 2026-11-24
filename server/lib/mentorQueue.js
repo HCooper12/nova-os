@@ -4,13 +4,14 @@ import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  listSources, getSource, setStage, setWorking, setHold, clearHold, resetWorking, countsFor,
+  listSources, getSource, setStage, setWorking, setHold, clearHold, resetWorking, countsFor, patchSource,
 } from './mentorRegister.js';
 import { listPeople, getPerson, savePerson } from './mentorPeople.js';
 import { getTranscript, transcriptPathFor } from './mentorTranscripts.js';
 import { signature, saveSignature, loadSignature, findRepeats, containment, REPEAT_SHARE } from './mentorRepeats.js';
 import { readSource, READ_VERSION } from './mentorRead.js';
-import { weaveBatch, recoverPendingWeaves, MAX_KEYS as WEAVE_MAX } from './mentorWeave.js';
+import { weaveBatch, recoverPendingWeaves, getBook, weaving, MAX_KEYS as WEAVE_MAX } from './mentorWeave.js';
+import { ensureQuestions, itemsNeedingQuestions, writeBrief, startResearch, recoverResearch } from './mentorAsk.js';
 import { readClaudeUsage } from './claudeUsage.js';
 import { registerJobMap } from './jobRegistry.js';
 
@@ -57,6 +58,9 @@ const RELOAD_QUIET_MS = 90_000;
 const YIELD_POLL_MS = 5_000;
 const YIELD_MAX_MS = 10 * 60_000;
 const LOG_MAX = 200;
+export const BRIEF_RECENT_DAYS = 14;
+const BRIEFS_AT_START = 3;
+const QUESTIONS_RETRY_MS = 3600_000;
 
 /* ---------------------------------- deps ----------------------------------- */
 
@@ -79,6 +83,8 @@ const D = () => ({
   weaveBatch: (personId, keys, opts) => weaveBatch(personId, keys, opts),
   getTranscript: (source, opts) => getTranscript(source, opts),
   readSource: (source, text, opts) => readSource(source, text, opts),
+  ensureQuestions: (personId) => ensureQuestions(personId),
+  writeBrief: (key) => writeBrief(key),
   ...(deps || {}),
 });
 
@@ -175,6 +181,11 @@ async function log(personId, key, what, detail = null) {
 let transcribing = null;           // { key, personId, title, startedAt, promise }
 const readJobs = registerJobMap('mentors', new Map()); // key -> { status, personId, title, startedAt, promise }
 const weaveJobs = registerJobMap('mentorWeave', new Map()); // personId -> { status, personId, keys, startedAt, promise }
+// News (25 Nov 2026): a "Brief me" he asked for, key -> { status, key, phase, promise },
+// and the questions of a person's raised items, personId -> { status, promise }
+const briefJobs = registerJobMap('mentorBrief', new Map());
+const questionJobs = registerJobMap('mentorQuestions', new Map());
+const questionTried = new Map(); // personId -> when a call last left gaps or failed
 // set by startMentorQueue; a no-op in tests and scripts that drive tick() themselves
 let kick = () => {};
 let reloadQuietUntil = 0;
@@ -183,7 +194,8 @@ let vaultPathNow = null;
 
 export function _resetQueueForTests() {
   state = null; loading = null; writing = Promise.resolve();
-  transcribing = null; readJobs.clear(); weaveJobs.clear(); reloadQuietUntil = 0; lastUsage = null; vaultPathNow = null;
+  transcribing = null; readJobs.clear(); weaveJobs.clear(); briefJobs.clear(); questionJobs.clear(); questionTried.clear();
+  reloadQuietUntil = 0; lastUsage = null; vaultPathNow = null;
 }
 
 /** scripts/reload-server.mjs is waiting: for 90 s nothing new starts, so the
@@ -318,6 +330,7 @@ async function runTranscript(person, src) {
     delete s.failures[src.key];
     await persist();
     await log(person.id, src.key, 'transcript', `${got.source}, ${got.chars} characters${got.sttSec ? `, ${got.sttSec} s on this Mac` : ''}`);
+    return { ok: true, why: null };
   } catch (e) {
     const now = d.now();
     const kind = e?.kind || 'failed';
@@ -341,10 +354,11 @@ async function runTranscript(person, src) {
       }
       await setWorking(src.key, null);
     } catch (e2) { console.error(`mentor queue: could not record the failure of ${src.key}: ${e2.message}`); }
+    return { ok: false, why };
   }
 }
 
-async function runRead(person, src) {
+async function runRead(person, src, { brief = true } = {}) {
   const d = D();
   const s = await load();
   const job = readJobs.get(src.key);
@@ -358,6 +372,10 @@ async function runRead(person, src) {
     await persist();
     await log(person.id, src.key, 'read', `$${r.costUsd} on ${r.model}, ${r.counts.ideas} ideas, ${r.counts.verifiedLines} of ${r.counts.lines} lines word for word`);
     if (job) job.status = 'done';
+    // a video published in the last 14 days is briefed right after its read;
+    // a failure is logged and never fails the read
+    if (brief && recent(src, d.now()) && r.jsonPath && existsSync(r.jsonPath) && !briefJobs.has(src.key)) await autoBrief(person.id, src.key);
+    return { ok: true, why: null };
   } catch (e) {
     if (job) job.status = 'failed';
     const why = e?.message || 'it failed and gave no reason';
@@ -375,6 +393,7 @@ async function runRead(person, src) {
         await log(person.id, src.key, 'failed', why);
       }
     } catch (e2) { console.error(`mentor queue: could not record the failed read of ${src.key}: ${e2.message}`); }
+    return { ok: false, why };
   } finally {
     readJobs.delete(src.key);
   }
@@ -390,6 +409,10 @@ async function runWeave(person, keys) {
     await persist();
     await log(person.id, null, 'woven', `${keys.length} source${keys.length === 1 ? '' : 's'}, $${rec.costUsd} on ${rec.model}, batch ${rec.batchId}`);
     if (job) job.status = 'done';
+    // the new raised items get their questions; started once the weave has
+    // let go of the Book, and a failure never fails the batch
+    weaveJobs.delete(person.id);
+    startQuestions(person.id, 'after the weave');
   } catch (e) {
     if (job) job.status = 'failed';
     const why = e?.message || 'it failed and gave no reason';
@@ -489,6 +512,7 @@ export async function tick() {
           continue;
         }
         if (ytBlocked && isYoutubeRoute(src)) continue;
+        if (transcribing) break outer; // a "Brief me" took the Mac while this pass looked
         if (src.hold) await clearHold(src.key);
         await setWorking(src.key, 'transcript');
         const job = { key: src.key, personId: person.id, title: src.title, startedAt: new Date(now).toISOString() };
@@ -519,9 +543,10 @@ export async function tick() {
       if (readsInFlight() >= MAX_READS) break;
       lastUsage = await d.readClaudeUsage();
       if (usageBlock(lastUsage, s.ceilings)) break;
-      await setWorking(src.key, 'read');
+      if (readJobs.has(src.key)) continue; // a "Brief me" is reading it already
       const job = { status: 'running', personId: person.id, key: src.key, title: src.title, startedAt: new Date(now).toISOString() };
       readJobs.set(src.key, job);
+      await setWorking(src.key, 'read');
       job.promise = runRead(person, src).finally(() => kick());
       started.push({ what: 'read', key: src.key, personId: person.id });
     }
@@ -547,7 +572,190 @@ export async function tick() {
       break;
     }
   }
+
+  // questions: a person whose new raised items lack them, at most once an
+  // hour after a call that failed or left gaps, under his ceilings
+  for (const person of people) {
+    if (questionJobs.has(person.id) || weaving() === person.id || weaveJobs.has(person.id)) continue;
+    const tried = questionTried.get(person.id);
+    if (tried && now - tried < QUESTIONS_RETRY_MS) continue;
+    let book = null;
+    try { book = await getBook(person.id); } catch { continue; }
+    if (!itemsNeedingQuestions(book).length) continue;
+    if (startQuestions(person.id, 'on the beat')) started.push({ what: 'questions', personId: person.id });
+  }
   return started;
+}
+
+/* ------------------------------ news: the calls ----------------------------- */
+
+const recent = (src, now) => !!src?.publishedAt && now - new Date(src.publishedAt).getTime() <= BRIEF_RECENT_DAYS * DAY_MS;
+
+/** His usage against his ceilings now: null when a paid call may start, else
+ *  { on, until, why, message } (the message names the reset time). */
+export async function paidBlock() {
+  const s = await load();
+  lastUsage = await D().readClaudeUsage();
+  const b = usageBlock(lastUsage, s.ceilings);
+  if (!b) return null;
+  return { ...b, message: `${b.why === 'usage not known' ? 'his Claude usage cannot be read now, so nothing paid starts' : `his Claude usage is over a ceiling: ${b.why}`}${b.until ? `; it resets ${b.until}` : ''}` };
+}
+
+// The questions of one person's raised items, in the background. Returns
+// true when it started. The usage check runs inside, so the tick never waits.
+function startQuestions(personId, when) {
+  if (questionJobs.has(personId)) return false;
+  const job = { status: 'running', personId, startedAt: new Date(D().now()).toISOString() };
+  questionJobs.set(personId, job);
+  job.promise = (async () => {
+    try {
+      const block = await paidBlock();
+      if (block) { await log(personId, null, 'questions waiting', block.message); questionTried.set(personId, D().now()); return; }
+      const r = await D().ensureQuestions(personId);
+      if (r?.missing) questionTried.set(personId, D().now()); else questionTried.delete(personId);
+      if (r?.asked) await log(personId, null, 'questions', `${r.written} written for ${r.asked} item${r.asked === 1 ? '' : 's'} ${when}${r.dropped ? `, ${r.dropped} dropped by the checks` : ''}, $${r.costUsd} on ${r.model}`);
+    } catch (e) {
+      questionTried.set(personId, D().now());
+      await log(personId, null, 'questions failed', e?.message || 'it failed and gave no reason').catch(() => {});
+    }
+  })().finally(() => { job.status = 'done'; questionJobs.delete(personId); });
+  return true;
+}
+
+// The brief of a read the queue made, or one owed at start-up: under his
+// ceilings, a failure logged and kept on the source as briefError.
+async function autoBrief(personId, key) {
+  try {
+    const block = await paidBlock();
+    if (block) { await log(personId, key, 'brief waiting', block.message); return false; }
+    const b = await D().writeBrief(key);
+    await log(personId, key, 'brief', `${b.ideas.length} takeaways, $${b.costUsd} on ${b.model}`);
+    return true;
+  } catch (e) {
+    const why = e?.message || 'the brief failed and gave no reason';
+    await patchSource(key, { briefError: { why, at: new Date(D().now()).toISOString() } }).catch(() => {});
+    await log(personId, key, 'brief failed', why).catch(() => {});
+    return false;
+  }
+}
+
+/** What a "Brief me" he asked for is doing for this source now, or null. */
+export function briefWorking(key) {
+  const j = briefJobs.get(key);
+  return j && j.status === 'running' ? j.phase : null;
+}
+export const briefJob = (key) => briefJobs.get(key)?.promise || null;
+
+/**
+ * "Brief me" (POST /mentors/source/brief): refused (`refused`, a 409) when a
+ * brief of this source is already being made or his usage is over a ceiling.
+ * Marks the source as wanted now and returns at once; in the background,
+ * ahead of the queue: the transcript if there is none (the queue's own
+ * runTranscript), the read if it was not read (the queue's own runRead; his
+ * tap is the go for this source), then the brief. A source the queue is
+ * working on is waited for, never started twice.
+ */
+export async function briefNow(key) {
+  const src = await getSource(key);
+  if (!src) { const e = new Error(`no source with key "${key}"`); e.notFound = true; throw e; }
+  if (briefJobs.has(key)) { const e = new Error(`a brief of ${src.title || key} is already being made`); e.refused = true; throw e; }
+  const block = await paidBlock();
+  if (block) { const e = new Error(block.message); e.refused = true; throw e; }
+  const d = D();
+  const job = { status: 'running', key, title: src.title, phase: src.stage === 'found' ? 'transcript' : 'reading', startedAt: new Date(d.now()).toISOString() };
+  briefJobs.set(key, job);
+  await patchSource(key, { briefAskedAt: job.startedAt, briefError: null });
+  job.promise = runBrief(key, job)
+    .then(() => { job.status = 'done'; }, async (e) => {
+      job.status = 'failed';
+      const why = e?.message || 'the brief failed and gave no reason';
+      await patchSource(key, { briefError: { why, at: new Date(D().now()).toISOString() } }).catch(() => {});
+      const personId = (await getSource(key).catch(() => null))?.people?.[0]?.id || null;
+      await log(personId, key, 'brief failed', why).catch(() => {});
+    })
+    .finally(() => { briefJobs.delete(key); kick(); });
+  return getSource(key);
+}
+
+async function runBrief(key, job) {
+  const d = D();
+  let src = await getSource(key);
+  const personId = src.people?.[0]?.id;
+  const person = (personId && await getPerson(personId)) || { id: personId || null, name: src.show || 'unknown' };
+
+  // 1. the words: wait for the queue's own transcript of it, or take the next turn on this Mac
+  if (src.stage === 'found') {
+    job.phase = 'transcript';
+    for (;;) {
+      const cur = transcribing;
+      if (!cur) break;
+      if (cur.promise) await cur.promise.catch(() => {});
+      else await d.sleep(50);
+      if (cur.key === key && cur.promise) break;
+    }
+    src = await getSource(key);
+    if (src.stage === 'found') {
+      const s = await load();
+      if (s.youtubeBlockedUntil && new Date(s.youtubeBlockedUntil).getTime() > d.now() && isYoutubeRoute(src)) {
+        throw new Error(`YouTube refused three downloads in a row, so no YouTube audio is fetched until ${s.youtubeBlockedUntil}`);
+      }
+      const tj = { key, personId: person.id, title: src.title, startedAt: new Date(d.now()).toISOString() };
+      transcribing = tj;
+      if (src.hold && ['refused', 'failed'].includes(src.hold.state)) await clearHold(key);
+      await setWorking(key, 'transcript');
+      tj.promise = runTranscript(person, src).finally(() => { if (transcribing === tj) transcribing = null; });
+      const out = await tj.promise;
+      src = await getSource(key);
+      if (src.stage === 'found') throw new Error(`the transcript failed: ${out?.why || src.hold?.why || 'it gave no reason'}`);
+    }
+  }
+
+  // 2. the read: wait for the queue's own read of it, or read it now
+  job.phase = 'reading';
+  if (src.stage === 'transcript') {
+    const running = readJobs.get(key);
+    if (running) await running.promise?.catch(() => {});
+    src = await getSource(key);
+    if (src.stage === 'transcript') {
+      const block = await paidBlock();
+      if (block) throw new Error(`the read did not start: ${block.message}`);
+      const rj = { status: 'running', personId: person.id, key, title: src.title, startedAt: new Date(d.now()).toISOString() };
+      readJobs.set(key, rj);
+      await setWorking(key, 'read');
+      rj.promise = runRead(person, src, { brief: false });
+      const out = await rj.promise;
+      src = await getSource(key);
+      if (src.stage === 'transcript') throw new Error(`the read failed: ${out?.why || src.hold?.why || 'it gave no reason'}`);
+    }
+  }
+
+  // 3. the brief (the news item still says "reading")
+  const block = await paidBlock();
+  if (block) throw new Error(`the brief did not start: ${block.message}`);
+  const b = await d.writeBrief(key);
+  await log(person.id, key, 'brief', `${b.ideas.length} takeaways, $${b.costUsd} on ${b.model}`);
+  return b;
+}
+
+/** POST /mentors/:id/raised/:rid/research, under his ceilings. */
+export function researchRaised(personId, rid, body, { vaultPath } = {}) {
+  return startResearch(personId, rid, body || {}, { vaultPath, gate: paidBlock });
+}
+
+// at start-up: up to three read or woven videos of the last 14 days that
+// have no brief get one, one after another, under his ceilings
+async function startupBriefs() {
+  const now = D().now();
+  const owed = [];
+  for (const person of await following()) {
+    for (const src of await listSources({ personId: person.id, tier: 1 })) {
+      if ((src.stage === 'read' || src.stage === 'woven') && !src.brief && recent(src, now) && !owed.some((x) => x.key === src.key)) owed.push({ personId: person.id, key: src.key, at: src.publishedAt });
+    }
+  }
+  owed.sort((a, b) => (a.at < b.at ? 1 : -1));
+  let n = 0;
+  for (const o of owed.slice(0, BRIEFS_AT_START)) if (await autoBrief(o.personId, o.key)) n += 1;
+  return n;
 }
 
 /** For tests and scripts: tick and wait until nothing starts and nothing is
@@ -558,7 +766,7 @@ export async function runUntilIdle({ maxMs = 60_000 } = {}) {
   while (Date.now() < until) {
     const got = await tick();
     all.push(...got);
-    const flying = [transcribing?.promise, ...[...readJobs.values()].map((j) => j.promise), ...[...weaveJobs.values()].map((j) => j.promise)].filter(Boolean);
+    const flying = [transcribing?.promise, ...[...readJobs.values()].map((j) => j.promise), ...[...weaveJobs.values()].map((j) => j.promise), ...[...questionJobs.values()].map((j) => j.promise), ...[...briefJobs.values()].map((j) => j.promise)].filter(Boolean);
     if (!got.length && !flying.length) break;
     if (flying.length) await Promise.race([Promise.all(flying), new Promise((r) => setTimeout(r, 50))]);
   }
@@ -606,8 +814,9 @@ export async function queueStatus() {
         const wf = s.weaveFailures[p.id];
         const toWeave = wf && work.scoped.some((x) => x.stage === 'read' && !x.hold && !x.working);
         const again = wf ? new Date(wf.at).getTime() + FAILED_WAIT_MS : 0;
-        if (toWeave && wf.n >= MAX_FAILS) { doing = 'waiting'; waiting = { on: 'weave', until: null, why: wf.why, failed: wf.n }; }
-        else if (toWeave && now < again) { doing = 'waiting'; waiting = { on: 'weave', until: new Date(again).toISOString(), why: wf.why, failed: wf.n }; }
+        const step = String(wf?.why || '').match(/the weave's (\w+) step/)?.[1] || null;
+        if (toWeave && wf.n >= MAX_FAILS) { doing = 'waiting'; waiting = { on: 'weave', until: null, why: wf.why, failed: wf.n, step }; }
+        else if (toWeave && now < again) { doing = 'waiting'; waiting = { on: 'weave', until: new Date(again).toISOString(), why: wf.why, failed: wf.n, step }; }
         else doing = 'done';
       }
     }
@@ -654,9 +863,18 @@ export function startMentorQueue(vaultPath) {
     .then(() => resetWorking())
     .then((n) => { if (n) console.log(`mentor queue: ${n} source${n === 1 ? '' : 's'} cut off by the restart will start again`); })
     .catch((e) => console.error('mentor queue: resetWorking failed:', e.message))
+    .then(async () => {
+      // a raised item left mid-research by the restart goes back to new, saying why
+      const n = await recoverResearch((await listPeople()).map((p) => p.id), { vaultPath: vaultPathNow });
+      if (n) console.log(`mentor queue: ${n} raised item${n === 1 ? '' : 's'} cut off mid-research by the restart put back to new`);
+    })
+    .catch((e) => console.error('mentor queue: the research recovery failed:', e.message))
     .finally(() => {
       run();
       if (!timer) { timer = setInterval(run, TICK_MS); timer.unref?.(); }
+      startupBriefs()
+        .then((n) => { if (n) console.log(`mentor queue: ${n} recent video${n === 1 ? '' : 's'} briefed at start-up`); })
+        .catch((e) => console.error('mentor queue: the start-up briefs failed:', e.message));
     });
 }
 

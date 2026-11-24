@@ -299,8 +299,10 @@ test('the raised items: GET lists every status newest first, POST sets his call 
   assert.ok(!page.includes('Older Idea'), 'a dismissed item leaves the mentor page');
   assert.ok(page.includes('Newer Idea'));
   assert.equal((await get('/mentors/w/raised')).body.raised.find((r) => r.rid === 'R1.1').status, 'dismissed', 'but the list keeps it');
-  assert.equal((await post('/mentors/w/raised/R1.1', { status: 'research' })).status, 200);
-  assert.match(fs.readFileSync(pageRel, 'utf8'), /Older Idea.*\[research\]/);
+  // research starts only through its own route, and answered is code's
+  assert.equal((await post('/mentors/w/raised/R1.1', { status: 'research' })).status, 400);
+  assert.equal((await post('/mentors/w/raised/R1.1', { status: 'answered' })).status, 400);
+  assert.equal((await post('/mentors/w/raised/R1.1', { status: 'kept' })).status, 200);
 
   assert.equal((await post('/mentors/w/raised/R1.1', { status: 'banana' })).status, 400);
   assert.equal((await post('/mentors/w/raised/R1.1', {})).status, 400);
@@ -314,5 +316,5 @@ test('the raised items: GET lists every status newest first, POST sets his call 
     assert.equal(busy.status, 409);
     assert.match(busy.body.error, /a weave for this person is running/);
   } finally { W._resetWeaveForTests(); }
-  assert.equal((await get('/mentors/w/raised')).body.raised.find((r) => r.rid === 'R1.1').status, 'research', 'the refused call changed nothing');
+  assert.equal((await get('/mentors/w/raised')).body.raised.find((r) => r.rid === 'R1.1').status, 'kept', 'the refused call changed nothing');
 });

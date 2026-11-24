@@ -538,6 +538,21 @@ export const LANES = [
     off: 'Nothing new is woven into the vault; what was read waits, and what was woven stays.',
   },
   {
+    // MENTORS News (25 Nov 2026): three questions per raised item, and the
+    // three takeaways of a "Brief me". The model chooses and judges; code
+    // supplies every other word. No tools, never Fable (mentorModelChoice).
+    id: 'mentor-brief', label: 'Mentors · takeaways and questions', group: 'research', def: 'sonnet', defEffort: 'low',
+    hint: 'writes three research questions for each raised item, and picks the three takeaways of a video you asked to be briefed on; code words the takeaways from the read',
+    off: 'No new questions or briefs are written; what was written stays.',
+  },
+  {
+    // MENTORS News (25 Nov 2026): one raised item's question answered from
+    // the web. WebSearch and WebFetch only (boundaryArgs), never Fable.
+    id: 'mentor-research', label: 'Mentors · answering a question', group: 'research', def: 'sonnet', defEffort: 'medium',
+    hint: 'searches the web to answer one question about something raised for your review, with its sources; code checks the answer and every link',
+    off: 'Asking a question about a raised item is refused; answers already given stay.',
+  },
+  {
     id: 'playbook-learn', label: 'Playbooks · learning a method', group: 'research', def: 'sonnet', defEffort: 'medium',
     hint: 'reads the videos and podcasts you drop and drafts the playbook; code checks every rule against the transcript',
     off: 'Learn-this requests are refused with a plain message; the playbooks you have keep being applied.',

@@ -58,7 +58,11 @@ export const LANE = 'mentor-weave';
 export const WEAVE_VERSION = 'weave-v3';
 export const MAX_RAISED_PER_SOURCE = 3;
 export const MAX_TOPICS = 60;
-export const RAISED_STATUSES = ['new', 'kept', 'dismissed', 'research'];
+// what he may set by POST /mentors/:id/raised/:rid; `research` starts only
+// through the research route (lib/mentorAsk.js) and `answered` is set only
+// by code, but a Book may hold either
+export const RAISED_STATUSES = ['new', 'kept', 'dismissed'];
+export const RAISED_ALL = ['new', 'kept', 'dismissed', 'research', 'answered'];
 export const MAX_KEYS = 10;
 export const CONCEPTS_PER_CALL = 6;
 export const MAX_CARDS = 60;
@@ -1090,17 +1094,33 @@ function noteLine(n) {
   return `- ${one(n.name)}${paren ? ` (${paren})` : ''}${one(n.text) ? `: ${one(n.text)}` : ''}`;
 }
 
-// what is waiting for his look: new, kept or sent to research, newest first
-const SHOWN_ON_PAGE = ['new', 'kept', 'research'];
+// what is waiting for his look: new, kept, sent to research or answered, newest first
+const SHOWN_ON_PAGE = ['new', 'kept', 'research', 'answered'];
+const TAGGED = ['kept', 'research', 'answered'];
 const newestFirstBy = (list) => [...list].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+// a link's text and target, so a bracket in a title or a space or bracket in
+// a URL cannot end the link early
+const linkText = (t) => one(t).replace(/([[\]\\])/g, '\\$1');
+const linkUrl = (u) => one(u).replace(/[ ()<>]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
+// an item with an answer: the question asked, the answer and its sources,
+// directly under the item's own line (an item with none renders as before)
+function answerLines(r) {
+  if (!r.answer || !one(r.answer.text)) return [];
+  const out = [];
+  if (one(r.asked?.text)) out.push(`  - Asked: ${one(r.asked.text)}`);
+  out.push(`  - Answer: ${one(r.answer.text)}`);
+  const src = (r.answer.sources || []).filter((x) => one(x?.url));
+  if (src.length) out.push(`  - Sources: ${src.map((x) => `[${linkText(x.title) || linkUrl(x.url)}](${linkUrl(x.url)})`).join('; ')}`);
+  return out;
+}
 function reviewLines(book) {
   const items = newestFirstBy((book.raised || []).filter((r) => SHOWN_ON_PAGE.includes(r.status || 'new')));
   if (!items.length) return [];
-  return ['## For your review', ...items.map((r) => {
+  return ['## For your review', ...items.flatMap((r) => {
     const by = one(r.by) && one(r.by) !== 'unclear' ? one(r.by) : '';
     const cite = r.s ? `S${r.s}${one(r.t) ? ` ${one(r.t)}` : ''}` : one(r.t);
     const paren = [by, cite].filter(Boolean).join('; ');
-    return `- ${one(r.name)}${paren ? ` (${paren})` : ''}${one(r.text) ? `: ${one(r.text)}` : ''}${one(r.why) ? ` Why: ${one(r.why)}` : ''}${one(r.question) ? ` Question: ${one(r.question)}` : ''}${r.status === 'kept' || r.status === 'research' ? ` [${r.status}]` : ''}`;
+    return [`- ${one(r.name)}${paren ? ` (${paren})` : ''}${one(r.text) ? `: ${one(r.text)}` : ''}${one(r.why) ? ` Why: ${one(r.why)}` : ''}${one(r.question) ? ` Question: ${one(r.question)}` : ''}${TAGGED.includes(r.status) ? ` [${r.status}]` : ''}`, ...answerLines(r)];
   }), ''];
 }
 
@@ -1808,7 +1828,7 @@ export async function weekSummary(personId, { days = 7 } = {}) {
   totals.costUsd = Math.round(totals.costUsd * 10000) / 10000;
   return {
     from: localDateISO(new Date(fromMs)), to: localDateISO(new Date(now)),
-    batches: list.map((w) => ({ batchId: w.batchId, at: w.at, counts: w.counts, undoable: w.undoable })),
+    batches: list.map((w) => ({ batchId: w.batchId, at: w.at, counts: w.counts, undoable: w.undoable, keys: w.keys || [] })),
     totals,
   };
 }
@@ -1825,42 +1845,87 @@ export async function listRaised(personId) {
   return newestFirstBy(book?.raised || []);
 }
 
+// One Book write at a time per person: a status he sets, an answer that
+// lands and the questions written in the background never overwrite each
+// other with a stale copy.
+const bookLocks = new Map();
+function withBookLock(personId, fn) {
+  const prev = bookLocks.get(personId) || Promise.resolve();
+  const job = prev.then(fn, fn);
+  const tail = job.then(() => {}, () => {});
+  bookLocks.set(personId, tail);
+  tail.then(() => { if (bookLocks.get(personId) === tail) bookLocks.delete(personId); });
+  return job;
+}
+
 /**
- * His call on one raised item: new, kept, dismissed or research. Sets it in
- * the Book file and renders the mentor page again, through the weave's own
- * write guard, and only a page code wrote. Refused while a weave for this
- * person runs. The newest standing weave record learns the page's new hash, so
- * an undo still puts the page back.
+ * A change to the Book that does not touch the vault (the questions of the
+ * raised items, a start-up repair with no vault path): `fn(book)` edits the
+ * freshly read Book in place and returns a value; the Book is written when
+ * `fn` returns anything but false. Refused while a weave for the person runs,
+ * because the weave writes its own copy of the Book when it ends.
+ */
+export function mutateBook(personId, fn) {
+  return withBookLock(personId, async () => {
+    if (active === personId) { const e = new Error('a weave for this person is running now; the book is changed once that has finished'); e.refused = true; throw e; }
+    const book = await getBook(personId);
+    if (!book) return null;
+    const out = await fn(book);
+    if (out !== false) await writeAtomic(bookPath(personId), JSON.stringify(book, null, 2));
+    return out;
+  });
+}
+
+/**
+ * The guarded path every change to one raised item takes (his status call,
+ * a research run starting, an answer or a failure landing): `change(item,
+ * book)` edits the item in place; the Book is saved and the mentor page
+ * rendered again, through the weave's own write guard, and only a page code
+ * wrote. Refused while a weave for this person runs. The newest standing weave
+ * record learns the page's new hash, so an undo still puts the page back.
+ */
+export function changeRaised(personId, rid, change, { vaultPath } = {}) {
+  const fail = (message, flag) => { const e = new Error(message); e[flag] = true; return e; };
+  if (!vaultPath) return Promise.reject(new Error('setting a raised item needs the vault path (VAULT_PATH), and none was given'));
+  return withBookLock(personId, async () => {
+    if (active === personId) throw fail('a weave for this person is running now; set it once that has finished', 'refused');
+    const book = await getBook(personId);
+    const item = (book?.raised || []).find((r) => r.rid === rid);
+    if (!item) throw fail(`there is no raised item "${rid}" for ${personId}`, 'notFound');
+    await change(item, book);
+    const bookRel = mentorRel(book.name);
+    if (!vaultWriteAllowed(vaultPath, bookRel)) throw refusal(bookRel);
+    const full = path.join(vaultPath, bookRel);
+    const before = await readOr(full);
+    let text = null;
+    if (before != null) {
+      if (!isOurs(before)) throw new Error(`${bookRel} was not written by Mentors, so the weave will not replace it; nothing was changed`);
+      text = mentorPage(book, localDateISO(new Date(D().now())), fmField(before, 'created'));
+      if (text !== before) { await backupFile(full); await writeFile(full, text, 'utf8'); }
+    }
+    try {
+      await writeAtomic(bookPath(personId), JSON.stringify(book, null, 2));
+    } catch (e) {
+      if (text != null && text !== before) await writeFile(full, before, 'utf8').catch(() => {});
+      throw e;
+    }
+    if (text != null && text !== before) {
+      const top = (await readRecords()).find((r) => r.personId === personId && !r.undoneAt);
+      const f = top?.files?.find((x) => x.relPath === bookRel);
+      if (f) { f.afterHash = sha(text); await writeAtomic(path.join(weavesDir(), `${top.batchId}.json`), JSON.stringify(top, null, 2)); }
+    }
+    return item;
+  });
+}
+
+/**
+ * His call on one raised item: new, kept or dismissed (research starts only
+ * through the research route, lib/mentorAsk.js). Through changeRaised: the
+ * Book, the mentor page, the weave record's hash. "Ask more" is `new`: the
+ * last question and answer stay on the item.
  */
 export async function setRaisedStatus(personId, rid, status, { vaultPath } = {}) {
   const fail = (message, flag) => { const e = new Error(message); e[flag] = true; return e; };
   if (!RAISED_STATUSES.includes(status)) throw fail(`the status must be one of ${RAISED_STATUSES.join(', ')}`, 'badRequest');
-  if (!vaultPath) throw new Error('setting a raised item needs the vault path (VAULT_PATH), and none was given');
-  if (active === personId) throw fail('a weave for this person is running now; set it once that has finished', 'refused');
-  const book = await getBook(personId);
-  const item = (book?.raised || []).find((r) => r.rid === rid);
-  if (!item) throw fail(`there is no raised item "${rid}" for ${personId}`, 'notFound');
-  item.status = status;
-  const bookRel = mentorRel(book.name);
-  if (!vaultWriteAllowed(vaultPath, bookRel)) throw refusal(bookRel);
-  const full = path.join(vaultPath, bookRel);
-  const before = await readOr(full);
-  let text = null;
-  if (before != null) {
-    if (!isOurs(before)) throw new Error(`${bookRel} was not written by Mentors, so the weave will not replace it; nothing was changed`);
-    text = mentorPage(book, localDateISO(new Date(D().now())), fmField(before, 'created'));
-    if (text !== before) { await backupFile(full); await writeFile(full, text, 'utf8'); }
-  }
-  try {
-    await writeAtomic(bookPath(personId), JSON.stringify(book, null, 2));
-  } catch (e) {
-    if (text != null && text !== before) await writeFile(full, before, 'utf8').catch(() => {});
-    throw e;
-  }
-  if (text != null && text !== before) {
-    const top = (await readRecords()).find((r) => r.personId === personId && !r.undoneAt);
-    const f = top?.files?.find((x) => x.relPath === bookRel);
-    if (f) { f.afterHash = sha(text); await writeAtomic(path.join(weavesDir(), `${top.batchId}.json`), JSON.stringify(top, null, 2)); }
-  }
-  return item;
+  return changeRaised(personId, rid, (item) => { item.status = status; }, { vaultPath });
 }

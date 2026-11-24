@@ -1168,8 +1168,11 @@ test('v3: setRaisedStatus sets the status, renders the mentor page again, refuse
   await W.setRaisedStatus('sam', 'R2.1', 'kept', { vaultPath: vault });
   assert.match(read('Wiki/Mentors/Sam Host.md'), /Question: Do people correct a wrong guess faster than a right one\? \[kept\]\n/);
   assert.equal((await W.getBook('sam')).raised[0].status, 'kept');
-  await W.setRaisedStatus('sam', 'R2.1', 'research', { vaultPath: vault });
-  assert.match(read('Wiki/Mentors/Sam Host.md'), /\[research\]\n/);
+  // research is not his to set by status: it starts only through the research route
+  await assert.rejects(W.setRaisedStatus('sam', 'R2.1', 'research', { vaultPath: vault }), (e) => e.badRequest);
+  await assert.rejects(W.setRaisedStatus('sam', 'R2.1', 'answered', { vaultPath: vault }), (e) => e.badRequest);
+  await W.changeRaised('sam', 'R2.1', (it) => { it.status = 'research'; }, { vaultPath: vault });
+  assert.match(read('Wiki/Mentors/Sam Host.md'), /\[research\]\n/, 'an item that holds research in the Book still renders');
   await W.setRaisedStatus('sam', 'R2.1', 'dismissed', { vaultPath: vault });
   assert.doesNotMatch(read('Wiki/Mentors/Sam Host.md'), /For your review|Labels name what you sense \(/);
   assert.equal((await W.listRaised('sam'))[0].status, 'dismissed', 'the list keeps every status');

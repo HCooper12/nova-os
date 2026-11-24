@@ -359,9 +359,16 @@ export function verifyNotes(parsed, transcript) {
 // ENDED, the open-stdin trap), zero tools, the lane's effort, the never-Fable
 // model the caller chose. Shared with the weave (lib/mentorWeave.js), whose
 // calls have the same shape and only a different lane and system prompt.
-export function runMentorClaude(prompt, model, { lane = LANE, systemPrompt = SYSTEM_PROMPT, what = 'the read' } = {}) {
+//
+// `allowed` (25 Nov 2026, the research lane): the tools the run may reach,
+// as boundaryArgs takes them ('WebSearch WebFetch'); none by default, as
+// before. A run with tools streams its events (stream-json), so the caller
+// also gets `seen`: every tool input and tool result text of the run, which
+// is how code checks that a cited link was really opened or found.
+export function runMentorClaude(prompt, model, { lane = LANE, systemPrompt = SYSTEM_PROMPT, what = 'the read', allowed = '' } = {}) {
   if (FABLE_RE.test(String(model || ''))) return Promise.reject(new Error(`${what} was asked to run on ${model}; a mentor lane never runs on Fable (his rule)`));
   const d = D();
+  const tools = String(allowed || '').trim();
   return new Promise((resolve, reject) => {
     const started = d.now();
     let child;
@@ -370,9 +377,9 @@ export function runMentorClaude(prompt, model, { lane = LANE, systemPrompt = SYS
         '-p',
         '--model', model,
         ...effortArgs(lane),
-        ...boundaryArgs(''),
+        ...boundaryArgs(tools),
         '--no-session-persistence',
-        '--output-format', 'json',
+        ...(tools ? ['--output-format', 'stream-json', '--verbose'] : ['--output-format', 'json']),
         '--system-prompt', systemPrompt,
       ], { cwd: os.tmpdir(), stdio: ['pipe', 'pipe', 'pipe'] });
     } catch (e) {
@@ -386,14 +393,43 @@ export function runMentorClaude(prompt, model, { lane = LANE, systemPrompt = SYS
     child.on('error', (e) => reject(new Error(`${what} could not start Claude: ${e.message}`)));
     child.on('close', (code) => {
       try {
-        const outer = parseEnvelope(stdout, { lane, code, stderr });
+        const streamed = tools ? fromStream(stdout) : null;
+        const outer = parseEnvelope(streamed ? streamed.result : stdout, { lane, code, stderr });
         const f = fromEnvelope(outer);
-        resolve({ text: String(outer?.result ?? ''), usd: f.usd || 0, answeredBy: f.model, ms: d.now() - started });
+        // every model the run touched: a web run also uses a small model of
+        // the CLI's own to read pages, which can out-write the one asked
+        const models = Object.keys(outer?.modelUsage && typeof outer.modelUsage === 'object' ? outer.modelUsage : {});
+        resolve({ text: String(outer?.result ?? ''), usd: f.usd || 0, answeredBy: f.model, models, ms: d.now() - started, ...(streamed ? { seen: streamed.seen } : {}) });
       } catch (e) { reject(e); }
     });
     child.stdin?.on('error', () => {});
     child.stdin?.end(prompt);
   });
+}
+
+// A stream-json run's stdout: the final `result` event (the envelope, as the
+// JSON text parseEnvelope reads; '' when there is none, so parseEnvelope gives
+// the real cause from stderr) and `seen`, the text of every tool call's input
+// and every tool result, joined.
+export function fromStream(stdout) {
+  let result = '';
+  const seen = [];
+  const textOf = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map(textOf).join('\n') : c && typeof c === 'object' ? (typeof c.text === 'string' ? c.text : JSON.stringify(c)) : '');
+  for (const line of String(stdout || '').split('\n')) {
+    const t = line.trim();
+    if (!t.startsWith('{')) continue;
+    let ev;
+    try { ev = JSON.parse(t); } catch { continue; }
+    if (ev?.type === 'result') { result = t; continue; }
+    for (const part of Array.isArray(ev?.message?.content) ? ev.message.content : []) {
+      if (part?.type === 'tool_use') seen.push(JSON.stringify(part.input ?? {}));
+      else if (part?.type === 'tool_result') seen.push(textOf(part.content));
+      else if (part?.type === 'server_tool_use') seen.push(JSON.stringify(part.input ?? {}));
+      else if (/tool_result$/.test(String(part?.type || ''))) seen.push(textOf(part.content));
+    }
+    if (ev?.tool_use_result) seen.push(textOf(ev.tool_use_result));
+  }
+  return { result, seen: seen.join('\n') };
 }
 
 async function writeAtomic(file, text) {

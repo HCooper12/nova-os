@@ -320,6 +320,21 @@ export async function clearHold(key) {
   await persist();
 }
 
+// The News fields of one source (25 Nov 2026): its brief, the last brief
+// failure, and when he asked for it. Nothing else is set this way; a stage,
+// a hold and the working mark keep their own writers above.
+const NEWS_FIELDS = ['brief', 'briefError', 'briefAskedAt'];
+export async function patchSource(key, patch = {}) {
+  const { sources } = await loadRegister();
+  const s = need(sources, key);
+  const bad = Object.keys(patch || {}).filter((k) => !NEWS_FIELDS.includes(k));
+  if (bad.length) throw new Error(`mentorRegister: patchSource sets only ${NEWS_FIELDS.join(', ')}, not ${bad.join(', ')}`);
+  Object.assign(s, copy(patch));
+  s.updatedAt = now();
+  await persist();
+  return copy(s);
+}
+
 // After a restart nothing is in flight, whatever the file last said.
 export async function resetWorking() {
   const { sources } = await loadRegister();

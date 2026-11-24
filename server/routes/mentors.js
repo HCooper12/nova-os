@@ -8,9 +8,11 @@ import {
 import { countsFor, listSources, backfillFromVault } from '../lib/mentorRegister.js';
 import { readClaudeUsage } from '../lib/claudeUsage.js';
 import {
-  queueStatus, pauseQueue, allowReading, setCeilings, retrySource, retryWeave,
+  queueStatus, pauseQueue, allowReading, setCeilings, retrySource, retryWeave, briefNow, researchRaised,
 } from '../lib/mentorQueue.js';
-import { getBook, listWeaves, undoWeave, weekSummary, listRaised, setRaisedStatus, RAISED_STATUSES } from '../lib/mentorWeave.js';
+import { getBook, listWeaves, undoWeave, weekSummary, setRaisedStatus, RAISED_STATUSES } from '../lib/mentorWeave.js';
+import { listRaisedViews, raisedView, researching } from '../lib/mentorAsk.js';
+import { newsFeed, newsVideo, transcriptAround } from '../lib/mentorNews.js';
 
 // MENTORS: the people Nova studies (lib/mentorPeople.js), the register of
 // everything he has read from them (lib/mentorRegister.js), and finding a new
@@ -36,7 +38,11 @@ import { getBook, listWeaves, undoWeave, weekSummary, listRaised, setRaisedStatu
 //   POST /mentors/weave/undo     {batchId}             one batch taken back out
 //   GET  /mentors/:id/week       what was woven in the last 7 days, counted
 //   GET  /mentors/:id/raised     what was raised for his review, every status, newest first
-//   POST /mentors/:id/raised/:rid {status}             new, kept, dismissed or research
+//   POST /mentors/:id/raised/:rid {status}             new, kept or dismissed ("Ask more" is new)
+//   POST /mentors/:id/raised/:rid/research {kind, question}  research starts; the answer lands later
+//   GET  /mentors/news                                 the News feed: videos, learned, raised
+//   POST /mentors/source/brief {key}                   "Brief me": transcript, read, then three takeaways
+//   GET  /mentors/source/transcript?key&at&span        the transcript around a moment
 //
 // A failure of YouTube, Apple, Open Library or a tool is a 502 that says which
 // and what it answered (lib/mentorDiscover.js marks those); anything else of
@@ -104,6 +110,44 @@ export function mentorsRouter(vaultPath) {
       const people = await listPeople();
       res.json({ people: await Promise.all(people.map(async (p) => ({ ...withArtUrls(p), counts: await countsFor(p.id) }))) });
     } catch (err) { fail(res, err); }
+  });
+
+  router.get('/mentors/news', async (req, res) => {
+    try { res.json(await newsFeed({ now: Date.now(), artUrl: (f) => ART_URL + f })); } catch (err) { fail(res, err); }
+  });
+
+  router.get('/mentors/source/transcript', async (req, res) => {
+    try {
+      const key = typeof req.query.key === 'string' ? req.query.key.trim() : '';
+      if (!key) return res.status(400).json({ error: 'send the key of the source, as key=yt:<id>' });
+      const num = (v, what) => {
+        if (v === undefined || v === '') return undefined;
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) throw Object.assign(new Error(`${what} must be a number of seconds, 0 or more`), { badRequest: true });
+        return n;
+      };
+      const at = num(req.query.at, 'at');
+      const span = num(req.query.span, 'span');
+      res.json(await transcriptAround(key, { at: at ?? null, span: span ?? 75 }));
+    } catch (err) {
+      if (err?.badRequest) return res.status(400).json({ error: err.message });
+      if (err?.notFound) return res.status(404).json({ error: err.message });
+      if (err?.refused) return res.status(409).json({ error: err.message });
+      fail(res, err);
+    }
+  });
+
+  router.post('/mentors/source/brief', async (req, res) => {
+    try {
+      const key = typeof req.body?.key === 'string' ? req.body.key.trim() : '';
+      if (!key) return res.status(400).json({ error: 'send the key of the source to brief, as "yt:<id>"' });
+      const src = await briefNow(key);
+      res.json({ video: newsVideo(src, src.people?.[0]?.id ?? null) });
+    } catch (err) {
+      if (err?.notFound) return res.status(404).json({ error: err.message });
+      if (err?.refused) return res.status(409).json({ error: err.message });
+      fail(res, err);
+    }
   });
 
   router.get('/mentors/usage', async (req, res) => {
@@ -231,7 +275,7 @@ export function mentorsRouter(vaultPath) {
   router.get('/mentors/:id/raised', async (req, res) => {
     try {
       if (!(await known(req, res))) return;
-      res.json({ raised: await listRaised(req.params.id) });
+      res.json({ raised: await listRaisedViews(req.params.id) });
     } catch (err) { fail(res, err); }
   });
 
@@ -241,7 +285,23 @@ export function mentorsRouter(vaultPath) {
       const status = typeof req.body?.status === 'string' ? req.body.status : '';
       if (!RAISED_STATUSES.includes(status)) return res.status(400).json({ error: `send status as one of ${RAISED_STATUSES.join(', ')}` });
       if (!vaultPath) return res.status(500).json({ error: 'the vault path is not set on this server (VAULT_PATH), so there is no mentor page to update' });
-      res.json({ raised: await setRaisedStatus(req.params.id, req.params.rid, status, { vaultPath }) });
+      if (researching(req.params.id, req.params.rid)) return res.status(409).json({ error: 'it is being researched now; set it once the answer is in' });
+      const item = await setRaisedStatus(req.params.id, req.params.rid, status, { vaultPath });
+      res.json({ raised: await raisedView(item, await getBook(req.params.id)) });
+    } catch (err) {
+      if (err?.badRequest) return res.status(400).json({ error: err.message });
+      if (err?.notFound) return res.status(404).json({ error: err.message });
+      if (err?.refused) return res.status(409).json({ error: err.message });
+      fail(res, err);
+    }
+  });
+
+  router.post('/mentors/:id/raised/:rid/research', async (req, res) => {
+    try {
+      if (!(await known(req, res))) return;
+      if (!vaultPath) return res.status(500).json({ error: 'the vault path is not set on this server (VAULT_PATH), so there is no mentor page to update' });
+      const item = await researchRaised(req.params.id, req.params.rid, { kind: req.body?.kind, question: req.body?.question }, { vaultPath });
+      res.json({ raised: await raisedView(item, await getBook(req.params.id)) });
     } catch (err) {
       if (err?.badRequest) return res.status(400).json({ error: err.message });
       if (err?.notFound) return res.status(404).json({ error: err.message });
