@@ -534,9 +534,20 @@ export function pagesFromOthers(book, n) {
   ].filter(Boolean);
 }
 
+/**
+ * How many key takeaways a brief holds: a long conversation has more to
+ * bring to him than a short clip (his call, 25 Nov 2026). Three under 20
+ * minutes or when the length is not known, four under 45, five beyond; never
+ * more than the read holds (`size`).
+ */
+export function briefWant(sec, size) {
+  const by = !(sec > 0) || sec < 20 * 60 ? 3 : sec < 45 * 60 ? 4 : 5;
+  return Math.min(by, size);
+}
+const COUNT_WORD = ['', 'one', 'two', 'three', 'four', 'five'];
+
 /** The checks the brief's reply must pass; [] when it is good. */
-export function briefFailures(reply, size) {
-  const want = Math.min(3, size);
+export function briefFailures(reply, size, want = Math.min(3, size)) {
   const top = reply?.top;
   if (!Array.isArray(top)) return ['"top" is not a list'];
   const f = [];
@@ -573,7 +584,7 @@ export function lineFailures(line) {
 function briefPrompt({ title, summary, list, pages, want }) {
   return [
     `Below are the ideas and methods from the reading notes of one video, "${title}", numbered.`,
-    `Pick its ${want === 1 ? 'one key takeaway' : `${want === 2 ? 'two' : 'three'} key takeaways`}: what the video is mainly about and what he could use, the most important first. An idea at the centre of the video's subject (its title and summary) comes before a passing story; choose an unusual claim only when it is also among the most useful.`,
+    `Pick its ${want === 1 ? 'one key takeaway' : `${COUNT_WORD[want]} key takeaways`}: what the video is mainly about and what he could use, the most important first. An idea at the centre of the video's subject (its title and summary) comes before a passing story; choose an unusual claim only when it is also among the most useful.`,
     'For each, judge "new": true when no page already in his playbook (listed under PAGES) covers the idea, false when one does.',
     'For each, write "line": the substance of that idea in one plain sentence of 6 to 24 words, from its text below and nothing else, ending with a full stop, with no quote marks and no dashes.',
     '',
@@ -590,8 +601,8 @@ function briefPrompt({ title, summary, list, pages, want }) {
 }
 
 /**
- * The brief of one read source: the model picks up to three of the read's
- * ideas, judges each new or not and writes its one line from the notes; the
+ * The brief of one read source: the model picks the read's key ideas (three
+ * to five by the video's length, briefWant), judges each new or not and writes its one line from the notes; the
  * name, who said it and the time are the read's, verbatim. Saved on the source in the
  * register with the call's own cost; the old briefError goes. Returns the
  * brief. Throws with the cause (no notes, the lane off, the check failed twice).
@@ -609,8 +620,8 @@ export async function writeBrief(key) {
   const n = (book?.sources || []).find((s) => s.key === key)?.n ?? null;
   const { model, why } = mentorModelChoice(BRIEF_LANE);
   if (why) console.log(`mentorAsk: ${why}`);
-  const want = Math.min(3, list.length);
-  const r = await askChecked(BRIEF_LANE, 'the brief', briefPrompt({ title: src.title || key, summary: one(parsed.summary), list, pages: pagesFromOthers(book, n), want }), (reply) => briefFailures(reply, list.length), { model });
+  const want = briefWant(src.durationSec, list.length);
+  const r = await askChecked(BRIEF_LANE, 'the brief', briefPrompt({ title: src.title || key, summary: one(parsed.summary), list, pages: pagesFromOthers(book, n), want }), (reply) => briefFailures(reply, list.length, want), { model });
   const brief = {
     at: iso(),
     model: r.answeredBy || model,

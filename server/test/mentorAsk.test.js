@@ -117,7 +117,7 @@ function install(ask) {
 
 async function seed({ book = fixtureBook(), withPage = true } = {}) {
   await P.savePerson({ id: 'sam', name: 'Sam Host', status: 'following' });
-  await R.upsertSources([{ key: K1, kind: 'video', tier: 1, title: 'Rude Comments Talk', url: 'https://www.youtube.com/watch?v=aaaaaaaaaa1', publishedAt: '2026-11-20T00:00:00.000Z', durationSec: 1800, people: [{ id: 'sam', role: 'host' }] }]);
+  await R.upsertSources([{ key: K1, kind: 'video', tier: 1, title: 'Rude Comments Talk', url: 'https://www.youtube.com/watch?v=aaaaaaaaaa1', publishedAt: '2026-11-20T00:00:00.000Z', durationSec: 900, people: [{ id: 'sam', role: 'host' }] }]);
   await R.setStage(K1, 'read', { read: { version: 'read-v1', costUsd: 0.1, ideas: 4, scripts: 0, lines: 0 } });
   const tp = T.transcriptPathFor(K1);
   fs.mkdirSync(path.dirname(tp), { recursive: true });
@@ -241,7 +241,7 @@ test('research: the happy path ends answered, with its sources, model and cost, 
   assert.ok(page().includes('Question: Does the interval change the effect? [answered]\n  - Asked: Does the interval change the effect?\n  - Answer: Partly. Once a week raised well-being over six weeks, and three times a week did not.\n  - Sources: [Lyubomirsky, Sheldon and Schkade, 2005](https://doi.org/10.1037/1089-2680.9.2.111)\n'), page());
   // the item view carries everything the client needs
   const view = (await A.listRaisedViews('sam')).find((r) => r.rid === 'R1.1');
-  assert.deepEqual(view.source, { id: 'aaaaaaaaaa1', title: 'Rude Comments Talk', sec: 1800, date: '2026-11-20T00:00:00.000Z' });
+  assert.deepEqual(view.source, { id: 'aaaaaaaaaa1', title: 'Rude Comments Talk', sec: 900, date: '2026-11-20T00:00:00.000Z' });
   assert.equal(view.ts, 1578);
   assert.equal(view.questions.true, 'Does the interval change the effect?');
 });
@@ -434,6 +434,11 @@ test('lineFailures: one plain sentence of 6 to 24 words, a full stop, no quote m
   assert.ok(A.lineFailures('He says "go" and then he leaves the room at once.').some((f) => /quote marks/.test(f)));
   assert.ok(A.lineFailures('He stays calm \u2014 and then he leaves the room at once.').some((f) => /dash/.test(f)));
   assert.ok(A.briefFailures({ top: [{ n: 1, new: true }] }, 1).some((f) => /entry 1: it has no "line"/.test(f)));
+  // a long video carries more: three under 20 minutes, four under 45, five beyond, never more than the read holds
+  assert.deepEqual([A.briefWant(null, 9), A.briefWant(600, 9), A.briefWant(1200, 9), A.briefWant(2699, 9), A.briefWant(2700, 9), A.briefWant(7200, 9), A.briefWant(7200, 4), A.briefWant(60, 2)], [3, 3, 4, 4, 5, 5, 4, 2]);
+  const five = { top: [1, 2, 3, 4, 5].map((n) => ({ n, new: true, line: 'The idea said plainly in one short sentence here.' })) };
+  assert.deepEqual(A.briefFailures(five, 9, 5), []);
+  assert.ok(A.briefFailures(five, 9).some((f) => /exactly 3/.test(f)));
 });
 
 test('firstSentence', () => {
