@@ -884,11 +884,15 @@ function Player({ audio, open, ctl, onClose }) {
 
 /* ------------------------------ compact and learned ---------------------------- */
 
-function CompactRow({ v, person }) {
+// an older video: the row opens into the full tile on a tap (Watch, Listen,
+// Transcript, its takeaways)
+function CompactRow({ v, person, onOpen }) {
   const pal = useMemo(() => paletteFor(person.colour), [person.colour]);
   const vars = useMemo(() => regionVars(pal, 'now'), [pal]);
+  const open = (e) => onOpen(v.key, e.currentTarget.getBoundingClientRect().height);
   return (
-    <article className="nb cmp" data-r="tile" data-key={v.key} style={vars}>
+    <article className="nb cmp press" data-r="tile" data-key={v.key} style={vars} role="button" tabIndex={0} aria-label={v.title}
+      onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } }}>
       <Who person={person} d={videoDay(v.date, v.approx)} />
       <div className="bd">
         <Thumb vid={v.id} className="th" />
@@ -1017,6 +1021,23 @@ export function NewsPage({ onClose }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [sheet, onClose]);
 
+  // rows he opened: each grows into its tile from the row's own height, and
+  // what sits under it moves down with it
+  const [opened, setOpened] = useState(() => new Set());
+  const grow = useRef(null);
+  const openRow = useCallback((key, h) => { grow.current = { key, h }; setOpened((s) => new Set(s).add(key)); }, []);
+  useLayoutEffect(() => {
+    const g = grow.current;
+    grow.current = null;
+    if (!g || RM()) return;
+    const el = [...document.querySelectorAll('.newsp .nl > [data-key]')].find((n) => n.dataset.key === g.key);
+    const d = el ? el.getBoundingClientRect().height - g.h : 0;
+    if (!el || d <= 0) return;
+    const [duration, easing] = smooth();
+    el.animate([{ clipPath: 'inset(0 0 ' + d + 'px 0 round 6px)' }, { clipPath: 'inset(0 0 0 0 round 6px)' }], { duration, easing });
+    for (let n = el.nextElementSibling; n; n = n.nextElementSibling) n.animate([{ transform: 'translateY(' + -d + 'px)' }, { transform: 'none' }], { duration, easing });
+  }, [opened]);
+
   const reviews = reviewsOf(news);
   const feed = feedOf(news);
   const today = dayLabel(new Date());
@@ -1033,9 +1054,9 @@ export function NewsPage({ onClose }) {
           ))}
           {feed.map((f) => (f.kind === 'learned'
             ? <LearnedCard key={f.key} l={f.l} person={f.person} onUndo={undoWeave} />
-            : f.big
+            : f.big || opened.has(f.key)
               ? <VideoTile key={f.key} v={f.v} person={f.person} onScript={scriptOfTile(f.person)} onBrief={brief} />
-              : <CompactRow key={f.key} v={f.v} person={f.person} />))}
+              : <CompactRow key={f.key} v={f.v} person={f.person} onOpen={openRow} />))}
           {news && !reviews.length && !feed.length && <div className="nb cmp" style={{ background: 'none', padding: '4px 8px' }}><St kind="dim" word="Nothing new" /></div>}
           {!news && live.error && <p className="cause" role="status" style={{ margin: '8px 8px 0', color: 'var(--nv-m-glass-text)' }}>{live.error}</p>}
           {!news && !live.error && <Skeleton />}
